@@ -1,0 +1,16 @@
+name: deployment-pipeline
+
+on: push
+
+jobs:
+  commit:
+    strategy:
+      matrix:
+        os: [macos-15, macos-26]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: build
+        run: make build
+      - id: test
+        run: make test
