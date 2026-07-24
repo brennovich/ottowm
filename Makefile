@@ -2,7 +2,7 @@ SHELL = /bin/bash
 
 SCHEME = OttoWM
 XCODEBUILD = xcodebuild -scheme $(SCHEME) CODE_SIGNING_ALLOWED=NO
-XCBEAUTIFY = xcbeautify --disable-logging
+XCBEAUTIFY := $(if $(shell command -v xcbeautify),xcbeautify --disable-logging,cat)
 
 .PHONY: build test
 
