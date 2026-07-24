@@ -1,24 +1,30 @@
 import CoreGraphics
 
-// Represents a window on the screen.
-struct Window {
-    // Tolerance for inferring that two windows are tabs of the same application.
-    static let tabInferrenceYTolerance: CGFloat = 10
+// A OttoWM window.
+protocol Window {
+    var id: CGWindowID { get }
+    var appName: String { get }
+    var isStandard: Bool { get }
+    var isFullScreen: Bool { get }
+    var isMinimized: Bool { get }
+    var tabCount: Int { get }
+    var frame: CGRect { get set }
+    var tabInferenceYTolerance: CGFloat { get }
 
-    let id: CGWindowID
-    let tabCount: Int
-    let frame: CGRect
-    let appName: String
+    func focus()
+    func isTab(of other: any Window) -> Bool
+}
 
-    // Returns true if the other window is likely a tab of the same application.
-    //
-    // macOS does not provide a way to determine if two windows are tabs of the same
-    // application, so we infer it with some heuristics.
-    func isTab(of other: Window) -> Bool {
+extension Window {
+    var tabInferenceYTolerance: CGFloat { 10 }
+
+    // As macOS does not tell us whether two windows are tabs of the same
+    // application, infers with some heuristics.
+    func isTab(of other: any Window) -> Bool {
         tabCount > 1
             && appName == other.appName
             && frame.origin.x == other.frame.origin.x
-            && abs(frame.origin.y - other.frame.origin.y) <= Self.tabInferrenceYTolerance
+            && abs(frame.origin.y - other.frame.origin.y) <= tabInferenceYTolerance
             && frame.width == other.frame.width
             && frame.height == other.frame.height
     }
