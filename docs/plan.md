@@ -59,7 +59,7 @@ Pure-logic files (no OS dependency, port ~1:1, unit-tested via the host-less
 
 - **AppKit, non-sandboxed, Accessibility-driven, macOS 10.15+** — same shape as our plan.
 - AX/window/space wrappers are an internal layer (historically the **Silica** framework) —
-  mirrors our protocol seam (`SpaceStrategy`/`WindowRef`/`ScreenRef`) + AX service split inside the `OttoWM` target.
+  mirrors our protocol seam (`Space` strategy + `Window` ref) + AX service split inside the `OttoWM` target.
 - **Global hotkeys via a maintained SPM lib**, not hand-rolled Carbon: `KeyboardShortcuts`
   (sindresorhus) and `MASShortcut` (shpakovski).
 - Reads Spaces via **private CGS** (`CGSInternal`) — the accepted fallback if Step 6 needs it.
@@ -82,11 +82,11 @@ Closest architectural precedent — VirtualSpaces copied AeroSpace's off-screen-
 ## Full roadmap (sequence)
 
 - **Step 1 — Scaffold (this step, done):** `OttoWM` Xcode app (headless, non-sandboxed) + host-less `OttoWMTests` target, building, tests green, running an empty agent that requests Accessibility.
-- **Step 2 — Pure logic:** port `SpacesModel` and `Window` into the `OttoWM` target with tests (translated from `~/code/VirtualSpaces/tests/test_*.lua`) in `OttoWMTests`. Define the `SpaceStrategy` protocol and `WindowRef`/`ScreenRef` protocols so logic stays OS-free. No `WindowCache`/`Telemetry` (deferred). Each new logic file joins both the `OttoWM` and `OttoWMTests` targets.
-- **Step 3 — Screen service:** `NSScreen`/`CGDisplay`-backed screen provider.
+- **Step 2 — Pure logic (done):** ported `SpacesModel`→`Workspaces` and `Window` into the `OttoWM` target with tests (translated from `~/code/VirtualSpaces/tests/test_*.lua`) in `OttoWMTests` (30 tests green). The model's OS-free seams are the `Space` strategy protocol (`Space.swift`) and the `Window` ref protocol; `Placement` (active/storage) accompanies them. **No `ScreenRef` at this layer** — the pure model never touches screens, since `Space` hides all screen interaction inside the strategy (in `VirtualSpace.lua` every `hs.screen` call lives inside the strategy). No `WindowCache`/`Telemetry` (deferred). Each new logic file joins both the `OttoWM` and `OttoWMTests` targets.
+- **Step 3 — Screen service (done):** thin `NSScreen`/`CGDisplay`-backed screen provider (`fullFrame`/`visibleFrame`/UUID via `CGDisplayCreateUUIDFromDisplayID`). **A `Screen` protocol is deferred to Step 6, not introduced here** — it is a seam *inside* the `Space` implementation, not a model seam, so its shape should be driven by the real geometry call sites (`_hiddenFrameFor`, `_recoverWindowsStuckAtHiddenEdge`) rather than guessed up front. Extract the protocol when Step 6 gives it a consumer.
 - **Step 4 — Window service:** AX-backed window (frame get/set, focus, flags, tabCount, CGWindowID).
 - **Step 5 — Event service:** `AXObserver` + `NSWorkspace` → created/focused/destroyed callbacks and manual-navigation detection.
-- **Step 6 — Space awareness:** `NSWorkspace.activeSpaceDidChangeNotification` + AX-focus-to-switch; **decide** whether any private CGS is needed (default: no).
+- **Step 6 — Space awareness:** `NSWorkspace.activeSpaceDidChangeNotification` + AX-focus-to-switch; **decide** whether any private CGS is needed (default: no). Port `VirtualSpace.lua` as the concrete `Space` implementation; **extract the `Screen` protocol here** (deferred from Step 3) so its geometry (`_hiddenFrameFor`, `_recoverWindowsStuckAtHiddenEdge`) is unit-testable against a stub screen.
 - **Step 7 — Hotkeys + orchestrator:** global hotkeys; port `init.lua` orchestration into an `Engine`; default bindings (alt+1..4 switch, alt+shift+1..4 move); acceptance pass on a real machine.
 
 ## Step 1 — detailed execution (done)
@@ -129,3 +129,43 @@ What was set up:
 
 Each later step ends with `xcodebuild test` green for new pure logic plus a manual smoke test on
 the real machine for the OS-touching layer, culminating in a reimplemented acceptance pass in Step 7.
+
+## Step 3 — detailed plan (done)
+
+**Goal:** a thin concrete screen provider backed by `NSScreen`/`CGDisplay`. **No `Screen`
+protocol** — deferred to Step 6, extracted when the `VirtualSpace` geometry gives it a real
+consumer (see Step 3 in the roadmap).
+
+**What it exposes** (the fields the future `VirtualSpace` port needs — `_hiddenFrameFor`,
+`_recoverWindowsStuckAtHiddenEdge`, and the main-screen UUID):
+- `fullFrame: CGRect` — the display's full bounds (was `hs.screen:fullFrame()`).
+- `visibleFrame: CGRect` — bounds minus menu bar and Dock (was `hs.screen:frame()`).
+- `uuid: String?` — via `CGDisplayCreateUUIDFromDisplayID` + `CFUUIDCreateString`.
+
+**Coordinate system (the one real decision):** frames are returned in **top-left (AX) origin,
+y increasing downward** — the same space as AX window frames (`AXPosition`/`AXSize`) that every
+other OttoWM layer uses. `NSScreen` reports **bottom-left (Cocoa) origin**, so `y` is flipped
+against the **primary** display's height (the screen whose Cocoa `frame.origin == .zero`); `x`,
+`width`, `height` are unchanged. Keeping screen and window geometry in one origin means the
+Step 6 corner-hiding math ports straight across from the Lua (which already worked in `hs`'s
+top-left space).
+
+**Structure & target membership:** one file `Core/MainScreen.swift`. `Core/` is a
+filesystem-synchronized group already attached to **both** the `OttoWM` and `OttoWMTests`
+targets, so the file compiles into both automatically — no `.pbxproj` edits, no `@testable
+import`. Split the file so the pure part is testable:
+- a pure y-flip helper (Cocoa rect + primary height → top-left rect) — **unit-tested, TDD**;
+- a thin `MainScreen` wrapper that reads `NSScreen.main` / `CGMainDisplayID()` and applies the
+  helper — **not unit-tested** (needs a live display), covered by the manual smoke test.
+
+**What was built:** `Core/MainScreen.swift` — the pure `topLeftFrame(fromCocoa:primaryHeight:)`
+y-flip helper plus a `MainScreen` struct wrapping `NSScreen.main` (`fullFrame`/`visibleFrame`)
+and the UUID via `NSScreenNumber` → `CGDisplayCreateUUIDFromDisplayID` → `CFUUIDCreateString`.
+Tests in `OttoWMTests/MainScreenTests.swift` (table-driven, helper only). No `Screen` protocol
+(deferred to Step 6).
+
+**Verification:**
+- `xcodebuild test` green — 31 tests, including the flip-helper cases (primary no-op, menu-bar
+  offset on `visibleFrame`, non-zero-origin flip above and right of the primary).
+- Manual smoke test on the real machine (pending): print `MainScreen` `fullFrame`/`visibleFrame`/
+  `uuid` and confirm they match the actual display in top-left coordinates.

@@ -12,9 +12,21 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		D0000000000000000000S001 /* App */ = {isa = PBXFileSystemSynchronizedRootGroup; path = App; sourceTree = "<group>"; };
-		D0000000000000000000S002 /* Core */ = {isa = PBXFileSystemSynchronizedRootGroup; path = Core; sourceTree = "<group>"; };
-		D0000000000000000000S003 /* OttoWMTests */ = {isa = PBXFileSystemSynchronizedRootGroup; path = OttoWMTests; sourceTree = "<group>"; };
+		D0000000000000000000S001 /* App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = App;
+			sourceTree = "<group>";
+		};
+		D0000000000000000000S002 /* Core */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Core;
+			sourceTree = "<group>";
+		};
+		D0000000000000000000S003 /* OttoWMTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = OttoWMTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
