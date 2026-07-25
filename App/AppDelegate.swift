@@ -8,5 +8,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         print("OttoWM (\(AppInfo.version)) launched")
         print("\t Accessibility status: \(trusted)")
+
+        let mainScreen = MainScreen()
+        print("\t MainScreen \(mainScreen.uuid ?? "unknown"): \(mainScreen.visibleFrame)")
     }
 }
