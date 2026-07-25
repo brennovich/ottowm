@@ -84,7 +84,7 @@ Closest architectural precedent — VirtualSpaces copied AeroSpace's off-screen-
 - **Step 1 — Scaffold (this step, done):** `OttoWM` Xcode app (headless, non-sandboxed) + host-less `OttoWMTests` target, building, tests green, running an empty agent that requests Accessibility.
 - **Step 2 — Pure logic (done):** ported `SpacesModel`→`Workspaces` and `Window` into the `OttoWM` target with tests (translated from `~/code/VirtualSpaces/tests/test_*.lua`) in `OttoWMTests` (30 tests green). The model's OS-free seams are the `Space` strategy protocol (`Space.swift`) and the `Window` ref protocol; `Placement` (active/storage) accompanies them. **No `ScreenRef` at this layer** — the pure model never touches screens, since `Space` hides all screen interaction inside the strategy (in `VirtualSpace.lua` every `hs.screen` call lives inside the strategy). No `WindowCache`/`Telemetry` (deferred). Each new logic file joins both the `OttoWM` and `OttoWMTests` targets.
 - **Step 3 — Screen service (done):** thin `NSScreen`/`CGDisplay`-backed screen provider (`fullFrame`/`visibleFrame`/UUID via `CGDisplayCreateUUIDFromDisplayID`). **A `Screen` protocol is deferred to Step 6, not introduced here** — it is a seam *inside* the `Space` implementation, not a model seam, so its shape should be driven by the real geometry call sites (`_hiddenFrameFor`, `_recoverWindowsStuckAtHiddenEdge`) rather than guessed up front. Extract the protocol when Step 6 gives it a consumer.
-- **Step 4 — Window service:** AX-backed window (frame get/set, focus, flags, tabCount, CGWindowID).
+- **Step 4 — Window service (done):** AX-backed window (frame get/set, focus, flags, tabCount, CGWindowID). Concrete `AXWindow` conforming to the `Window` protocol, plus the pure `AXGeometry` codec (TDD'd); the one sanctioned private symbol `_AXUIElementGetWindow` supplies the id. See the detailed section below.
 - **Step 5 — Event service:** `AXObserver` + `NSWorkspace` → created/focused/destroyed callbacks and manual-navigation detection.
 - **Step 6 — Space awareness:** `NSWorkspace.activeSpaceDidChangeNotification` + AX-focus-to-switch; **decide** whether any private CGS is needed (default: no). Port `VirtualSpace.lua` as the concrete `Space` implementation; **extract the `Screen` protocol here** (deferred from Step 3) so its geometry (`_hiddenFrameFor`, `_recoverWindowsStuckAtHiddenEdge`) is unit-testable against a stub screen.
 - **Step 7 — Hotkeys + orchestrator:** global hotkeys; port `init.lua` orchestration into an `Engine`; default bindings (alt+1..4 switch, alt+shift+1..4 move); acceptance pass on a real machine.
@@ -169,3 +169,42 @@ Tests in `OttoWMTests/MainScreenTests.swift` (table-driven, helper only). No `Sc
   offset on `visibleFrame`, non-zero-origin flip above and right of the primary).
 - Manual smoke test on the real machine (pending): print `MainScreen` `fullFrame`/`visibleFrame`/
   `uuid` and confirm they match the actual display in top-left coordinates.
+
+## Step 4 — detailed plan (done)
+
+**Goal:** the concrete AX-backed `Window` conformer the later `Space`/orchestrator layers
+drive. Same shape as Step 3: extract the one genuinely pure sub-helper and TDD it; the live
+AX wrapper is verified by manual smoke test (unit-testable window refs don't exist).
+
+**Coordinate system:** AX (`kAXPositionAttribute`/`kAXSizeAttribute`) already reports
+**top-left origin, y down** — OttoWM's convention. Window frames pass through with **no
+y-flip** (unlike `MainScreen`, which flips `NSScreen`'s bottom-left frames).
+
+**What was built:**
+- `Core/AXGeometry.swift` — the pure `AXValue` ⇄ geometry codec: `encodeCGPoint`/`decodeCGPoint`
+  and `encodeCGSize`/`decodeCGSize` (used by `AXWindow.frame`'s getter/setter). Decodes guard on
+  `AXValueGetType` so a mismatched value returns `nil`. **Unit-tested, TDD** — round-trip cases plus
+  the type-mismatch guard in `OttoWMTests/AXGeometryTests.swift`.
+- `Core/AXWindow.swift` — `final class AXWindow: Window`. Wraps an `AXUIElement` + its
+  `NSRunningApplication`. `id` via the single sanctioned private symbol
+  `_AXUIElementGetWindow` (declared `@_silgen_name`, `@discardableResult`, file-private);
+  `isStandard`/`isFullScreen`/`isMinimized` via subrole/`"AXFullScreen"`/`kAXMinimizedAttribute`;
+  `tabCount` by finding the window's `AXTabGroup` child and counting its children (default 1,
+  mirroring Lua `tabCount() or 1`); `frame` get/set over position+size; `focus()` = `AXRaise` +
+  `kAXMainAttribute` + `application.activate()`. `isTab(of:)` inherited from the `Window`
+  extension. `static func focused()` (system-wide → focused app → focused window) is the
+  smoke-test handle only; full window lookup/enumeration is Step 5. **Not unit-tested** (needs
+  live windows), covered by the smoke test.
+- `App/AppDelegate.swift` — prints `AXWindow.focused()`'s id/appName/frame/flags/tabCount
+  alongside the `MainScreen` debug line.
+
+The `@_silgen_name` symbol and AX APIs live in `ApplicationServices` (pulled in transitively by
+AppKit), so `Core/` compiling into the host-less `OttoWMTests` bundle links without extra
+framework wiring — no fallback needed.
+
+**Verification:**
+- `xcodebuild test` green — 34 tests (31 + 3 `AXGeometry` codec cases).
+- Manual smoke test on the real machine (pending): `⌘R`, focus a Terminal window with 2 tabs,
+  confirm the printed id/appName/frame, `isStandard = true`, `isFullScreen = false`,
+  `tabCount = 2`; resize/move and confirm `frame` tracks; toggle full-screen and confirm
+  `isFullScreen`. Adjust the `tabCount` traversal if the count is wrong on real windows.

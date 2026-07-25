@@ -18,8 +18,6 @@ final class Workspaces {
     private var windowToGroup: [CGWindowID: Int] = [:]
     private var nextGroupId = 1
 
-    // Save the focused window for a virtual space, keeping a focus-history stack
-    // whose first element is the most recently focused window.
     func saveFocusedWindowInVirtualSpace(_ virtualSpace: Int, _ windowId: CGWindowID?) {
         guard let windowId else { return }
 

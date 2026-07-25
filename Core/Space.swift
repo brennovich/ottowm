@@ -1,8 +1,7 @@
 import CoreGraphics
 
-// The swappable seam that performs the OS-touching part of a virtual-space
-// operations. The pure Workspaces model manipulate windows without knowing
-// the underlying Space implementation details.
+// The swappable seam that performs the OS-touching part of a virtual-space operations. The pure
+// Workspaces model manipulate windows without knowing the underlying Space implementation details.
 protocol Space {
     func setupForMainScreen()
     func isOnManagedSpace() -> Bool

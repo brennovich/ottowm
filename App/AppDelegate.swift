@@ -11,5 +11,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let mainScreen = MainScreen()
         print("\t MainScreen \(mainScreen.uuid ?? "unknown"): \(mainScreen.visibleFrame)")
+
+        if let window = AXWindow.focused() {
+            print("\t Focused window \(window.id) [\(window.appName)]: \(window.frame)")
+            print("\t\t standard: \(window.isStandard), fullScreen: \(window.isFullScreen), minimized: \(window.isMinimized), tabs: \(window.tabCount)")
+        } else {
+            print("\t Focused window: none")
+        }
     }
 }
