@@ -1,7 +1,7 @@
 import CoreGraphics
 
 // A OttoWM window.
-protocol Window {
+protocol Window: AnyObject {
     var id: CGWindowID { get }
     var appName: String { get }
     var isStandard: Bool { get }

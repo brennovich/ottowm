@@ -8,7 +8,7 @@ protocol Space {
     func activateManagedSpace()
     func managesWindow(_ windowId: CGWindowID) -> Bool
     func moveWindowToSpace(_ windowId: CGWindowID, _ space: Placement)
-    func windowSpaces(_ windowId: CGWindowID) -> [Placement]
+    func windowSpaces(_ windowId: CGWindowID) -> Placement
     func startWatchingForManualNavigation(_ callback: @escaping (Placement) -> Void)
     func forgetWindow(_ windowId: CGWindowID)
 }

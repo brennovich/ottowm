@@ -86,8 +86,8 @@ Closest architectural precedent — VirtualSpaces copied AeroSpace's off-screen-
 - **Step 3 — Screen service (done):** thin `NSScreen`/`CGDisplay`-backed screen provider (`fullFrame`/`visibleFrame`/UUID via `CGDisplayCreateUUIDFromDisplayID`). **A `Screen` protocol is deferred to Step 6, not introduced here** — it is a seam *inside* the `Space` implementation, not a model seam, so its shape should be driven by the real geometry call sites (`_hiddenFrameFor`, `_recoverWindowsStuckAtHiddenEdge`) rather than guessed up front. Extract the protocol when Step 6 gives it a consumer.
 - **Step 4 — Window service (done):** AX-backed window (frame get/set, focus, flags, tabCount, CGWindowID). Concrete `AXWindow` conforming to the `Window` protocol, plus the pure `AXGeometry` codec (TDD'd); the one sanctioned private symbol `_AXUIElementGetWindow` supplies the id. See the detailed section below.
 - **Step 5 — Event service (done):** `AXObserver` (per running app) + `NSWorkspace` launch/terminate → created/focused/destroyed callbacks, plus the `allWindows()` enumeration deferred from Step 4. Concrete `AXWindowObserver` (closure-driven, no protocol); the pure TDD'd piece is `WindowEvent` + the `shouldObserveApplication` predicate. **Two scope decisions:** (1) **manual-navigation / space-change is fully deferred to Step 6** — Step 5 emits only window-lifecycle events, since the space-change signal (`activeSpaceDidChangeNotification`) and its interpretation live in the `Space` strategy; (2) **no `WindowObserver` protocol yet** — deferred to Step 7 when the `Engine` gives it a consumer + test stub (same precedent as the `Screen` protocol, Step 3 → Step 6). See the detailed section below.
-- **Step 6 — Space awareness:** `NSWorkspace.activeSpaceDidChangeNotification` + AX-focus-to-switch; **decide** whether any private CGS is needed (default: no). Port `VirtualSpace.lua` as the concrete `Space` implementation; **extract the `Screen` protocol here** (deferred from Step 3) so its geometry (`_hiddenFrameFor`, `_recoverWindowsStuckAtHiddenEdge`) is unit-testable against a stub screen.
-- **Step 7 — Hotkeys + orchestrator:** global hotkeys; port `init.lua` orchestration into an `Engine`; default bindings (alt+1..4 switch, alt+shift+1..4 move); acceptance pass on a real machine.
+- **Step 6 — Space awareness (done):** `NSWorkspace.activeSpaceDidChangeNotification` + AX-focus-to-switch; **decided: no private CGS** — on-screen membership comes from public `CGWindowListCopyWindowInfo`, so `_AXUIElementGetWindow` remains the only private symbol in the project. Ported `VirtualSpace.lua` as the concrete `Space` implementation (`VirtualSpace`), with the pure geometry extracted into `SpaceGeometry` and the **`Screen` protocol extracted here** (deferred from Step 3), so both the geometry and the full `VirtualSpace` state machine are unit-tested against stubs. See the detailed section below.
+- **Step 7 — Hotkeys + orchestrator:** global hotkeys; port `init.lua` orchestration into an `Engine`; default bindings (alt+1..4 switch, alt+shift+1..4 move); acceptance pass on a real machine. **Carried from Step 6 (must be handled):** (1) **same-Space manual navigation** — `VirtualSpace.startWatchingForManualNavigation` fires only on `activeSpaceDidChangeNotification` (user was on another *native* Space and macOS switched back), but stored windows live on the *same* native Space, so focusing one via Cmd-Tab/Dock fires no Space notification; the Lua covered this by subscribing to `windowFocused`, and the Engine must do the equivalent — treat a Step 5 `.focused` event for a window whose `windowSpaces` is `.storage` as manual navigation and restore it. (2) **`isOnManagedSpace()` with no managed windows** — it is defined as "any managed window is on screen", so it returns `false` while `managedWindowIds` is empty (startup, before the first window is assigned) even when we are on the managed Space; the Engine must not gate its startup or switching logic on it until at least one window is managed.
 
 ## Step 1 — detailed execution (done)
 
@@ -285,3 +285,55 @@ Step 6 manual-navigation/space-change work.
   crash. App-internal tab switches fire no window-focus event (expected — one window to AX);
   window-merge tabs are the case the `isTab` grouping handles. Observed noise from non-window
   elements (see the early-filtering follow-up above).
+
+## Step 6 — detailed plan (done)
+
+**Goal:** the concrete `Space` strategy — port `VirtualSpace.lua`'s off-screen-hiding trick
+onto public APIs, extract the `Screen` protocol (deferred from Step 3), and settle the
+private-CGS question.
+
+**CGS decision (settled): none needed.** Every `hs.spaces` call in the Lua maps to a public
+API: active-space change → `NSWorkspace.activeSpaceDidChangeNotification`; "is our space
+visible" → `CGWindowListCopyWindowInfo(.optionOnScreenOnly)` membership; "go to our space" →
+AX-focus a managed window and let macOS switch. `_AXUIElementGetWindow` (Step 4) stays the
+project's only private symbol.
+
+**What was built:**
+- `Core/Screen.swift` — the `Screen` protocol (`fullFrame`/`visibleFrame`, top-left origin),
+  shaped by its real consumers below; `MainScreen` now conforms. UUID stayed off the protocol —
+  no call site needed it.
+- `Core/SpaceGeometry.swift` — the pure geometry, ported from `_hiddenFrameFor` /
+  `_recoverWindowsStuckAtHiddenEdge`: `hiddenFrame(for:on:)` pins a window's origin to the
+  bottom-right corner (macOS clamps it to the ~1×38px nub), `isStuckAtHiddenEdge` detects
+  leftovers from a crashed run (10px margin), `recoveredFrame` centers them back inside the
+  visible frame, clamped to it. **Unit-tested, TDD** (`SpaceGeometryTests`, stub screen).
+- `Core/VirtualSpace.swift` — `final class VirtualSpace: Space`. Dependencies are injected as
+  closures (`window(id)`, `allWindows`, `onScreenWindowIds`, `managedWindowIds`,
+  `focusedWindow`) rather than new protocols, so the class is fully unit-testable now and
+  Step 7 wires the concrete sources (`AXWindowObserver`, `CGWindowListCopyWindowInfo`,
+  `AXWindow.focused`). State is one dict, `hiddenWindowFrames` (id → captured frame): presence
+  means `.storage`, absence `.active`. `moveWindowToSpace` captures the frame then pins to the
+  nub / restores then clears — idempotent both ways, skips minimized and unknown windows.
+  `setupForMainScreen` recovers stuck windows; `startWatchingForManualNavigation` subscribes to
+  `activeSpaceDidChangeNotification` and fires when the focused window is a hidden one (user
+  navigated to storage via Mission Control); `activateManagedSpace` focuses any managed window.
+  **Unit-tested** (`VirtualSpaceTests`) — the notification path included, by posting
+  `activeSpaceDidChangeNotification` on the real `NSWorkspace` notification center.
+- **Seam adjustments:** `Space.windowSpaces` now returns a single `Placement` (the Lua returned
+  an array only because `hs.spaces` did; a window has exactly one placement here); `Placement`
+  is `Equatable`; `Window` is class-bound (`AnyObject`) since window refs are live handles the
+  strategy mutates — `StubWindow` became a class with `frameSetCount`/`focusCount` spies.
+- `App/AppDelegate.swift` — temporary smoke harness: builds a real-wired `VirtualSpace`, hides
+  the focused window to the nub after 3s and restores it 3s later. Removed when Step 7 wires
+  the `Engine`.
+
+**Carried to Step 7:** the two items recorded in the roadmap's Step 7 line — same-Space manual
+navigation (a `.focused` event for a `.storage` window must restore it; no Space notification
+fires) and not gating startup on `isOnManagedSpace()` while no window is managed yet.
+
+**Verification:**
+- `xcodebuild test` green — 54 tests (SpaceGeometry + VirtualSpace added), still host-less.
+- Manual smoke test on the real machine (pending): `⌘R`, watch the focused window pin to the
+  bottom-right nub after 3s with only a sliver visible, then restore to its exact frame;
+  relaunch after killing the app mid-hide and confirm `setupForMainScreen` recovers the stuck
+  window into the visible frame.

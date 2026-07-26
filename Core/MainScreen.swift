@@ -12,7 +12,7 @@ func topLeftFrame(fromCocoa cocoaFrame: CGRect, primaryHeight: CGFloat) -> CGRec
     )
 }
 
-struct MainScreen {
+struct MainScreen: Screen {
     var fullFrame: CGRect {
         topLeftFrame(fromCocoa: screen.frame, primaryHeight: primaryHeight)
     }
