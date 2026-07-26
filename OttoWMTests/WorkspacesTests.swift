@@ -259,6 +259,27 @@ final class WorkspacesTests: XCTestCase {
         }
     }
 
+    func testAllWindowIds() {
+        let cases: [(name: String, assignments: [(window: CGWindowID, space: Int)], unregister: [CGWindowID], expected: Set<CGWindowID>)] = [
+            ("empty model", [], [], []),
+            ("single window", [(100, 1)], [], [100]),
+            ("windows across spaces", [(100, 1), (200, 2), (300, 3)], [], [100, 200, 300]),
+            ("unregistered window is excluded", [(100, 1), (200, 1)], [100], [200]),
+        ]
+
+        for testCase in cases {
+            let model = Workspaces()
+            for assignment in testCase.assignments {
+                model.assignWindowToVirtualSpace(assignment.window, assignment.space)
+            }
+            for windowId in testCase.unregister {
+                model.unregisterWindowById(windowId)
+            }
+
+            XCTAssertEqual(model.allWindowIds(), testCase.expected, testCase.name)
+        }
+    }
+
     func testAssignWindowWithNilWindowId() {
         let model = Workspaces()
 

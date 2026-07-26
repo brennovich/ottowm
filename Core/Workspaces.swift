@@ -131,6 +131,10 @@ final class Workspaces {
         return (toActive: toActive, toStorage: toStorage)
     }
 
+    func allWindowIds() -> Set<CGWindowID> {
+        Set(windowVirtualSpaceMap.keys)
+    }
+
     func getCurrentVirtualSpace() -> Int {
         currentVirtualSpace
     }

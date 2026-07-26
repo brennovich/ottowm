@@ -4,8 +4,8 @@ final class StubWindow: Window {
     let id: CGWindowID
     let tabCount: Int
     let appName: String
-    let isStandard = true
-    let isFullScreen = false
+    let isStandard: Bool
+    let isFullScreen: Bool
     let isMinimized: Bool
     var frame: CGRect {
         didSet { frameSetCount += 1 }
@@ -19,13 +19,17 @@ final class StubWindow: Window {
         tabCount: Int = 1,
         frame: CGRect,
         appName: String = "App",
-        isMinimized: Bool = false
+        isMinimized: Bool = false,
+        isStandard: Bool = true,
+        isFullScreen: Bool = false
     ) {
         self.id = id
         self.tabCount = tabCount
         self.frame = frame
         self.appName = appName
         self.isMinimized = isMinimized
+        self.isStandard = isStandard
+        self.isFullScreen = isFullScreen
     }
 
     func focus() { focusCount += 1 }
