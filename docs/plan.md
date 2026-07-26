@@ -85,7 +85,7 @@ Closest architectural precedent — VirtualSpaces copied AeroSpace's off-screen-
 - **Step 2 — Pure logic (done):** ported `SpacesModel`→`Workspaces` and `Window` into the `OttoWM` target with tests (translated from `~/code/VirtualSpaces/tests/test_*.lua`) in `OttoWMTests` (30 tests green). The model's OS-free seams are the `Space` strategy protocol (`Space.swift`) and the `Window` ref protocol; `Placement` (active/storage) accompanies them. **No `ScreenRef` at this layer** — the pure model never touches screens, since `Space` hides all screen interaction inside the strategy (in `VirtualSpace.lua` every `hs.screen` call lives inside the strategy). No `WindowCache`/`Telemetry` (deferred). Each new logic file joins both the `OttoWM` and `OttoWMTests` targets.
 - **Step 3 — Screen service (done):** thin `NSScreen`/`CGDisplay`-backed screen provider (`fullFrame`/`visibleFrame`/UUID via `CGDisplayCreateUUIDFromDisplayID`). **A `Screen` protocol is deferred to Step 6, not introduced here** — it is a seam *inside* the `Space` implementation, not a model seam, so its shape should be driven by the real geometry call sites (`_hiddenFrameFor`, `_recoverWindowsStuckAtHiddenEdge`) rather than guessed up front. Extract the protocol when Step 6 gives it a consumer.
 - **Step 4 — Window service (done):** AX-backed window (frame get/set, focus, flags, tabCount, CGWindowID). Concrete `AXWindow` conforming to the `Window` protocol, plus the pure `AXGeometry` codec (TDD'd); the one sanctioned private symbol `_AXUIElementGetWindow` supplies the id. See the detailed section below.
-- **Step 5 — Event service:** `AXObserver` + `NSWorkspace` → created/focused/destroyed callbacks and manual-navigation detection.
+- **Step 5 — Event service (done):** `AXObserver` (per running app) + `NSWorkspace` launch/terminate → created/focused/destroyed callbacks, plus the `allWindows()` enumeration deferred from Step 4. Concrete `AXWindowObserver` (closure-driven, no protocol); the pure TDD'd piece is `WindowEvent` + the `shouldObserveApplication` predicate. **Two scope decisions:** (1) **manual-navigation / space-change is fully deferred to Step 6** — Step 5 emits only window-lifecycle events, since the space-change signal (`activeSpaceDidChangeNotification`) and its interpretation live in the `Space` strategy; (2) **no `WindowObserver` protocol yet** — deferred to Step 7 when the `Engine` gives it a consumer + test stub (same precedent as the `Screen` protocol, Step 3 → Step 6). See the detailed section below.
 - **Step 6 — Space awareness:** `NSWorkspace.activeSpaceDidChangeNotification` + AX-focus-to-switch; **decide** whether any private CGS is needed (default: no). Port `VirtualSpace.lua` as the concrete `Space` implementation; **extract the `Screen` protocol here** (deferred from Step 3) so its geometry (`_hiddenFrameFor`, `_recoverWindowsStuckAtHiddenEdge`) is unit-testable against a stub screen.
 - **Step 7 — Hotkeys + orchestrator:** global hotkeys; port `init.lua` orchestration into an `Engine`; default bindings (alt+1..4 switch, alt+shift+1..4 move); acceptance pass on a real machine.
 
@@ -208,3 +208,80 @@ framework wiring — no fallback needed.
   confirm the printed id/appName/frame, `isStandard = true`, `isFullScreen = false`,
   `tabCount = 2`; resize/move and confirm `frame` tracks; toggle full-screen and confirm
   `isFullScreen`. Adjust the `tabCount` traversal if the count is wrong on real windows.
+
+## Step 5 — detailed plan (done)
+
+**Goal:** the native window-lifecycle event source that replaces Hammerspoon's
+`hs.window.filter` (`windowCreated`/`windowFocused`/`windowDestroyed`) and the one-shot
+`hs.window.allWindows()` seed enumeration. Same shape as Steps 3/4: the OS glue is verified by a
+manual smoke test, and only the genuinely pure sub-helper is TDD'd.
+
+**Scope decisions (confirmed):**
+- **Manual-navigation / space-change deferred to Step 6.** Step 5 surfaces *only*
+  created/focused/destroyed + `allWindows()`. `NSWorkspace.activeSpaceDidChangeNotification` and
+  its interpretation (is-this-the-storage-space, switch back) belong to the `Space` strategy
+  (`startWatchingForManualNavigation`), keeping all space-awareness in one step.
+- **No `WindowObserver` protocol seam yet.** Ship the concrete `AXWindowObserver` only; extract a
+  protocol + test stub in Step 7 when the `Engine` consumes it (same deferral precedent as the
+  `Screen` protocol, Step 3 → Step 6).
+
+**What was built:**
+- `Core/WindowEvent.swift` — the pure piece: the `WindowEvent` enum
+  (`created(any Window)`/`focused(any Window)`/`destroyed(CGWindowID)`) and the free
+  `shouldObserveApplication(activationPolicy:pid:ownPid:)` predicate deciding which running apps
+  get an observer (`.regular` policy, never our own pid). **Unit-tested, TDD** — the predicate
+  truth table in `OttoWMTests/WindowEventTests.swift`.
+- `Core/AXWindowObserver.swift` — `final class AXWindowObserver`, closure-driven. `start(_:)`
+  stores the sink, attaches an `AXObserver` to every current app passing the predicate, and
+  subscribes to `NSWorkspace` `didLaunchApplicationNotification` / `didTerminateApplicationNotification`
+  to attach/tear-down observers as apps come and go. Per app it registers
+  `kAXWindowCreatedNotification` + `kAXFocusedWindowChangedNotification` on the app element and
+  adds its run-loop source to `CFRunLoopGetMain()`; the C trampoline carries `self` via
+  `Unmanaged` and emits a `WindowEvent` wrapping an `AXWindow`. `kAXUIElementDestroyedNotification`
+  fires on an already-dead element, so the `CGWindowID` is captured at creation/enumeration time
+  and carried as the destroyed registration's refcon. `allWindows()` enumerates the observable
+  apps' `kAXWindowsAttribute` into `AXWindow`s (seeds the model in Step 7). **Not unit-tested**
+  (needs live windows), covered by the smoke test.
+- `App/AppDelegate.swift` — prints `allWindows()` at launch and streams observer events to the
+  console, holding the observer in a stored property so its run-loop sources outlive
+  `didFinishLaunching`.
+
+**Follow-up consideration — early event filtering:** the smoke test showed the observer emits
+noise from non-window elements — e.g. the Finder desktop reports itself as the focused "window"
+(`id 0`, zero-size, positioned just off-screen) every time focus leaves a real Finder window, and
+app-internal tabs (Finder/Ghostty/Safari page tabs) correctly produce no window-focus events at
+all (they are one window to AX). The current design emits **raw** events and leaves validity
+filtering to the Step 7 orchestrator (`isStandard && !isFullScreen && managesWindow`, porting the
+Lua `_isValidWindowForVirtualSpace`). Worth reconsidering whether `AXWindowObserver` should apply
+a cheap **`isStandard` (and non-zero `id`) guard before emitting**, so phantom desktop/sheet
+elements never reach subscribers. Trade-off: it keeps the seam from being purely "raw" and
+duplicates part of the orchestrator's validity check, but removes a class of events every consumer
+would otherwise have to discard. **Decide when Step 7 wires the real consumer** — that is where
+the full validity predicate lives, so the cleanest split (observer pre-filters obvious non-windows
+vs. orchestrator owns all filtering) becomes clear with a concrete call site. Note `hs.window.filter`
+pre-filtered to standard visible windows, so an observer-level filter is the closer port.
+
+**Refinement needed — focused events on app activation:** the smoke test exposed a gap in the
+focused-event coverage. `kAXFocusedWindowChangedNotification` (registered per app) only fires when
+*that app's own* focused window changes; switching the frontmost app does not, in general, re-fire
+it. Empirically a **single-window** app still emits `.focused` on reactivation (macOS re-promotes
+the lone window), but an app whose front window is a **macOS window-merge tab group** emits nothing
+on reactivation (the focused tab-window is unchanged) — so focusing away to Xcode and back to a
+tabbed Ghostty produced no Ghostty `.focused`, while the same round-trip with a single Ghostty
+window did. `hs.window.filter`'s `windowFocused` never hit this because it also tracks the frontmost
+**application** and resolves the focused window on app switch. **Fix (in scope for Step 5):** also
+subscribe to `NSWorkspace.didActivateApplicationNotification`; on activation, read the newly-frontmost
+app's `kAXFocusedWindowAttribute` (reusing `AXWindow.focused()`'s app→window walk) and emit `.focused`
+for it. Duplicate `.focused` events (activation path + `kAXFocusedWindowChangedNotification`) are
+harmless — the model's focus history de-dupes. This is ordinary focus tracking, distinct from the
+Step 6 manual-navigation/space-change work.
+
+**Verification:**
+- `xcodebuild test` green — existing 34 tests + the new `shouldObserveApplication` cases; still
+  host-less (no agent launch, no Accessibility prompt).
+- Manual smoke test on the real machine (done): `⌘R`, confirmed the launch `allWindows()` dump
+  matches reality; open a window → `.created` then `.focused`; close a window → `.destroyed(<id>)`
+  with the right id; launch/quit a regular app → its windows start/stop producing events with no
+  crash. App-internal tab switches fire no window-focus event (expected — one window to AX);
+  window-merge tabs are the case the `isTab` grouping handles. Observed noise from non-window
+  elements (see the early-filtering follow-up above).
