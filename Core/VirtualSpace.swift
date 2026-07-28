@@ -36,7 +36,9 @@ final class VirtualSpace: Space {
     }
 
     func setupForMainScreen() {
-        recoverWindowsStuckAtHiddenEdge()
+        Telemetry.shared.span("setupForMainScreen") {
+            recoverWindowsStuckAtHiddenEdge()
+        }
     }
 
     func isOnManagedSpace() -> Bool {
@@ -59,28 +61,35 @@ final class VirtualSpace: Space {
     }
 
     func moveWindowToSpace(_ windowId: CGWindowID, _ space: Placement) {
+        Telemetry.shared.span("moveWindowToSpace(\(windowId))") {
+            switch space {
+            case .storage:
+                if hiddenWindowFrames[windowId] != nil { return }
+                guard let win = liveWindow(windowId, space) else { return }
+                let originalFrame = win.frame
+                let hidden = hiddenFrame(for: originalFrame, on: screen)
+                hiddenWindowFrames[windowId] = originalFrame
+                win.frame = hidden
+                Log.space.debug("hid \(win.logDescription) from=\(originalFrame) to=\(hidden)")
+            case .active:
+                guard let originalFrame = hiddenWindowFrames[windowId] else {
+                    Log.space.info("cannot restore id=\(windowId): no saved frame")
+                    return
+                }
+                guard let win = liveWindow(windowId, space) else { return }
+                win.frame = originalFrame
+                hiddenWindowFrames[windowId] = nil
+                Log.space.debug("restored \(win.logDescription) to=\(originalFrame)")
+            }
+        }
+    }
+
+    private func liveWindow(_ windowId: CGWindowID, _ space: Placement) -> (any Window)? {
         guard let win = window(windowId), !win.isMinimized else {
             Log.space.info("cannot move id=\(windowId) to \(space): window not found or minimized")
-            return
+            return nil
         }
-
-        switch space {
-        case .storage:
-            if hiddenWindowFrames[windowId] != nil { return }
-            let originalFrame = win.frame
-            let hidden = hiddenFrame(for: originalFrame, on: screen)
-            hiddenWindowFrames[windowId] = originalFrame
-            win.frame = hidden
-            Log.space.debug("hid \(win.logDescription) from=\(originalFrame) to=\(hidden)")
-        case .active:
-            guard let originalFrame = hiddenWindowFrames[windowId] else {
-                Log.space.info("cannot restore id=\(windowId): no saved frame")
-                return
-            }
-            win.frame = originalFrame
-            hiddenWindowFrames[windowId] = nil
-            Log.space.debug("restored \(win.logDescription) to=\(originalFrame)")
-        }
+        return win
     }
 
     func windowSpaces(_ windowId: CGWindowID) -> Placement {

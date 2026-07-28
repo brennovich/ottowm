@@ -13,7 +13,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Log.app.notice("OttoWM (\(AppInfo.version)) launched, accessibility=\(trusted)")
 
         let windowById: (CGWindowID) -> AXWindow? = { [windowObserver] id in
-            windowObserver.allWindows().first { $0.id == id }
+            windowObserver.window(byId: id)
         }
 
         let space = VirtualSpace(

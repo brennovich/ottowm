@@ -66,6 +66,33 @@ final class VirtualSpaceTests: XCTestCase {
         XCTAssertEqual(win.frameSetCount, 2)
     }
 
+    func testMoveWindowToSpaceSkipsLookupOnNoOpMoves() {
+        let win = StubWindow(id: 100, frame: originalFrame)
+        var lookupCount = 0
+        let space = VirtualSpace(
+            screen: testScreen,
+            window: { id in
+                lookupCount += 1
+                return id == win.id ? win : nil
+            },
+            allWindows: { [win] },
+            onScreenWindowIds: { [] },
+            managedWindowIds: { [] },
+            focusedWindow: { nil },
+            notificationCenter: NotificationCenter()
+        )
+
+        space.moveWindowToSpace(100, .storage)
+        space.moveWindowToSpace(100, .storage)
+
+        XCTAssertEqual(lookupCount, 1)
+
+        space.moveWindowToSpace(100, .active)
+        space.moveWindowToSpace(100, .active)
+
+        XCTAssertEqual(lookupCount, 2)
+    }
+
     func testMoveWindowToSpaceSkipsMinimizedWindows() {
         let win = StubWindow(id: 100, frame: originalFrame, isMinimized: true)
         let space = makeSpace([win])

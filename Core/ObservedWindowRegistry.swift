@@ -26,4 +26,8 @@ struct ObservedWindowRegistry<Element: Hashable> {
     func unregistered(of elements: [Element]) -> [Element] {
         elements.filter { refs[$0] == nil }
     }
+
+    func element(for id: CGWindowID) -> (element: Element, pid: pid_t)? {
+        refs.first { $0.value.id == id }.map { ($0.key, $0.value.pid) }
+    }
 }

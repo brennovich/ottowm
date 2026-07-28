@@ -17,11 +17,16 @@ final class AXWindow: Window {
         self.application = application
     }
 
+    convenience init(element: AXUIElement, application: NSRunningApplication, id: CGWindowID) {
+        self.init(element: element, application: application)
+        self.id = id
+    }
+
     lazy var id: CGWindowID = {
         var windowId: CGWindowID = 0
         let result = _AXUIElementGetWindow(element, &windowId)
         if result != .success || windowId == 0 {
-            Log.window.error("window id lookup failed app=\(self.appName) err=\(result.rawValue)")
+            Log.window.debug("window id lookup failed app=\(self.appName) err=\(result.rawValue)")
         }
         return windowId
     }()

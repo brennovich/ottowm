@@ -50,6 +50,16 @@ final class AXWindowObserver {
         NSWorkspace.shared.runningApplications
             .filter(observable)
             .flatMap { app in windowElements(pid: app.processIdentifier).map { AXWindow(element: $0, application: app) } }
+            .filter { $0.id != 0 }
+    }
+
+    // Resolves a window id through the registry instead of sweeping every app's
+    // windows over AX (each sweep is one IPC round trip per running app).
+    func window(byId id: CGWindowID) -> AXWindow? {
+        guard let (key, pid) = registry.element(for: id),
+              let app = applications[pid]
+        else { return nil }
+        return AXWindow(element: key.element, application: app, id: id)
     }
 
     func handle(element: AXUIElement, notification: String, observer: AXObserver) {
@@ -59,8 +69,9 @@ final class AXWindowObserver {
                 Log.observer.debug("dropped \(notification): unknown application")
                 return
             }
-            watchForDestruction(element, app: app, observer: observer)
-            handler?(.created(AXWindow(element: element, application: app)))
+            let window = AXWindow(element: element, application: app)
+            watchForDestruction(window, observer: observer)
+            handler?(.created(window))
         case kAXFocusedWindowChangedNotification:
             guard let app = application(for: element) else {
                 Log.observer.debug("dropped \(notification): unknown application")
@@ -106,10 +117,12 @@ final class AXWindowObserver {
 
         let windows = windowElements(pid: pid)
         Log.observer.info("observing pid=\(pid) app=\(app.localizedName ?? "") windows=\(windows.count)")
-        for window in windows {
-            watchForDestruction(window, app: app, observer: observer)
+        for element in windows {
+            let window = AXWindow(element: element, application: app)
+            guard window.id != 0 else { continue }
+            watchForDestruction(window, observer: observer)
             if emitExistingWindows {
-                handler?(.created(AXWindow(element: window, application: app)))
+                handler?(.created(window))
             }
         }
 
@@ -125,10 +138,10 @@ final class AXWindowObserver {
 
         let elements = windowElements(pid: pid)
         for key in registry.unregistered(of: elements.map { ElementKey(element: $0) }) {
-            let window = key.element
-            let axWindow = AXWindow(element: window, application: app)
+            let axWindow = AXWindow(element: key.element, application: app)
+            guard axWindow.id != 0 else { continue }
             Log.observer.info("rescan found window \(axWindow.logDescription)")
-            watchForDestruction(window, app: app, observer: observer)
+            watchForDestruction(axWindow, observer: observer)
             handler?(.created(axWindow))
         }
     }
@@ -140,10 +153,10 @@ final class AXWindowObserver {
         registry.evict(pid: pid)
     }
 
-    private func watchForDestruction(_ window: AXUIElement, app: NSRunningApplication, observer: AXObserver) {
-        let id = AXWindow(element: window, application: app).id
-        registry.register(ElementKey(element: window), pid: app.processIdentifier, id: id)
-        addNotification(observer, window, kAXUIElementDestroyedNotification, pid: app.processIdentifier)
+    private func watchForDestruction(_ window: AXWindow, observer: AXObserver) {
+        let pid = window.application.processIdentifier
+        registry.register(ElementKey(element: window.element), pid: pid, id: window.id)
+        addNotification(observer, window.element, kAXUIElementDestroyedNotification, pid: pid)
     }
 
     private func addNotification(_ observer: AXObserver, _ element: AXUIElement, _ notification: String, pid: pid_t) {

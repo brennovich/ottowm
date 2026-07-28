@@ -62,6 +62,40 @@ final class ObservedWindowRegistryTests: XCTestCase {
         }
     }
 
+    func testElementForIdReturnsRegisteredElementAndPid() {
+        var registry = ObservedWindowRegistry<String>()
+        registry.register("a", pid: 1, id: 100)
+        registry.register("b", pid: 2, id: 200)
+
+        let found = registry.element(for: 200)
+
+        XCTAssertEqual(found?.element, "b")
+        XCTAssertEqual(found?.pid, 2)
+    }
+
+    func testElementForUnknownIdReturnsNil() {
+        var registry = ObservedWindowRegistry<String>()
+        registry.register("a", pid: 1, id: 100)
+
+        XCTAssertNil(registry.element(for: 999))
+    }
+
+    func testElementForIdAfterRemoveReturnsNil() {
+        var registry = ObservedWindowRegistry<String>()
+        registry.register("a", pid: 1, id: 100)
+        _ = registry.removeWindow(for: "a")
+
+        XCTAssertNil(registry.element(for: 100))
+    }
+
+    func testElementForIdAfterEvictReturnsNil() {
+        var registry = ObservedWindowRegistry<String>()
+        registry.register("a", pid: 1, id: 100)
+        registry.evict(pid: 1)
+
+        XCTAssertNil(registry.element(for: 100))
+    }
+
     func testRemovedElementReappearsInUnregistered() {
         var registry = ObservedWindowRegistry<String>()
         registry.register("a", pid: 1, id: 100)
