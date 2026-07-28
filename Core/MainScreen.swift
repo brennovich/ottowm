@@ -21,15 +21,6 @@ struct MainScreen: Screen {
         topLeftFrame(fromCocoa: screen.visibleFrame, primaryHeight: primaryHeight)
     }
 
-    var uuid: String? {
-        guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber,
-              let cfUUID = CGDisplayCreateUUIDFromDisplayID(number.uint32Value)?.takeRetainedValue()
-        else {
-            return nil
-        }
-        return CFUUIDCreateString(nil, cfUUID) as String
-    }
-
     private var screen: NSScreen { NSScreen.main ?? NSScreen.screens[0] }
 
     private var primaryHeight: CGFloat {
