@@ -28,15 +28,17 @@ final class Engine {
     }
 
     func start(windows: [any Window]) {
-        space.setupForMainScreen()
+        Telemetry.shared.span("start") {
+            space.setupForMainScreen()
 
-        for win in windows {
-            assignWindowToVirtualSpace(win, 1)
-        }
+            for win in windows {
+                assignWindowToVirtualSpace(win, 1)
+            }
 
-        space.startWatchingForManualNavigation { [weak self] placement in
-            guard placement == .storage else { return }
-            self?.handleManualNavigation()
+            space.startWatchingForManualNavigation { [weak self] placement in
+                guard placement == .storage else { return }
+                self?.handleManualNavigation()
+            }
         }
     }
 
@@ -52,41 +54,45 @@ final class Engine {
     }
 
     func switchToVirtualSpace(_ virtualSpace: Int) {
-        let onManagedSpace = space.isOnManagedSpace() || model.allWindowIds().isEmpty
-        Log.engine.info("switch requested target=\(virtualSpace) current=\(model.getCurrentVirtualSpace()) onManagedSpace=\(onManagedSpace)")
+        Telemetry.shared.span("switchToVirtualSpace(\(virtualSpace))") {
+            let onManagedSpace = space.isOnManagedSpace() || model.allWindowIds().isEmpty
+            Log.engine.info("switch requested target=\(virtualSpace) current=\(model.getCurrentVirtualSpace()) onManagedSpace=\(onManagedSpace)")
 
-        if virtualSpace == model.getCurrentVirtualSpace() {
-            if !onManagedSpace {
+            if virtualSpace == model.getCurrentVirtualSpace() {
+                if !onManagedSpace {
+                    returnToManagedSpace()
+                }
+                return
+            }
+
+            switchSpaces(virtualSpace)
+
+            if onManagedSpace {
+                restoreWindowsFocusForVirtualSpace()
+            } else {
                 returnToManagedSpace()
             }
-            return
-        }
-
-        switchSpaces(virtualSpace)
-
-        if onManagedSpace {
-            restoreWindowsFocusForVirtualSpace()
-        } else {
-            returnToManagedSpace()
         }
     }
 
     func moveWindowToVirtualSpace(_ window: (any Window)?, _ virtualSpace: Int) {
-        guard virtualSpace >= 1 else {
-            Log.engine.info("move dropped: invalid virtual space \(virtualSpace)")
-            return
-        }
-        guard let win = window ?? focusedWindow(), isValidWindow(win) else {
-            Log.engine.info("move to \(virtualSpace) dropped: no valid window to move")
-            return
-        }
+        Telemetry.shared.span("moveWindowToVirtualSpace(\(virtualSpace))") {
+            guard virtualSpace >= 1 else {
+                Log.engine.info("move dropped: invalid virtual space \(virtualSpace)")
+                return
+            }
+            guard let win = window ?? focusedWindow(), isValidWindow(win) else {
+                Log.engine.info("move to \(virtualSpace) dropped: no valid window to move")
+                return
+            }
 
-        let placement: Placement = virtualSpace == model.getCurrentVirtualSpace() ? .active : .storage
-        Log.engine.info("moving window \(win.logDescription) to space \(virtualSpace) placement=\(placement)")
-        space.moveWindowToSpace(win.id, placement)
-        model.moveWindowToVirtualSpace(win.id, virtualSpace)
+            let placement: Placement = virtualSpace == model.getCurrentVirtualSpace() ? .active : .storage
+            Log.engine.info("moving window \(win.logDescription) to space \(virtualSpace) placement=\(placement)")
+            space.moveWindowToSpace(win.id, placement)
+            model.moveWindowToVirtualSpace(win.id, virtualSpace)
 
-        restoreWindowsFocusForVirtualSpace()
+            restoreWindowsFocusForVirtualSpace()
+        }
     }
 
     private func handleFocused(_ win: any Window) {
@@ -119,22 +125,24 @@ final class Engine {
     // (Cmd-Tab/Dock on the same native Space, or Mission Control from another one),
     // so follow them by switching to that window's virtual space.
     private func handleManualNavigation(_ win: (any Window)? = nil) {
-        if ignoreNextManualNavigation {
-            ignoreNextManualNavigation = false
-            Log.engine.debug("ignoring manual navigation (one-shot)")
-            return
+        Telemetry.shared.span("handleManualNavigation") {
+            if ignoreNextManualNavigation {
+                ignoreNextManualNavigation = false
+                Log.engine.debug("ignoring manual navigation (one-shot)")
+                return
+            }
+
+            if currentVirtualSpaceIsClosing() { return }
+
+            guard let win = win ?? focusedWindow() else {
+                Log.engine.debug("manual navigation dropped: no focused window")
+                return
+            }
+
+            let target = model.getVirtualSpaceForWindow(win.id) ?? 1
+            Log.engine.info("manual navigation → space \(target) window id=\(win.id)")
+            switchSpaces(target)
         }
-
-        if currentVirtualSpaceIsClosing() { return }
-
-        guard let win = win ?? focusedWindow() else {
-            Log.engine.debug("manual navigation dropped: no focused window")
-            return
-        }
-
-        let target = model.getVirtualSpaceForWindow(win.id) ?? 1
-        Log.engine.info("manual navigation → space \(target) window id=\(win.id)")
-        switchSpaces(target)
     }
 
     private func switchSpaces(_ virtualSpace: Int) {
@@ -170,22 +178,24 @@ final class Engine {
 
     @discardableResult
     private func restoreWindowsFocusForVirtualSpace() -> Bool {
-        let currentSpace = model.getCurrentVirtualSpace()
+        Telemetry.shared.span("restoreWindowsFocus") {
+            let currentSpace = model.getCurrentVirtualSpace()
 
-        if let osFocused = focusedWindow(), isValidWindow(osFocused),
-           model.getVirtualSpaceForWindow(osFocused.id) == currentSpace {
-            model.saveFocusedWindowInVirtualSpace(currentSpace, osFocused.id)
-            return true
+            if let osFocused = focusedWindow(), isValidWindow(osFocused),
+               model.getVirtualSpaceForWindow(osFocused.id) == currentSpace {
+                model.saveFocusedWindowInVirtualSpace(currentSpace, osFocused.id)
+                return true
+            }
+
+            if let windowId = model.prepareWindowToBeFocusedOnCurrentVirtualSpace(),
+               let win = window(windowId) {
+                win.focus()
+                return true
+            }
+
+            Log.engine.debug("no window to focus in space \(currentSpace)")
+            return false
         }
-
-        if let windowId = model.prepareWindowToBeFocusedOnCurrentVirtualSpace(),
-           let win = window(windowId) {
-            win.focus()
-            return true
-        }
-
-        Log.engine.debug("no window to focus in space \(currentSpace)")
-        return false
     }
 
     private func isValidWindow(_ win: any Window) -> Bool {

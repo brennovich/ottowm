@@ -1,0 +1,43 @@
+import Foundation
+import os
+
+// Times an operation and hands (operation, durationMs) to the record sink;
+// formatting and level gating live in the sink. The signposter is the
+// OS-touching half (nil under unit tests, smoke-tested via Instruments).
+struct Telemetry {
+    private let now: () -> TimeInterval
+    private let record: (String, Double) -> Void
+    private let signposter: OSSignposter?
+
+    init(
+        now: @escaping () -> TimeInterval,
+        record: @escaping (String, Double) -> Void,
+        signposter: OSSignposter? = nil
+    ) {
+        self.now = now
+        self.record = record
+        self.signposter = signposter
+    }
+
+    func span<T>(_ operation: String, _ body: () throws -> T) rethrows -> T {
+        let interval = signposter.map { ($0, $0.beginInterval("span", "\(operation)")) }
+        let start = now()
+        defer {
+            record(operation, (now() - start) * 1000)
+            if let (signposter, state) = interval {
+                signposter.endInterval("span", state)
+            }
+        }
+        return try body()
+    }
+}
+
+extension Telemetry {
+    static let shared = Telemetry(
+        now: { Double(DispatchTime.now().uptimeNanoseconds) / 1_000_000_000 },
+        record: { operation, ms in
+            Log.telemetry.debug("\(operation) took \(String(format: "%.2f", ms))ms")
+        },
+        signposter: OSSignposter(subsystem: Log.subsystem, category: "telemetry")
+    )
+}

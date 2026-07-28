@@ -36,7 +36,7 @@ struct LogChannel {
 // Unified-logging handles, one per flow; enable verbose output at runtime with
 // `log stream --level debug --predicate 'subsystem == "com.github.brennovich.ottowm"'`.
 enum Log {
-    private static let subsystem = "com.github.brennovich.ottowm"
+    static let subsystem = "com.github.brennovich.ottowm"
 
     static let app = LogChannel(subsystem: subsystem, category: "app")
     static let hotkey = LogChannel(subsystem: subsystem, category: "hotkey")
@@ -44,4 +44,5 @@ enum Log {
     static let space = LogChannel(subsystem: subsystem, category: "space")
     static let window = LogChannel(subsystem: subsystem, category: "window")
     static let observer = LogChannel(subsystem: subsystem, category: "observer")
+    static let telemetry = LogChannel(subsystem: subsystem, category: "telemetry")
 }
