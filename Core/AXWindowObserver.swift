@@ -1,6 +1,7 @@
 import AppKit
 import ApplicationServices
 import CoreGraphics
+import os
 
 // The C-convention AXObserver callback: trampolines back to the AXWindowObserver carried in refcon.
 private func axObserverCallback(
@@ -60,14 +61,23 @@ final class AXWindowObserver {
     func handle(element: AXUIElement, notification: String, observer: AXObserver) {
         switch notification {
         case kAXWindowCreatedNotification:
-            guard let app = application(for: element) else { return }
+            guard let app = application(for: element) else {
+                Log.observer.debug("dropped \(notification, privacy: .public): unknown application")
+                return
+            }
             watchForDestruction(element, app: app, observer: observer)
             handler?(.created(AXWindow(element: element, application: app)))
         case kAXFocusedWindowChangedNotification:
-            guard let app = application(for: element) else { return }
+            guard let app = application(for: element) else {
+                Log.observer.debug("dropped \(notification, privacy: .public): unknown application")
+                return
+            }
             handler?(.focused(AXWindow(element: element, application: app)))
         case kAXUIElementDestroyedNotification:
-            guard let ref = windowIds.removeValue(forKey: ElementKey(element: element)) else { return }
+            guard let ref = windowIds.removeValue(forKey: ElementKey(element: element)) else {
+                Log.observer.debug("dropped \(notification, privacy: .public): element not registered")
+                return
+            }
             handler?(.destroyed(ref.id))
         default:
             break
@@ -87,17 +97,22 @@ final class AXWindowObserver {
         guard observers[pid] == nil else { return }
 
         var observer: AXObserver?
-        guard AXObserverCreate(pid, axObserverCallback, &observer) == .success, let observer else { return }
+        let createResult = AXObserverCreate(pid, axObserverCallback, &observer)
+        guard createResult == .success, let observer else {
+            Log.observer.error("cannot observe pid=\(pid, privacy: .public) app=\(app.localizedName ?? "", privacy: .public) err=\(createResult.rawValue, privacy: .public)")
+            return
+        }
 
         applications[pid] = app
         observers[pid] = observer
 
         let appElement = AXUIElementCreateApplication(pid)
-        let refcon = Unmanaged.passUnretained(self).toOpaque()
-        AXObserverAddNotification(observer, appElement, kAXWindowCreatedNotification as CFString, refcon)
-        AXObserverAddNotification(observer, appElement, kAXFocusedWindowChangedNotification as CFString, refcon)
+        addNotification(observer, appElement, kAXWindowCreatedNotification, pid: pid)
+        addNotification(observer, appElement, kAXFocusedWindowChangedNotification, pid: pid)
 
-        for window in windowElements(pid: pid) {
+        let windows = windowElements(pid: pid)
+        Log.observer.info("observing pid=\(pid, privacy: .public) app=\(app.localizedName ?? "", privacy: .public) windows=\(windows.count, privacy: .public)")
+        for window in windows {
             watchForDestruction(window, app: app, observer: observer)
         }
 
@@ -114,16 +129,24 @@ final class AXWindowObserver {
     private func watchForDestruction(_ window: AXUIElement, app: NSRunningApplication, observer: AXObserver) {
         let id = AXWindow(element: window, application: app).id
         windowIds[ElementKey(element: window)] = WindowRef(pid: app.processIdentifier, id: id)
-        let refcon = Unmanaged.passUnretained(self).toOpaque()
-        AXObserverAddNotification(observer, window, kAXUIElementDestroyedNotification as CFString, refcon)
+        addNotification(observer, window, kAXUIElementDestroyedNotification, pid: app.processIdentifier)
+    }
+
+    private func addNotification(_ observer: AXObserver, _ element: AXUIElement, _ notification: String, pid: pid_t) {
+        let result = AXObserverAddNotification(observer, element, notification as CFString, Unmanaged.passUnretained(self).toOpaque())
+        if result != .success {
+            Log.observer.error("addNotification \(notification, privacy: .public) failed pid=\(pid, privacy: .public) err=\(result.rawValue, privacy: .public)")
+        }
     }
 
     private func windowElements(pid: pid_t) -> [AXUIElement] {
         let appElement = AXUIElementCreateApplication(pid)
         var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &value) == .success,
-              let windows = value as? [AXUIElement]
-        else { return [] }
+        let result = AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &value)
+        guard result == .success, let windows = value as? [AXUIElement] else {
+            Log.observer.debug("windowElements failed pid=\(pid, privacy: .public) err=\(result.rawValue, privacy: .public)")
+            return []
+        }
         return windows
     }
 

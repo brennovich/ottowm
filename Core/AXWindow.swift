@@ -1,6 +1,7 @@
 import AppKit
 import ApplicationServices
 import CoreGraphics
+import os
 
 // The stable CGWindowID for an AX window (same one AeroSpace relies on).
 @_silgen_name("_AXUIElementGetWindow")
@@ -19,7 +20,10 @@ final class AXWindow: Window {
 
     lazy var id: CGWindowID = {
         var windowId: CGWindowID = 0
-        _AXUIElementGetWindow(element, &windowId)
+        let result = _AXUIElementGetWindow(element, &windowId)
+        if result != .success || windowId == 0 {
+            Log.window.error("window id lookup failed app=\(self.appName, privacy: .public) err=\(result.rawValue, privacy: .public)")
+        }
         return windowId
     }()
 
@@ -32,7 +36,10 @@ final class AXWindow: Window {
     var isMinimized: Bool { bool(kAXMinimizedAttribute as String) }
 
     var tabCount: Int {
-        guard let children = value(kAXChildrenAttribute) as? [AXUIElement] else { return 1 }
+        guard let children = value(kAXChildrenAttribute) as? [AXUIElement] else {
+            Log.window.debug("tabCount children read failed id=\(self.id, privacy: .public) app=\(self.appName, privacy: .public), assuming 1")
+            return 1
+        }
 
         for child in children {
             guard string(kAXRoleAttribute, of: child) == "AXTabGroup",
@@ -52,19 +59,28 @@ final class AXWindow: Window {
                   let sizeRef = value(kAXSizeAttribute),
                   let origin = decodeCGPoint(positionRef as! AXValue),
                   let size = decodeCGSize(sizeRef as! AXValue)
-            else { return .zero }
+            else {
+                Log.window.error("read frame failed id=\(self.id, privacy: .public) app=\(self.appName, privacy: .public)")
+                return .zero
+            }
             return CGRect(origin: origin, size: size)
         }
         set {
-            AXUIElementSetAttributeValue(element, kAXPositionAttribute as CFString, encodeCGPoint(newValue.origin))
-            AXUIElementSetAttributeValue(element, kAXSizeAttribute as CFString, encodeCGSize(newValue.size))
+            let positionResult = AXUIElementSetAttributeValue(element, kAXPositionAttribute as CFString, encodeCGPoint(newValue.origin))
+            let sizeResult = AXUIElementSetAttributeValue(element, kAXSizeAttribute as CFString, encodeCGSize(newValue.size))
+            if positionResult != .success || sizeResult != .success {
+                Log.window.error("set frame failed id=\(self.id, privacy: .public) app=\(self.appName, privacy: .public) position=\(positionResult.rawValue, privacy: .public) size=\(sizeResult.rawValue, privacy: .public) target=\(String(describing: newValue), privacy: .public)")
+            }
         }
     }
 
     func focus() {
-        AXUIElementPerformAction(element, kAXRaiseAction as CFString)
-        AXUIElementSetAttributeValue(element, kAXMainAttribute as CFString, kCFBooleanTrue)
-        application.activate()
+        let raiseResult = AXUIElementPerformAction(element, kAXRaiseAction as CFString)
+        let mainResult = AXUIElementSetAttributeValue(element, kAXMainAttribute as CFString, kCFBooleanTrue)
+        let activated = application.activate()
+        if raiseResult != .success || mainResult != .success || !activated {
+            Log.window.error("focus failed id=\(self.id, privacy: .public) app=\(self.appName, privacy: .public) raise=\(raiseResult.rawValue, privacy: .public) main=\(mainResult.rawValue, privacy: .public) activate=\(activated, privacy: .public)")
+        }
     }
 
     static func focused() -> AXWindow? {

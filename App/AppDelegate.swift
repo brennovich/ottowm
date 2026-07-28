@@ -1,4 +1,5 @@
 import Cocoa
+import os
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     private let windowObserver = AXWindowObserver()
@@ -10,8 +11,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         )
 
-        print("OttoWM (\(AppInfo.version)) launched")
-        print("\t Accessibility status: \(trusted)")
+        Log.app.notice("OttoWM (\(AppInfo.version, privacy: .public)) launched, accessibility=\(trusted, privacy: .public)")
 
         let windowById: (CGWindowID) -> AXWindow? = { [windowObserver] id in
             windowObserver.allWindows().first { $0.id == id }
@@ -44,13 +44,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 engine.moveWindowToVirtualSpace(nil, virtualSpace)
             }
         }
-        print("\t Hotkeys: \(hotkeysStarted ? "active" : "event tap creation failed (check Accessibility permission)")")
+        if hotkeysStarted {
+            Log.app.notice("hotkeys active")
+        } else {
+            Log.app.error("event tap creation failed (check Accessibility permission)")
+        }
     }
 
     private static func onScreenWindowIds() -> Set<CGWindowID> {
         guard let infoList = CGWindowListCopyWindowInfo(
             [.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID
         ) as? [[String: Any]] else {
+            Log.app.error("CGWindowListCopyWindowInfo returned nil")
             return []
         }
 

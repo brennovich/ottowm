@@ -1,4 +1,5 @@
 import CoreGraphics
+import os
 
 // Orchestrates windows lifecycle events and hotkey commands, keeping the pure
 // Workspaces and the Space in sync.
@@ -53,6 +54,7 @@ final class Engine {
 
     func switchToVirtualSpace(_ virtualSpace: Int) {
         let onManagedSpace = space.isOnManagedSpace() || model.allWindowIds().isEmpty
+        Log.engine.info("switch requested target=\(virtualSpace, privacy: .public) current=\(self.model.getCurrentVirtualSpace(), privacy: .public) onManagedSpace=\(onManagedSpace, privacy: .public)")
 
         if virtualSpace == model.getCurrentVirtualSpace() {
             if !onManagedSpace {
@@ -71,10 +73,17 @@ final class Engine {
     }
 
     func moveWindowToVirtualSpace(_ window: (any Window)?, _ virtualSpace: Int) {
-        guard virtualSpace >= 1 else { return }
-        guard let win = window ?? focusedWindow(), isValidWindow(win) else { return }
+        guard virtualSpace >= 1 else {
+            Log.engine.info("move dropped: invalid virtual space \(virtualSpace, privacy: .public)")
+            return
+        }
+        guard let win = window ?? focusedWindow(), isValidWindow(win) else {
+            Log.engine.info("move to \(virtualSpace, privacy: .public) dropped: no valid window to move")
+            return
+        }
 
         let placement: Placement = virtualSpace == model.getCurrentVirtualSpace() ? .active : .storage
+        Log.engine.info("moving window id=\(win.id, privacy: .public) app=\(win.appName, privacy: .public) to space \(virtualSpace, privacy: .public) placement=\(String(describing: placement), privacy: .public)")
         space.moveWindowToSpace(win.id, placement)
         model.moveWindowToVirtualSpace(win.id, virtualSpace)
 
@@ -98,6 +107,7 @@ final class Engine {
 
     private func handleDestroyed(_ windowId: CGWindowID) {
         let hasTabSiblings = model.getTabSiblingsBeforeDestruction(windowId) != nil
+        Log.engine.debug("destroyed id=\(windowId, privacy: .public) hadTabSiblings=\(hasTabSiblings, privacy: .public)")
         model.unregisterWindowById(windowId)
         space.forgetWindow(windowId)
 
@@ -112,14 +122,20 @@ final class Engine {
     private func handleManualNavigation(_ win: (any Window)? = nil) {
         if ignoreNextManualNavigation {
             ignoreNextManualNavigation = false
+            Log.engine.debug("ignoring manual navigation (one-shot)")
             return
         }
 
         if currentVirtualSpaceIsClosing() { return }
 
-        guard let win = win ?? focusedWindow() else { return }
+        guard let win = win ?? focusedWindow() else {
+            Log.engine.debug("manual navigation dropped: no focused window")
+            return
+        }
 
-        switchSpaces(model.getVirtualSpaceForWindow(win.id) ?? 1)
+        let target = model.getVirtualSpaceForWindow(win.id) ?? 1
+        Log.engine.info("manual navigation → space \(target, privacy: .public) window id=\(win.id, privacy: .public)")
+        switchSpaces(target)
     }
 
     private func switchSpaces(_ virtualSpace: Int) {
@@ -128,6 +144,7 @@ final class Engine {
         }
 
         let categorized = model.categorizeWindowsForTransition(virtualSpace)
+        Log.engine.info("switching to \(virtualSpace, privacy: .public) toActive=\(String(describing: categorized.toActive), privacy: .public) toStorage=\(String(describing: categorized.toStorage), privacy: .public)")
         for windowId in categorized.toActive {
             space.moveWindowToSpace(windowId, .active)
         }
@@ -146,6 +163,7 @@ final class Engine {
     private func returnToManagedSpace() {
         if !restoreWindowsFocusForVirtualSpace() {
             ignoreNextManualNavigation = true
+            Log.engine.debug("returning to managed space, ignoring next manual navigation")
             space.activateManagedSpace()
         }
     }
@@ -157,20 +175,39 @@ final class Engine {
         if let osFocused = focusedWindow(), isValidWindow(osFocused),
            model.getVirtualSpaceForWindow(osFocused.id) == currentSpace {
             model.saveFocusedWindowInVirtualSpace(currentSpace, osFocused.id)
+            Log.engine.debug("focus kept id=\(osFocused.id, privacy: .public) space=\(currentSpace, privacy: .public)")
             return true
         }
 
         if let windowId = model.prepareWindowToBeFocusedOnCurrentVirtualSpace(),
            let win = window(windowId) {
+            Log.engine.debug("focus restored id=\(windowId, privacy: .public) space=\(currentSpace, privacy: .public)")
             win.focus()
             return true
         }
 
+        Log.engine.debug("no window to focus in space \(currentSpace, privacy: .public)")
         return false
     }
 
     private func isValidWindow(_ win: any Window) -> Bool {
-        win.id != 0 && win.isStandard && !win.isFullScreen && space.managesWindow(win.id)
+        if win.id == 0 {
+            Log.engine.debug("invalid window app=\(win.appName, privacy: .public): id is 0")
+            return false
+        }
+        if !win.isStandard {
+            Log.engine.debug("invalid window id=\(win.id, privacy: .public) app=\(win.appName, privacy: .public): not standard")
+            return false
+        }
+        if win.isFullScreen {
+            Log.engine.debug("invalid window id=\(win.id, privacy: .public) app=\(win.appName, privacy: .public): full screen")
+            return false
+        }
+        if !space.managesWindow(win.id) {
+            Log.engine.debug("invalid window id=\(win.id, privacy: .public) app=\(win.appName, privacy: .public): not managed by space")
+            return false
+        }
+        return true
     }
 
     // True while the current virtual space's windows are all mid-destruction: the

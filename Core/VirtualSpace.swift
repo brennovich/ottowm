@@ -1,5 +1,6 @@
 import AppKit
 import CoreGraphics
+import os
 
 // Emulates the active/storage native-Space distinction on a single real macOS
 // Space: storage windows are pushed into the bottom-right corner nub and restored
@@ -43,10 +44,12 @@ final class VirtualSpace: Space {
     func activateManagedSpace() {
         for windowId in managedWindowIds() {
             if let win = window(windowId) {
+                Log.space.debug("activating managed space via id=\(windowId, privacy: .public)")
                 win.focus()
                 return
             }
         }
+        Log.space.debug("activateManagedSpace: no live managed window")
     }
 
     func managesWindow(_ windowId: CGWindowID) -> Bool {
@@ -54,17 +57,30 @@ final class VirtualSpace: Space {
     }
 
     func moveWindowToSpace(_ windowId: CGWindowID, _ space: Placement) {
-        guard let win = window(windowId), !win.isMinimized else { return }
+        guard let win = window(windowId), !win.isMinimized else {
+            Log.space.info("cannot move id=\(windowId, privacy: .public) to \(String(describing: space), privacy: .public): window not found or minimized")
+            return
+        }
 
         switch space {
         case .storage:
-            if hiddenWindowFrames[windowId] != nil { return }
-            hiddenWindowFrames[windowId] = win.frame
-            win.frame = hiddenFrame(for: win.frame, on: screen)
+            if hiddenWindowFrames[windowId] != nil {
+                Log.space.debug("id=\(windowId, privacy: .public) already hidden")
+                return
+            }
+            let originalFrame = win.frame
+            let hidden = hiddenFrame(for: originalFrame, on: screen)
+            hiddenWindowFrames[windowId] = originalFrame
+            win.frame = hidden
+            Log.space.debug("hid id=\(windowId, privacy: .public) app=\(win.appName, privacy: .public) from=\(String(describing: originalFrame), privacy: .public) to=\(String(describing: hidden), privacy: .public)")
         case .active:
-            guard let originalFrame = hiddenWindowFrames[windowId] else { return }
+            guard let originalFrame = hiddenWindowFrames[windowId] else {
+                Log.space.info("cannot restore id=\(windowId, privacy: .public): no saved frame")
+                return
+            }
             win.frame = originalFrame
             hiddenWindowFrames[windowId] = nil
+            Log.space.debug("restored id=\(windowId, privacy: .public) app=\(win.appName, privacy: .public) to=\(String(describing: originalFrame), privacy: .public)")
         }
     }
 
@@ -88,12 +104,17 @@ final class VirtualSpace: Space {
     }
 
     private func handleActiveSpaceChange(_ callback: (Placement) -> Void) {
-        guard let focused = focusedWindow(), hiddenWindowFrames[focused.id] != nil else { return }
+        guard let focused = focusedWindow(), hiddenWindowFrames[focused.id] != nil else {
+            Log.space.debug("native space change ignored: no hidden window focused")
+            return
+        }
+        Log.space.info("native space change with hidden window focused id=\(focused.id, privacy: .public)")
         callback(.storage)
     }
 
     private func recoverWindowsStuckAtHiddenEdge() {
         for win in allWindows() where !win.isMinimized && isStuckAtHiddenEdge(win.frame, on: screen) {
+            Log.space.info("recovering id=\(win.id, privacy: .public) app=\(win.appName, privacy: .public) stuck at hidden edge")
             win.frame = recoveredFrame(for: win.frame, visibleFrame: screen.visibleFrame)
         }
     }
