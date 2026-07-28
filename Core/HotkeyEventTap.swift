@@ -1,5 +1,4 @@
 import CoreGraphics
-import os
 
 // The C-convention event tap callback: trampolines back to the HotkeyEventTap carried in refcon.
 private func hotkeyEventTapCallback(
@@ -42,24 +41,26 @@ final class HotkeyEventTap {
     }
 
     func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
-        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-            Log.hotkey.error("event tap disabled (\(type == .tapDisabledByTimeout ? "timeout" : "userInput", privacy: .public)), re-enabling")
+        let decision = eventTapDecision(
+            type: type,
+            keyCode: event.getIntegerValueField(.keyboardEventKeycode),
+            flags: event.flags
+        )
+
+        switch decision {
+        case .reenableAndPass:
+            Log.hotkey.error("event tap disabled (\(type == .tapDisabledByTimeout ? "timeout" : "userInput")), re-enabling")
             if let tap {
                 CGEvent.tapEnable(tap: tap, enable: true)
             }
             return Unmanaged.passUnretained(event)
+        case let .consume(action):
+            Log.hotkey.info("hotkey → \(action)")
+            handler?(action)
+            return nil
+        case .pass:
+            return Unmanaged.passUnretained(event)
         }
-
-        guard type == .keyDown,
-              let action = hotkeyAction(
-                  keyCode: event.getIntegerValueField(.keyboardEventKeycode),
-                  flags: event.flags
-              )
-        else { return Unmanaged.passUnretained(event) }
-
-        Log.hotkey.info("hotkey → \(String(describing: action), privacy: .public)")
-        handler?(action)
-        return nil
     }
 
     deinit {

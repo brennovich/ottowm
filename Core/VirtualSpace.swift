@@ -1,6 +1,5 @@
 import AppKit
 import CoreGraphics
-import os
 
 // Emulates the active/storage native-Space distinction on a single real macOS
 // Space: storage windows are pushed into the bottom-right corner nub and restored
@@ -13,6 +12,7 @@ final class VirtualSpace: Space {
     private let onScreenWindowIds: () -> Set<CGWindowID>
     private let managedWindowIds: () -> Set<CGWindowID>
     private let focusedWindow: () -> (any Window)?
+    private let notificationCenter: NotificationCenter
 
     private var hiddenWindowFrames: [CGWindowID: CGRect] = [:]
     private var manualNavigationObserver: (any NSObjectProtocol)?
@@ -23,7 +23,8 @@ final class VirtualSpace: Space {
         allWindows: @escaping () -> [any Window],
         onScreenWindowIds: @escaping () -> Set<CGWindowID>,
         managedWindowIds: @escaping () -> Set<CGWindowID>,
-        focusedWindow: @escaping () -> (any Window)?
+        focusedWindow: @escaping () -> (any Window)?,
+        notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter
     ) {
         self.screen = screen
         self.window = window
@@ -31,6 +32,7 @@ final class VirtualSpace: Space {
         self.onScreenWindowIds = onScreenWindowIds
         self.managedWindowIds = managedWindowIds
         self.focusedWindow = focusedWindow
+        self.notificationCenter = notificationCenter
     }
 
     func setupForMainScreen() {
@@ -44,7 +46,7 @@ final class VirtualSpace: Space {
     func activateManagedSpace() {
         for windowId in managedWindowIds() {
             if let win = window(windowId) {
-                Log.space.debug("activating managed space via id=\(windowId, privacy: .public)")
+                Log.space.debug("activating managed space via id=\(windowId)")
                 win.focus()
                 return
             }
@@ -58,29 +60,26 @@ final class VirtualSpace: Space {
 
     func moveWindowToSpace(_ windowId: CGWindowID, _ space: Placement) {
         guard let win = window(windowId), !win.isMinimized else {
-            Log.space.info("cannot move id=\(windowId, privacy: .public) to \(String(describing: space), privacy: .public): window not found or minimized")
+            Log.space.info("cannot move id=\(windowId) to \(space): window not found or minimized")
             return
         }
 
         switch space {
         case .storage:
-            if hiddenWindowFrames[windowId] != nil {
-                Log.space.debug("id=\(windowId, privacy: .public) already hidden")
-                return
-            }
+            if hiddenWindowFrames[windowId] != nil { return }
             let originalFrame = win.frame
             let hidden = hiddenFrame(for: originalFrame, on: screen)
             hiddenWindowFrames[windowId] = originalFrame
             win.frame = hidden
-            Log.space.debug("hid id=\(windowId, privacy: .public) app=\(win.appName, privacy: .public) from=\(String(describing: originalFrame), privacy: .public) to=\(String(describing: hidden), privacy: .public)")
+            Log.space.debug("hid \(win.logDescription) from=\(originalFrame) to=\(hidden)")
         case .active:
             guard let originalFrame = hiddenWindowFrames[windowId] else {
-                Log.space.info("cannot restore id=\(windowId, privacy: .public): no saved frame")
+                Log.space.info("cannot restore id=\(windowId): no saved frame")
                 return
             }
             win.frame = originalFrame
             hiddenWindowFrames[windowId] = nil
-            Log.space.debug("restored id=\(windowId, privacy: .public) app=\(win.appName, privacy: .public) to=\(String(describing: originalFrame), privacy: .public)")
+            Log.space.debug("restored \(win.logDescription) to=\(originalFrame)")
         }
     }
 
@@ -90,7 +89,7 @@ final class VirtualSpace: Space {
 
     func startWatchingForManualNavigation(_ callback: @escaping (Placement) -> Void) {
         stopWatchingForManualNavigation()
-        manualNavigationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+        manualNavigationObserver = notificationCenter.addObserver(
             forName: NSWorkspace.activeSpaceDidChangeNotification,
             object: nil,
             queue: nil
@@ -108,20 +107,20 @@ final class VirtualSpace: Space {
             Log.space.debug("native space change ignored: no hidden window focused")
             return
         }
-        Log.space.info("native space change with hidden window focused id=\(focused.id, privacy: .public)")
+        Log.space.info("native space change with hidden window focused id=\(focused.id)")
         callback(.storage)
     }
 
     private func recoverWindowsStuckAtHiddenEdge() {
         for win in allWindows() where !win.isMinimized && isStuckAtHiddenEdge(win.frame, on: screen) {
-            Log.space.info("recovering id=\(win.id, privacy: .public) app=\(win.appName, privacy: .public) stuck at hidden edge")
+            Log.space.info("recovering \(win.logDescription) stuck at hidden edge")
             win.frame = recoveredFrame(for: win.frame, visibleFrame: screen.visibleFrame)
         }
     }
 
     private func stopWatchingForManualNavigation() {
         if let manualNavigationObserver {
-            NSWorkspace.shared.notificationCenter.removeObserver(manualNavigationObserver)
+            notificationCenter.removeObserver(manualNavigationObserver)
             self.manualNavigationObserver = nil
         }
     }

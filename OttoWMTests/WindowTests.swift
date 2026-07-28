@@ -66,6 +66,12 @@ final class WindowTests: XCTestCase {
         }
     }
 
+    func testLogDescription() {
+        let window = StubWindow(id: 42, frame: .zero, appName: "Safari")
+
+        XCTAssertEqual(window.logDescription, "id=42 app=Safari")
+    }
+
     func testIsTabOfWindowWithStaleSingleTabSnapshot() {
         let frame = CGRect(x: 100, y: 200, width: 800, height: 600)
         let existing = StubWindow(id: 1, tabCount: 1, frame: frame, appName: "Terminal")

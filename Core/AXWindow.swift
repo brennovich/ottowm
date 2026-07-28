@@ -1,7 +1,6 @@
 import AppKit
 import ApplicationServices
 import CoreGraphics
-import os
 
 // The stable CGWindowID for an AX window (same one AeroSpace relies on).
 @_silgen_name("_AXUIElementGetWindow")
@@ -22,7 +21,7 @@ final class AXWindow: Window {
         var windowId: CGWindowID = 0
         let result = _AXUIElementGetWindow(element, &windowId)
         if result != .success || windowId == 0 {
-            Log.window.error("window id lookup failed app=\(self.appName, privacy: .public) err=\(result.rawValue, privacy: .public)")
+            Log.window.error("window id lookup failed app=\(self.appName) err=\(result.rawValue)")
         }
         return windowId
     }()
@@ -37,7 +36,7 @@ final class AXWindow: Window {
 
     var tabCount: Int {
         guard let children = value(kAXChildrenAttribute) as? [AXUIElement] else {
-            Log.window.debug("tabCount children read failed id=\(self.id, privacy: .public) app=\(self.appName, privacy: .public), assuming 1")
+            Log.window.debug("tabCount children read failed \(logDescription), assuming 1")
             return 1
         }
 
@@ -60,7 +59,7 @@ final class AXWindow: Window {
                   let origin = decodeCGPoint(positionRef as! AXValue),
                   let size = decodeCGSize(sizeRef as! AXValue)
             else {
-                Log.window.error("read frame failed id=\(self.id, privacy: .public) app=\(self.appName, privacy: .public)")
+                Log.window.error("read frame failed \(logDescription)")
                 return .zero
             }
             return CGRect(origin: origin, size: size)
@@ -69,7 +68,7 @@ final class AXWindow: Window {
             let positionResult = AXUIElementSetAttributeValue(element, kAXPositionAttribute as CFString, encodeCGPoint(newValue.origin))
             let sizeResult = AXUIElementSetAttributeValue(element, kAXSizeAttribute as CFString, encodeCGSize(newValue.size))
             if positionResult != .success || sizeResult != .success {
-                Log.window.error("set frame failed id=\(self.id, privacy: .public) app=\(self.appName, privacy: .public) position=\(positionResult.rawValue, privacy: .public) size=\(sizeResult.rawValue, privacy: .public) target=\(String(describing: newValue), privacy: .public)")
+                Log.window.error("set frame failed \(logDescription) position=\(positionResult.rawValue) size=\(sizeResult.rawValue) target=\(newValue)")
             }
         }
     }
@@ -79,7 +78,7 @@ final class AXWindow: Window {
         let mainResult = AXUIElementSetAttributeValue(element, kAXMainAttribute as CFString, kCFBooleanTrue)
         let activated = application.activate()
         if raiseResult != .success || mainResult != .success || !activated {
-            Log.window.error("focus failed id=\(self.id, privacy: .public) app=\(self.appName, privacy: .public) raise=\(raiseResult.rawValue, privacy: .public) main=\(mainResult.rawValue, privacy: .public) activate=\(activated, privacy: .public)")
+            Log.window.error("focus failed \(logDescription) raise=\(raiseResult.rawValue) main=\(mainResult.rawValue) activate=\(activated)")
         }
     }
 

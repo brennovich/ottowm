@@ -1,22 +1,14 @@
 import AppKit
 import XCTest
 
-private let testScreen: Screen = {
-    struct StubScreen: Screen {
-        var fullFrame: CGRect
-        var visibleFrame: CGRect
-    }
-    return StubScreen(
-        fullFrame: CGRect(x: 0, y: 0, width: 1792, height: 1120),
-        visibleFrame: CGRect(x: 0, y: 38, width: 1792, height: 1082)
-    )
-}()
+private let testScreen: Screen = StubScreen.standard
 
 private func makeSpace(
     _ windows: [StubWindow] = [],
     onScreen: @escaping () -> Set<CGWindowID> = { [] },
     managed: @escaping () -> Set<CGWindowID> = { [] },
-    focused: @escaping () -> (any Window)? = { nil }
+    focused: @escaping () -> (any Window)? = { nil },
+    center: NotificationCenter = NotificationCenter()
 ) -> VirtualSpace {
     let registry = Dictionary(uniqueKeysWithValues: windows.map { ($0.id, $0) })
     return VirtualSpace(
@@ -25,7 +17,8 @@ private func makeSpace(
         allWindows: { windows },
         onScreenWindowIds: onScreen,
         managedWindowIds: managed,
-        focusedWindow: focused
+        focusedWindow: focused,
+        notificationCenter: center
     )
 }
 
@@ -163,40 +156,40 @@ final class VirtualSpaceTests: XCTestCase {
 
     func testStartWatchingForManualNavigationFiresOnHiddenWindowFocus() {
         let win = StubWindow(id: 100, frame: originalFrame)
-        let space = makeSpace([win], focused: { win })
+        let center = NotificationCenter()
+        let space = makeSpace([win], focused: { win }, center: center)
         var received: [Placement] = []
 
         space.startWatchingForManualNavigation { received.append($0) }
         space.moveWindowToSpace(100, .storage)
-        NSWorkspace.shared.notificationCenter.post(
-            name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
+        center.post(name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
 
         XCTAssertEqual(received, [.storage])
     }
 
     func testStartWatchingForManualNavigationIgnoresVisibleWindowFocus() {
         let win = StubWindow(id: 100, frame: originalFrame)
-        let space = makeSpace([win], focused: { win })
+        let center = NotificationCenter()
+        let space = makeSpace([win], focused: { win }, center: center)
         var received: [Placement] = []
 
         space.startWatchingForManualNavigation { received.append($0) }
-        NSWorkspace.shared.notificationCenter.post(
-            name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
+        center.post(name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
 
         XCTAssertEqual(received, [])
     }
 
     func testStartWatchingForManualNavigationReplacesPreviousSubscription() {
         let win = StubWindow(id: 100, frame: originalFrame)
-        let space = makeSpace([win], focused: { win })
+        let center = NotificationCenter()
+        let space = makeSpace([win], focused: { win }, center: center)
         var first: [Placement] = []
         var second: [Placement] = []
 
         space.startWatchingForManualNavigation { first.append($0) }
         space.startWatchingForManualNavigation { second.append($0) }
         space.moveWindowToSpace(100, .storage)
-        NSWorkspace.shared.notificationCenter.post(
-            name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
+        center.post(name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
 
         XCTAssertEqual(first, [])
         XCTAssertEqual(second, [.storage])

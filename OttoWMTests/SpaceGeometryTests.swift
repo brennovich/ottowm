@@ -1,15 +1,7 @@
 import XCTest
 
-private struct StubScreen: Screen {
-    var fullFrame: CGRect
-    var visibleFrame: CGRect
-}
-
 final class SpaceGeometryTests: XCTestCase {
-    private let screen = StubScreen(
-        fullFrame: CGRect(x: 0, y: 0, width: 1792, height: 1120),
-        visibleFrame: CGRect(x: 0, y: 38, width: 1792, height: 1082)
-    )
+    private let screen = StubScreen.standard
 
     func testHiddenFramePinsOriginToBottomRightNubKeepingSize() {
         let hidden = hiddenFrame(for: CGRect(x: 100, y: 100, width: 800, height: 600), on: screen)

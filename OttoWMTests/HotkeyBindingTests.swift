@@ -31,4 +31,25 @@ final class HotkeyBindingTests: XCTestCase {
             )
         }
     }
+
+    func testEventTapDecision() {
+        let cases: [(name: String, type: CGEventType, keyCode: Int64, flags: CGEventFlags, expected: EventTapDecision)] = [
+            ("tap disabled by timeout re-enables", .tapDisabledByTimeout, 18, leftOption, .reenableAndPass),
+            ("tap disabled by user input re-enables", .tapDisabledByUserInput, 18, leftOption, .reenableAndPass),
+            ("key down on switch hotkey consumes", .keyDown, 18, leftOption, .consume(.switchToVirtualSpace(1))),
+            ("key down on move hotkey consumes", .keyDown, 19, leftOption.union(.maskShift), .consume(.moveWindowToVirtualSpace(2))),
+            ("key down with right option passes", .keyDown, 18, rightOption, .pass),
+            ("key down on unmapped key passes", .keyDown, 0, leftOption, .pass),
+            ("key up on hotkey passes", .keyUp, 18, leftOption, .pass),
+            ("flags changed passes", .flagsChanged, 18, leftOption, .pass),
+        ]
+
+        for testCase in cases {
+            XCTAssertEqual(
+                eventTapDecision(type: testCase.type, keyCode: testCase.keyCode, flags: testCase.flags),
+                testCase.expected,
+                testCase.name
+            )
+        }
+    }
 }

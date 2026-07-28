@@ -18,6 +18,8 @@ protocol Window: AnyObject {
 extension Window {
     var tabInferenceYTolerance: CGFloat { 10 }
 
+    var logDescription: String { "id=\(id) app=\(appName)" }
+
     // As macOS does not tell us whether two windows are tabs of the same
     // application, infers with some heuristics.
     func isTab(of other: any Window) -> Bool {

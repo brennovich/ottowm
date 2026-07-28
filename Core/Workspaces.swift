@@ -1,5 +1,4 @@
 import CoreGraphics
-import os
 
 // Representation of OttoWM Workspaces that tracks the state of windows and their
 // virtual spaces. It maintains a mapping of windows to virtual spaces, and auxiliary data
@@ -46,26 +45,20 @@ final class Workspaces {
             var existingGroupId: Int?
 
             if window.tabCount > 1 {
-                for (groupId, group) in groups {
-                    let matched = window.isTab(of: group.representative)
-                    Log.workspaces.debug("tab check id=\(window.id, privacy: .public) app=\(window.appName, privacy: .public) tabs=\(window.tabCount, privacy: .public) frame=\(String(describing: window.frame), privacy: .public) vs group \(groupId, privacy: .public) rep frame=\(String(describing: group.representative.frame), privacy: .public) → \(matched ? "matched" : "no", privacy: .public)")
-                    if matched {
-                        existingGroupId = groupId
-                        break
-                    }
+                for (groupId, group) in groups where window.isTab(of: group.representative) {
+                    existingGroupId = groupId
+                    break
                 }
             }
 
             if let existingGroupId {
                 groups[existingGroupId]?.windowIds.append(window.id)
                 windowToGroup[window.id] = existingGroupId
-                Log.workspaces.info("window id=\(window.id, privacy: .public) app=\(window.appName, privacy: .public) joined group \(existingGroupId, privacy: .public) → space \(virtualSpace, privacy: .public)")
             } else {
                 let groupId = nextGroupId
                 nextGroupId += 1
                 groups[groupId] = TabGroup(representative: window, windowIds: [window.id])
                 windowToGroup[window.id] = groupId
-                Log.workspaces.info("window id=\(window.id, privacy: .public) app=\(window.appName, privacy: .public) new group \(groupId, privacy: .public) → space \(virtualSpace, privacy: .public)")
             }
         }
 
@@ -110,11 +103,7 @@ final class Workspaces {
         guard let windowId, let virtualSpace else { return }
 
         let previousVirtualSpace = windowVirtualSpaceMap[windowId]
-        if previousVirtualSpace == virtualSpace {
-            Log.workspaces.debug("window \(windowId, privacy: .public): already in space \(virtualSpace, privacy: .public)")
-            return
-        }
-        Log.workspaces.debug("window \(windowId, privacy: .public): space \(previousVirtualSpace.map(String.init) ?? "none", privacy: .public) → \(virtualSpace, privacy: .public)")
+        if previousVirtualSpace == virtualSpace { return }
 
         if let previousVirtualSpace {
             removeWindowFromList(previousVirtualSpace, windowId)

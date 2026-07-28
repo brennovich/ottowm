@@ -1,5 +1,4 @@
 import Cocoa
-import os
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     private let windowObserver = AXWindowObserver()
@@ -11,7 +10,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         )
 
-        Log.app.notice("OttoWM (\(AppInfo.version, privacy: .public)) launched, accessibility=\(trusted, privacy: .public)")
+        Log.app.notice("OttoWM (\(AppInfo.version)) launched, accessibility=\(trusted)")
 
         let windowById: (CGWindowID) -> AXWindow? = { [windowObserver] id in
             windowObserver.allWindows().first { $0.id == id }
@@ -59,12 +58,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return []
         }
 
-        var ids: Set<CGWindowID> = []
-        for info in infoList {
-            if let number = info[kCGWindowNumber as String] as? NSNumber {
-                ids.insert(CGWindowID(number.uint32Value))
-            }
-        }
-        return ids
+        return OttoWM.onScreenWindowIds(from: infoList)
     }
 }
