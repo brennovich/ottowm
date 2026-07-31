@@ -14,9 +14,8 @@ private func axObserverCallback(
     windowObserver.handle(element: element, notification: notification as String, observer: observer)
 }
 
-// Native replacement for hs.window.filter: per-app AXObservers plus NSWorkspace launch/terminate
-// surface window created/focused/destroyed events, and start() returns the windows
-// already open, which seed the model.
+// Per-app AXObservers plus NSWorkspace launch/terminate surface window
+// created/focused/destroyed events.
 final class AXWindowObserver {
     private struct ElementKey: Hashable {
         let element: AXUIElement

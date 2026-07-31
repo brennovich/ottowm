@@ -2,8 +2,7 @@ import Foundation
 import os
 
 // Times an operation and hands (operation, durationMs) to the record sink;
-// formatting and level gating live in the sink. The signposter is the
-// OS-touching half (nil under unit tests, smoke-tested via Instruments).
+// formatting and level gating live in the sink.
 struct Telemetry {
     private let now: () -> TimeInterval
     private let record: (String, Double) -> Void
