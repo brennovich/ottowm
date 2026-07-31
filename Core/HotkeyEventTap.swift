@@ -1,4 +1,5 @@
 import CoreGraphics
+import Dispatch
 
 // The C-convention event tap callback: trampolines back to the HotkeyEventTap carried in refcon.
 private func hotkeyEventTapCallback(
@@ -17,13 +18,20 @@ private func hotkeyEventTapCallback(
 // the right Option key; matched keystrokes are consumed so they never reach the
 // focused application.
 final class HotkeyEventTap {
-    private var handler: ((HotkeyAction) -> Void)?
+    private let dispatch: (@escaping () -> Void) -> Void
+    private let handler: (HotkeyAction) -> Void
     private var tap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
 
-    func start(_ handler: @escaping (HotkeyAction) -> Void) -> Bool {
+    init(
+        dispatch: @escaping (@escaping () -> Void) -> Void = { DispatchQueue.main.async(execute: $0) },
+        handler: @escaping (HotkeyAction) -> Void
+    ) {
+        self.dispatch = dispatch
         self.handler = handler
+    }
 
+    func start() -> Bool {
         guard let tap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
@@ -56,7 +64,10 @@ final class HotkeyEventTap {
             return Unmanaged.passUnretained(event)
         case let .consume(action):
             Log.hotkey.info("hotkey → \(action)")
-            handler?(action)
+            // macOS disables a tap whose callback does not return promptly, so the
+            // action runs after the callback has already consumed the keystroke and
+            // returned.
+            dispatch { [weak self] in self?.handler(action) }
             return nil
         case .pass:
             return Unmanaged.passUnretained(event)

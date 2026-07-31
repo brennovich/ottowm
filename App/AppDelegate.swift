@@ -2,7 +2,7 @@ import Cocoa
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     private let windowObserver = AXWindowObserver()
-    private let hotkeys = HotkeyEventTap()
+    private var hotkeys: HotkeyEventTap?
     private var engine: Engine?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -42,7 +42,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let windows = windowObserver.start { engine.handle($0) }
         engine.start(windows: windows)
 
-        let hotkeysStarted = hotkeys.start { action in
+        let hotkeys = HotkeyEventTap { action in
             switch action {
             case let .switchToVirtualSpace(virtualSpace):
                 engine.switchToVirtualSpace(virtualSpace)
@@ -50,7 +50,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 engine.moveWindowToVirtualSpace(nil, virtualSpace)
             }
         }
-        if hotkeysStarted {
+        self.hotkeys = hotkeys
+
+        if hotkeys.start() {
             Log.app.notice("hotkeys active")
         } else {
             Log.app.error("event tap creation failed (check Accessibility permission)")
