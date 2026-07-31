@@ -8,7 +8,7 @@ final class EngineVirtualSpaceIntegrationTests: XCTestCase {
     private var snapshotCount = 0
     private let center = NotificationCenter()
 
-    private lazy var onScreenWindows = OnScreenWindows { [weak self] in
+    private lazy var onScreenWindows = OperationCache { [weak self] () -> Set<CGWindowID> in
         guard let self else { return [] }
         self.snapshotCount += 1
         return self.onForeignNativeSpace ? [] : Set(self.windows.keys)
@@ -17,7 +17,7 @@ final class EngineVirtualSpaceIntegrationTests: XCTestCase {
     private lazy var space: VirtualSpace = VirtualSpace(
         screen: StubScreen.standard,
         window: { [weak self] in self?.windows[$0] },
-        onScreenWindowIds: { [weak self] in self?.onScreenWindows.ids() ?? [] },
+        onScreenWindowIds: { [weak self] in self?.onScreenWindows.value() ?? [] },
         managedWindowIds: { [weak self] in self?.engine.managedWindowIds ?? [] },
         focusedWindowId: { [weak self] in self?.focused?.id },
         notificationCenter: center
@@ -26,7 +26,7 @@ final class EngineVirtualSpaceIntegrationTests: XCTestCase {
     private lazy var engine: Engine = Engine(
         space: space,
         window: { [weak self] in self?.windows[$0] },
-        focusedWindow: FocusedWindow { [weak self] in self?.focused?.snapshot() },
+        focusedWindow: OperationCache { [weak self] in self?.focused?.snapshot() },
         onScreenWindows: onScreenWindows
     )
 

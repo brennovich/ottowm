@@ -5,16 +5,16 @@ import CoreGraphics
 final class Engine {
     private let space: any Space
     private let window: (CGWindowID) -> (any Window)?
-    private let focusedWindow: FocusedWindow
-    private let onScreenWindows: OnScreenWindows
+    private let focusedWindow: OperationCache<WindowSnapshot?>
+    private let onScreenWindows: OperationCache<Set<CGWindowID>>
     private let model = Workspaces()
     private var ignoreNextManualNavigation = false
 
     init(
         space: any Space,
         window: @escaping (CGWindowID) -> (any Window)?,
-        focusedWindow: FocusedWindow,
-        onScreenWindows: OnScreenWindows
+        focusedWindow: OperationCache<WindowSnapshot?>,
+        onScreenWindows: OperationCache<Set<CGWindowID>>
     ) {
         self.space = space
         self.window = window
@@ -38,9 +38,8 @@ final class Engine {
                 assignWindowToVirtualSpace(win, 1)
             }
 
-            space.startWatchingForManualNavigation { [weak self] placement in
-                guard placement == .storage else { return }
-                self?.handleManualNavigation()
+            space.startWatchingForManualNavigation { [weak self] windowId in
+                self?.handleManualNavigation(windowId)
             }
         }
     }
@@ -86,7 +85,7 @@ final class Engine {
                 Log.engine.info("move dropped: invalid virtual space \(virtualSpace)")
                 return
             }
-            guard let win = window ?? focusedWindow.snapshot(), isValidWindow(win) else {
+            guard let win = window ?? focusedWindow.value(), isValidWindow(win) else {
                 Log.engine.info("move to \(virtualSpace) dropped: no valid window to move")
                 return
             }
@@ -106,11 +105,11 @@ final class Engine {
             // describe a focus OttoWM itself caused before the switch that hid the
             // window. Acting on such an echo bounces straight back to the space we
             // just left. Only the window the OS considers focused right now counts.
-            guard focusedWindow.snapshot()?.id == win.id else {
+            guard focusedWindow.value()?.id == win.id else {
                 Log.engine.debug("ignoring stale focus event id=\(win.id)")
                 return
             }
-            handleManualNavigation(win)
+            handleManualNavigation(win.id)
             return
         }
 
@@ -137,7 +136,7 @@ final class Engine {
     // Focusing a hidden window means the user navigated to it behind OttoWM's back
     // (Cmd-Tab/Dock on the same native Space, or Mission Control from another one),
     // so follow them by switching to that window's virtual space.
-    private func handleManualNavigation(_ win: WindowSnapshot? = nil) {
+    private func handleManualNavigation(_ windowId: CGWindowID) {
         operation("handleManualNavigation") {
             if ignoreNextManualNavigation {
                 ignoreNextManualNavigation = false
@@ -147,19 +146,14 @@ final class Engine {
 
             if currentVirtualSpaceIsClosing() { return }
 
-            guard let win = win ?? focusedWindow.snapshot() else {
-                Log.engine.debug("manual navigation dropped: no focused window")
-                return
-            }
-
-            let target = model.getVirtualSpaceForWindow(win.id) ?? 1
-            Log.engine.info("manual navigation → space \(target) window id=\(win.id)")
+            let target = model.getVirtualSpaceForWindow(windowId) ?? 1
+            Log.engine.info("manual navigation → space \(target) window id=\(windowId)")
             switchSpaces(target)
         }
     }
 
     private func switchSpaces(_ virtualSpace: Int) {
-        if let focused = focusedWindow.snapshot(), isValidWindow(focused) {
+        if let focused = focusedWindow.value(), isValidWindow(focused) {
             model.saveFocusedWindowInVirtualSpace(model.getCurrentVirtualSpace(), focused.id)
         }
 
@@ -194,7 +188,7 @@ final class Engine {
         operation("restoreWindowsFocus") {
             let currentSpace = model.getCurrentVirtualSpace()
 
-            if let osFocused = focusedWindow.snapshot(), isValidWindow(osFocused),
+            if let osFocused = focusedWindow.value(), isValidWindow(osFocused),
                model.getVirtualSpaceForWindow(osFocused.id) == currentSpace {
                 model.saveFocusedWindowInVirtualSpace(currentSpace, osFocused.id)
                 return true

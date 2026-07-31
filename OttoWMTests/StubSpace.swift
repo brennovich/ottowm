@@ -10,7 +10,7 @@ final class StubSpace: Space {
     private(set) var setupForMainScreenCount = 0
     private(set) var setupWindowIds: [CGWindowID] = []
     private(set) var activateManagedSpaceCount = 0
-    private(set) var manualNavigationCallback: ((Placement) -> Void)?
+    private(set) var manualNavigationCallback: ((CGWindowID) -> Void)?
 
     func setupForMainScreen(windows: [WindowSnapshot]) {
         setupForMainScreenCount += 1
@@ -38,7 +38,7 @@ final class StubSpace: Space {
         placements[windowId] ?? .active
     }
 
-    func startWatchingForManualNavigation(_ callback: @escaping (Placement) -> Void) {
+    func startWatchingForManualNavigation(_ callback: @escaping (CGWindowID) -> Void) {
         manualNavigationCallback = callback
     }
 

@@ -80,6 +80,15 @@ final class ObservedWindowRegistryTests: XCTestCase {
         XCTAssertNil(registry.element(for: 999))
     }
 
+    func testElementForIdAfterReregisterTracksTheLastId() {
+        var registry = ObservedWindowRegistry<String>()
+        registry.register("a", pid: 1, id: 100)
+        registry.register("a", pid: 1, id: 200)
+
+        XCTAssertNil(registry.element(for: 100))
+        XCTAssertEqual(registry.element(for: 200)?.element, "a")
+    }
+
     func testElementForIdAfterRemoveReturnsNil() {
         var registry = ObservedWindowRegistry<String>()
         registry.register("a", pid: 1, id: 100)

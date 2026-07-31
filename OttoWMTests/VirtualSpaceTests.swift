@@ -193,20 +193,20 @@ final class VirtualSpaceTests: XCTestCase {
         let win = StubWindow(id: 100, frame: originalFrame)
         let center = NotificationCenter()
         let space = makeSpace([win], focusedWindowId: { win.id }, center: center)
-        var received: [Placement] = []
+        var received: [CGWindowID] = []
 
         space.startWatchingForManualNavigation { received.append($0) }
         space.moveWindowToSpace(100, .storage)
         center.post(name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
 
-        XCTAssertEqual(received, [.storage])
+        XCTAssertEqual(received, [100])
     }
 
     func testStartWatchingForManualNavigationIgnoresVisibleWindowFocus() {
         let win = StubWindow(id: 100, frame: originalFrame)
         let center = NotificationCenter()
         let space = makeSpace([win], focusedWindowId: { win.id }, center: center)
-        var received: [Placement] = []
+        var received: [CGWindowID] = []
 
         space.startWatchingForManualNavigation { received.append($0) }
         center.post(name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
@@ -218,8 +218,8 @@ final class VirtualSpaceTests: XCTestCase {
         let win = StubWindow(id: 100, frame: originalFrame)
         let center = NotificationCenter()
         let space = makeSpace([win], focusedWindowId: { win.id }, center: center)
-        var first: [Placement] = []
-        var second: [Placement] = []
+        var first: [CGWindowID] = []
+        var second: [CGWindowID] = []
 
         space.startWatchingForManualNavigation { first.append($0) }
         space.startWatchingForManualNavigation { second.append($0) }
@@ -227,6 +227,6 @@ final class VirtualSpaceTests: XCTestCase {
         center.post(name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
 
         XCTAssertEqual(first, [])
-        XCTAssertEqual(second, [.storage])
+        XCTAssertEqual(second, [100])
     }
 }

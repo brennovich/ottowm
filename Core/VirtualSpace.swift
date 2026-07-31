@@ -92,7 +92,7 @@ final class VirtualSpace: Space {
         hiddenWindowFrames[windowId] != nil ? .storage : .active
     }
 
-    func startWatchingForManualNavigation(_ callback: @escaping (Placement) -> Void) {
+    func startWatchingForManualNavigation(_ callback: @escaping (CGWindowID) -> Void) {
         stopWatchingForManualNavigation()
         manualNavigationObserver = notificationCenter.addObserver(
             forName: NSWorkspace.activeSpaceDidChangeNotification,
@@ -107,13 +107,13 @@ final class VirtualSpace: Space {
         hiddenWindowFrames[windowId] = nil
     }
 
-    private func handleActiveSpaceChange(_ callback: (Placement) -> Void) {
+    private func handleActiveSpaceChange(_ callback: (CGWindowID) -> Void) {
         guard let focusedId = focusedWindowId(), hiddenWindowFrames[focusedId] != nil else {
             Log.space.debug("native space change ignored: no hidden window focused")
             return
         }
         Log.space.info("native space change with hidden window focused id=\(focusedId)")
-        callback(.storage)
+        callback(focusedId)
     }
 
     private func recoverWindowsStuckAtHiddenEdge(_ windows: [WindowSnapshot]) {

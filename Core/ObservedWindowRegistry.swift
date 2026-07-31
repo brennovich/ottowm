@@ -10,17 +10,27 @@ struct ObservedWindowRegistry<Element: Hashable> {
     }
 
     private var refs: [Element: WindowRef] = [:]
+    private var elementsById: [CGWindowID: Element] = [:]
 
     mutating func register(_ element: Element, pid: pid_t, id: CGWindowID) {
+        if let previous = refs[element] {
+            removeReverse(previous.id, element)
+        }
         refs[element] = WindowRef(pid: pid, id: id)
+        elementsById[id] = element
     }
 
     mutating func removeWindow(for element: Element) -> CGWindowID? {
-        refs.removeValue(forKey: element)?.id
+        guard let ref = refs.removeValue(forKey: element) else { return nil }
+        removeReverse(ref.id, element)
+        return ref.id
     }
 
     mutating func evict(pid: pid_t) {
-        refs = refs.filter { $0.value.pid != pid }
+        for (element, ref) in refs where ref.pid == pid {
+            refs[element] = nil
+            removeReverse(ref.id, element)
+        }
     }
 
     func unregistered(of elements: [Element]) -> [Element] {
@@ -28,6 +38,11 @@ struct ObservedWindowRegistry<Element: Hashable> {
     }
 
     func element(for id: CGWindowID) -> (element: Element, pid: pid_t)? {
-        refs.first { $0.value.id == id }.map { ($0.key, $0.value.pid) }
+        guard let element = elementsById[id], let ref = refs[element] else { return nil }
+        return (element, ref.pid)
+    }
+
+    private mutating func removeReverse(_ id: CGWindowID, _ element: Element) {
+        if elementsById[id] == element { elementsById[id] = nil }
     }
 }

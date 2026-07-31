@@ -21,12 +21,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             windowObserver.window(byId: id)
         }
 
-        let onScreenWindows = OnScreenWindows { Self.onScreenWindowIds() }
+        let onScreenWindows = OperationCache { Self.onScreenWindowIds() }
 
         let space = VirtualSpace(
             screen: MainScreen(),
             window: windowById,
-            onScreenWindowIds: onScreenWindows.ids,
+            onScreenWindowIds: onScreenWindows.value,
             managedWindowIds: { [weak self] in self?.engine?.managedWindowIds ?? [] },
             focusedWindowId: { AXWindow.focused()?.id }
         )
@@ -34,7 +34,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let engine = Engine(
             space: space,
             window: windowById,
-            focusedWindow: FocusedWindow { AXWindow.focused()?.snapshot() },
+            focusedWindow: OperationCache { AXWindow.focused()?.snapshot() },
             onScreenWindows: onScreenWindows
         )
         self.engine = engine

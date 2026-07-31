@@ -68,6 +68,10 @@ final class AXWindowObserver {
                 return
             }
             let window = AXWindow(element: element, application: app)
+            guard window.id != 0 else {
+                Log.observer.debug("dropped \(notification): no window id")
+                return
+            }
             watchForDestruction(window, observer: observer)
             handler?(.created(window.snapshot()))
         case kAXFocusedWindowChangedNotification:

@@ -27,10 +27,6 @@ final class Workspaces {
         focusedWindows[virtualSpace] = focusHistory
     }
 
-    func getFocusedWindowForVirtualSpace(_ virtualSpace: Int) -> CGWindowID? {
-        focusedWindows[virtualSpace]?.first
-    }
-
     func getVirtualSpaceForWindow(_ windowId: CGWindowID) -> Int? {
         windowVirtualSpaceMap[windowId]
     }
@@ -141,11 +137,6 @@ final class Workspaces {
 
     func setCurrentVirtualSpace(_ virtualSpace: Int) {
         currentVirtualSpace = virtualSpace
-    }
-
-    func getTabGroupForWindow(_ windowId: CGWindowID) -> [CGWindowID]? {
-        guard let groupId = windowToGroup[windowId] else { return nil }
-        return groups[groupId]?.windowIds
     }
 
     func getTabSiblingsBeforeDestruction(_ windowId: CGWindowID) -> [CGWindowID]? {

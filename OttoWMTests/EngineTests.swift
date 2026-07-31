@@ -10,12 +10,12 @@ final class EngineTests: XCTestCase {
     private lazy var engine = Engine(
         space: space,
         window: { [weak self] id in self?.windows[id] },
-        focusedWindow: FocusedWindow { [weak self] in
+        focusedWindow: OperationCache { [weak self] in
             guard let self else { return nil }
             self.focusedReadCount += 1
             return self.focused?.snapshot()
         },
-        onScreenWindows: OnScreenWindows { [weak self] in
+        onScreenWindows: OperationCache { [weak self] in
             guard let self else { return [] }
             return Set(self.windows.keys).subtracting(self.space.unmanagedWindowIds)
         }
@@ -240,7 +240,7 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(space.windowSpaces(700), .storage)
 
         focused = win
-        space.manualNavigationCallback?(.storage)
+        space.manualNavigationCallback?(700)
 
         XCTAssertEqual(engine.currentVirtualSpace, 1)
         XCTAssertEqual(space.windowSpaces(700), .active)
