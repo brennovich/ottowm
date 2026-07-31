@@ -26,7 +26,7 @@ final class EngineVirtualSpaceIntegrationTests: XCTestCase {
     private lazy var engine: Engine = Engine(
         space: space,
         window: { [weak self] in self?.windows[$0] },
-        focusedWindow: { [weak self] in self?.focused?.snapshot() },
+        focusedWindow: FocusedWindow { [weak self] in self?.focused?.snapshot() },
         onScreenWindows: onScreenWindows
     )
 

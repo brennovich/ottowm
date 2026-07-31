@@ -5,11 +5,16 @@ final class EngineTests: XCTestCase {
     private var space = StubSpace()
     private var windows: [CGWindowID: StubWindow] = [:]
     private var focused: StubWindow?
+    private var focusedReadCount = 0
 
     private lazy var engine = Engine(
         space: space,
         window: { [weak self] id in self?.windows[id] },
-        focusedWindow: { [weak self] in self?.focused?.snapshot() },
+        focusedWindow: FocusedWindow { [weak self] in
+            guard let self else { return nil }
+            self.focusedReadCount += 1
+            return self.focused?.snapshot()
+        },
         onScreenWindows: OnScreenWindows { [weak self] in
             guard let self else { return [] }
             return Set(self.windows.keys).subtracting(self.space.unmanagedWindowIds)
@@ -211,6 +216,20 @@ final class EngineTests: XCTestCase {
 
         XCTAssertEqual(win1.focusCount, 1)
         XCTAssertEqual(win2.focusCount, 0)
+    }
+
+    func testSwitchReadsTheFocusedWindowOnce() {
+        let win1 = makeWindow(100)
+        let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
+        engine.handle(.created(win1.snapshot()))
+        engine.handle(.created(win2.snapshot()))
+        engine.moveWindowToVirtualSpace(win2.snapshot(), 2)
+
+        focused = win1
+        focusedReadCount = 0
+        engine.switchToVirtualSpace(2)
+
+        XCTAssertEqual(focusedReadCount, 1)
     }
 
     func testManualNavigationToHiddenWindowSwitchesToItsVirtualSpace() {

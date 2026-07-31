@@ -34,7 +34,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let engine = Engine(
             space: space,
             window: windowById,
-            focusedWindow: { AXWindow.focused()?.snapshot() },
+            focusedWindow: FocusedWindow { AXWindow.focused()?.snapshot() },
             onScreenWindows: onScreenWindows
         )
         self.engine = engine

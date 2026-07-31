@@ -5,7 +5,7 @@ import CoreGraphics
 final class Engine {
     private let space: any Space
     private let window: (CGWindowID) -> (any Window)?
-    private let focusedWindow: () -> WindowSnapshot?
+    private let focusedWindow: FocusedWindow
     private let onScreenWindows: OnScreenWindows
     private let model = Workspaces()
     private var ignoreNextManualNavigation = false
@@ -13,7 +13,7 @@ final class Engine {
     init(
         space: any Space,
         window: @escaping (CGWindowID) -> (any Window)?,
-        focusedWindow: @escaping () -> WindowSnapshot?,
+        focusedWindow: FocusedWindow,
         onScreenWindows: OnScreenWindows
     ) {
         self.space = space
@@ -46,7 +46,7 @@ final class Engine {
     }
 
     func handle(_ event: WindowEvent) {
-        onScreenWindows.duringOperation {
+        duringOperation {
             switch event {
             case let .created(win):
                 assignWindowToVirtualSpace(win, model.getCurrentVirtualSpace())
@@ -86,7 +86,7 @@ final class Engine {
                 Log.engine.info("move dropped: invalid virtual space \(virtualSpace)")
                 return
             }
-            guard let win = window ?? focusedWindow(), isValidWindow(win) else {
+            guard let win = window ?? focusedWindow.snapshot(), isValidWindow(win) else {
                 Log.engine.info("move to \(virtualSpace) dropped: no valid window to move")
                 return
             }
@@ -106,7 +106,7 @@ final class Engine {
             // describe a focus OttoWM itself caused before the switch that hid the
             // window. Acting on such an echo bounces straight back to the space we
             // just left. Only the window the OS considers focused right now counts.
-            guard focusedWindow()?.id == win.id else {
+            guard focusedWindow.snapshot()?.id == win.id else {
                 Log.engine.debug("ignoring stale focus event id=\(win.id)")
                 return
             }
@@ -147,7 +147,7 @@ final class Engine {
 
             if currentVirtualSpaceIsClosing() { return }
 
-            guard let win = win ?? focusedWindow() else {
+            guard let win = win ?? focusedWindow.snapshot() else {
                 Log.engine.debug("manual navigation dropped: no focused window")
                 return
             }
@@ -159,7 +159,7 @@ final class Engine {
     }
 
     private func switchSpaces(_ virtualSpace: Int) {
-        if let focused = focusedWindow(), isValidWindow(focused) {
+        if let focused = focusedWindow.snapshot(), isValidWindow(focused) {
             model.saveFocusedWindowInVirtualSpace(model.getCurrentVirtualSpace(), focused.id)
         }
 
@@ -194,7 +194,7 @@ final class Engine {
         operation("restoreWindowsFocus") {
             let currentSpace = model.getCurrentVirtualSpace()
 
-            if let osFocused = focusedWindow(), isValidWindow(osFocused),
+            if let osFocused = focusedWindow.snapshot(), isValidWindow(osFocused),
                model.getVirtualSpaceForWindow(osFocused.id) == currentSpace {
                 model.saveFocusedWindowInVirtualSpace(currentSpace, osFocused.id)
                 return true
@@ -211,11 +211,16 @@ final class Engine {
         }
     }
 
-    // An operation is the unit both telemetry and the window-list snapshot are scoped
-    // to: `isValidWindow` asks which windows are on screen several times per operation,
-    // and each ask would otherwise be its own CGWindowList round trip.
+    // An operation is the unit telemetry and both IPC-backed reads are scoped to:
+    // `isValidWindow` asks which windows are on screen several times per operation and
+    // the focused window is read more than once, and each ask would otherwise be its
+    // own round trip.
     private func operation<T>(_ name: String, _ body: () -> T) -> T {
-        onScreenWindows.duringOperation { Telemetry.shared.span(name, body) }
+        duringOperation { Telemetry.shared.span(name, body) }
+    }
+
+    private func duringOperation<T>(_ body: () -> T) -> T {
+        onScreenWindows.duringOperation { focusedWindow.duringOperation(body) }
     }
 
     private func isValidWindow(_ win: WindowSnapshot) -> Bool {
