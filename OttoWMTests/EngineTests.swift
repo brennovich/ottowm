@@ -234,10 +234,25 @@ final class EngineTests: XCTestCase {
 
         XCTAssertEqual(space.windowSpaces(700), .storage)
 
+        focused = win
         engine.handle(.focused(win))
 
         XCTAssertEqual(engine.currentVirtualSpace, 1)
         XCTAssertEqual(space.windowSpaces(700), .active)
+    }
+
+    func testStaleFocusEventForStorageWindowIsIgnored() {
+        let win1 = makeWindow(100)
+        let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
+        engine.handle(.created(win1))
+        engine.handle(.created(win2))
+        engine.moveWindowToVirtualSpace(win2, 2)
+
+        focused = win1
+        engine.handle(.focused(win2))
+
+        XCTAssertEqual(engine.currentVirtualSpace, 1)
+        XCTAssertEqual(space.windowSpaces(200), .storage)
     }
 
     func testFocusedStorageWindowDoesNotSwitchWhileCurrentSpaceIsClosing() {

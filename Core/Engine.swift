@@ -102,6 +102,14 @@ final class Engine {
 
     private func handleFocused(_ win: any Window) {
         if space.windowSpaces(win.id) == .storage {
+            // Focus notifications are delivered asynchronously, so this one may
+            // describe a focus OttoWM itself caused before the switch that hid the
+            // window. Acting on such an echo bounces straight back to the space we
+            // just left. Only the window the OS considers focused right now counts.
+            guard focusedWindow()?.id == win.id else {
+                Log.engine.debug("ignoring stale focus event id=\(win.id)")
+                return
+            }
             handleManualNavigation(win)
             return
         }
