@@ -60,7 +60,7 @@ final class Engine {
     func switchToVirtualSpace(_ virtualSpace: Int) {
         operation("switchToVirtualSpace(\(virtualSpace))") {
             let onManagedSpace = space.isOnManagedSpace() || model.allWindowIds().isEmpty
-            Log.engine.info("switch requested target=\(virtualSpace) current=\(model.getCurrentVirtualSpace()) onManagedSpace=\(onManagedSpace)")
+            Log.engine.info("switch requested target=\(virtualSpace) current=\(self.model.getCurrentVirtualSpace()) onManagedSpace=\(onManagedSpace)")
 
             if virtualSpace == model.getCurrentVirtualSpace() {
                 if !onManagedSpace {

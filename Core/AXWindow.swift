@@ -108,7 +108,7 @@ final class AXWindow: Window {
 
     private var tabCount: Int {
         guard let children = value(kAXChildrenAttribute) as? [AXUIElement] else {
-            Log.window.debug("tabCount children read failed \(logDescription), assuming 1")
+            Log.window.debug("tabCount children read failed \(self.logDescription), assuming 1")
             return 1
         }
 

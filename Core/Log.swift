@@ -1,27 +1,18 @@
 import os
 
-// Logs a plain message as a single public string — this is a personal,
-// non-sandboxed agent where redacted logs would be useless. The isEnabled guard
-// keeps messages for disabled levels unevaluated.
 struct LogChannel {
     private let logger: Logger
-    private let log: OSLog
 
     init(subsystem: String, category: String) {
         logger = Logger(subsystem: subsystem, category: category)
-        log = OSLog(subsystem: subsystem, category: category)
     }
 
-    func debug(_ message: @autoclosure () -> String) {
-        guard log.isEnabled(type: .debug) else { return }
-        let evaluated = message()
-        logger.debug("\(evaluated, privacy: .public)")
+    func debug(_ message: @autoclosure @escaping () -> String) {
+        logger.debug("\(message(), privacy: .public)")
     }
 
-    func info(_ message: @autoclosure () -> String) {
-        guard log.isEnabled(type: .info) else { return }
-        let evaluated = message()
-        logger.info("\(evaluated, privacy: .public)")
+    func info(_ message: @autoclosure @escaping () -> String) {
+        logger.info("\(message(), privacy: .public)")
     }
 
     func notice(_ message: String) {
@@ -33,8 +24,8 @@ struct LogChannel {
     }
 }
 
-// Unified-logging handles, one per flow; enable verbose output at runtime with
-// `log stream --level debug --predicate 'subsystem == "com.github.brennovich.ottowm"'`.
+// Flow oriented logs, enable verbose output at runtime with:
+//   `log stream --level debug --predicate 'subsystem == "com.github.brennovich.ottowm"'`.
 enum Log {
     static let subsystem = "com.github.brennovich.ottowm"
 
