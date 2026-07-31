@@ -1,9 +1,9 @@
 import CoreGraphics
 
 // Orchestrates windows lifecycle events and hotkey commands, keeping the pure
-// Workspaces and the Space in sync.
+// Workspaces model and the physical Desktop in sync.
 final class Engine {
-    private let space: any Space
+    private let desktop: any Desktop
     private let window: (CGWindowID) -> (any Window)?
     private let focusedWindow: OperationCache<WindowSnapshot?>
     private let onScreenWindows: OperationCache<Set<CGWindowID>>
@@ -11,12 +11,12 @@ final class Engine {
     private var ignoreNextManualNavigation = false
 
     init(
-        space: any Space,
+        desktop: any Desktop,
         window: @escaping (CGWindowID) -> (any Window)?,
         focusedWindow: OperationCache<WindowSnapshot?>,
         onScreenWindows: OperationCache<Set<CGWindowID>>
     ) {
-        self.space = space
+        self.desktop = desktop
         self.window = window
         self.focusedWindow = focusedWindow
         self.onScreenWindows = onScreenWindows
@@ -32,13 +32,13 @@ final class Engine {
 
     func start(windows: [WindowSnapshot]) {
         operation("start") {
-            space.setupForMainScreen(windows: windows)
+            desktop.setupForMainScreen(windows: windows)
 
             for win in windows {
                 assignWindowToVirtualSpace(win, 1)
             }
 
-            space.startWatchingForManualNavigation { [weak self] windowId in
+            desktop.startWatchingForManualNavigation { [weak self] windowId in
                 self?.handleManualNavigation(windowId)
             }
         }
@@ -59,22 +59,22 @@ final class Engine {
 
     func switchToVirtualSpace(_ virtualSpace: Int) {
         operation("switchToVirtualSpace(\(virtualSpace))") {
-            let onManagedSpace = space.isOnManagedSpace() || model.allWindowIds().isEmpty
-            Log.engine.info("switch requested target=\(virtualSpace) current=\(self.model.getCurrentVirtualSpace()) onManagedSpace=\(onManagedSpace)")
+            let onDesktop = desktop.isFrontmost() || model.allWindowIds().isEmpty
+            Log.engine.info("switch requested target=\(virtualSpace) current=\(self.model.getCurrentVirtualSpace()) onDesktop=\(onDesktop)")
 
             if virtualSpace == model.getCurrentVirtualSpace() {
-                if !onManagedSpace {
-                    returnToManagedSpace()
+                if !onDesktop {
+                    returnToDesktop()
                 }
                 return
             }
 
             switchSpaces(virtualSpace)
 
-            if onManagedSpace {
+            if onDesktop {
                 restoreWindowsFocusForVirtualSpace()
             } else {
-                returnToManagedSpace()
+                returnToDesktop()
             }
         }
     }
@@ -92,7 +92,7 @@ final class Engine {
 
             let placement: Placement = virtualSpace == model.getCurrentVirtualSpace() ? .active : .storage
             Log.engine.info("moving window \(win.logDescription) to space \(virtualSpace) placement=\(placement)")
-            space.moveWindowToSpace(win.id, placement)
+            desktop.place(win.id, placement)
             model.moveWindowToVirtualSpace(win.id, virtualSpace)
 
             restoreWindowsFocusForVirtualSpace()
@@ -100,7 +100,7 @@ final class Engine {
     }
 
     private func handleFocused(_ win: WindowSnapshot) {
-        if space.windowSpaces(win.id) == .storage {
+        if desktop.placement(of: win.id) == .storage {
             // Focus notifications are delivered asynchronously, so this one may
             // describe a focus OttoWM itself caused before the switch that hid the
             // window. Acting on such an echo bounces straight back to the space we
@@ -126,7 +126,7 @@ final class Engine {
         let hasTabSiblings = model.getTabSiblingsBeforeDestruction(windowId) != nil
         Log.engine.debug("destroyed id=\(windowId) hadTabSiblings=\(hasTabSiblings)")
         model.unregisterWindowById(windowId)
-        space.forgetWindow(windowId)
+        desktop.forget(windowId)
 
         if !hasTabSiblings {
             restoreWindowsFocusForVirtualSpace()
@@ -160,10 +160,10 @@ final class Engine {
         let categorized = model.categorizeWindowsForTransition(virtualSpace)
         Log.engine.info("switching to \(virtualSpace) toActive=\(categorized.toActive) toStorage=\(categorized.toStorage)")
         for windowId in categorized.toActive {
-            space.moveWindowToSpace(windowId, .active)
+            desktop.place(windowId, .active)
         }
         for windowId in categorized.toStorage {
-            space.moveWindowToSpace(windowId, .storage)
+            desktop.place(windowId, .storage)
         }
 
         model.setCurrentVirtualSpace(virtualSpace)
@@ -175,11 +175,11 @@ final class Engine {
         Log.engine.info("assigned \(win.logDescription) → space \(virtualSpace)")
     }
 
-    private func returnToManagedSpace() {
+    private func returnToDesktop() {
         if !restoreWindowsFocusForVirtualSpace() {
             ignoreNextManualNavigation = true
-            Log.engine.debug("returning to managed space, ignoring next manual navigation")
-            space.activateManagedSpace()
+            Log.engine.debug("returning to desktop, ignoring next manual navigation")
+            desktop.bringToFront()
         }
     }
 
@@ -218,7 +218,7 @@ final class Engine {
     }
 
     private func isValidWindow(_ win: WindowSnapshot) -> Bool {
-        win.id != 0 && win.isStandard && !win.isFullScreen && space.managesWindow(win.id)
+        win.id != 0 && win.isStandard && !win.isFullScreen && desktop.contains(win.id)
     }
 
     // True while the current virtual space's windows are all mid-destruction: the

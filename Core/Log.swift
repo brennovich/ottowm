@@ -32,7 +32,7 @@ enum Log {
     static let app = LogChannel(subsystem: subsystem, category: "app")
     static let hotkey = LogChannel(subsystem: subsystem, category: "hotkey")
     static let engine = LogChannel(subsystem: subsystem, category: "engine")
-    static let space = LogChannel(subsystem: subsystem, category: "space")
+    static let desktop = LogChannel(subsystem: subsystem, category: "desktop")
     static let window = LogChannel(subsystem: subsystem, category: "window")
     static let observer = LogChannel(subsystem: subsystem, category: "observer")
     static let telemetry = LogChannel(subsystem: subsystem, category: "telemetry")

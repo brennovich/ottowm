@@ -1,7 +1,7 @@
 import AppKit
 import XCTest
 
-final class EngineVirtualSpaceIntegrationTests: XCTestCase {
+final class EngineDesktopIntegrationTests: XCTestCase {
     private var windows: [CGWindowID: StubWindow] = [:]
     private var focused: StubWindow?
     private var onForeignNativeSpace = false
@@ -14,7 +14,7 @@ final class EngineVirtualSpaceIntegrationTests: XCTestCase {
         return self.onForeignNativeSpace ? [] : Set(self.windows.keys)
     }
 
-    private lazy var space: VirtualSpace = VirtualSpace(
+    private lazy var desktop: OffscreenParkingDesktop = OffscreenParkingDesktop(
         screen: StubScreen.standard,
         window: { [weak self] in self?.windows[$0] },
         onScreenWindowIds: { [weak self] in self?.onScreenWindows.value() ?? [] },
@@ -24,7 +24,7 @@ final class EngineVirtualSpaceIntegrationTests: XCTestCase {
     )
 
     private lazy var engine: Engine = Engine(
-        space: space,
+        desktop: desktop,
         window: { [weak self] in self?.windows[$0] },
         focusedWindow: OperationCache { [weak self] in self?.focused?.snapshot() },
         onScreenWindows: onScreenWindows
@@ -90,7 +90,7 @@ final class EngineVirtualSpaceIntegrationTests: XCTestCase {
         XCTAssertEqual(win1.frame, nubFrame(size: frame1.size))
     }
 
-    func testReturnToManagedSpaceSuppressesFollowUpManualNavigation() {
+    func testReturnToDesktopSuppressesFollowUpManualNavigation() {
         let frame1 = CGRect(x: 100, y: 100, width: 800, height: 600)
         let win1 = addWindow(100, frame: frame1)
         focused = win1
@@ -121,7 +121,7 @@ final class EngineVirtualSpaceIntegrationTests: XCTestCase {
         windows[700] = nil
         engine.handle(.destroyed(700))
 
-        XCTAssertEqual(space.windowSpaces(700), .active)
+        XCTAssertEqual(desktop.placement(of: 700), .active)
 
         let recycledFrame = CGRect(x: 20, y: 30, width: 500, height: 400)
         let newWin = addWindow(700, frame: recycledFrame)

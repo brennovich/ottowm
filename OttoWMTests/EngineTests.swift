@@ -2,13 +2,13 @@ import CoreGraphics
 import XCTest
 
 final class EngineTests: XCTestCase {
-    private var space = StubSpace()
+    private var desktop = StubDesktop()
     private var windows: [CGWindowID: StubWindow] = [:]
     private var focused: StubWindow?
     private var focusedReadCount = 0
 
     private lazy var engine = Engine(
-        space: space,
+        desktop: desktop,
         window: { [weak self] id in self?.windows[id] },
         focusedWindow: OperationCache { [weak self] in
             guard let self else { return nil }
@@ -17,7 +17,7 @@ final class EngineTests: XCTestCase {
         },
         onScreenWindows: OperationCache { [weak self] in
             guard let self else { return [] }
-            return Set(self.windows.keys).subtracting(self.space.unmanagedWindowIds)
+            return Set(self.windows.keys).subtracting(self.desktop.absentWindowIds)
         }
     )
 
@@ -47,14 +47,14 @@ final class EngineTests: XCTestCase {
 
         engine.start(windows: [win1.snapshot(), win2.snapshot()])
 
-        XCTAssertEqual(space.setupForMainScreenCount, 1)
-        XCTAssertEqual(space.setupWindowIds, [100, 200])
+        XCTAssertEqual(desktop.setupForMainScreenCount, 1)
+        XCTAssertEqual(desktop.setupWindowIds, [100, 200])
         XCTAssertEqual(engine.managedWindowIds, [100, 200])
         XCTAssertEqual(engine.currentVirtualSpace, 1)
     }
 
     func testStartSkipsInvalidWindows() {
-        space.unmanagedWindowIds = [500]
+        desktop.absentWindowIds = [500]
         let seeds = [
             makeWindow(0),
             makeWindow(300, isStandard: false),
@@ -77,11 +77,11 @@ final class EngineTests: XCTestCase {
 
         engine.switchToVirtualSpace(1)
 
-        XCTAssertEqual(space.windowSpaces(100), .storage)
+        XCTAssertEqual(desktop.placement(of: 100), .storage)
     }
 
     func testCreatedInvalidWindowIsIgnored() {
-        space.unmanagedWindowIds = [400]
+        desktop.absentWindowIds = [400]
         let invalidWindows = [
             makeWindow(0),
             makeWindow(200, isStandard: false),
@@ -133,68 +133,68 @@ final class EngineTests: XCTestCase {
         engine.handle(.created(win2.snapshot()))
         engine.moveWindowToVirtualSpace(win2.snapshot(), 2)
 
-        XCTAssertEqual(space.windowSpaces(200), .storage)
+        XCTAssertEqual(desktop.placement(of: 200), .storage)
 
         engine.switchToVirtualSpace(2)
 
-        XCTAssertEqual(space.windowSpaces(100), .storage)
-        XCTAssertEqual(space.windowSpaces(200), .active)
+        XCTAssertEqual(desktop.placement(of: 100), .storage)
+        XCTAssertEqual(desktop.placement(of: 200), .active)
         XCTAssertEqual(engine.currentVirtualSpace, 2)
     }
 
-    func testSwitchToSameVirtualSpaceOnManagedSpaceIsNoOp() {
+    func testSwitchToSameVirtualSpaceOnFrontmostDesktopIsNoOp() {
         let win = makeWindow(100)
         engine.handle(.created(win.snapshot()))
 
         engine.switchToVirtualSpace(1)
 
-        XCTAssertTrue(space.movedCalls.isEmpty)
+        XCTAssertTrue(desktop.placeCalls.isEmpty)
         XCTAssertEqual(win.focusCount, 0)
     }
 
-    func testSwitchToSameVirtualSpaceOffManagedSpaceRestoresFocus() {
+    func testSwitchToSameVirtualSpaceOffDesktopRestoresFocus() {
         let win = makeWindow(100)
         engine.handle(.created(win.snapshot()))
-        space.isOnManagedSpaceValue = false
+        desktop.isFrontmostValue = false
 
         engine.switchToVirtualSpace(1)
 
         XCTAssertEqual(win.focusCount, 1)
-        XCTAssertEqual(space.activateManagedSpaceCount, 0)
+        XCTAssertEqual(desktop.bringToFrontCount, 0)
     }
 
-    func testSwitchToNonEmptyVirtualSpaceOffManagedSpaceRestoresFocusWithoutActivatingSpace() {
+    func testSwitchToNonEmptyVirtualSpaceOffDesktopRestoresFocusWithoutBringingToFront() {
         let win = makeWindow(700)
         engine.handle(.created(win.snapshot()))
         engine.moveWindowToVirtualSpace(win.snapshot(), 2)
-        space.isOnManagedSpaceValue = false
+        desktop.isFrontmostValue = false
 
         engine.switchToVirtualSpace(2)
 
         XCTAssertEqual(win.focusCount, 1)
-        XCTAssertEqual(space.windowSpaces(700), .active)
-        XCTAssertEqual(space.activateManagedSpaceCount, 0)
+        XCTAssertEqual(desktop.placement(of: 700), .active)
+        XCTAssertEqual(desktop.bringToFrontCount, 0)
     }
 
-    func testSwitchWithNoManagedWindowsDoesNotActivateManagedSpace() {
-        space.isOnManagedSpaceValue = false
+    func testSwitchWithNoManagedWindowsDoesNotBringDesktopToFront() {
+        desktop.isFrontmostValue = false
 
         engine.switchToVirtualSpace(2)
         engine.switchToVirtualSpace(2)
 
-        XCTAssertEqual(space.activateManagedSpaceCount, 0)
+        XCTAssertEqual(desktop.bringToFrontCount, 0)
         XCTAssertEqual(engine.currentVirtualSpace, 2)
     }
 
-    func testActivateManagedSpaceInducedFocusDoesNotSwitchAwayFromEmptySpace() {
+    func testBringToFrontInducedFocusDoesNotSwitchAwayFromEmptySpace() {
         for win in [makeWindow(72), makeWindow(88), makeWindow(187)] {
             engine.handle(.created(win.snapshot()))
         }
-        space.isOnManagedSpaceValue = false
+        desktop.isFrontmostValue = false
 
         engine.switchToVirtualSpace(3)
 
-        XCTAssertEqual(space.activateManagedSpaceCount, 1)
+        XCTAssertEqual(desktop.bringToFrontCount, 1)
 
         engine.handle(.focused(windows[187]!.snapshot()))
 
@@ -237,13 +237,13 @@ final class EngineTests: XCTestCase {
         engine.start(windows: [win.snapshot()])
         engine.switchToVirtualSpace(2)
 
-        XCTAssertEqual(space.windowSpaces(700), .storage)
+        XCTAssertEqual(desktop.placement(of: 700), .storage)
 
         focused = win
-        space.manualNavigationCallback?(700)
+        desktop.manualNavigationCallback?(700)
 
         XCTAssertEqual(engine.currentVirtualSpace, 1)
-        XCTAssertEqual(space.windowSpaces(700), .active)
+        XCTAssertEqual(desktop.placement(of: 700), .active)
     }
 
     func testFocusedStorageWindowSwitchesToItsVirtualSpace() {
@@ -251,13 +251,13 @@ final class EngineTests: XCTestCase {
         engine.handle(.created(win.snapshot()))
         engine.switchToVirtualSpace(2)
 
-        XCTAssertEqual(space.windowSpaces(700), .storage)
+        XCTAssertEqual(desktop.placement(of: 700), .storage)
 
         focused = win
         engine.handle(.focused(win.snapshot()))
 
         XCTAssertEqual(engine.currentVirtualSpace, 1)
-        XCTAssertEqual(space.windowSpaces(700), .active)
+        XCTAssertEqual(desktop.placement(of: 700), .active)
     }
 
     func testStaleFocusEventForStorageWindowIsIgnored() {
@@ -271,7 +271,7 @@ final class EngineTests: XCTestCase {
         engine.handle(.focused(win2.snapshot()))
 
         XCTAssertEqual(engine.currentVirtualSpace, 1)
-        XCTAssertEqual(space.windowSpaces(200), .storage)
+        XCTAssertEqual(desktop.placement(of: 200), .storage)
     }
 
     func testFocusedStorageWindowDoesNotSwitchWhileCurrentSpaceIsClosing() {
@@ -285,7 +285,7 @@ final class EngineTests: XCTestCase {
         engine.handle(.focused(win2.snapshot()))
 
         XCTAssertEqual(engine.currentVirtualSpace, 1)
-        XCTAssertEqual(space.windowSpaces(200), .storage)
+        XCTAssertEqual(desktop.placement(of: 200), .storage)
     }
 
     func testMoveWindowToVirtualSpaceUsesFocusedWindowWhenNil() {
@@ -295,7 +295,7 @@ final class EngineTests: XCTestCase {
 
         engine.moveWindowToVirtualSpace(nil, 2)
 
-        XCTAssertEqual(space.windowSpaces(100), .storage)
+        XCTAssertEqual(desktop.placement(of: 100), .storage)
     }
 
     func testMoveWindowToVirtualSpaceMovesExplicitWindow() {
@@ -304,7 +304,7 @@ final class EngineTests: XCTestCase {
 
         engine.moveWindowToVirtualSpace(win.snapshot(), 2)
 
-        XCTAssertEqual(space.windowSpaces(200), .storage)
+        XCTAssertEqual(desktop.placement(of: 200), .storage)
     }
 
     func testMoveWindowToVirtualSpaceDoesNothingWithoutWindow() {
@@ -313,8 +313,8 @@ final class EngineTests: XCTestCase {
 
         engine.moveWindowToVirtualSpace(nil, 2)
 
-        XCTAssertTrue(space.movedCalls.isEmpty)
-        XCTAssertEqual(space.windowSpaces(100), .active)
+        XCTAssertTrue(desktop.placeCalls.isEmpty)
+        XCTAssertEqual(desktop.placement(of: 100), .active)
     }
 
     func testMoveWindowToVirtualSpaceIgnoresInvalidTarget() {
@@ -323,7 +323,7 @@ final class EngineTests: XCTestCase {
 
         engine.moveWindowToVirtualSpace(nil, 0)
 
-        XCTAssertTrue(space.movedCalls.isEmpty)
+        XCTAssertTrue(desktop.placeCalls.isEmpty)
         XCTAssertEqual(engine.managedWindowIds, [])
     }
 
@@ -333,7 +333,7 @@ final class EngineTests: XCTestCase {
 
         engine.moveWindowToVirtualSpace(nil, 2)
 
-        XCTAssertTrue(space.movedCalls.isEmpty)
+        XCTAssertTrue(desktop.placeCalls.isEmpty)
         XCTAssertEqual(engine.managedWindowIds, [])
     }
 
@@ -344,11 +344,11 @@ final class EngineTests: XCTestCase {
 
         engine.moveWindowToVirtualSpace(nil, 2)
 
-        XCTAssertEqual(space.windowSpaces(100), .storage)
+        XCTAssertEqual(desktop.placement(of: 100), .storage)
 
         engine.moveWindowToVirtualSpace(nil, 1)
 
-        XCTAssertEqual(space.windowSpaces(100), .active)
+        XCTAssertEqual(desktop.placement(of: 100), .active)
     }
 
     func testDestroyedWindowRestoresFocusToPreviousWindow() {
@@ -362,7 +362,7 @@ final class EngineTests: XCTestCase {
         engine.handle(.destroyed(200))
 
         XCTAssertEqual(win1.focusCount, 1)
-        XCTAssertEqual(space.forgottenWindowIds, [200])
+        XCTAssertEqual(desktop.forgottenWindowIds, [200])
         XCTAssertEqual(engine.managedWindowIds, [100])
     }
 

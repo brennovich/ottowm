@@ -1,4 +1,4 @@
-// Where a managed window sits within the single native macOS Space.
+// Where a managed window sits on the desktop.
 enum Placement: Equatable {
     case active
     case storage

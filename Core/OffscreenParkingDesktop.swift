@@ -1,11 +1,11 @@
 import AppKit
 import CoreGraphics
 
-// Emulates the active/storage native-Space distinction on a single real macOS
-// Space: storage windows are pushed into the bottom-right corner nub and restored
-// to their captured frame on switch. Ported from VirtualSpace.lua, replacing all
-// hs.spaces (private CGS) usage with public APIs injected as seams.
-final class VirtualSpace: Space {
+// Realizes Placement on a single real macOS Space: storage windows are parked
+// in the bottom-right corner nub and restored to their captured frame on switch.
+// Ported from VirtualSpace.lua, replacing all hs.spaces (private CGS) usage with
+// public APIs injected as seams.
+final class OffscreenParkingDesktop: Desktop {
     private let screen: Screen
     private let window: (CGWindowID) -> (any Window)?
     private let onScreenWindowIds: () -> Set<CGWindowID>
@@ -38,57 +38,57 @@ final class VirtualSpace: Space {
         }
     }
 
-    func isOnManagedSpace() -> Bool {
+    func isFrontmost() -> Bool {
         !onScreenWindowIds().isDisjoint(with: managedWindowIds())
     }
 
-    func activateManagedSpace() {
+    func bringToFront() {
         for windowId in managedWindowIds() {
             if let win = window(windowId) {
-                Log.space.debug("activating managed space via id=\(windowId)")
+                Log.desktop.debug("bringing desktop to front via id=\(windowId)")
                 win.focus()
                 return
             }
         }
-        Log.space.debug("activateManagedSpace: no live managed window")
+        Log.desktop.debug("bringToFront: no live managed window")
     }
 
-    func managesWindow(_ windowId: CGWindowID) -> Bool {
+    func contains(_ windowId: CGWindowID) -> Bool {
         onScreenWindowIds().contains(windowId)
     }
 
-    func moveWindowToSpace(_ windowId: CGWindowID, _ space: Placement) {
-        Telemetry.shared.span("moveWindowToSpace(\(windowId))") {
-            switch space {
+    func place(_ windowId: CGWindowID, _ placement: Placement) {
+        Telemetry.shared.span("place(\(windowId))") {
+            switch placement {
             case .storage:
                 if hiddenWindowFrames[windowId] != nil { return }
-                guard let (win, originalFrame) = movableWindow(windowId, space) else { return }
+                guard let (win, originalFrame) = movableWindow(windowId, placement) else { return }
                 let hidden = hiddenFrame(for: originalFrame, on: screen)
                 hiddenWindowFrames[windowId] = originalFrame
                 win.setFrame(hidden)
-                Log.space.debug("hid id=\(windowId) from=\(originalFrame) to=\(hidden)")
+                Log.desktop.debug("hid id=\(windowId) from=\(originalFrame) to=\(hidden)")
             case .active:
                 guard let originalFrame = hiddenWindowFrames[windowId] else {
-                    Log.space.info("cannot restore id=\(windowId): no saved frame")
+                    Log.desktop.info("cannot restore id=\(windowId): no saved frame")
                     return
                 }
-                guard let (win, _) = movableWindow(windowId, space) else { return }
+                guard let (win, _) = movableWindow(windowId, placement) else { return }
                 win.setFrame(originalFrame)
                 hiddenWindowFrames[windowId] = nil
-                Log.space.debug("restored id=\(windowId) to=\(originalFrame)")
+                Log.desktop.debug("restored id=\(windowId) to=\(originalFrame)")
             }
         }
     }
 
-    private func movableWindow(_ windowId: CGWindowID, _ space: Placement) -> (window: any Window, frame: CGRect)? {
+    private func movableWindow(_ windowId: CGWindowID, _ placement: Placement) -> (window: any Window, frame: CGRect)? {
         guard let win = window(windowId), let frame = win.movableFrame() else {
-            Log.space.info("cannot move id=\(windowId) to \(space): window not found or not movable")
+            Log.desktop.info("cannot move id=\(windowId) to \(placement): window not found or not movable")
             return nil
         }
         return (win, frame)
     }
 
-    func windowSpaces(_ windowId: CGWindowID) -> Placement {
+    func placement(of windowId: CGWindowID) -> Placement {
         hiddenWindowFrames[windowId] != nil ? .storage : .active
     }
 
@@ -103,22 +103,22 @@ final class VirtualSpace: Space {
         }
     }
 
-    func forgetWindow(_ windowId: CGWindowID) {
+    func forget(_ windowId: CGWindowID) {
         hiddenWindowFrames[windowId] = nil
     }
 
     private func handleActiveSpaceChange(_ callback: (CGWindowID) -> Void) {
         guard let focusedId = focusedWindowId(), hiddenWindowFrames[focusedId] != nil else {
-            Log.space.debug("native space change ignored: no hidden window focused")
+            Log.desktop.debug("native space change ignored: no hidden window focused")
             return
         }
-        Log.space.info("native space change with hidden window focused id=\(focusedId)")
+        Log.desktop.info("native space change with hidden window focused id=\(focusedId)")
         callback(focusedId)
     }
 
     private func recoverWindowsStuckAtHiddenEdge(_ windows: [WindowSnapshot]) {
         for snapshot in windows where !snapshot.isMinimized && isStuckAtHiddenEdge(snapshot.frame, on: screen) {
-            Log.space.info("recovering \(snapshot.logDescription) stuck at hidden edge")
+            Log.desktop.info("recovering \(snapshot.logDescription) stuck at hidden edge")
             let recovered = recoveredFrame(for: snapshot.frame, visibleFrame: screen.visibleFrame)
             window(snapshot.id)?.setFrame(recovered)
         }

@@ -3,15 +3,15 @@ import XCTest
 
 private let testScreen: Screen = StubScreen.standard
 
-private func makeSpace(
+private func makeDesktop(
     _ windows: [StubWindow] = [],
     onScreen: @escaping () -> Set<CGWindowID> = { [] },
     managed: @escaping () -> Set<CGWindowID> = { [] },
     focusedWindowId: @escaping () -> CGWindowID? = { nil },
     center: NotificationCenter = NotificationCenter()
-) -> VirtualSpace {
+) -> OffscreenParkingDesktop {
     let registry = Dictionary(uniqueKeysWithValues: windows.map { ($0.id, $0) })
-    return VirtualSpace(
+    return OffscreenParkingDesktop(
         screen: testScreen,
         window: { registry[$0] },
         onScreenWindowIds: onScreen,
@@ -21,54 +21,54 @@ private func makeSpace(
     )
 }
 
-final class VirtualSpaceTests: XCTestCase {
+final class OffscreenParkingDesktopTests: XCTestCase {
     private let originalFrame = CGRect(x: 100, y: 100, width: 800, height: 600)
 
-    func testMoveWindowToSpaceCapturesFrameAndHidesThenRestores() {
+    func testPlaceCapturesFrameAndHidesThenRestores() {
         let win = StubWindow(id: 100, frame: originalFrame)
-        let space = makeSpace([win])
+        let desktop = makeDesktop([win])
 
-        space.moveWindowToSpace(100, .storage)
+        desktop.place(100, .storage)
 
         XCTAssertEqual(win.frameSetCount, 1)
         XCTAssertEqual(win.frame, CGRect(x: 1791, y: 1119, width: 800, height: 600))
 
-        space.moveWindowToSpace(100, .active)
+        desktop.place(100, .active)
 
         XCTAssertEqual(win.frameSetCount, 2)
         XCTAssertEqual(win.frame, originalFrame)
     }
 
-    func testMoveWindowToSpaceIsIdempotentOnDoubleHide() {
+    func testPlaceIsIdempotentOnDoubleHide() {
         let win = StubWindow(id: 100, frame: originalFrame)
-        let space = makeSpace([win])
+        let desktop = makeDesktop([win])
 
-        space.moveWindowToSpace(100, .storage)
-        space.moveWindowToSpace(100, .storage)
+        desktop.place(100, .storage)
+        desktop.place(100, .storage)
 
         XCTAssertEqual(win.frameSetCount, 1)
 
-        space.moveWindowToSpace(100, .active)
+        desktop.place(100, .active)
 
         XCTAssertEqual(win.frameSetCount, 2)
         XCTAssertEqual(win.frame, originalFrame)
     }
 
-    func testMoveWindowToSpaceIsIdempotentOnDoubleShow() {
+    func testPlaceIsIdempotentOnDoubleShow() {
         let win = StubWindow(id: 100, frame: originalFrame)
-        let space = makeSpace([win])
+        let desktop = makeDesktop([win])
 
-        space.moveWindowToSpace(100, .storage)
-        space.moveWindowToSpace(100, .active)
-        space.moveWindowToSpace(100, .active)
+        desktop.place(100, .storage)
+        desktop.place(100, .active)
+        desktop.place(100, .active)
 
         XCTAssertEqual(win.frameSetCount, 2)
     }
 
-    func testMoveWindowToSpaceSkipsLookupOnNoOpMoves() {
+    func testPlaceSkipsLookupOnNoOpMoves() {
         let win = StubWindow(id: 100, frame: originalFrame)
         var lookupCount = 0
-        let space = VirtualSpace(
+        let desktop = OffscreenParkingDesktop(
             screen: testScreen,
             window: { id in
                 lookupCount += 1
@@ -80,111 +80,111 @@ final class VirtualSpaceTests: XCTestCase {
             notificationCenter: NotificationCenter()
         )
 
-        space.moveWindowToSpace(100, .storage)
-        space.moveWindowToSpace(100, .storage)
+        desktop.place(100, .storage)
+        desktop.place(100, .storage)
 
         XCTAssertEqual(lookupCount, 1)
 
-        space.moveWindowToSpace(100, .active)
-        space.moveWindowToSpace(100, .active)
+        desktop.place(100, .active)
+        desktop.place(100, .active)
 
         XCTAssertEqual(lookupCount, 2)
     }
 
-    func testMoveWindowToSpaceReadsWindowStateOnce() {
+    func testPlaceReadsWindowStateOnce() {
         let win = StubWindow(id: 100, frame: originalFrame)
-        let space = makeSpace([win])
+        let desktop = makeDesktop([win])
 
-        space.moveWindowToSpace(100, .storage)
-        space.moveWindowToSpace(100, .active)
+        desktop.place(100, .storage)
+        desktop.place(100, .active)
 
         XCTAssertEqual(win.movableFrameCount, 2)
     }
 
-    func testMoveWindowToSpaceSkipsMinimizedWindows() {
+    func testPlaceSkipsMinimizedWindows() {
         let win = StubWindow(id: 100, frame: originalFrame, isMinimized: true)
-        let space = makeSpace([win])
+        let desktop = makeDesktop([win])
 
-        space.moveWindowToSpace(100, .storage)
+        desktop.place(100, .storage)
 
         XCTAssertEqual(win.frameSetCount, 0)
-        XCTAssertEqual(space.windowSpaces(100), .active)
+        XCTAssertEqual(desktop.placement(of: 100), .active)
     }
 
-    func testMoveWindowToSpaceHandlesMissingWindow() {
-        let space = makeSpace([])
+    func testPlaceHandlesMissingWindow() {
+        let desktop = makeDesktop([])
 
-        space.moveWindowToSpace(999, .storage)
+        desktop.place(999, .storage)
 
-        XCTAssertEqual(space.windowSpaces(999), .active)
+        XCTAssertEqual(desktop.placement(of: 999), .active)
     }
 
-    func testWindowSpacesReflectsHiddenState() {
+    func testPlacementReflectsHiddenState() {
         let win = StubWindow(id: 100, frame: originalFrame)
-        let space = makeSpace([win])
+        let desktop = makeDesktop([win])
 
-        XCTAssertEqual(space.windowSpaces(100), .active)
+        XCTAssertEqual(desktop.placement(of: 100), .active)
 
-        space.moveWindowToSpace(100, .storage)
-        XCTAssertEqual(space.windowSpaces(100), .storage)
+        desktop.place(100, .storage)
+        XCTAssertEqual(desktop.placement(of: 100), .storage)
 
-        space.moveWindowToSpace(100, .active)
-        XCTAssertEqual(space.windowSpaces(100), .active)
+        desktop.place(100, .active)
+        XCTAssertEqual(desktop.placement(of: 100), .active)
     }
 
-    func testForgetWindowClearsHiddenState() {
+    func testForgetClearsHiddenState() {
         let win = StubWindow(id: 100, frame: originalFrame)
-        let space = makeSpace([win])
+        let desktop = makeDesktop([win])
 
-        space.moveWindowToSpace(100, .storage)
-        space.forgetWindow(100)
+        desktop.place(100, .storage)
+        desktop.forget(100)
 
-        XCTAssertEqual(space.windowSpaces(100), .active)
+        XCTAssertEqual(desktop.placement(of: 100), .active)
     }
 
     func testSetupForMainScreenRecoversWindowsStuckInHiddenCorner() {
         let stuck = StubWindow(id: 200, frame: CGRect(x: 1791, y: 100, width: 800, height: 600))
         let normal = StubWindow(id: 300, frame: originalFrame)
-        let space = makeSpace([stuck, normal])
+        let desktop = makeDesktop([stuck, normal])
 
-        space.setupForMainScreen(windows: [stuck.snapshot(), normal.snapshot()])
+        desktop.setupForMainScreen(windows: [stuck.snapshot(), normal.snapshot()])
 
         XCTAssertEqual(stuck.frameSetCount, 1)
         XCTAssertLessThan(stuck.frame.minX, testScreen.fullFrame.maxX - hiddenEdgeDetectionMargin)
         XCTAssertEqual(normal.frameSetCount, 0)
     }
 
-    func testManagesWindowReflectsCurrentSpaceMembership() {
-        let space = makeSpace(onScreen: { [100] })
+    func testContainsReflectsOnScreenWindows() {
+        let desktop = makeDesktop(onScreen: { [100] })
 
-        XCTAssertTrue(space.managesWindow(100))
-        XCTAssertFalse(space.managesWindow(200))
+        XCTAssertTrue(desktop.contains(100))
+        XCTAssertFalse(desktop.contains(200))
     }
 
-    func testIsOnManagedSpaceReflectsManagedWindowsBeingOnScreen() {
+    func testIsFrontmostReflectsManagedWindowsBeingOnScreen() {
         var onScreen: Set<CGWindowID> = [100]
-        let space = makeSpace(onScreen: { onScreen }, managed: { [100, 200] })
+        let desktop = makeDesktop(onScreen: { onScreen }, managed: { [100, 200] })
 
-        XCTAssertTrue(space.isOnManagedSpace())
+        XCTAssertTrue(desktop.isFrontmost())
 
         onScreen = [999]
-        XCTAssertFalse(space.isOnManagedSpace())
+        XCTAssertFalse(desktop.isFrontmost())
     }
 
-    func testActivateManagedSpaceFocusesAManagedWindow() {
+    func testBringToFrontFocusesAManagedWindow() {
         let win = StubWindow(id: 100, frame: originalFrame)
-        let space = makeSpace([win], managed: { [100] })
+        let desktop = makeDesktop([win], managed: { [100] })
 
-        space.activateManagedSpace()
+        desktop.bringToFront()
 
         XCTAssertEqual(win.focusCount, 1)
     }
 
-    func testActivateManagedSpaceIsNoOpWithoutManagedWindows() {
+    func testBringToFrontIsNoOpWithoutManagedWindows() {
         let win = StubWindow(id: 100, frame: originalFrame)
-        let space = makeSpace([win], managed: { [] })
+        let desktop = makeDesktop([win], managed: { [] })
 
-        space.activateManagedSpace()
+        desktop.bringToFront()
 
         XCTAssertEqual(win.focusCount, 0)
     }
@@ -192,11 +192,11 @@ final class VirtualSpaceTests: XCTestCase {
     func testStartWatchingForManualNavigationFiresOnHiddenWindowFocus() {
         let win = StubWindow(id: 100, frame: originalFrame)
         let center = NotificationCenter()
-        let space = makeSpace([win], focusedWindowId: { win.id }, center: center)
+        let desktop = makeDesktop([win], focusedWindowId: { win.id }, center: center)
         var received: [CGWindowID] = []
 
-        space.startWatchingForManualNavigation { received.append($0) }
-        space.moveWindowToSpace(100, .storage)
+        desktop.startWatchingForManualNavigation { received.append($0) }
+        desktop.place(100, .storage)
         center.post(name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
 
         XCTAssertEqual(received, [100])
@@ -205,10 +205,10 @@ final class VirtualSpaceTests: XCTestCase {
     func testStartWatchingForManualNavigationIgnoresVisibleWindowFocus() {
         let win = StubWindow(id: 100, frame: originalFrame)
         let center = NotificationCenter()
-        let space = makeSpace([win], focusedWindowId: { win.id }, center: center)
+        let desktop = makeDesktop([win], focusedWindowId: { win.id }, center: center)
         var received: [CGWindowID] = []
 
-        space.startWatchingForManualNavigation { received.append($0) }
+        desktop.startWatchingForManualNavigation { received.append($0) }
         center.post(name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
 
         XCTAssertEqual(received, [])
@@ -217,13 +217,13 @@ final class VirtualSpaceTests: XCTestCase {
     func testStartWatchingForManualNavigationReplacesPreviousSubscription() {
         let win = StubWindow(id: 100, frame: originalFrame)
         let center = NotificationCenter()
-        let space = makeSpace([win], focusedWindowId: { win.id }, center: center)
+        let desktop = makeDesktop([win], focusedWindowId: { win.id }, center: center)
         var first: [CGWindowID] = []
         var second: [CGWindowID] = []
 
-        space.startWatchingForManualNavigation { first.append($0) }
-        space.startWatchingForManualNavigation { second.append($0) }
-        space.moveWindowToSpace(100, .storage)
+        desktop.startWatchingForManualNavigation { first.append($0) }
+        desktop.startWatchingForManualNavigation { second.append($0) }
+        desktop.place(100, .storage)
         center.post(name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
 
         XCTAssertEqual(first, [])

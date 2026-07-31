@@ -23,7 +23,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let onScreenWindows = OperationCache { Self.onScreenWindowIds() }
 
-        let space = VirtualSpace(
+        let desktop = OffscreenParkingDesktop(
             screen: MainScreen(),
             window: windowById,
             onScreenWindowIds: onScreenWindows.value,
@@ -32,7 +32,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         )
 
         let engine = Engine(
-            space: space,
+            desktop: desktop,
             window: windowById,
             focusedWindow: OperationCache { AXWindow.focused()?.snapshot() },
             onScreenWindows: onScreenWindows
