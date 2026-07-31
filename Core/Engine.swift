@@ -6,17 +6,20 @@ final class Engine {
     private let space: any Space
     private let window: (CGWindowID) -> (any Window)?
     private let focusedWindow: () -> (any Window)?
+    private let onScreenWindows: OnScreenWindows
     private let model = Workspaces()
     private var ignoreNextManualNavigation = false
 
     init(
         space: any Space,
         window: @escaping (CGWindowID) -> (any Window)?,
-        focusedWindow: @escaping () -> (any Window)?
+        focusedWindow: @escaping () -> (any Window)?,
+        onScreenWindows: OnScreenWindows
     ) {
         self.space = space
         self.window = window
         self.focusedWindow = focusedWindow
+        self.onScreenWindows = onScreenWindows
     }
 
     var currentVirtualSpace: Int {
@@ -28,8 +31,8 @@ final class Engine {
     }
 
     func start(windows: [any Window]) {
-        Telemetry.shared.span("start") {
-            space.setupForMainScreen()
+        operation("start") {
+            space.setupForMainScreen(windows: windows)
 
             for win in windows {
                 assignWindowToVirtualSpace(win, 1)
@@ -43,18 +46,20 @@ final class Engine {
     }
 
     func handle(_ event: WindowEvent) {
-        switch event {
-        case let .created(win):
-            assignWindowToVirtualSpace(win, model.getCurrentVirtualSpace())
-        case let .focused(win):
-            handleFocused(win)
-        case let .destroyed(windowId):
-            handleDestroyed(windowId)
+        onScreenWindows.duringOperation {
+            switch event {
+            case let .created(win):
+                assignWindowToVirtualSpace(win, model.getCurrentVirtualSpace())
+            case let .focused(win):
+                handleFocused(win)
+            case let .destroyed(windowId):
+                handleDestroyed(windowId)
+            }
         }
     }
 
     func switchToVirtualSpace(_ virtualSpace: Int) {
-        Telemetry.shared.span("switchToVirtualSpace(\(virtualSpace))") {
+        operation("switchToVirtualSpace(\(virtualSpace))") {
             let onManagedSpace = space.isOnManagedSpace() || model.allWindowIds().isEmpty
             Log.engine.info("switch requested target=\(virtualSpace) current=\(model.getCurrentVirtualSpace()) onManagedSpace=\(onManagedSpace)")
 
@@ -76,7 +81,7 @@ final class Engine {
     }
 
     func moveWindowToVirtualSpace(_ window: (any Window)?, _ virtualSpace: Int) {
-        Telemetry.shared.span("moveWindowToVirtualSpace(\(virtualSpace))") {
+        operation("moveWindowToVirtualSpace(\(virtualSpace))") {
             guard virtualSpace >= 1 else {
                 Log.engine.info("move dropped: invalid virtual space \(virtualSpace)")
                 return
@@ -125,7 +130,7 @@ final class Engine {
     // (Cmd-Tab/Dock on the same native Space, or Mission Control from another one),
     // so follow them by switching to that window's virtual space.
     private func handleManualNavigation(_ win: (any Window)? = nil) {
-        Telemetry.shared.span("handleManualNavigation") {
+        operation("handleManualNavigation") {
             if ignoreNextManualNavigation {
                 ignoreNextManualNavigation = false
                 Log.engine.debug("ignoring manual navigation (one-shot)")
@@ -178,7 +183,7 @@ final class Engine {
 
     @discardableResult
     private func restoreWindowsFocusForVirtualSpace() -> Bool {
-        Telemetry.shared.span("restoreWindowsFocus") {
+        operation("restoreWindowsFocus") {
             let currentSpace = model.getCurrentVirtualSpace()
 
             if let osFocused = focusedWindow(), isValidWindow(osFocused),
@@ -196,6 +201,13 @@ final class Engine {
             Log.engine.debug("no window to focus in space \(currentSpace)")
             return false
         }
+    }
+
+    // An operation is the unit both telemetry and the window-list snapshot are scoped
+    // to: `isValidWindow` asks which windows are on screen several times per operation,
+    // and each ask would otherwise be its own CGWindowList round trip.
+    private func operation<T>(_ name: String, _ body: () -> T) -> T {
+        onScreenWindows.duringOperation { Telemetry.shared.span(name, body) }
     }
 
     private func isValidWindow(_ win: any Window) -> Bool {

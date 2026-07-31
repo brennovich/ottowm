@@ -46,8 +46,9 @@ final class AXWindow: Window {
         }
 
         for child in children {
-            guard string(kAXRoleAttribute, of: child) == "AXTabGroup",
-                  let tabs = value(kAXChildrenAttribute, of: child) as? [AXUIElement]
+            let attributes = values([kAXRoleAttribute as String, kAXChildrenAttribute as String], of: child)
+            guard attributes[0] as? String == "AXTabGroup",
+                  let tabs = attributes[1] as? [AXUIElement]
             else { continue }
 
             let count = tabs.filter { string(kAXRoleAttribute, of: $0) == "AXRadioButton" }.count
@@ -59,10 +60,9 @@ final class AXWindow: Window {
 
     var frame: CGRect {
         get {
-            guard let positionRef = value(kAXPositionAttribute),
-                  let sizeRef = value(kAXSizeAttribute),
-                  let origin = decodeCGPoint(positionRef as! AXValue),
-                  let size = decodeCGSize(sizeRef as! AXValue)
+            let attributes = values([kAXPositionAttribute as String, kAXSizeAttribute as String])
+            guard let origin = axValue(attributes[0]).flatMap(decodeCGPoint),
+                  let size = axValue(attributes[1]).flatMap(decodeCGSize)
             else {
                 Log.window.error("read frame failed \(logDescription)")
                 return .zero
@@ -113,6 +113,20 @@ final class AXWindow: Window {
         let target = element ?? self.element
         guard AXUIElementCopyAttributeValue(target, attribute as CFString, &result) == .success else { return nil }
         return result
+    }
+
+    // One round trip for several attributes instead of one each. Returns a slot
+    // per requested attribute, nil where the read failed.
+    private func values(_ attributes: [String], of element: AXUIElement? = nil) -> [AnyObject?] {
+        var result: CFArray?
+        let target = element ?? self.element
+        let status = AXUIElementCopyMultipleAttributeValues(
+            target, attributes as CFArray, AXCopyMultipleAttributeOptions(rawValue: 0), &result
+        )
+        guard status == .success, let raw = result as? [AnyObject], raw.count == attributes.count else {
+            return Array(repeating: nil, count: attributes.count)
+        }
+        return discardingAXErrors(raw)
     }
 
     private func string(_ attribute: String, of element: AXUIElement? = nil) -> String? {

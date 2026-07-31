@@ -9,7 +9,11 @@ final class EngineTests: XCTestCase {
     private lazy var engine = Engine(
         space: space,
         window: { [weak self] id in self?.windows[id] },
-        focusedWindow: { [weak self] in self?.focused }
+        focusedWindow: { [weak self] in self?.focused },
+        onScreenWindows: OnScreenWindows { [weak self] in
+            guard let self else { return [] }
+            return Set(self.windows.keys).subtracting(self.space.unmanagedWindowIds)
+        }
     )
 
     private func makeWindow(
@@ -39,6 +43,7 @@ final class EngineTests: XCTestCase {
         engine.start(windows: [win1, win2])
 
         XCTAssertEqual(space.setupForMainScreenCount, 1)
+        XCTAssertEqual(space.setupWindowIds, [100, 200])
         XCTAssertEqual(engine.managedWindowIds, [100, 200])
         XCTAssertEqual(engine.currentVirtualSpace, 1)
     }

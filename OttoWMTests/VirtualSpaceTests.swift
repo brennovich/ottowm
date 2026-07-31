@@ -14,7 +14,6 @@ private func makeSpace(
     return VirtualSpace(
         screen: testScreen,
         window: { registry[$0] },
-        allWindows: { windows },
         onScreenWindowIds: onScreen,
         managedWindowIds: managed,
         focusedWindow: focused,
@@ -75,7 +74,6 @@ final class VirtualSpaceTests: XCTestCase {
                 lookupCount += 1
                 return id == win.id ? win : nil
             },
-            allWindows: { [win] },
             onScreenWindowIds: { [] },
             managedWindowIds: { [] },
             focusedWindow: { nil },
@@ -139,7 +137,7 @@ final class VirtualSpaceTests: XCTestCase {
         let normal = StubWindow(id: 300, frame: originalFrame)
         let space = makeSpace([stuck, normal])
 
-        space.setupForMainScreen()
+        space.setupForMainScreen(windows: [stuck, normal])
 
         XCTAssertEqual(stuck.frameSetCount, 1)
         XCTAssertLessThan(stuck.frame.minX, testScreen.fullFrame.maxX - hiddenEdgeDetectionMargin)

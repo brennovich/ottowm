@@ -5,19 +5,19 @@ final class EngineVirtualSpaceIntegrationTests: XCTestCase {
     private var windows: [CGWindowID: StubWindow] = [:]
     private var focused: StubWindow?
     private var onForeignNativeSpace = false
+    private var snapshotCount = 0
     private let center = NotificationCenter()
+
+    private lazy var onScreenWindows = OnScreenWindows { [weak self] in
+        guard let self else { return [] }
+        self.snapshotCount += 1
+        return self.onForeignNativeSpace ? [] : Set(self.windows.keys)
+    }
 
     private lazy var space: VirtualSpace = VirtualSpace(
         screen: StubScreen.standard,
         window: { [weak self] in self?.windows[$0] },
-        allWindows: { [weak self] in
-            guard let self else { return [] }
-            return Array(self.windows.values)
-        },
-        onScreenWindowIds: { [weak self] in
-            guard let self, !self.onForeignNativeSpace else { return [] }
-            return Set(self.windows.keys)
-        },
+        onScreenWindowIds: { [weak self] in self?.onScreenWindows.ids() ?? [] },
         managedWindowIds: { [weak self] in self?.engine.managedWindowIds ?? [] },
         focusedWindow: { [weak self] in self?.focused },
         notificationCenter: center
@@ -26,7 +26,8 @@ final class EngineVirtualSpaceIntegrationTests: XCTestCase {
     private lazy var engine: Engine = Engine(
         space: space,
         window: { [weak self] in self?.windows[$0] },
-        focusedWindow: { [weak self] in self?.focused }
+        focusedWindow: { [weak self] in self?.focused },
+        onScreenWindows: onScreenWindows
     )
 
     private func addWindow(_ id: CGWindowID, frame: CGRect, isMinimized: Bool = false) -> StubWindow {
@@ -148,6 +149,19 @@ final class EngineVirtualSpaceIntegrationTests: XCTestCase {
 
         XCTAssertEqual(engine.currentVirtualSpace, 1)
         XCTAssertEqual(win2.frame, nubFrame(size: frame2.size))
+    }
+
+    func testSwitchTakesASingleWindowListSnapshot() {
+        let win1 = addWindow(100, frame: CGRect(x: 100, y: 100, width: 800, height: 600))
+        let win2 = addWindow(200, frame: CGRect(x: 300, y: 200, width: 640, height: 480))
+        focused = win1
+        start()
+        engine.moveWindowToVirtualSpace(win2, 2)
+        snapshotCount = 0
+
+        engine.switchToVirtualSpace(2)
+
+        XCTAssertEqual(snapshotCount, 1)
     }
 
     func testMinimizedWindowIsLeftInPlaceAcrossSwitches() {

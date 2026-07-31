@@ -8,11 +8,13 @@ final class StubSpace: Space {
     private(set) var movedCalls: [(windowId: CGWindowID, placement: Placement)] = []
     private(set) var forgottenWindowIds: [CGWindowID] = []
     private(set) var setupForMainScreenCount = 0
+    private(set) var setupWindowIds: [CGWindowID] = []
     private(set) var activateManagedSpaceCount = 0
     private(set) var manualNavigationCallback: ((Placement) -> Void)?
 
-    func setupForMainScreen() {
+    func setupForMainScreen(windows: [any Window]) {
         setupForMainScreenCount += 1
+        setupWindowIds = windows.map(\.id)
     }
 
     func isOnManagedSpace() -> Bool {

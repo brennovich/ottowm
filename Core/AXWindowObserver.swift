@@ -15,7 +15,8 @@ private func axObserverCallback(
 }
 
 // Native replacement for hs.window.filter: per-app AXObservers plus NSWorkspace launch/terminate
-// surface window created/focused/destroyed events, and allWindows() seeds the model.
+// surface window created/focused/destroyed events, and start() returns the windows
+// already open, which seed the model.
 final class AXWindowObserver {
     private struct ElementKey: Hashable {
         let element: AXUIElement
@@ -30,11 +31,14 @@ final class AXWindowObserver {
     private var registry = ObservedWindowRegistry<ElementKey>()
     private let ownPid = ProcessInfo.processInfo.processIdentifier
 
-    func start(_ handler: @escaping (WindowEvent) -> Void) {
+    // Returns the windows discovered while registering the observers, so the caller
+    // can seed the model with them instead of sweeping every application again.
+    func start(_ handler: @escaping (WindowEvent) -> Void) -> [AXWindow] {
         self.handler = handler
 
+        var windows: [AXWindow] = []
         for app in NSWorkspace.shared.runningApplications where observable(app) {
-            observe(app)
+            windows += observe(app)
         }
 
         let center = NSWorkspace.shared.notificationCenter
@@ -44,13 +48,8 @@ final class AXWindowObserver {
                            name: NSWorkspace.didTerminateApplicationNotification, object: nil)
         center.addObserver(self, selector: #selector(applicationActivated(_:)),
                            name: NSWorkspace.didActivateApplicationNotification, object: nil)
-    }
 
-    func allWindows() -> [AXWindow] {
-        NSWorkspace.shared.runningApplications
-            .filter(observable)
-            .flatMap { app in windowElements(pid: app.processIdentifier).map { AXWindow(element: $0, application: app) } }
-            .filter { $0.id != 0 }
+        return windows
     }
 
     // Resolves a window id through the registry instead of sweeping every app's
@@ -97,15 +96,16 @@ final class AXWindowObserver {
         )
     }
 
-    private func observe(_ app: NSRunningApplication, emitExistingWindows: Bool = false) {
+    @discardableResult
+    private func observe(_ app: NSRunningApplication, emitExistingWindows: Bool = false) -> [AXWindow] {
         let pid = app.processIdentifier
-        guard observers[pid] == nil else { return }
+        guard observers[pid] == nil else { return [] }
 
         var observer: AXObserver?
         let createResult = AXObserverCreate(pid, axObserverCallback, &observer)
         guard createResult == .success, let observer else {
             Log.observer.error("cannot observe pid=\(pid) app=\(app.localizedName ?? "") err=\(createResult.rawValue)")
-            return
+            return []
         }
 
         applications[pid] = app
@@ -115,18 +115,22 @@ final class AXWindowObserver {
         addNotification(observer, appElement, kAXWindowCreatedNotification, pid: pid)
         addNotification(observer, appElement, kAXFocusedWindowChangedNotification, pid: pid)
 
-        let windows = windowElements(pid: pid)
-        Log.observer.info("observing pid=\(pid) app=\(app.localizedName ?? "") windows=\(windows.count)")
-        for element in windows {
+        let elements = windowElements(pid: pid)
+        Log.observer.info("observing pid=\(pid) app=\(app.localizedName ?? "") windows=\(elements.count)")
+
+        var windows: [AXWindow] = []
+        for element in elements {
             let window = AXWindow(element: element, application: app)
             guard window.id != 0 else { continue }
             watchForDestruction(window, observer: observer)
+            windows.append(window)
             if emitExistingWindows {
                 handler?(.created(window))
             }
         }
 
         CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .defaultMode)
+        return windows
     }
 
     // Windows can appear without kAXWindowCreated ever firing: apps restore them

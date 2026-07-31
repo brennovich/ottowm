@@ -10,17 +10,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         )
 
+        // Every AX call is a synchronous IPC round trip, and without a timeout a
+        // beachballing application blocks the main thread for as long as it hangs.
+        // Set on the system-wide element, this becomes the process-wide default.
+        AXUIElementSetMessagingTimeout(AXUIElementCreateSystemWide(), axMessagingTimeoutSeconds)
+
         Log.app.notice("OttoWM (\(AppInfo.version)) launched, accessibility=\(trusted)")
 
         let windowById: (CGWindowID) -> AXWindow? = { [windowObserver] id in
             windowObserver.window(byId: id)
         }
 
+        let onScreenWindows = OnScreenWindows { Self.onScreenWindowIds() }
+
         let space = VirtualSpace(
             screen: MainScreen(),
             window: windowById,
-            allWindows: { [windowObserver] in windowObserver.allWindows() },
-            onScreenWindowIds: { Self.onScreenWindowIds() },
+            onScreenWindowIds: onScreenWindows.ids,
             managedWindowIds: { [weak self] in self?.engine?.managedWindowIds ?? [] },
             focusedWindow: { AXWindow.focused() }
         )
@@ -28,12 +34,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let engine = Engine(
             space: space,
             window: windowById,
-            focusedWindow: { AXWindow.focused() }
+            focusedWindow: { AXWindow.focused() },
+            onScreenWindows: onScreenWindows
         )
         self.engine = engine
 
-        engine.start(windows: windowObserver.allWindows())
-        windowObserver.start { engine.handle($0) }
+        let windows = windowObserver.start { engine.handle($0) }
+        engine.start(windows: windows)
 
         let hotkeysStarted = hotkeys.start { action in
             switch action {

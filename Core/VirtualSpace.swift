@@ -8,7 +8,6 @@ import CoreGraphics
 final class VirtualSpace: Space {
     private let screen: Screen
     private let window: (CGWindowID) -> (any Window)?
-    private let allWindows: () -> [any Window]
     private let onScreenWindowIds: () -> Set<CGWindowID>
     private let managedWindowIds: () -> Set<CGWindowID>
     private let focusedWindow: () -> (any Window)?
@@ -20,7 +19,6 @@ final class VirtualSpace: Space {
     init(
         screen: Screen,
         window: @escaping (CGWindowID) -> (any Window)?,
-        allWindows: @escaping () -> [any Window],
         onScreenWindowIds: @escaping () -> Set<CGWindowID>,
         managedWindowIds: @escaping () -> Set<CGWindowID>,
         focusedWindow: @escaping () -> (any Window)?,
@@ -28,16 +26,15 @@ final class VirtualSpace: Space {
     ) {
         self.screen = screen
         self.window = window
-        self.allWindows = allWindows
         self.onScreenWindowIds = onScreenWindowIds
         self.managedWindowIds = managedWindowIds
         self.focusedWindow = focusedWindow
         self.notificationCenter = notificationCenter
     }
 
-    func setupForMainScreen() {
+    func setupForMainScreen(windows: [any Window]) {
         Telemetry.shared.span("setupForMainScreen") {
-            recoverWindowsStuckAtHiddenEdge()
+            recoverWindowsStuckAtHiddenEdge(windows)
         }
     }
 
@@ -120,8 +117,8 @@ final class VirtualSpace: Space {
         callback(.storage)
     }
 
-    private func recoverWindowsStuckAtHiddenEdge() {
-        for win in allWindows() where !win.isMinimized && isStuckAtHiddenEdge(win.frame, on: screen) {
+    private func recoverWindowsStuckAtHiddenEdge(_ windows: [any Window]) {
+        for win in windows where !win.isMinimized && isStuckAtHiddenEdge(win.frame, on: screen) {
             Log.space.info("recovering \(win.logDescription) stuck at hidden edge")
             win.frame = recoveredFrame(for: win.frame, visibleFrame: screen.visibleFrame)
         }
