@@ -19,14 +19,14 @@ final class EngineVirtualSpaceIntegrationTests: XCTestCase {
         window: { [weak self] in self?.windows[$0] },
         onScreenWindowIds: { [weak self] in self?.onScreenWindows.ids() ?? [] },
         managedWindowIds: { [weak self] in self?.engine.managedWindowIds ?? [] },
-        focusedWindow: { [weak self] in self?.focused },
+        focusedWindowId: { [weak self] in self?.focused?.id },
         notificationCenter: center
     )
 
     private lazy var engine: Engine = Engine(
         space: space,
         window: { [weak self] in self?.windows[$0] },
-        focusedWindow: { [weak self] in self?.focused },
+        focusedWindow: { [weak self] in self?.focused?.snapshot() },
         onScreenWindows: onScreenWindows
     )
 
@@ -37,7 +37,7 @@ final class EngineVirtualSpaceIntegrationTests: XCTestCase {
     }
 
     private func start() {
-        engine.start(windows: Array(windows.values))
+        engine.start(windows: windows.values.map { $0.snapshot() })
     }
 
     private func postNativeSpaceChange() {
@@ -56,7 +56,7 @@ final class EngineVirtualSpaceIntegrationTests: XCTestCase {
         focused = win1
         start()
 
-        engine.moveWindowToVirtualSpace(win2, 2)
+        engine.moveWindowToVirtualSpace(win2.snapshot(), 2)
 
         XCTAssertEqual(win2.frame, nubFrame(size: frame2.size))
 
@@ -66,7 +66,7 @@ final class EngineVirtualSpaceIntegrationTests: XCTestCase {
         XCTAssertEqual(win2.frame, frame2)
 
         focused = win2
-        engine.handle(.focused(win2))
+        engine.handle(.focused(win2.snapshot()))
         engine.switchToVirtualSpace(1)
 
         XCTAssertEqual(win1.frame, frame1)
@@ -80,7 +80,7 @@ final class EngineVirtualSpaceIntegrationTests: XCTestCase {
         let win2 = addWindow(200, frame: frame2)
         focused = win1
         start()
-        engine.moveWindowToVirtualSpace(win2, 2)
+        engine.moveWindowToVirtualSpace(win2.snapshot(), 2)
 
         focused = win2
         postNativeSpaceChange()
@@ -103,7 +103,7 @@ final class EngineVirtualSpaceIntegrationTests: XCTestCase {
         XCTAssertEqual(win1.frame, nubFrame(size: frame1.size))
 
         onForeignNativeSpace = false
-        engine.handle(.focused(win1))
+        engine.handle(.focused(win1.snapshot()))
 
         XCTAssertEqual(engine.currentVirtualSpace, 3)
         XCTAssertEqual(win1.frame, nubFrame(size: frame1.size))
@@ -116,7 +116,7 @@ final class EngineVirtualSpaceIntegrationTests: XCTestCase {
         let oldWin = addWindow(700, frame: staleFrame)
         focused = win1
         start()
-        engine.moveWindowToVirtualSpace(oldWin, 2)
+        engine.moveWindowToVirtualSpace(oldWin.snapshot(), 2)
 
         windows[700] = nil
         engine.handle(.destroyed(700))
@@ -125,7 +125,7 @@ final class EngineVirtualSpaceIntegrationTests: XCTestCase {
 
         let recycledFrame = CGRect(x: 20, y: 30, width: 500, height: 400)
         let newWin = addWindow(700, frame: recycledFrame)
-        engine.handle(.created(newWin))
+        engine.handle(.created(newWin.snapshot()))
 
         engine.switchToVirtualSpace(2)
         engine.switchToVirtualSpace(1)
@@ -141,7 +141,7 @@ final class EngineVirtualSpaceIntegrationTests: XCTestCase {
         let win2 = addWindow(200, frame: frame2)
         focused = windows[100]
         start()
-        engine.moveWindowToVirtualSpace(win2, 2)
+        engine.moveWindowToVirtualSpace(win2.snapshot(), 2)
 
         windows[100] = nil
         focused = win2
@@ -156,7 +156,7 @@ final class EngineVirtualSpaceIntegrationTests: XCTestCase {
         let win2 = addWindow(200, frame: CGRect(x: 300, y: 200, width: 640, height: 480))
         focused = win1
         start()
-        engine.moveWindowToVirtualSpace(win2, 2)
+        engine.moveWindowToVirtualSpace(win2.snapshot(), 2)
         snapshotCount = 0
 
         engine.switchToVirtualSpace(2)

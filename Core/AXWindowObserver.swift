@@ -33,10 +33,10 @@ final class AXWindowObserver {
 
     // Returns the windows discovered while registering the observers, so the caller
     // can seed the model with them instead of sweeping every application again.
-    func start(_ handler: @escaping (WindowEvent) -> Void) -> [AXWindow] {
+    func start(_ handler: @escaping (WindowEvent) -> Void) -> [WindowSnapshot] {
         self.handler = handler
 
-        var windows: [AXWindow] = []
+        var windows: [WindowSnapshot] = []
         for app in NSWorkspace.shared.runningApplications where observable(app) {
             windows += observe(app)
         }
@@ -70,13 +70,13 @@ final class AXWindowObserver {
             }
             let window = AXWindow(element: element, application: app)
             watchForDestruction(window, observer: observer)
-            handler?(.created(window))
+            handler?(.created(window.snapshot()))
         case kAXFocusedWindowChangedNotification:
             guard let app = application(for: element) else {
                 Log.observer.debug("dropped \(notification): unknown application")
                 return
             }
-            handler?(.focused(AXWindow(element: element, application: app)))
+            handler?(.focused(AXWindow(element: element, application: app).snapshot()))
         case kAXUIElementDestroyedNotification:
             guard let id = registry.removeWindow(for: ElementKey(element: element)) else {
                 Log.observer.debug("dropped \(notification): element not registered")
@@ -97,7 +97,7 @@ final class AXWindowObserver {
     }
 
     @discardableResult
-    private func observe(_ app: NSRunningApplication, emitExistingWindows: Bool = false) -> [AXWindow] {
+    private func observe(_ app: NSRunningApplication, emitExistingWindows: Bool = false) -> [WindowSnapshot] {
         let pid = app.processIdentifier
         guard observers[pid] == nil else { return [] }
 
@@ -118,14 +118,16 @@ final class AXWindowObserver {
         let elements = windowElements(pid: pid)
         Log.observer.info("observing pid=\(pid) app=\(app.localizedName ?? "") windows=\(elements.count)")
 
-        var windows: [AXWindow] = []
+        var windows: [WindowSnapshot] = []
         for element in elements {
             let window = AXWindow(element: element, application: app)
             guard window.id != 0 else { continue }
             watchForDestruction(window, observer: observer)
-            windows.append(window)
+
+            let snapshot = window.snapshot()
+            windows.append(snapshot)
             if emitExistingWindows {
-                handler?(.created(window))
+                handler?(.created(snapshot))
             }
         }
 
@@ -146,7 +148,7 @@ final class AXWindowObserver {
             guard axWindow.id != 0 else { continue }
             Log.observer.info("rescan found window \(axWindow.logDescription)")
             watchForDestruction(axWindow, observer: observer)
-            handler?(.created(axWindow))
+            handler?(.created(axWindow.snapshot()))
         }
     }
 
@@ -214,7 +216,7 @@ final class AXWindowObserver {
         else { return }
         rescanWindows(of: app)
         guard let window = focusedWindow(of: app) else { return }
-        handler?(.focused(window))
+        handler?(.focused(window.snapshot()))
     }
 
     deinit {

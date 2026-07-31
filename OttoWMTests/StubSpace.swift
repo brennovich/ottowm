@@ -12,7 +12,7 @@ final class StubSpace: Space {
     private(set) var activateManagedSpaceCount = 0
     private(set) var manualNavigationCallback: ((Placement) -> Void)?
 
-    func setupForMainScreen(windows: [any Window]) {
+    func setupForMainScreen(windows: [WindowSnapshot]) {
         setupForMainScreenCount += 1
         setupWindowIds = windows.map(\.id)
     }

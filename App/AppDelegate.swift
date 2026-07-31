@@ -28,13 +28,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             window: windowById,
             onScreenWindowIds: onScreenWindows.ids,
             managedWindowIds: { [weak self] in self?.engine?.managedWindowIds ?? [] },
-            focusedWindow: { AXWindow.focused() }
+            focusedWindowId: { AXWindow.focused()?.id }
         )
 
         let engine = Engine(
             space: space,
             window: windowById,
-            focusedWindow: { AXWindow.focused() },
+            focusedWindow: { AXWindow.focused()?.snapshot() },
             onScreenWindows: onScreenWindows
         )
         self.engine = engine

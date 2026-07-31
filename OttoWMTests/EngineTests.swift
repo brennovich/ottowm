@@ -9,7 +9,7 @@ final class EngineTests: XCTestCase {
     private lazy var engine = Engine(
         space: space,
         window: { [weak self] id in self?.windows[id] },
-        focusedWindow: { [weak self] in self?.focused },
+        focusedWindow: { [weak self] in self?.focused?.snapshot() },
         onScreenWindows: OnScreenWindows { [weak self] in
             guard let self else { return [] }
             return Set(self.windows.keys).subtracting(self.space.unmanagedWindowIds)
@@ -40,7 +40,7 @@ final class EngineTests: XCTestCase {
         let win1 = makeWindow(100)
         let win2 = makeWindow(200, frame: CGRect(x: 50, y: 50, width: 400, height: 300))
 
-        engine.start(windows: [win1, win2])
+        engine.start(windows: [win1.snapshot(), win2.snapshot()])
 
         XCTAssertEqual(space.setupForMainScreenCount, 1)
         XCTAssertEqual(space.setupWindowIds, [100, 200])
@@ -57,7 +57,7 @@ final class EngineTests: XCTestCase {
             makeWindow(500),
         ]
 
-        engine.start(windows: seeds)
+        engine.start(windows: seeds.map { $0.snapshot() })
 
         XCTAssertEqual(engine.managedWindowIds, [])
     }
@@ -66,7 +66,7 @@ final class EngineTests: XCTestCase {
         engine.switchToVirtualSpace(2)
         let win = makeWindow(100)
 
-        engine.handle(.created(win))
+        engine.handle(.created(win.snapshot()))
 
         XCTAssertEqual(engine.managedWindowIds, [100])
 
@@ -85,7 +85,7 @@ final class EngineTests: XCTestCase {
         ]
 
         for win in invalidWindows {
-            engine.handle(.created(win))
+            engine.handle(.created(win.snapshot()))
         }
 
         XCTAssertEqual(engine.managedWindowIds, [])
@@ -94,7 +94,7 @@ final class EngineTests: XCTestCase {
     func testFocusedUnknownWindowIsAssignedToCurrentVirtualSpace() {
         let win = makeWindow(100)
 
-        engine.handle(.focused(win))
+        engine.handle(.focused(win.snapshot()))
 
         XCTAssertEqual(engine.managedWindowIds, [100])
     }
@@ -102,7 +102,7 @@ final class EngineTests: XCTestCase {
     func testFocusedInvalidWindowIsIgnored() {
         let win = makeWindow(0)
 
-        engine.handle(.focused(win))
+        engine.handle(.focused(win.snapshot()))
 
         XCTAssertEqual(engine.managedWindowIds, [])
     }
@@ -110,9 +110,9 @@ final class EngineTests: XCTestCase {
     func testFocusedWindowIsRememberedPerVirtualSpaceAcrossSwitches() {
         let win1 = makeWindow(100)
         let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
-        engine.handle(.created(win1))
-        engine.handle(.created(win2))
-        engine.handle(.focused(win1))
+        engine.handle(.created(win1.snapshot()))
+        engine.handle(.created(win2.snapshot()))
+        engine.handle(.focused(win1.snapshot()))
 
         engine.switchToVirtualSpace(2)
         engine.switchToVirtualSpace(1)
@@ -124,9 +124,9 @@ final class EngineTests: XCTestCase {
     func testSwitchHidesCurrentSpaceWindowsAndShowsTargetWindows() {
         let win1 = makeWindow(100)
         let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
-        engine.handle(.created(win1))
-        engine.handle(.created(win2))
-        engine.moveWindowToVirtualSpace(win2, 2)
+        engine.handle(.created(win1.snapshot()))
+        engine.handle(.created(win2.snapshot()))
+        engine.moveWindowToVirtualSpace(win2.snapshot(), 2)
 
         XCTAssertEqual(space.windowSpaces(200), .storage)
 
@@ -139,7 +139,7 @@ final class EngineTests: XCTestCase {
 
     func testSwitchToSameVirtualSpaceOnManagedSpaceIsNoOp() {
         let win = makeWindow(100)
-        engine.handle(.created(win))
+        engine.handle(.created(win.snapshot()))
 
         engine.switchToVirtualSpace(1)
 
@@ -149,7 +149,7 @@ final class EngineTests: XCTestCase {
 
     func testSwitchToSameVirtualSpaceOffManagedSpaceRestoresFocus() {
         let win = makeWindow(100)
-        engine.handle(.created(win))
+        engine.handle(.created(win.snapshot()))
         space.isOnManagedSpaceValue = false
 
         engine.switchToVirtualSpace(1)
@@ -160,8 +160,8 @@ final class EngineTests: XCTestCase {
 
     func testSwitchToNonEmptyVirtualSpaceOffManagedSpaceRestoresFocusWithoutActivatingSpace() {
         let win = makeWindow(700)
-        engine.handle(.created(win))
-        engine.moveWindowToVirtualSpace(win, 2)
+        engine.handle(.created(win.snapshot()))
+        engine.moveWindowToVirtualSpace(win.snapshot(), 2)
         space.isOnManagedSpaceValue = false
 
         engine.switchToVirtualSpace(2)
@@ -183,7 +183,7 @@ final class EngineTests: XCTestCase {
 
     func testActivateManagedSpaceInducedFocusDoesNotSwitchAwayFromEmptySpace() {
         for win in [makeWindow(72), makeWindow(88), makeWindow(187)] {
-            engine.handle(.created(win))
+            engine.handle(.created(win.snapshot()))
         }
         space.isOnManagedSpaceValue = false
 
@@ -191,7 +191,7 @@ final class EngineTests: XCTestCase {
 
         XCTAssertEqual(space.activateManagedSpaceCount, 1)
 
-        engine.handle(.focused(windows[187]!))
+        engine.handle(.focused(windows[187]!.snapshot()))
 
         XCTAssertEqual(engine.currentVirtualSpace, 3)
     }
@@ -199,9 +199,9 @@ final class EngineTests: XCTestCase {
     func testSwitchingAwayCapturesCurrentFocusBeforeLeaving() {
         let win1 = makeWindow(100, appName: "Terminal")
         let win2 = makeWindow(200, appName: "Terminal", frame: CGRect(x: 0, y: 200, width: 800, height: 600))
-        engine.handle(.created(win1))
-        engine.handle(.created(win2))
-        engine.handle(.focused(win2))
+        engine.handle(.created(win1.snapshot()))
+        engine.handle(.created(win2.snapshot()))
+        engine.handle(.focused(win2.snapshot()))
 
         focused = win1
         engine.switchToVirtualSpace(2)
@@ -215,7 +215,7 @@ final class EngineTests: XCTestCase {
 
     func testManualNavigationToHiddenWindowSwitchesToItsVirtualSpace() {
         let win = makeWindow(700)
-        engine.start(windows: [win])
+        engine.start(windows: [win.snapshot()])
         engine.switchToVirtualSpace(2)
 
         XCTAssertEqual(space.windowSpaces(700), .storage)
@@ -229,13 +229,13 @@ final class EngineTests: XCTestCase {
 
     func testFocusedStorageWindowSwitchesToItsVirtualSpace() {
         let win = makeWindow(700)
-        engine.handle(.created(win))
+        engine.handle(.created(win.snapshot()))
         engine.switchToVirtualSpace(2)
 
         XCTAssertEqual(space.windowSpaces(700), .storage)
 
         focused = win
-        engine.handle(.focused(win))
+        engine.handle(.focused(win.snapshot()))
 
         XCTAssertEqual(engine.currentVirtualSpace, 1)
         XCTAssertEqual(space.windowSpaces(700), .active)
@@ -244,12 +244,12 @@ final class EngineTests: XCTestCase {
     func testStaleFocusEventForStorageWindowIsIgnored() {
         let win1 = makeWindow(100)
         let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
-        engine.handle(.created(win1))
-        engine.handle(.created(win2))
-        engine.moveWindowToVirtualSpace(win2, 2)
+        engine.handle(.created(win1.snapshot()))
+        engine.handle(.created(win2.snapshot()))
+        engine.moveWindowToVirtualSpace(win2.snapshot(), 2)
 
         focused = win1
-        engine.handle(.focused(win2))
+        engine.handle(.focused(win2.snapshot()))
 
         XCTAssertEqual(engine.currentVirtualSpace, 1)
         XCTAssertEqual(space.windowSpaces(200), .storage)
@@ -258,12 +258,12 @@ final class EngineTests: XCTestCase {
     func testFocusedStorageWindowDoesNotSwitchWhileCurrentSpaceIsClosing() {
         let win1 = makeWindow(100)
         let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
-        engine.handle(.created(win1))
-        engine.handle(.created(win2))
-        engine.moveWindowToVirtualSpace(win2, 2)
+        engine.handle(.created(win1.snapshot()))
+        engine.handle(.created(win2.snapshot()))
+        engine.moveWindowToVirtualSpace(win2.snapshot(), 2)
 
         windows[100] = nil
-        engine.handle(.focused(win2))
+        engine.handle(.focused(win2.snapshot()))
 
         XCTAssertEqual(engine.currentVirtualSpace, 1)
         XCTAssertEqual(space.windowSpaces(200), .storage)
@@ -271,7 +271,7 @@ final class EngineTests: XCTestCase {
 
     func testMoveWindowToVirtualSpaceUsesFocusedWindowWhenNil() {
         let win = makeWindow(100)
-        engine.handle(.created(win))
+        engine.handle(.created(win.snapshot()))
         focused = win
 
         engine.moveWindowToVirtualSpace(nil, 2)
@@ -281,16 +281,16 @@ final class EngineTests: XCTestCase {
 
     func testMoveWindowToVirtualSpaceMovesExplicitWindow() {
         let win = makeWindow(200)
-        engine.handle(.created(win))
+        engine.handle(.created(win.snapshot()))
 
-        engine.moveWindowToVirtualSpace(win, 2)
+        engine.moveWindowToVirtualSpace(win.snapshot(), 2)
 
         XCTAssertEqual(space.windowSpaces(200), .storage)
     }
 
     func testMoveWindowToVirtualSpaceDoesNothingWithoutWindow() {
         let win = makeWindow(100)
-        engine.handle(.created(win))
+        engine.handle(.created(win.snapshot()))
 
         engine.moveWindowToVirtualSpace(nil, 2)
 
@@ -320,7 +320,7 @@ final class EngineTests: XCTestCase {
 
     func testMoveWindowToCurrentVirtualSpaceRestoresIt() {
         let win = makeWindow(100)
-        engine.handle(.created(win))
+        engine.handle(.created(win.snapshot()))
         focused = win
 
         engine.moveWindowToVirtualSpace(nil, 2)
@@ -335,9 +335,9 @@ final class EngineTests: XCTestCase {
     func testDestroyedWindowRestoresFocusToPreviousWindow() {
         let win1 = makeWindow(100, appName: "App1")
         let win2 = makeWindow(200, appName: "App2", frame: CGRect(x: 0, y: 200, width: 800, height: 600))
-        engine.handle(.created(win1))
-        engine.handle(.focused(win1))
-        engine.handle(.created(win2))
+        engine.handle(.created(win1.snapshot()))
+        engine.handle(.focused(win1.snapshot()))
+        engine.handle(.created(win2.snapshot()))
 
         windows[200] = nil
         engine.handle(.destroyed(200))
@@ -352,11 +352,11 @@ final class EngineTests: XCTestCase {
         let tab1 = makeWindow(300, appName: "Terminal", frame: tabFrame)
         let tab2 = makeWindow(301, appName: "Terminal", frame: tabFrame, tabCount: 2)
         let other = makeWindow(100, appName: "App1")
-        engine.handle(.created(tab1))
-        engine.handle(.focused(tab1))
-        engine.handle(.created(tab2))
-        engine.handle(.focused(tab2))
-        engine.handle(.created(other))
+        engine.handle(.created(tab1.snapshot()))
+        engine.handle(.focused(tab1.snapshot()))
+        engine.handle(.created(tab2.snapshot()))
+        engine.handle(.focused(tab2.snapshot()))
+        engine.handle(.created(other.snapshot()))
 
         windows[301] = nil
         engine.handle(.destroyed(301))
@@ -370,11 +370,11 @@ final class EngineTests: XCTestCase {
         let tab1 = makeWindow(300, appName: "Terminal", frame: tabFrame)
         let tab2 = makeWindow(301, appName: "Terminal", frame: tabFrame, tabCount: 2)
         let other = makeWindow(100, appName: "App1")
-        engine.handle(.created(tab1))
-        engine.handle(.created(tab2))
-        engine.handle(.focused(tab1))
-        engine.handle(.created(other))
-        engine.handle(.focused(other))
+        engine.handle(.created(tab1.snapshot()))
+        engine.handle(.created(tab2.snapshot()))
+        engine.handle(.focused(tab1.snapshot()))
+        engine.handle(.created(other.snapshot()))
+        engine.handle(.focused(other.snapshot()))
 
         focused = tab2
         windows[100] = nil

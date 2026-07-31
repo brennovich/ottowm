@@ -7,12 +7,11 @@ final class StubWindow: Window {
     let isStandard: Bool
     let isFullScreen: Bool
     let isMinimized: Bool
-    var frame: CGRect {
-        didSet { frameSetCount += 1 }
-    }
+    private(set) var frame: CGRect
 
     private(set) var frameSetCount = 0
     private(set) var focusCount = 0
+    private(set) var movableFrameCount = 0
 
     init(
         id: CGWindowID,
@@ -30,6 +29,28 @@ final class StubWindow: Window {
         self.isMinimized = isMinimized
         self.isStandard = isStandard
         self.isFullScreen = isFullScreen
+    }
+
+    func snapshot() -> WindowSnapshot {
+        WindowSnapshot(
+            id: id,
+            appName: appName,
+            isStandard: isStandard,
+            isFullScreen: isFullScreen,
+            isMinimized: isMinimized,
+            tabCount: tabCount,
+            frame: frame
+        )
+    }
+
+    func movableFrame() -> CGRect? {
+        movableFrameCount += 1
+        return isMinimized ? nil : frame
+    }
+
+    func setFrame(_ frame: CGRect) {
+        self.frame = frame
+        frameSetCount += 1
     }
 
     func focus() { focusCount += 1 }

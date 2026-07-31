@@ -33,48 +33,46 @@ final class AXWindow: Window {
 
     var appName: String { application.localizedName ?? "" }
 
-    var isStandard: Bool { string(kAXSubroleAttribute) == kAXStandardWindowSubrole }
+    var logDescription: String { "id=\(id) app=\(appName)" }
 
-    var isFullScreen: Bool { bool("AXFullScreen") }
+    // Every attribute the model needs, in one round trip — except the tab count,
+    // which has to walk the window's children.
+    func snapshot() -> WindowSnapshot {
+        let attributes = values([
+            kAXSubroleAttribute as String,
+            "AXFullScreen",
+            kAXMinimizedAttribute as String,
+            kAXPositionAttribute as String,
+            kAXSizeAttribute as String,
+        ])
 
-    var isMinimized: Bool { bool(kAXMinimizedAttribute as String) }
-
-    var tabCount: Int {
-        guard let children = value(kAXChildrenAttribute) as? [AXUIElement] else {
-            Log.window.debug("tabCount children read failed \(logDescription), assuming 1")
-            return 1
-        }
-
-        for child in children {
-            let attributes = values([kAXRoleAttribute as String, kAXChildrenAttribute as String], of: child)
-            guard attributes[0] as? String == "AXTabGroup",
-                  let tabs = attributes[1] as? [AXUIElement]
-            else { continue }
-
-            let count = tabs.filter { string(kAXRoleAttribute, of: $0) == "AXRadioButton" }.count
-            return count > 0 ? count : 1
-        }
-
-        return 1
+        return WindowSnapshot(
+            id: id,
+            appName: appName,
+            isStandard: attributes[0] as? String == kAXStandardWindowSubrole,
+            isFullScreen: (attributes[1] as? Bool) ?? false,
+            isMinimized: (attributes[2] as? Bool) ?? false,
+            tabCount: tabCount,
+            frame: frame(position: attributes[3], size: attributes[4]) ?? .zero
+        )
     }
 
-    var frame: CGRect {
-        get {
-            let attributes = values([kAXPositionAttribute as String, kAXSizeAttribute as String])
-            guard let origin = axValue(attributes[0]).flatMap(decodeCGPoint),
-                  let size = axValue(attributes[1]).flatMap(decodeCGSize)
-            else {
-                Log.window.error("read frame failed \(logDescription)")
-                return .zero
-            }
-            return CGRect(origin: origin, size: size)
-        }
-        set {
-            let positionResult = AXUIElementSetAttributeValue(element, kAXPositionAttribute as CFString, encodeCGPoint(newValue.origin))
-            let sizeResult = AXUIElementSetAttributeValue(element, kAXSizeAttribute as CFString, encodeCGSize(newValue.size))
-            if positionResult != .success || sizeResult != .success {
-                Log.window.error("set frame failed \(logDescription) position=\(positionResult.rawValue) size=\(sizeResult.rawValue) target=\(newValue)")
-            }
+    func movableFrame() -> CGRect? {
+        let attributes = values([
+            kAXMinimizedAttribute as String,
+            kAXPositionAttribute as String,
+            kAXSizeAttribute as String,
+        ])
+
+        guard (attributes[0] as? Bool) != true else { return nil }
+        return frame(position: attributes[1], size: attributes[2])
+    }
+
+    func setFrame(_ frame: CGRect) {
+        let positionResult = AXUIElementSetAttributeValue(element, kAXPositionAttribute as CFString, encodeCGPoint(frame.origin))
+        let sizeResult = AXUIElementSetAttributeValue(element, kAXSizeAttribute as CFString, encodeCGSize(frame.size))
+        if positionResult != .success || sizeResult != .success {
+            Log.window.error("set frame failed \(self.logDescription) position=\(positionResult.rawValue) size=\(sizeResult.rawValue) target=\(frame)")
         }
     }
 
@@ -83,7 +81,7 @@ final class AXWindow: Window {
         let mainResult = AXUIElementSetAttributeValue(element, kAXMainAttribute as CFString, kCFBooleanTrue)
         let activated = application.activate()
         if raiseResult != .success || mainResult != .success || !activated {
-            Log.window.error("focus failed \(logDescription) raise=\(raiseResult.rawValue) main=\(mainResult.rawValue) activate=\(activated)")
+            Log.window.error("focus failed \(self.logDescription) raise=\(raiseResult.rawValue) main=\(mainResult.rawValue) activate=\(activated)")
         }
     }
 
@@ -106,6 +104,35 @@ final class AXWindow: Window {
         else { return nil }
 
         return AXWindow(element: windowElement, application: runningApp)
+    }
+
+    private var tabCount: Int {
+        guard let children = value(kAXChildrenAttribute) as? [AXUIElement] else {
+            Log.window.debug("tabCount children read failed \(logDescription), assuming 1")
+            return 1
+        }
+
+        for child in children {
+            let attributes = values([kAXRoleAttribute as String, kAXChildrenAttribute as String], of: child)
+            guard attributes[0] as? String == "AXTabGroup",
+                  let tabs = attributes[1] as? [AXUIElement]
+            else { continue }
+
+            let count = tabs.filter { string(kAXRoleAttribute, of: $0) == "AXRadioButton" }.count
+            return count > 0 ? count : 1
+        }
+
+        return 1
+    }
+
+    private func frame(position: AnyObject?, size: AnyObject?) -> CGRect? {
+        guard let origin = axValue(position).flatMap(decodeCGPoint),
+              let size = axValue(size).flatMap(decodeCGSize)
+        else {
+            Log.window.error("read frame failed \(self.logDescription)")
+            return nil
+        }
+        return CGRect(origin: origin, size: size)
     }
 
     private func value(_ attribute: String, of element: AXUIElement? = nil) -> CFTypeRef? {
@@ -131,9 +158,5 @@ final class AXWindow: Window {
 
     private func string(_ attribute: String, of element: AXUIElement? = nil) -> String? {
         value(attribute, of: element) as? String
-    }
-
-    private func bool(_ attribute: String, of element: AXUIElement? = nil) -> Bool {
-        (value(attribute, of: element) as? Bool) ?? false
     }
 }

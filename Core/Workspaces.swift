@@ -5,7 +5,7 @@ import CoreGraphics
 // structures to keep consistent windows behaviour.
 final class Workspaces {
     private struct TabGroup {
-        let representative: any Window
+        let representative: WindowSnapshot
         var windowIds: [CGWindowID]
     }
 
@@ -39,7 +39,7 @@ final class Workspaces {
         virtualSpaceWindowsMap[virtualSpace] ?? []
     }
 
-    func assignWindowToSpace(_ window: any Window, _ virtualSpace: Int) {
+    func assignWindowToSpace(_ window: WindowSnapshot, _ virtualSpace: Int) {
         let isNewWindow = windowToGroup[window.id] == nil
         if isNewWindow {
             var existingGroupId: Int?

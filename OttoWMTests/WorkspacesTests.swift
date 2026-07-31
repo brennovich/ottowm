@@ -2,15 +2,6 @@ import CoreGraphics
 import XCTest
 
 final class WorkspacesTests: XCTestCase {
-    private func makeWindow(
-        _ id: CGWindowID,
-        tabCount: Int = 1,
-        frame: CGRect = CGRect(x: 0, y: 0, width: 800, height: 600),
-        appName: String = "TestApp"
-    ) -> StubWindow {
-        StubWindow(id: id, tabCount: tabCount, frame: frame, appName: appName)
-    }
-
     func testCurrentVirtualSpace() {
         let cases: [(name: String, setValues: [Int], expected: Int)] = [
             ("initial value is 1", [], 1),
@@ -298,7 +289,7 @@ final class WorkspacesTests: XCTestCase {
 
     func testAssignWindowToSpaceWithSingleWindow() {
         let model = Workspaces()
-        let window = makeWindow(100, appName: "Safari")
+        let window = makeSnapshot(100, appName: "Safari")
 
         model.assignWindowToSpace(window, 1)
 
@@ -308,8 +299,8 @@ final class WorkspacesTests: XCTestCase {
 
     func testAssignWindowToSpaceWithTabbedWindows() {
         let model = Workspaces()
-        let window1 = makeWindow(100, tabCount: 2, appName: "Safari")
-        let window2 = makeWindow(200, tabCount: 2, appName: "Safari")
+        let window1 = makeSnapshot(100, appName: "Safari", tabCount: 2)
+        let window2 = makeSnapshot(200, appName: "Safari", tabCount: 2)
 
         model.assignWindowToSpace(window1, 1)
         model.assignWindowToSpace(window2, 2)
@@ -321,7 +312,7 @@ final class WorkspacesTests: XCTestCase {
 
     func testAssignWindowToSpaceClearsFocusedWindowAndVirtualSpaceEntry() {
         let model = Workspaces()
-        let window = makeWindow(100)
+        let window = makeSnapshot(100)
 
         model.assignWindowToSpace(window, 1)
         XCTAssertEqual(model.getVirtualSpaceForWindow(window.id), 1)
@@ -334,7 +325,7 @@ final class WorkspacesTests: XCTestCase {
 
     func testMoveWindowToVirtualSpaceMovesRegisteredWindow() {
         let model = Workspaces()
-        let window = makeWindow(100)
+        let window = makeSnapshot(100)
 
         model.assignWindowToSpace(window, 1)
         XCTAssertEqual(model.getVirtualSpaceForWindow(100), 1)
@@ -349,8 +340,8 @@ final class WorkspacesTests: XCTestCase {
 
     func testMoveWindowToVirtualSpaceMovesTabGroup() {
         let model = Workspaces()
-        let window1 = makeWindow(100, tabCount: 2, appName: "Safari")
-        let window2 = makeWindow(200, tabCount: 2, appName: "Safari")
+        let window1 = makeSnapshot(100, appName: "Safari", tabCount: 2)
+        let window2 = makeSnapshot(200, appName: "Safari", tabCount: 2)
 
         model.assignWindowToSpace(window1, 1)
         model.assignWindowToSpace(window2, 1)
@@ -368,8 +359,8 @@ final class WorkspacesTests: XCTestCase {
 
     func testTerminalAppTabsWithSlightlyDifferentYCoordinatesAreGroupedTogether() {
         let model = Workspaces()
-        let window1 = makeWindow(3426, tabCount: 1, frame: CGRect(x: 155, y: 30, width: 748, height: 879), appName: "Terminal")
-        let window2 = makeWindow(3459, tabCount: 2, frame: CGRect(x: 155, y: 21, width: 748, height: 879), appName: "Terminal")
+        let window1 = makeSnapshot(3426, appName: "Terminal", frame: CGRect(x: 155, y: 30, width: 748, height: 879), tabCount: 1)
+        let window2 = makeSnapshot(3459, appName: "Terminal", frame: CGRect(x: 155, y: 21, width: 748, height: 879), tabCount: 2)
 
         model.assignWindowToSpace(window1, 1)
         model.assignWindowToSpace(window2, 2)
@@ -388,7 +379,7 @@ final class WorkspacesTests: XCTestCase {
 
     func testUnregisterWindowByIdWithSingleWindow() {
         let model = Workspaces()
-        let window = makeWindow(100)
+        let window = makeSnapshot(100)
 
         model.assignWindowToSpace(window, 1)
         XCTAssertNotNil(model.getTabGroupForWindow(100))
@@ -400,8 +391,8 @@ final class WorkspacesTests: XCTestCase {
 
     func testUnregisterWindowByIdFromTabGroupWithRemainingWindows() {
         let model = Workspaces()
-        let window1 = makeWindow(100, tabCount: 2, appName: "Safari")
-        let window2 = makeWindow(200, tabCount: 2, appName: "Safari")
+        let window1 = makeSnapshot(100, appName: "Safari", tabCount: 2)
+        let window2 = makeSnapshot(200, appName: "Safari", tabCount: 2)
 
         model.assignWindowToSpace(window1, 1)
         model.assignWindowToSpace(window2, 1)
@@ -423,7 +414,7 @@ final class WorkspacesTests: XCTestCase {
 
     func testUnregisterWindowByIdRemovesEmptyTabGroup() {
         let model = Workspaces()
-        let window = makeWindow(100, tabCount: 2, appName: "Safari")
+        let window = makeSnapshot(100, appName: "Safari", tabCount: 2)
 
         model.assignWindowToSpace(window, 1)
 
@@ -447,8 +438,8 @@ final class WorkspacesTests: XCTestCase {
             (
                 "returns saved focused window when using assignWindowToSpace flow",
                 { model in
-                    model.assignWindowToSpace(self.makeWindow(46), 1)
-                    model.assignWindowToSpace(self.makeWindow(1375), 1)
+                    model.assignWindowToSpace(makeSnapshot(46), 1)
+                    model.assignWindowToSpace(makeSnapshot(1375), 1)
                     model.saveFocusedWindowInVirtualSpace(1, 1375)
                 },
                 1375,

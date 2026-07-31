@@ -5,7 +5,7 @@ import CoreGraphics
 final class Engine {
     private let space: any Space
     private let window: (CGWindowID) -> (any Window)?
-    private let focusedWindow: () -> (any Window)?
+    private let focusedWindow: () -> WindowSnapshot?
     private let onScreenWindows: OnScreenWindows
     private let model = Workspaces()
     private var ignoreNextManualNavigation = false
@@ -13,7 +13,7 @@ final class Engine {
     init(
         space: any Space,
         window: @escaping (CGWindowID) -> (any Window)?,
-        focusedWindow: @escaping () -> (any Window)?,
+        focusedWindow: @escaping () -> WindowSnapshot?,
         onScreenWindows: OnScreenWindows
     ) {
         self.space = space
@@ -30,7 +30,7 @@ final class Engine {
         model.allWindowIds()
     }
 
-    func start(windows: [any Window]) {
+    func start(windows: [WindowSnapshot]) {
         operation("start") {
             space.setupForMainScreen(windows: windows)
 
@@ -80,7 +80,7 @@ final class Engine {
         }
     }
 
-    func moveWindowToVirtualSpace(_ window: (any Window)?, _ virtualSpace: Int) {
+    func moveWindowToVirtualSpace(_ window: WindowSnapshot?, _ virtualSpace: Int) {
         operation("moveWindowToVirtualSpace(\(virtualSpace))") {
             guard virtualSpace >= 1 else {
                 Log.engine.info("move dropped: invalid virtual space \(virtualSpace)")
@@ -100,7 +100,7 @@ final class Engine {
         }
     }
 
-    private func handleFocused(_ win: any Window) {
+    private func handleFocused(_ win: WindowSnapshot) {
         if space.windowSpaces(win.id) == .storage {
             // Focus notifications are delivered asynchronously, so this one may
             // describe a focus OttoWM itself caused before the switch that hid the
@@ -137,7 +137,7 @@ final class Engine {
     // Focusing a hidden window means the user navigated to it behind OttoWM's back
     // (Cmd-Tab/Dock on the same native Space, or Mission Control from another one),
     // so follow them by switching to that window's virtual space.
-    private func handleManualNavigation(_ win: (any Window)? = nil) {
+    private func handleManualNavigation(_ win: WindowSnapshot? = nil) {
         operation("handleManualNavigation") {
             if ignoreNextManualNavigation {
                 ignoreNextManualNavigation = false
@@ -175,7 +175,7 @@ final class Engine {
         model.setCurrentVirtualSpace(virtualSpace)
     }
 
-    private func assignWindowToVirtualSpace(_ win: any Window, _ virtualSpace: Int) {
+    private func assignWindowToVirtualSpace(_ win: WindowSnapshot, _ virtualSpace: Int) {
         guard isValidWindow(win) else { return }
         model.assignWindowToSpace(win, virtualSpace)
         Log.engine.info("assigned \(win.logDescription) → space \(virtualSpace)")
@@ -218,7 +218,7 @@ final class Engine {
         onScreenWindows.duringOperation { Telemetry.shared.span(name, body) }
     }
 
-    private func isValidWindow(_ win: any Window) -> Bool {
+    private func isValidWindow(_ win: WindowSnapshot) -> Bool {
         win.id != 0 && win.isStandard && !win.isFullScreen && space.managesWindow(win.id)
     }
 

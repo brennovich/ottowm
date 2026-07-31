@@ -7,7 +7,7 @@ private func makeSpace(
     _ windows: [StubWindow] = [],
     onScreen: @escaping () -> Set<CGWindowID> = { [] },
     managed: @escaping () -> Set<CGWindowID> = { [] },
-    focused: @escaping () -> (any Window)? = { nil },
+    focusedWindowId: @escaping () -> CGWindowID? = { nil },
     center: NotificationCenter = NotificationCenter()
 ) -> VirtualSpace {
     let registry = Dictionary(uniqueKeysWithValues: windows.map { ($0.id, $0) })
@@ -16,7 +16,7 @@ private func makeSpace(
         window: { registry[$0] },
         onScreenWindowIds: onScreen,
         managedWindowIds: managed,
-        focusedWindow: focused,
+        focusedWindowId: focusedWindowId,
         notificationCenter: center
     )
 }
@@ -76,7 +76,7 @@ final class VirtualSpaceTests: XCTestCase {
             },
             onScreenWindowIds: { [] },
             managedWindowIds: { [] },
-            focusedWindow: { nil },
+            focusedWindowId: { nil },
             notificationCenter: NotificationCenter()
         )
 
@@ -89,6 +89,16 @@ final class VirtualSpaceTests: XCTestCase {
         space.moveWindowToSpace(100, .active)
 
         XCTAssertEqual(lookupCount, 2)
+    }
+
+    func testMoveWindowToSpaceReadsWindowStateOnce() {
+        let win = StubWindow(id: 100, frame: originalFrame)
+        let space = makeSpace([win])
+
+        space.moveWindowToSpace(100, .storage)
+        space.moveWindowToSpace(100, .active)
+
+        XCTAssertEqual(win.movableFrameCount, 2)
     }
 
     func testMoveWindowToSpaceSkipsMinimizedWindows() {
@@ -137,7 +147,7 @@ final class VirtualSpaceTests: XCTestCase {
         let normal = StubWindow(id: 300, frame: originalFrame)
         let space = makeSpace([stuck, normal])
 
-        space.setupForMainScreen(windows: [stuck, normal])
+        space.setupForMainScreen(windows: [stuck.snapshot(), normal.snapshot()])
 
         XCTAssertEqual(stuck.frameSetCount, 1)
         XCTAssertLessThan(stuck.frame.minX, testScreen.fullFrame.maxX - hiddenEdgeDetectionMargin)
@@ -182,7 +192,7 @@ final class VirtualSpaceTests: XCTestCase {
     func testStartWatchingForManualNavigationFiresOnHiddenWindowFocus() {
         let win = StubWindow(id: 100, frame: originalFrame)
         let center = NotificationCenter()
-        let space = makeSpace([win], focused: { win }, center: center)
+        let space = makeSpace([win], focusedWindowId: { win.id }, center: center)
         var received: [Placement] = []
 
         space.startWatchingForManualNavigation { received.append($0) }
@@ -195,7 +205,7 @@ final class VirtualSpaceTests: XCTestCase {
     func testStartWatchingForManualNavigationIgnoresVisibleWindowFocus() {
         let win = StubWindow(id: 100, frame: originalFrame)
         let center = NotificationCenter()
-        let space = makeSpace([win], focused: { win }, center: center)
+        let space = makeSpace([win], focusedWindowId: { win.id }, center: center)
         var received: [Placement] = []
 
         space.startWatchingForManualNavigation { received.append($0) }
@@ -207,7 +217,7 @@ final class VirtualSpaceTests: XCTestCase {
     func testStartWatchingForManualNavigationReplacesPreviousSubscription() {
         let win = StubWindow(id: 100, frame: originalFrame)
         let center = NotificationCenter()
-        let space = makeSpace([win], focused: { win }, center: center)
+        let space = makeSpace([win], focusedWindowId: { win.id }, center: center)
         var first: [Placement] = []
         var second: [Placement] = []
 
