@@ -7,8 +7,7 @@ import CoreGraphics
 final class OffscreenParkingDesktop: Desktop {
     // The bottom-right sliver a parked window is squeezed into. macOS clamps a
     // window from leaving all screens: horizontally to a 1px sliver, vertically
-    // keeping ~38px of title bar. Pinning both axes to the corner confines the
-    // leftover to a tiny ~1x38px nub.
+    // keeping ~38px of title bar.
     struct HiddenEdge {
         private static let epsilon: CGFloat = 1
         private static let detectionMargin: CGFloat = 10
@@ -64,7 +63,11 @@ final class OffscreenParkingDesktop: Desktop {
 
     func recover(windows: [WindowSnapshot]) {
         Telemetry.shared.span("recover") {
-            recoverWindowsStuckAtHiddenEdge(windows)
+            for snapshot in windows where !snapshot.isMinimized && hiddenEdge.holds(snapshot.frame) {
+                Log.desktop.info("recovering \(snapshot.logDescription) stuck at hidden edge")
+                let recovered = hiddenEdge.recovered(from: snapshot.frame)
+                window(snapshot.id)?.setFrame(recovered)
+            }
         }
     }
 
@@ -91,14 +94,6 @@ final class OffscreenParkingDesktop: Desktop {
         }
     }
 
-    private func movableWindow(_ windowId: CGWindowID, _ placement: Placement) -> (window: any Window, frame: CGRect)? {
-        guard let win = window(windowId), let frame = win.movableFrame() else {
-            Log.desktop.info("cannot move id=\(windowId) to \(placement): window not found or not movable")
-            return nil
-        }
-        return (win, frame)
-    }
-
     func placement(of windowId: CGWindowID) -> Placement {
         hiddenWindowFrames[windowId] != nil ? .storage : .active
     }
@@ -117,39 +112,35 @@ final class OffscreenParkingDesktop: Desktop {
     func forget(_ windowId: CGWindowID) {
         hiddenWindowFrames[windowId] = nil
     }
+    
+    private func movableWindow(_ windowId: CGWindowID, _ placement: Placement) -> (window: any Window, frame: CGRect)? {
+        guard let win = window(windowId), let frame = win.movableFrame() else {
+            Log.desktop.info("cannot move id=\(windowId) to \(placement): window not found or not movable")
+            return nil
+        }
+        return (win, frame)
+    }
 
     private func handleActiveSpaceChange(_ callback: (CGWindowID) -> Void) {
         guard let focusedId = focusedWindowId(), hiddenWindowFrames[focusedId] != nil else {
             Log.desktop.debug("native space change: no hidden window focused")
-            parkWindowsPulledBackOnScreen()
+            // macOS brings a non-fullscreen window counter part to be visible
+            // when we exit its fullscreen instance. For example, a Safari video
+            // in fullscreen.
+            for (windowId, originalFrame) in hiddenWindowFrames {
+                guard let win = window(windowId),
+                      let frame = win.movableFrame(),
+                      !hiddenEdge.holds(frame)
+                else { continue }
+                
+                let hidden = hiddenEdge.frame(parking: originalFrame)
+                win.setFrame(hidden)
+                Log.desktop.info("re-hid id=\(windowId) pulled back to \(frame), to=\(hidden)")
+            }
             return
         }
         Log.desktop.info("native space change with hidden window focused id=\(focusedId)")
         callback(focusedId)
-    }
-
-    // macOS constrains a window to be fully on screen when the space it sits on
-    // becomes active again, undoing a park issued while that space was in the
-    // background.
-    private func parkWindowsPulledBackOnScreen() {
-        for (windowId, originalFrame) in hiddenWindowFrames {
-            guard let win = window(windowId),
-                  let frame = win.movableFrame(),
-                  !hiddenEdge.holds(frame)
-            else { continue }
-
-            let hidden = hiddenEdge.frame(parking: originalFrame)
-            win.setFrame(hidden)
-            Log.desktop.info("re-hid id=\(windowId) pulled back to \(frame), to=\(hidden)")
-        }
-    }
-
-    private func recoverWindowsStuckAtHiddenEdge(_ windows: [WindowSnapshot]) {
-        for snapshot in windows where !snapshot.isMinimized && hiddenEdge.holds(snapshot.frame) {
-            Log.desktop.info("recovering \(snapshot.logDescription) stuck at hidden edge")
-            let recovered = hiddenEdge.recovered(from: snapshot.frame)
-            window(snapshot.id)?.setFrame(recovered)
-        }
     }
 
     private func stopWatchingForManualNavigation() {

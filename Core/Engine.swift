@@ -7,7 +7,7 @@ final class Engine {
     private let window: (CGWindowID) -> (any Window)?
     private let focusedWindow: OperationCache<WindowSnapshot?>
     private let onScreenWindows: OperationCache<Set<CGWindowID>>
-    private let model = Workspaces()
+    private let workspaces = Workspaces()
     private var ignoreNextManualNavigation = false
 
     init(
@@ -23,11 +23,11 @@ final class Engine {
     }
 
     var currentWorkspace: Int {
-        model.currentWorkspace
+        workspaces.currentWorkspace
     }
 
     var managedWindowIds: Set<CGWindowID> {
-        model.allWindowIds
+        workspaces.allWindowIds
     }
 
     func start(windows: [WindowSnapshot]) {
@@ -48,7 +48,7 @@ final class Engine {
         duringOperation {
             switch event {
             case let .created(win):
-                assignWindowToWorkspace(win, model.currentWorkspace)
+                assignWindowToWorkspace(win, workspaces.currentWorkspace)
             case let .focused(win):
                 handleFocused(win)
             case let .destroyed(windowId):
@@ -56,7 +56,10 @@ final class Engine {
             case let .minimized(windowId):
                 handleMinimized(windowId)
             case let .unminimized(win):
-                assignWindowToWorkspace(win, model.currentWorkspace)
+                // A window minimized while parked was forgotten where it stood, in the
+                // corner: unmanageable then, recoverable only now that it is back.
+                desktop.recover(windows: [win])
+                assignWindowToWorkspace(win, workspaces.currentWorkspace)
             }
         }
     }
@@ -65,10 +68,10 @@ final class Engine {
         operation("switchToWorkspace(\(workspace))") {
             dropFocusedWindowIfFullScreen()
 
-            let onDesktop = anyManagedWindowIsOnScreen || model.allWindowIds.isEmpty
-            Log.engine.info("switch requested target=\(workspace) current=\(self.model.currentWorkspace) onDesktop=\(onDesktop)")
+            let onDesktop = anyManagedWindowIsOnScreen || workspaces.allWindowIds.isEmpty
+            Log.engine.info("switch requested target=\(workspace) current=\(self.workspaces.currentWorkspace) onDesktop=\(onDesktop)")
 
-            if workspace == model.currentWorkspace {
+            if workspace == workspaces.currentWorkspace {
                 if !onDesktop {
                     returnToDesktop()
                 }
@@ -96,10 +99,10 @@ final class Engine {
                 return
             }
 
-            let placement: Placement = workspace == model.currentWorkspace ? .active : .storage
+            let placement: Placement = workspace == workspaces.currentWorkspace ? .active : .storage
             Log.engine.info("moving window \(win.logDescription) to workspace \(workspace) placement=\(placement)")
             desktop.place(win.id, placement)
-            model.moveWindowToWorkspace(win.id, workspace)
+            workspaces.moveWindowToWorkspace(win.id, workspace)
 
             restoreWindowsFocusForWorkspace()
         }
@@ -121,15 +124,15 @@ final class Engine {
 
         guard isValidWindow(win) else { return }
 
-        if let workspace = model.workspace(for: win.id) {
-            model.saveFocusedWindowInWorkspace(workspace, win.id)
+        if let workspace = workspaces.workspace(for: win.id) {
+            workspaces.saveFocusedWindowInWorkspace(workspace, win.id)
         } else {
-            assignWindowToWorkspace(win, model.currentWorkspace)
+            assignWindowToWorkspace(win, workspaces.currentWorkspace)
         }
     }
 
     private func handleDestroyed(_ windowId: CGWindowID) {
-        let hasTabSiblings = !model.tabSiblings(of: windowId).isEmpty
+        let hasTabSiblings = !workspaces.tabSiblings(of: windowId).isEmpty
         Log.engine.debug("destroyed id=\(windowId) hadTabSiblings=\(hasTabSiblings)")
         unmanage(windowId)
 
@@ -142,7 +145,7 @@ final class Engine {
     // bring it back on screen. It stops being managed until the user restores it,
     // and then joins whatever workspace is current.
     private func handleMinimized(_ windowId: CGWindowID) {
-        guard let workspace = model.workspace(for: windowId) else { return }
+        guard let workspace = workspaces.workspace(for: windowId) else { return }
         Log.engine.info("minimized id=\(windowId), dropped from workspace \(workspace)")
 
         unmanage(windowId)
@@ -156,7 +159,7 @@ final class Engine {
     // being managed until it comes back.
     private func dropFocusedWindowIfFullScreen() {
         guard let focused = focusedWindow.value(), focused.isFullScreen,
-              let workspace = model.workspace(for: focused.id)
+              let workspace = workspaces.workspace(for: focused.id)
         else { return }
 
         Log.engine.info("full screen id=\(focused.id), dropped from workspace \(workspace)")
@@ -164,20 +167,20 @@ final class Engine {
     }
 
     private func unmanage(_ windowId: CGWindowID) {
-        model.unregisterWindowById(windowId)
+        workspaces.unregisterWindowById(windowId)
         desktop.forget(windowId)
     }
 
     // The desktop is in front when at least one window we manage is on screen:
     // a native Space showing something else (a full screen app) shows none of them.
     private var anyManagedWindowIsOnScreen: Bool {
-        !onScreenWindows.value().isDisjoint(with: model.allWindowIds)
+        !onScreenWindows.value().isDisjoint(with: workspaces.allWindowIds)
     }
 
     // Focusing any managed window pulls the native Space they all live on back to
     // the front, which is the only way back when the current workspace is empty.
     private func focusAnyManagedWindow() {
-        for windowId in model.allWindowIds {
+        for windowId in workspaces.allWindowIds {
             if let win = window(windowId) {
                 Log.engine.debug("bringing desktop to front via id=\(windowId)")
                 win.focus()
@@ -200,7 +203,7 @@ final class Engine {
 
             if currentWorkspaceIsClosing() { return }
 
-            let target = model.workspace(for: windowId) ?? 1
+            let target = workspaces.workspace(for: windowId) ?? 1
             Log.engine.info("manual navigation → workspace \(target) window id=\(windowId)")
             transitionToWorkspace(target)
         }
@@ -209,7 +212,7 @@ final class Engine {
     private func transitionToWorkspace(_ workspace: Int) {
         let focusToKeep = focusedWindow.value().flatMap { isValidWindow($0) ? $0.id : nil }
 
-        let placements = model.switchTo(workspace, leavingFocusOn: focusToKeep)
+        let placements = workspaces.switchTo(workspace, leavingFocusOn: focusToKeep)
         Log.engine.info("switching to \(workspace) toActive=\(placements.toActive) toStorage=\(placements.toStorage)")
         for windowId in placements.toActive {
             desktop.place(windowId, .active)
@@ -221,7 +224,7 @@ final class Engine {
 
     private func assignWindowToWorkspace(_ win: WindowSnapshot, _ workspace: Int) {
         guard isValidWindow(win) else { return }
-        model.assignWindowToWorkspace(win, workspace)
+        workspaces.assignWindowToWorkspace(win, workspace)
         Log.engine.info("assigned \(win.logDescription) → workspace \(workspace)")
     }
 
@@ -236,12 +239,12 @@ final class Engine {
     @discardableResult
     private func restoreWindowsFocusForWorkspace() -> Bool {
         operation("restoreWindowsFocus") {
-            let currentWorkspace = model.currentWorkspace
+            let currentWorkspace = workspaces.currentWorkspace
 
             if let osFocused = focusedWindow.value(), isValidWindow(osFocused) {
-                let workspace = model.workspace(for: osFocused.id)
+                let workspace = workspaces.workspace(for: osFocused.id)
                 if workspace == currentWorkspace {
-                    model.saveFocusedWindowInWorkspace(currentWorkspace, osFocused.id)
+                    workspaces.saveFocusedWindowInWorkspace(currentWorkspace, osFocused.id)
                     return true
                 }
                 // On screen, focused, and in no workspace: a window that left
@@ -253,7 +256,7 @@ final class Engine {
                 }
             }
 
-            if let windowId = model.nextWindowToFocus(),
+            if let windowId = workspaces.nextWindowToFocus(),
                let win = window(windowId) {
                 win.focus()
                 return true
@@ -288,7 +291,7 @@ final class Engine {
     // model still lists them but none of them is on screen anymore. Focus events
     // fired during that teardown must not be mistaken for manual navigation.
     private func currentWorkspaceIsClosing() -> Bool {
-        let windowIds = model.windowIds(in: model.currentWorkspace)
+        let windowIds = workspaces.windowIds(in: workspaces.currentWorkspace)
         if windowIds.isEmpty { return false }
 
         return windowIds.allSatisfy(windowIsGone)

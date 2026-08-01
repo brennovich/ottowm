@@ -180,6 +180,24 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         XCTAssertEqual(win2.frame, frame2)
     }
 
+    func testWindowMinimizedWhileParkedIsRecoveredWhenItComesBack() {
+        let frame1 = CGRect(x: 100, y: 100, width: 800, height: 600)
+        let frame2 = CGRect(x: 300, y: 200, width: 640, height: 480)
+        _ = addWindow(100, frame: frame1)
+        let win2 = addWindow(200, frame: frame2)
+        start()
+        moveFocusedWindow(win2, to: 2)
+
+        win2.isMinimized = true
+        engine.handle(.minimized(200))
+
+        win2.isMinimized = false
+        engine.handle(.unminimized(win2.snapshot()))
+
+        XCTAssertFalse(OffscreenParkingDesktop.HiddenEdge(screen: StubScreen.standard).holds(win2.frame))
+        XCTAssertTrue(engine.managedWindowIds.contains(200))
+    }
+
     func testMinimizedWindowIsLeftInPlaceAcrossSwitches() {
         let frame1 = CGRect(x: 100, y: 100, width: 800, height: 600)
         let minimizedFrame = CGRect(x: 300, y: 200, width: 640, height: 480)
