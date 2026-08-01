@@ -26,8 +26,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let desktop = OffscreenParkingDesktop(
             screen: MainScreen(),
             window: windowById,
-            onScreenWindowIds: onScreenWindows.value,
-            managedWindowIds: { [weak self] in self?.engine?.managedWindowIds ?? [] },
             focusedWindowId: { AXWindow.focused()?.id }
         )
 

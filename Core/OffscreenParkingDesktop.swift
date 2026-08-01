@@ -44,8 +44,6 @@ final class OffscreenParkingDesktop: Desktop {
 
     private let hiddenEdge: HiddenEdge
     private let window: (CGWindowID) -> (any Window)?
-    private let onScreenWindowIds: () -> Set<CGWindowID>
-    private let managedWindowIds: () -> Set<CGWindowID>
     private let focusedWindowId: () -> CGWindowID?
     private let notificationCenter: NotificationCenter
 
@@ -55,15 +53,11 @@ final class OffscreenParkingDesktop: Desktop {
     init(
         screen: Screen,
         window: @escaping (CGWindowID) -> (any Window)?,
-        onScreenWindowIds: @escaping () -> Set<CGWindowID>,
-        managedWindowIds: @escaping () -> Set<CGWindowID>,
         focusedWindowId: @escaping () -> CGWindowID?,
         notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter
     ) {
         hiddenEdge = HiddenEdge(screen: screen)
         self.window = window
-        self.onScreenWindowIds = onScreenWindowIds
-        self.managedWindowIds = managedWindowIds
         self.focusedWindowId = focusedWindowId
         self.notificationCenter = notificationCenter
     }
@@ -72,25 +66,6 @@ final class OffscreenParkingDesktop: Desktop {
         Telemetry.shared.span("setupForMainScreen") {
             recoverWindowsStuckAtHiddenEdge(windows)
         }
-    }
-
-    func isFrontmost() -> Bool {
-        !onScreenWindowIds().isDisjoint(with: managedWindowIds())
-    }
-
-    func bringToFront() {
-        for windowId in managedWindowIds() {
-            if let win = window(windowId) {
-                Log.desktop.debug("bringing desktop to front via id=\(windowId)")
-                win.focus()
-                return
-            }
-        }
-        Log.desktop.debug("bringToFront: no live managed window")
-    }
-
-    func contains(_ windowId: CGWindowID) -> Bool {
-        onScreenWindowIds().contains(windowId)
     }
 
     func place(_ windowId: CGWindowID, _ placement: Placement) {

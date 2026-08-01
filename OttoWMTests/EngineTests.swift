@@ -6,6 +6,7 @@ final class EngineTests: XCTestCase {
     private var windows: [CGWindowID: StubWindow] = [:]
     private var focused: StubWindow?
     private var focusedReadCount = 0
+    private var offScreenWindowIds: Set<CGWindowID> = []
 
     private lazy var engine = Engine(
         desktop: desktop,
@@ -17,7 +18,7 @@ final class EngineTests: XCTestCase {
         },
         onScreenWindows: OperationCache { [weak self] in
             guard let self else { return [] }
-            return Set(self.windows.keys).subtracting(self.desktop.absentWindowIds)
+            return Set(self.windows.keys).subtracting(self.offScreenWindowIds)
         }
     )
 
@@ -56,7 +57,7 @@ final class EngineTests: XCTestCase {
     }
 
     func testStartSkipsInvalidWindows() {
-        desktop.absentWindowIds = [500]
+        offScreenWindowIds = [500]
         let seeds = [
             makeWindow(0),
             makeWindow(300, isStandard: false),
@@ -84,7 +85,7 @@ final class EngineTests: XCTestCase {
     }
 
     func testCreatedInvalidWindowIsIgnored() {
-        desktop.absentWindowIds = [400]
+        offScreenWindowIds = [400]
         let invalidWindows = [
             makeWindow(0),
             makeWindow(200, isStandard: false),
@@ -164,46 +165,41 @@ final class EngineTests: XCTestCase {
     func testSwitchToSameWorkspaceOffDesktopRestoresFocus() {
         let win = makeWindow(100)
         engine.handle(.created(win.snapshot()))
-        desktop.isFrontmostValue = false
+        offScreenWindowIds = [100]
 
         engine.switchToWorkspace(1)
 
         XCTAssertEqual(win.focusCount, 1)
-        XCTAssertEqual(desktop.bringToFrontCount, 0)
     }
 
-    func testSwitchToNonEmptyWorkspaceOffDesktopRestoresFocusWithoutBringingToFront() {
+    func testSwitchToNonEmptyWorkspaceOffDesktopRestoresItsWindows() {
         let win = makeWindow(700)
         engine.handle(.created(win.snapshot()))
         engine.moveWindowToWorkspace(win.snapshot(), 2)
-        desktop.isFrontmostValue = false
+        offScreenWindowIds = [700]
 
         engine.switchToWorkspace(2)
 
         XCTAssertEqual(win.focusCount, 1)
         XCTAssertEqual(desktop.placement(of: 700), .active)
-        XCTAssertEqual(desktop.bringToFrontCount, 0)
     }
 
-    func testSwitchWithNoManagedWindowsDoesNotBringDesktopToFront() {
-        desktop.isFrontmostValue = false
-
-        engine.switchToWorkspace(2)
+    func testSwitchWithNoManagedWindowsIsTreatedAsOnDesktop() {
         engine.switchToWorkspace(2)
 
-        XCTAssertEqual(desktop.bringToFrontCount, 0)
         XCTAssertEqual(engine.currentWorkspace, 2)
+        XCTAssertTrue(desktop.placeCalls.isEmpty)
     }
 
     func testBringToFrontInducedFocusDoesNotSwitchAwayFromEmptyWorkspace() {
         for win in [makeWindow(72), makeWindow(88), makeWindow(187)] {
             engine.handle(.created(win.snapshot()))
         }
-        desktop.isFrontmostValue = false
+        offScreenWindowIds = [72, 88, 187]
 
         engine.switchToWorkspace(3)
 
-        XCTAssertEqual(desktop.bringToFrontCount, 1)
+        XCTAssertEqual(windows.values.reduce(0) { $0 + $1.focusCount }, 1)
 
         engine.handle(.focused(windows[187]!.snapshot()))
 
@@ -305,7 +301,7 @@ final class EngineTests: XCTestCase {
         engine.handle(.created(win2.snapshot()))
         engine.moveWindowToWorkspace(win2.snapshot(), 2)
 
-        desktop.absentWindowIds = [100]
+        offScreenWindowIds = [100]
         focused = win2
         engine.handle(.focused(win2.snapshot()))
 
@@ -321,7 +317,7 @@ final class EngineTests: XCTestCase {
         engine.moveWindowToWorkspace(win2.snapshot(), 2)
 
         win1.isMinimized = true
-        desktop.absentWindowIds = [100]
+        offScreenWindowIds = [100]
         focused = win2
         engine.handle(.focused(win2.snapshot()))
 
@@ -434,7 +430,7 @@ final class EngineTests: XCTestCase {
 
         win2.isFullScreen = true
         focused = win2
-        desktop.isFrontmostValue = false
+        offScreenWindowIds = [100]
         engine.switchToWorkspace(1)
 
         XCTAssertEqual(engine.managedWindowIds, [100])
@@ -449,11 +445,11 @@ final class EngineTests: XCTestCase {
         engine.handle(.created(win2.snapshot()))
         win2.isFullScreen = true
         focused = win2
-        desktop.isFrontmostValue = false
+        offScreenWindowIds = [100]
         engine.switchToWorkspace(1)
 
         win2.isFullScreen = false
-        desktop.isFrontmostValue = true
+        offScreenWindowIds = []
         engine.switchToWorkspace(2)
 
         XCTAssertEqual(engine.managedWindowIds, [100, 200])

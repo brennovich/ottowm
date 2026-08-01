@@ -17,8 +17,6 @@ final class EngineDesktopIntegrationTests: XCTestCase {
     private lazy var desktop: OffscreenParkingDesktop = OffscreenParkingDesktop(
         screen: StubScreen.standard,
         window: { [weak self] in self?.windows[$0] },
-        onScreenWindowIds: { [weak self] in self?.onScreenWindows.value() ?? [] },
-        managedWindowIds: { [weak self] in self?.engine.managedWindowIds ?? [] },
         focusedWindowId: { [weak self] in self?.focused?.id },
         notificationCenter: center
     )

@@ -5,8 +5,6 @@ private let testScreen: Screen = StubScreen.standard
 
 private func makeDesktop(
     _ windows: [StubWindow] = [],
-    onScreen: @escaping () -> Set<CGWindowID> = { [] },
-    managed: @escaping () -> Set<CGWindowID> = { [] },
     focusedWindowId: @escaping () -> CGWindowID? = { nil },
     center: NotificationCenter = NotificationCenter()
 ) -> OffscreenParkingDesktop {
@@ -14,8 +12,6 @@ private func makeDesktop(
     return OffscreenParkingDesktop(
         screen: testScreen,
         window: { registry[$0] },
-        onScreenWindowIds: onScreen,
-        managedWindowIds: managed,
         focusedWindowId: focusedWindowId,
         notificationCenter: center
     )
@@ -74,8 +70,6 @@ final class OffscreenParkingDesktopTests: XCTestCase {
                 lookupCount += 1
                 return id == win.id ? win : nil
             },
-            onScreenWindowIds: { [] },
-            managedWindowIds: { [] },
             focusedWindowId: { nil },
             notificationCenter: NotificationCenter()
         )
@@ -152,41 +146,6 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(stuck.frameSetCount, 1)
         XCTAssertFalse(OffscreenParkingDesktop.HiddenEdge(screen: testScreen).holds(stuck.frame))
         XCTAssertEqual(normal.frameSetCount, 0)
-    }
-
-    func testContainsReflectsOnScreenWindows() {
-        let desktop = makeDesktop(onScreen: { [100] })
-
-        XCTAssertTrue(desktop.contains(100))
-        XCTAssertFalse(desktop.contains(200))
-    }
-
-    func testIsFrontmostReflectsManagedWindowsBeingOnScreen() {
-        var onScreen: Set<CGWindowID> = [100]
-        let desktop = makeDesktop(onScreen: { onScreen }, managed: { [100, 200] })
-
-        XCTAssertTrue(desktop.isFrontmost())
-
-        onScreen = [999]
-        XCTAssertFalse(desktop.isFrontmost())
-    }
-
-    func testBringToFrontFocusesAManagedWindow() {
-        let win = StubWindow(id: 100, frame: originalFrame)
-        let desktop = makeDesktop([win], managed: { [100] })
-
-        desktop.bringToFront()
-
-        XCTAssertEqual(win.focusCount, 1)
-    }
-
-    func testBringToFrontIsNoOpWithoutManagedWindows() {
-        let win = StubWindow(id: 100, frame: originalFrame)
-        let desktop = makeDesktop([win], managed: { [] })
-
-        desktop.bringToFront()
-
-        XCTAssertEqual(win.focusCount, 0)
     }
 
     func testStartWatchingForManualNavigationFiresOnHiddenWindowFocus() {

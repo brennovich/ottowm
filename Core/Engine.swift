@@ -65,7 +65,7 @@ final class Engine {
         operation("switchToWorkspace(\(workspace))") {
             dropFocusedWindowIfFullScreen()
 
-            let onDesktop = desktop.isFrontmost() || model.allWindowIds.isEmpty
+            let onDesktop = anyManagedWindowIsOnScreen || model.allWindowIds.isEmpty
             Log.engine.info("switch requested target=\(workspace) current=\(self.model.currentWorkspace) onDesktop=\(onDesktop)")
 
             if workspace == model.currentWorkspace {
@@ -168,6 +168,25 @@ final class Engine {
         desktop.forget(windowId)
     }
 
+    // The desktop is in front when at least one window we manage is on screen:
+    // a native Space showing something else (a full screen app) shows none of them.
+    private var anyManagedWindowIsOnScreen: Bool {
+        !onScreenWindows.value().isDisjoint(with: model.allWindowIds)
+    }
+
+    // Focusing any managed window pulls the native Space they all live on back to
+    // the front, which is the only way back when the current workspace is empty.
+    private func focusAnyManagedWindow() {
+        for windowId in model.allWindowIds {
+            if let win = window(windowId) {
+                Log.engine.debug("bringing desktop to front via id=\(windowId)")
+                win.focus()
+                return
+            }
+        }
+        Log.engine.debug("no live managed window to bring the desktop to front")
+    }
+
     // Focusing a hidden window means the user navigated to it behind OttoWM's back
     // (Cmd-Tab/Dock on the same native Space, or Mission Control from another one),
     // so follow them by switching to that window's workspace.
@@ -210,7 +229,7 @@ final class Engine {
         if !restoreWindowsFocusForWorkspace() {
             ignoreNextManualNavigation = true
             Log.engine.debug("returning to desktop, ignoring next manual navigation")
-            desktop.bringToFront()
+            focusAnyManagedWindow()
         }
     }
 
@@ -258,7 +277,11 @@ final class Engine {
     }
 
     private func isValidWindow(_ win: WindowSnapshot) -> Bool {
-        win.id != 0 && win.isStandard && !win.isFullScreen && !win.isMinimized && desktop.contains(win.id)
+        win.id != 0 && win.isStandard && !win.isFullScreen && !win.isMinimized && isOnScreen(win.id)
+    }
+
+    private func isOnScreen(_ windowId: CGWindowID) -> Bool {
+        onScreenWindows.value().contains(windowId)
     }
 
     // True while the current workspace's windows are all mid-destruction: the
@@ -276,6 +299,6 @@ final class Engine {
     // it is gone. A minimized window is off screen too, and AX still answers for it.
     private func windowIsGone(_ windowId: CGWindowID) -> Bool {
         guard let win = window(windowId) else { return true }
-        return !desktop.contains(windowId) && !win.snapshot().isMinimized
+        return !isOnScreen(windowId) && !win.snapshot().isMinimized
     }
 }
