@@ -240,29 +240,13 @@ final class AXWindowObserver {
     }
 
     private func windowElements(pid: pid_t) -> [AXUIElement] {
-        let appElement = AXUIElementCreateApplication(pid)
-        var value: CFTypeRef?
-        let result = AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &value)
-        guard result == .success, let windows = value as? [AXUIElement] else {
-            Log.observer.debug("windowElements failed pid=\(pid) err=\(result.rawValue)")
-            return []
-        }
-        return windows
+        axAttribute(AXUIElementCreateApplication(pid), kAXWindowsAttribute) as? [AXUIElement] ?? []
     }
 
     private func application(for element: AXUIElement) -> NSRunningApplication? {
         var pid: pid_t = 0
         guard AXUIElementGetPid(element, &pid) == .success else { return nil }
         return applications[pid] ?? NSRunningApplication(processIdentifier: pid)
-    }
-
-    private func focusedWindow(of app: NSRunningApplication) -> AXWindow? {
-        let appElement = AXUIElementCreateApplication(app.processIdentifier)
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(appElement, kAXFocusedWindowAttribute as CFString, &value) == .success,
-              let window = value
-        else { return nil }
-        return AXWindow(element: window as! AXUIElement, application: app)
     }
 
     @objc private func applicationLaunched(_ notification: Notification) {
@@ -282,7 +266,7 @@ final class AXWindowObserver {
               observable(app)
         else { return }
         rescanWindows(of: app)
-        guard let window = focusedWindow(of: app) else { return }
+        guard let window = AXWindow.focused(of: app) else { return }
         handler?(.focused(window.snapshot()))
     }
 

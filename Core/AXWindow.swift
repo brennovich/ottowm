@@ -88,28 +88,24 @@ final class AXWindow: Window {
     }
 
     static func focused() -> AXWindow? {
-        let systemWide = AXUIElementCreateSystemWide()
-
-        var app: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedApplicationAttribute as CFString, &app) == .success,
-              let appElement = app.map({ $0 as! AXUIElement })
-        else { return nil }
-
-        var window: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(appElement, kAXFocusedWindowAttribute as CFString, &window) == .success,
-              let windowElement = window.map({ $0 as! AXUIElement })
-        else { return nil }
+        guard let appElement = axElement(AXUIElementCreateSystemWide(), kAXFocusedApplicationAttribute) else { return nil }
 
         var pid: pid_t = 0
         guard AXUIElementGetPid(appElement, &pid) == .success,
-              let runningApp = NSRunningApplication(processIdentifier: pid)
+              let app = NSRunningApplication(processIdentifier: pid)
         else { return nil }
 
-        return AXWindow(element: windowElement, application: runningApp)
+        return focused(of: app)
+    }
+
+    static func focused(of app: NSRunningApplication) -> AXWindow? {
+        let appElement = AXUIElementCreateApplication(app.processIdentifier)
+        guard let element = axElement(appElement, kAXFocusedWindowAttribute) else { return nil }
+        return AXWindow(element: element, application: app)
     }
 
     private var tabCount: Int {
-        guard let children = value(kAXChildrenAttribute) as? [AXUIElement] else {
+        guard let children = axAttribute(element, kAXChildrenAttribute) as? [AXUIElement] else {
             Log.window.debug("tabCount children read failed \(self.logDescription), assuming 1")
             return 1
         }
@@ -120,7 +116,7 @@ final class AXWindow: Window {
                   let tabs = attributes[1] as? [AXUIElement]
             else { continue }
 
-            let count = tabs.filter { string(kAXRoleAttribute, of: $0) == "AXRadioButton" }.count
+            let count = tabs.filter { axAttribute($0, kAXRoleAttribute) as? String == "AXRadioButton" }.count
             return count > 0 ? count : 1
         }
 
@@ -137,13 +133,6 @@ final class AXWindow: Window {
         return CGRect(origin: origin, size: size)
     }
 
-    private func value(_ attribute: String, of element: AXUIElement? = nil) -> CFTypeRef? {
-        var result: CFTypeRef?
-        let target = element ?? self.element
-        guard AXUIElementCopyAttributeValue(target, attribute as CFString, &result) == .success else { return nil }
-        return result
-    }
-
     // One round trip for several attributes instead of one each. Returns a slot
     // per requested attribute, nil where the read failed.
     private func values(_ attributes: [String], of element: AXUIElement? = nil) -> [AnyObject?] {
@@ -156,9 +145,5 @@ final class AXWindow: Window {
             return Array(repeating: nil, count: attributes.count)
         }
         return discardingAXErrors(raw)
-    }
-
-    private func string(_ attribute: String, of element: AXUIElement? = nil) -> String? {
-        value(attribute, of: element) as? String
     }
 }

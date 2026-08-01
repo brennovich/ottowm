@@ -21,6 +21,13 @@ final class AXAttributesTests: XCTestCase {
         XCTAssertEqual(axValue(result[2]).flatMap(decodeCGPoint), CGPoint(x: 10, y: 20))
     }
 
+    func testReadingAnUnsupportedAttributeYieldsNil() {
+        let systemWide = AXUIElementCreateSystemWide()
+
+        XCTAssertNil(axAttribute(systemWide, "AXNotAnAttribute"))
+        XCTAssertNil(axElement(systemWide, "AXNotAnAttribute"))
+    }
+
     func testKeepsNonErrorValues() {
         let values: [AnyObject] = [true as NSNumber, encodeCGSize(CGSize(width: 8, height: 6))]
 
