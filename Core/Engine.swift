@@ -188,20 +188,16 @@ final class Engine {
     }
 
     private func transitionToWorkspace(_ workspace: Int) {
-        if let focused = focusedWindow.value(), isValidWindow(focused) {
-            model.saveFocusedWindowInWorkspace(model.currentWorkspace, focused.id)
-        }
+        let focusToKeep = focusedWindow.value().flatMap { isValidWindow($0) ? $0.id : nil }
 
-        let categorized = model.categorizeWindowsForTransition(workspace)
-        Log.engine.info("switching to \(workspace) toActive=\(categorized.toActive) toStorage=\(categorized.toStorage)")
-        for windowId in categorized.toActive {
+        let placements = model.switchTo(workspace, leavingFocusOn: focusToKeep)
+        Log.engine.info("switching to \(workspace) toActive=\(placements.toActive) toStorage=\(placements.toStorage)")
+        for windowId in placements.toActive {
             desktop.place(windowId, .active)
         }
-        for windowId in categorized.toStorage {
+        for windowId in placements.toStorage {
             desktop.place(windowId, .storage)
         }
-
-        model.currentWorkspace = workspace
     }
 
     private func assignWindowToWorkspace(_ win: WindowSnapshot, _ workspace: Int) {

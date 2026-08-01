@@ -7,7 +7,7 @@ final class Workspaces {
         var windowIds: [CGWindowID]
     }
 
-    var currentWorkspace = 1
+    private(set) var currentWorkspace = 1
 
     private var focusedWindows: [Int: [CGWindowID]] = [:]
     private var windowWorkspaceMap: [CGWindowID: Int] = [:]
@@ -96,9 +96,15 @@ final class Workspaces {
         windowWorkspaceMap[windowId] = nil
     }
 
-    // Split the model's windows into the ones that belong to the target
-    // workspace and everything else, for a transition between two workspaces.
-    func categorizeWindowsForTransition(_ targetWorkspace: Int) -> (toActive: [CGWindowID], toStorage: [CGWindowID]) {
+    // Commits the transition to the target workspace and returns the placements
+    // the desktop must perform for it: the windows that belong to the target
+    // workspace and everything else. `leavingFocusOn` is the window the workspace
+    // being left should come back to.
+    func switchTo(_ targetWorkspace: Int, leavingFocusOn windowId: CGWindowID?) -> (toActive: [CGWindowID], toStorage: [CGWindowID]) {
+        if let windowId {
+            saveFocusedWindowInWorkspace(currentWorkspace, windowId)
+        }
+
         var toActive: [CGWindowID] = []
         var toStorage: [CGWindowID] = []
 
@@ -109,6 +115,8 @@ final class Workspaces {
                 toStorage.append(windowId)
             }
         }
+
+        currentWorkspace = targetWorkspace
 
         return (toActive: toActive, toStorage: toStorage)
     }
