@@ -1,12 +1,18 @@
 import CoreGraphics
 
 final class StubDesktop: Desktop {
+    private let window: (CGWindowID) -> (any Window)?
+
     private(set) var placements: [CGWindowID: Placement] = [:]
     private(set) var placeCalls: [(windowId: CGWindowID, placement: Placement)] = []
     private(set) var forgottenWindowIds: [CGWindowID] = []
     private(set) var recoverCount = 0
     private(set) var recoveredWindowIds: [CGWindowID] = []
     private(set) var manualNavigationCallback: ((CGWindowID) -> Void)?
+
+    init(window: @escaping (CGWindowID) -> (any Window)? = { _ in nil }) {
+        self.window = window
+    }
 
     func recover(windows: [WindowSnapshot]) {
         recoverCount += 1
@@ -20,6 +26,12 @@ final class StubDesktop: Desktop {
 
     func placement(of windowId: CGWindowID) -> Placement {
         placements[windowId] ?? .active
+    }
+
+    func focus(_ windowId: CGWindowID) -> Bool {
+        guard let win = window(windowId) else { return false }
+        win.focus()
+        return true
     }
 
     func startWatchingForManualNavigation(_ callback: @escaping (CGWindowID) -> Void) {

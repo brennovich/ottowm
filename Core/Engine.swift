@@ -4,28 +4,22 @@ import CoreGraphics
 // Workspaces model and the physical Desktop in sync.
 final class Engine {
     private let desktop: any Desktop
-    private let window: (CGWindowID) -> (any Window)?
-    private let focusedWindow: OperationCache<WindowSnapshot?>
-    private let onScreenWindows: OperationCache<Set<CGWindowID>>
+    private let screen: Screen
     private let workspaces: Workspaces
     private var ignoreNextManualNavigation = false
 
     init(
         desktop: any Desktop,
-        window: @escaping (CGWindowID) -> (any Window)?,
-        focusedWindow: OperationCache<WindowSnapshot?>,
-        onScreenWindows: OperationCache<Set<CGWindowID>>,
+        screen: Screen,
         workspaces: Workspaces = Workspaces()
     ) {
         self.desktop = desktop
-        self.window = window
-        self.focusedWindow = focusedWindow
-        self.onScreenWindows = onScreenWindows
+        self.screen = screen
         self.workspaces = workspaces
     }
 
     func start(windows: [WindowSnapshot]) {
-        operation("start") {
+        screen.duringOperation("start") {
             desktop.recover(windows: windows)
 
             for win in windows {
@@ -39,7 +33,7 @@ final class Engine {
     }
 
     func handle(_ event: WindowEvent) {
-        duringOperation {
+        screen.duringOperation {
             switch event {
             case let .created(win):
                 assignWindowToWorkspace(win, workspaces.currentWorkspace)
@@ -59,13 +53,13 @@ final class Engine {
     }
 
     func switchToWorkspace(_ workspace: Int) {
-        operation("switchToWorkspace(\(workspace))") {
+        screen.duringOperation("switchToWorkspace(\(workspace))") {
             dropFocusedWindowIfFullScreen()
 
             // The desktop is in front when at least one window we manage is on screen:
             // a native Space showing something else (a full screen app) shows none of them.
             let managed = workspaces.allWindowIds
-            let onDesktop = managed.isEmpty || !onScreenWindows.value().isDisjoint(with: managed)
+            let onDesktop = managed.isEmpty || screen.showsAny(managed)
             Log.engine.info("switch requested target=\(workspace) current=\(self.workspaces.currentWorkspace) onDesktop=\(onDesktop)")
 
             if workspace == workspaces.currentWorkspace {
@@ -86,12 +80,12 @@ final class Engine {
     }
 
     func moveFocusedWindow(toWorkspace workspace: Int) {
-        operation("moveFocusedWindow(\(workspace))") {
+        screen.duringOperation("moveFocusedWindow(\(workspace))") {
             guard workspace >= 1 else {
                 Log.engine.info("move dropped: invalid workspace \(workspace)")
                 return
             }
-            guard let win = focusedWindow.value(), isValidWindow(win) else {
+            guard let win = screen.focused(), isValidWindow(win) else {
                 Log.engine.info("move to \(workspace) dropped: no valid window to move")
                 return
             }
@@ -111,7 +105,7 @@ final class Engine {
             // describe a focus OttoWM itself caused before the switch that hid the
             // window. Acting on such an echo bounces straight back to the workspace we
             // just left. Only the window the OS considers focused right now counts.
-            guard focusedWindow.value()?.id == win.id else {
+            guard screen.focused()?.id == win.id else {
                 Log.engine.debug("ignoring stale focus event id=\(win.id)")
                 return
             }
@@ -130,40 +124,38 @@ final class Engine {
 
     private func handleDestroyed(_ windowId: CGWindowID) {
         let hasTabSiblings = !workspaces.tabSiblings(of: windowId).isEmpty
-        Log.engine.debug("destroyed id=\(windowId) hadTabSiblings=\(hasTabSiblings)")
-        unmanage(windowId)
+        unmanage(windowId, "destroyed")
 
         if !hasTabSiblings {
             restoreWindowsFocusForWorkspace()
         }
     }
 
-    // A minimized window is out of reach: it cannot be moved, and focusing it would
-    // bring it back on screen. It stops being managed until the user restores it,
-    // and then joins whatever workspace is current.
     private func handleMinimized(_ windowId: CGWindowID) {
-        guard let workspace = workspaces.workspace(for: windowId) else { return }
-        Log.engine.info("minimized id=\(windowId), dropped from workspace \(workspace)")
+        guard workspaces.workspace(for: windowId) != nil else { return }
 
-        unmanage(windowId)
+        unmanage(windowId, "minimized")
 
         restoreWindowsFocusForWorkspace()
     }
 
-    // A window taken full screen gets its own native space, where it is the only
-    // thing on screen: it cannot be parked, and focusing it would keep the user
-    // there instead of bringing the desktop back. Like a minimized one, it stops
-    // being managed until it comes back.
     private func dropFocusedWindowIfFullScreen() {
-        guard let focused = focusedWindow.value(), focused.isFullScreen,
-              let workspace = workspaces.workspace(for: focused.id)
+        guard let focused = screen.focused(), focused.isFullScreen,
+              workspaces.workspace(for: focused.id) != nil
         else { return }
 
-        Log.engine.info("full screen id=\(focused.id), dropped from workspace \(workspace)")
-        unmanage(focused.id)
+        unmanage(focused.id, "fullscreen")
     }
 
-    private func unmanage(_ windowId: CGWindowID) {
+    // A window out of reach cannot be parked, and focusing it would strand the user
+    // away from the desktop: a minimized one is off screen, a full screen one owns its
+    // own native space, a destroyed one is gone for good. It stops being managed
+    // rather than being flagged, and a window that comes back joins whatever workspace
+    // is current, like a brand new one.
+    private func unmanage(_ windowId: CGWindowID, _ reason: String) {
+        let workspace = workspaces.workspace(for: windowId).map { String($0) } ?? "none"
+        Log.engine.info("\(reason) id=\(windowId), dropped from workspace \(workspace)")
+
         workspaces.unregisterWindowById(windowId)
         desktop.forget(windowId)
     }
@@ -172,7 +164,7 @@ final class Engine {
     // (Cmd-Tab/Dock on the same native Space, or Mission Control from another one),
     // so follow them by switching to that window's workspace.
     private func handleManualNavigation(_ windowId: CGWindowID) {
-        operation("handleManualNavigation") {
+        screen.duringOperation("handleManualNavigation") {
             if ignoreNextManualNavigation {
                 ignoreNextManualNavigation = false
                 Log.engine.debug("ignoring manual navigation (one-shot)")
@@ -188,7 +180,7 @@ final class Engine {
     }
 
     private func transitionToWorkspace(_ workspace: Int) {
-        let focusToKeep = focusedWindow.value().flatMap { isValidWindow($0) ? $0.id : nil }
+        let focusToKeep = screen.focused().flatMap { isValidWindow($0) ? $0.id : nil }
 
         let placements = workspaces.switchTo(workspace, leavingFocusOn: focusToKeep)
         Log.engine.info("switching to \(workspace) toActive=\(placements.toActive) toStorage=\(placements.toStorage)")
@@ -216,9 +208,8 @@ final class Engine {
         Log.engine.debug("returning to desktop, ignoring next manual navigation")
 
         for windowId in workspaces.allWindowIds {
-            if let win = window(windowId) {
-                Log.engine.debug("bringing desktop to front via id=\(windowId)")
-                win.focus()
+            if desktop.focus(windowId) {
+                Log.engine.debug("brought the desktop to front via id=\(windowId)")
                 return
             }
         }
@@ -227,10 +218,10 @@ final class Engine {
 
     @discardableResult
     private func restoreWindowsFocusForWorkspace() -> Bool {
-        operation("restoreWindowsFocus") {
+        screen.duringOperation("restoreWindowsFocus") {
             let currentWorkspace = workspaces.currentWorkspace
 
-            if let osFocused = focusedWindow.value(), isValidWindow(osFocused) {
+            if let osFocused = screen.focused(), isValidWindow(osFocused) {
                 let workspace = workspaces.workspace(for: osFocused.id)
                 if workspace == currentWorkspace {
                     workspaces.saveFocusedWindowInWorkspace(currentWorkspace, osFocused.id)
@@ -244,9 +235,7 @@ final class Engine {
                 }
             }
 
-            if let windowId = workspaces.nextWindowToFocus(),
-               let win = window(windowId) {
-                win.focus()
+            if let windowId = workspaces.nextWindowToFocus(), desktop.focus(windowId) {
                 return true
             }
 
@@ -255,29 +244,21 @@ final class Engine {
         }
     }
 
-    // An operation is the unit telemetry and both IPC-backed reads are scoped to:
-    // `isValidWindow` asks which windows are on screen several times per operation and
-    // the focused window is read more than once, and each ask would otherwise be its
-    // own round trip.
-    private func operation<T>(_ name: String, _ body: () -> T) -> T {
-        duringOperation { Telemetry.shared.span(name, body) }
-    }
-
-    private func duringOperation<T>(_ body: () -> T) -> T {
-        onScreenWindows.duringOperation { focusedWindow.duringOperation(body) }
-    }
-
+    // The single admission gate: anything entering the model passes through here.
     private func isValidWindow(_ win: WindowSnapshot) -> Bool {
         win.id != 0 && win.isStandard && !win.isFullScreen && !win.isMinimized
-            && onScreenWindows.value().contains(win.id)
+            && screen.shows(win.id)
     }
 
+    // AX still resolves elements of windows that are already gone, so a workspace whose
+    // windows are all mid-destruction still answers focus events. Neither on screen nor
+    // merely minimized means the window is on its way out.
     private func currentWorkspaceIsClosing() -> Bool {
         let windowIds = workspaces.windowIds(in: workspaces.currentWorkspace)
 
         return !windowIds.isEmpty && windowIds.allSatisfy { windowId in
-            guard let win = window(windowId) else { return true }
-            return !onScreenWindows.value().contains(windowId) && !win.snapshot().isMinimized
+            guard let win = screen.snapshot(of: windowId) else { return true }
+            return !screen.shows(windowId) && !win.isMinimized
         }
     }
 }

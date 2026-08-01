@@ -2,25 +2,28 @@ import CoreGraphics
 import XCTest
 
 final class EngineTests: XCTestCase {
-    private var desktop = StubDesktop()
     private var windows: [CGWindowID: StubWindow] = [:]
     private var focused: StubWindow?
     private var focusedReadCount = 0
     private var offScreenWindowIds: Set<CGWindowID> = []
     private let workspaces = Workspaces()
 
+    private lazy var desktop = StubDesktop(window: { [weak self] id in self?.windows[id] })
+
     private lazy var engine = Engine(
         desktop: desktop,
-        window: { [weak self] id in self?.windows[id] },
-        focusedWindow: OperationCache { [weak self] in
-            guard let self else { return nil }
-            self.focusedReadCount += 1
-            return self.focused?.snapshot()
-        },
-        onScreenWindows: OperationCache { [weak self] in
-            guard let self else { return [] }
-            return Set(self.windows.keys).subtracting(self.offScreenWindowIds)
-        },
+        screen: Screen(
+            focusedWindow: OperationCache { [weak self] in
+                guard let self else { return nil }
+                self.focusedReadCount += 1
+                return self.focused?.snapshot()
+            },
+            onScreenWindowIds: OperationCache { [weak self] in
+                guard let self else { return [] }
+                return Set(self.windows.keys).subtracting(self.offScreenWindowIds)
+            },
+            window: { [weak self] id in self?.windows[id] }
+        ),
         workspaces: workspaces
     )
 

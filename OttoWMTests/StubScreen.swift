@@ -1,6 +1,6 @@
 import CoreGraphics
 
-struct StubScreen: Screen {
+struct StubScreen: ScreenGeometry {
     var fullFrame: CGRect
     var visibleFrame: CGRect
 }

@@ -27,16 +27,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 window: windowById,
                 focusedWindowId: { AXWindow.focused()?.id }
             ),
-            window: windowById,
-            focusedWindow: OperationCache { AXWindow.focused()?.snapshot() },
-            onScreenWindows: OperationCache {
-                Set((CGWindowListCopyWindowInfo(
-                    [.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
-                     as? [[String: Any]] ?? []
-                )
-                    .compactMap { $0[kCGWindowNumber as String] as? NSNumber }
-                    .map { CGWindowID($0.uint32Value) })
-            }
+            screen: Screen(
+                focusedWindow: OperationCache { AXWindow.focused()?.snapshot() },
+                onScreenWindowIds: OperationCache {
+                    Set((CGWindowListCopyWindowInfo(
+                        [.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
+                         as? [[String: Any]] ?? []
+                    )
+                        .compactMap { $0[kCGWindowNumber as String] as? NSNumber }
+                        .map { CGWindowID($0.uint32Value) })
+                },
+                window: windowById
+            )
         )
         self.engine = engine
 

@@ -24,9 +24,11 @@ final class EngineDesktopIntegrationTests: XCTestCase {
 
     private lazy var engine: Engine = Engine(
         desktop: desktop,
-        window: { [weak self] in self?.windows[$0] },
-        focusedWindow: OperationCache { [weak self] in self?.focused?.snapshot() },
-        onScreenWindows: onScreenWindows,
+        screen: Screen(
+            focusedWindow: OperationCache { [weak self] in self?.focused?.snapshot() },
+            onScreenWindowIds: onScreenWindows,
+            window: { [weak self] in self?.windows[$0] }
+        ),
         workspaces: workspaces
     )
 

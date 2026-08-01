@@ -6,6 +6,7 @@ protocol Desktop {
     func recover(windows: [WindowSnapshot])
     func place(_ windowId: CGWindowID, _ placement: Placement)
     func placement(of windowId: CGWindowID) -> Placement
+    func focus(_ windowId: CGWindowID) -> Bool
     func startWatchingForManualNavigation(_ callback: @escaping (CGWindowID) -> Void)
     func forget(_ windowId: CGWindowID)
 }

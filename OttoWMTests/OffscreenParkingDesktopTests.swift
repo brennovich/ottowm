@@ -1,7 +1,7 @@
 import AppKit
 import XCTest
 
-private let testScreen: Screen = StubScreen.standard
+private let testScreen: ScreenGeometry = StubScreen.standard
 
 private func makeDesktop(
     _ windows: [StubWindow] = [],
@@ -124,6 +124,16 @@ final class OffscreenParkingDesktopTests: XCTestCase {
 
         desktop.place(100, .active)
         XCTAssertEqual(desktop.placement(of: 100), .active)
+    }
+
+    func testFocusReportsWhetherTheWindowWasStillThere() {
+        let win = StubWindow(id: 100, frame: originalFrame)
+        let desktop = makeDesktop([win])
+
+        XCTAssertTrue(desktop.focus(100))
+        XCTAssertEqual(win.focusCount, 1)
+
+        XCTAssertFalse(desktop.focus(200))
     }
 
     func testForgetClearsHiddenState() {

@@ -12,7 +12,7 @@ final class OffscreenParkingDesktop: Desktop {
         private static let epsilon: CGFloat = 1
         private static let detectionMargin: CGFloat = 10
 
-        let screen: Screen
+        let screen: ScreenGeometry
 
         func frame(parking windowFrame: CGRect) -> CGRect {
             CGRect(
@@ -50,7 +50,7 @@ final class OffscreenParkingDesktop: Desktop {
     private var manualNavigationObserver: (any NSObjectProtocol)?
 
     init(
-        screen: Screen,
+        screen: ScreenGeometry,
         window: @escaping (CGWindowID) -> (any Window)?,
         focusedWindowId: @escaping () -> CGWindowID?,
         notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter
@@ -96,6 +96,15 @@ final class OffscreenParkingDesktop: Desktop {
 
     func placement(of windowId: CGWindowID) -> Placement {
         hiddenWindowFrames[windowId] != nil ? .storage : .active
+    }
+
+    func focus(_ windowId: CGWindowID) -> Bool {
+        guard let win = window(windowId) else {
+            Log.desktop.debug("cannot focus id=\(windowId): window not found")
+            return false
+        }
+        win.focus()
+        return true
     }
 
     func startWatchingForManualNavigation(_ callback: @escaping (CGWindowID) -> Void) {

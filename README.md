@@ -49,4 +49,4 @@ No third-party dependencies.
 
 ## Background
 
-OttoWM is a native Swift port of a Hammerspoon Spoon (VirtualSpaces.spoon). The off-screen-hiding approach (same mechanism as AeroSpace) exists because programmatically moving windows between real Spaces is broken on macOS Sequoia onwards. The only private API used is `_AXUIElementGetWindow`, for stable window ids.
+OttoWM is a native Swift port of a Hammerspoon Spoon (VirtualSpaces.spoon). The off-screen-hiding approach (same mechanism as AeroSpace) exists because programmatically moving windows between real Spaces is broken on macOS Sequoia onwards.
