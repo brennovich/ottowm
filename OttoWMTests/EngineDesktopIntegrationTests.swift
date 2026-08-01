@@ -7,6 +7,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
     private var nativeSpaceWindowIds: Set<CGWindowID>?
     private var snapshotCount = 0
     private let center = NotificationCenter()
+    private let workspaces = Workspaces()
 
     private lazy var onScreenWindows = OperationCache { [weak self] () -> Set<CGWindowID> in
         guard let self else { return [] }
@@ -25,7 +26,8 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         desktop: desktop,
         window: { [weak self] in self?.windows[$0] },
         focusedWindow: OperationCache { [weak self] in self?.focused?.snapshot() },
-        onScreenWindows: onScreenWindows
+        onScreenWindows: onScreenWindows,
+        workspaces: workspaces
     )
 
     private func addWindow(_ id: CGWindowID, frame: CGRect, isMinimized: Bool = false) -> StubWindow {
@@ -86,7 +88,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         focused = win2
         postNativeSpaceChange()
 
-        XCTAssertEqual(engine.currentWorkspace, 2)
+        XCTAssertEqual(workspaces.currentWorkspace, 2)
         XCTAssertEqual(win2.frame, frame2)
         XCTAssertEqual(win1.frame, nubFrame(size: frame1.size))
     }
@@ -106,7 +108,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         nativeSpaceWindowIds = nil
         engine.handle(.focused(win1.snapshot()))
 
-        XCTAssertEqual(engine.currentWorkspace, 3)
+        XCTAssertEqual(workspaces.currentWorkspace, 3)
         XCTAssertEqual(win1.frame, nubFrame(size: frame1.size))
     }
 
@@ -146,7 +148,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         focused = win2
         postNativeSpaceChange()
 
-        XCTAssertEqual(engine.currentWorkspace, 1)
+        XCTAssertEqual(workspaces.currentWorkspace, 1)
         XCTAssertEqual(win2.frame, nubFrame(size: frame2.size))
     }
 
@@ -175,7 +177,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         nativeSpaceWindowIds = [200]
         engine.switchToWorkspace(1)
 
-        XCTAssertEqual(engine.managedWindowIds, [100])
+        XCTAssertEqual(workspaces.allWindowIds, [100])
         XCTAssertEqual(win1.focusCount, 1)
         XCTAssertEqual(win2.frame, frame2)
     }
@@ -195,7 +197,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         engine.handle(.unminimized(win2.snapshot()))
 
         XCTAssertFalse(OffscreenParkingDesktop.HiddenEdge(screen: StubScreen.standard).holds(win2.frame))
-        XCTAssertTrue(engine.managedWindowIds.contains(200))
+        XCTAssertTrue(workspaces.allWindowIds.contains(200))
     }
 
     func testMinimizedWindowIsLeftInPlaceAcrossSwitches() {

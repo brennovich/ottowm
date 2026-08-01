@@ -7,6 +7,7 @@ final class EngineTests: XCTestCase {
     private var focused: StubWindow?
     private var focusedReadCount = 0
     private var offScreenWindowIds: Set<CGWindowID> = []
+    private let workspaces = Workspaces()
 
     private lazy var engine = Engine(
         desktop: desktop,
@@ -19,7 +20,8 @@ final class EngineTests: XCTestCase {
         onScreenWindows: OperationCache { [weak self] in
             guard let self else { return [] }
             return Set(self.windows.keys).subtracting(self.offScreenWindowIds)
-        }
+        },
+        workspaces: workspaces
     )
 
     private func makeWindow(
@@ -57,8 +59,8 @@ final class EngineTests: XCTestCase {
 
         XCTAssertEqual(desktop.recoverCount, 1)
         XCTAssertEqual(desktop.recoveredWindowIds, [100, 200])
-        XCTAssertEqual(engine.managedWindowIds, [100, 200])
-        XCTAssertEqual(engine.currentWorkspace, 1)
+        XCTAssertEqual(workspaces.allWindowIds, [100, 200])
+        XCTAssertEqual(workspaces.currentWorkspace, 1)
     }
 
     func testStartSkipsInvalidWindows() {
@@ -73,7 +75,7 @@ final class EngineTests: XCTestCase {
 
         engine.start(windows: seeds.map { $0.snapshot() })
 
-        XCTAssertEqual(engine.managedWindowIds, [])
+        XCTAssertEqual(workspaces.allWindowIds, [])
     }
 
     func testCreatedWindowIsAssignedToCurrentWorkspace() {
@@ -82,7 +84,7 @@ final class EngineTests: XCTestCase {
 
         engine.handle(.created(win.snapshot()))
 
-        XCTAssertEqual(engine.managedWindowIds, [100])
+        XCTAssertEqual(workspaces.allWindowIds, [100])
 
         engine.switchToWorkspace(1)
 
@@ -103,7 +105,7 @@ final class EngineTests: XCTestCase {
             engine.handle(.created(win.snapshot()))
         }
 
-        XCTAssertEqual(engine.managedWindowIds, [])
+        XCTAssertEqual(workspaces.allWindowIds, [])
     }
 
     func testFocusedUnknownWindowIsAssignedToCurrentWorkspace() {
@@ -111,7 +113,7 @@ final class EngineTests: XCTestCase {
 
         engine.handle(.focused(win.snapshot()))
 
-        XCTAssertEqual(engine.managedWindowIds, [100])
+        XCTAssertEqual(workspaces.allWindowIds, [100])
     }
 
     func testFocusedInvalidWindowIsIgnored() {
@@ -124,7 +126,7 @@ final class EngineTests: XCTestCase {
             engine.handle(.focused(win.snapshot()))
         }
 
-        XCTAssertEqual(engine.managedWindowIds, [])
+        XCTAssertEqual(workspaces.allWindowIds, [])
     }
 
     func testFocusedWindowIsRememberedPerWorkspaceAcrossSwitches() {
@@ -154,7 +156,7 @@ final class EngineTests: XCTestCase {
 
         XCTAssertEqual(desktop.placement(of: 100), .storage)
         XCTAssertEqual(desktop.placement(of: 200), .active)
-        XCTAssertEqual(engine.currentWorkspace, 2)
+        XCTAssertEqual(workspaces.currentWorkspace, 2)
     }
 
     func testSwitchToSameWorkspaceOnFrontmostDesktopIsNoOp() {
@@ -192,7 +194,7 @@ final class EngineTests: XCTestCase {
     func testSwitchWithNoManagedWindowsIsTreatedAsOnDesktop() {
         engine.switchToWorkspace(2)
 
-        XCTAssertEqual(engine.currentWorkspace, 2)
+        XCTAssertEqual(workspaces.currentWorkspace, 2)
         XCTAssertTrue(desktop.placeCalls.isEmpty)
     }
 
@@ -208,7 +210,7 @@ final class EngineTests: XCTestCase {
 
         engine.handle(.focused(windows[187]!.snapshot()))
 
-        XCTAssertEqual(engine.currentWorkspace, 3)
+        XCTAssertEqual(workspaces.currentWorkspace, 3)
     }
 
     func testSwitchingAwayCapturesCurrentFocusBeforeLeaving() {
@@ -252,7 +254,7 @@ final class EngineTests: XCTestCase {
         focused = win
         desktop.manualNavigationCallback?(700)
 
-        XCTAssertEqual(engine.currentWorkspace, 1)
+        XCTAssertEqual(workspaces.currentWorkspace, 1)
         XCTAssertEqual(desktop.placement(of: 700), .active)
     }
 
@@ -266,7 +268,7 @@ final class EngineTests: XCTestCase {
         focused = win
         engine.handle(.focused(win.snapshot()))
 
-        XCTAssertEqual(engine.currentWorkspace, 1)
+        XCTAssertEqual(workspaces.currentWorkspace, 1)
         XCTAssertEqual(desktop.placement(of: 700), .active)
     }
 
@@ -280,7 +282,7 @@ final class EngineTests: XCTestCase {
         focused = win1
         engine.handle(.focused(win2.snapshot()))
 
-        XCTAssertEqual(engine.currentWorkspace, 1)
+        XCTAssertEqual(workspaces.currentWorkspace, 1)
         XCTAssertEqual(desktop.placement(of: 200), .storage)
     }
 
@@ -295,7 +297,7 @@ final class EngineTests: XCTestCase {
         focused = win2
         engine.handle(.focused(win2.snapshot()))
 
-        XCTAssertEqual(engine.currentWorkspace, 1)
+        XCTAssertEqual(workspaces.currentWorkspace, 1)
         XCTAssertEqual(desktop.placement(of: 200), .storage)
     }
 
@@ -310,7 +312,7 @@ final class EngineTests: XCTestCase {
         focused = win2
         engine.handle(.focused(win2.snapshot()))
 
-        XCTAssertEqual(engine.currentWorkspace, 1)
+        XCTAssertEqual(workspaces.currentWorkspace, 1)
         XCTAssertEqual(desktop.placement(of: 200), .storage)
     }
 
@@ -326,7 +328,7 @@ final class EngineTests: XCTestCase {
         focused = win2
         engine.handle(.focused(win2.snapshot()))
 
-        XCTAssertEqual(engine.currentWorkspace, 2)
+        XCTAssertEqual(workspaces.currentWorkspace, 2)
         XCTAssertEqual(desktop.placement(of: 200), .active)
     }
 
@@ -368,7 +370,7 @@ final class EngineTests: XCTestCase {
         engine.moveFocusedWindow(toWorkspace: 0)
 
         XCTAssertTrue(desktop.placeCalls.isEmpty)
-        XCTAssertEqual(engine.managedWindowIds, [])
+        XCTAssertEqual(workspaces.allWindowIds, [])
     }
 
     func testMoveWindowToWorkspaceIgnoresInvalidWindow() {
@@ -378,7 +380,7 @@ final class EngineTests: XCTestCase {
         engine.moveFocusedWindow(toWorkspace: 2)
 
         XCTAssertTrue(desktop.placeCalls.isEmpty)
-        XCTAssertEqual(engine.managedWindowIds, [])
+        XCTAssertEqual(workspaces.allWindowIds, [])
     }
 
     func testMoveWindowToCurrentWorkspaceRestoresIt() {
@@ -407,7 +409,7 @@ final class EngineTests: XCTestCase {
 
         XCTAssertEqual(win1.focusCount, 1)
         XCTAssertEqual(desktop.forgottenWindowIds, [200])
-        XCTAssertEqual(engine.managedWindowIds, [100])
+        XCTAssertEqual(workspaces.allWindowIds, [100])
     }
 
     func testDestroyedTabbedWindowDoesNotStealFocus() {
@@ -440,7 +442,7 @@ final class EngineTests: XCTestCase {
         offScreenWindowIds = [100]
         engine.switchToWorkspace(1)
 
-        XCTAssertEqual(engine.managedWindowIds, [100])
+        XCTAssertEqual(workspaces.allWindowIds, [100])
         XCTAssertEqual(desktop.forgottenWindowIds, [200])
         XCTAssertEqual(win1.focusCount, 1)
     }
@@ -459,7 +461,7 @@ final class EngineTests: XCTestCase {
         offScreenWindowIds = []
         engine.switchToWorkspace(2)
 
-        XCTAssertEqual(engine.managedWindowIds, [100, 200])
+        XCTAssertEqual(workspaces.allWindowIds, [100, 200])
 
         engine.switchToWorkspace(1)
 
@@ -475,7 +477,7 @@ final class EngineTests: XCTestCase {
         win2.isMinimized = true
         engine.handle(.minimized(200))
 
-        XCTAssertEqual(engine.managedWindowIds, [100])
+        XCTAssertEqual(workspaces.allWindowIds, [100])
         XCTAssertEqual(desktop.forgottenWindowIds, [200])
         XCTAssertEqual(win1.focusCount, 1)
     }
@@ -510,7 +512,7 @@ final class EngineTests: XCTestCase {
         win.isMinimized = false
         engine.handle(.unminimized(win.snapshot()))
 
-        XCTAssertEqual(engine.managedWindowIds, [100])
+        XCTAssertEqual(workspaces.allWindowIds, [100])
 
         engine.switchToWorkspace(2)
 
