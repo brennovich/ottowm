@@ -118,10 +118,10 @@ final class WorkspacesTests: XCTestCase {
 
         model.unregisterWindowById(100)
 
-        XCTAssertNil(model.prepareWindowToBeFocusedOnCurrentWorkspace())
+        XCTAssertNil(model.nextWindowToFocus())
 
         _ = model.switchTo(2, leavingFocusOn: nil)
-        XCTAssertEqual(model.prepareWindowToBeFocusedOnCurrentWorkspace(), 200)
+        XCTAssertEqual(model.nextWindowToFocus(), 200)
     }
 
     func testFocusHistoryMaintainsOrder() {
@@ -135,13 +135,13 @@ final class WorkspacesTests: XCTestCase {
         model.saveFocusedWindowInWorkspace(1, 200)
         model.saveFocusedWindowInWorkspace(1, 300)
 
-        XCTAssertEqual(model.prepareWindowToBeFocusedOnCurrentWorkspace(), 300)
+        XCTAssertEqual(model.nextWindowToFocus(), 300)
 
         model.unregisterWindowById(300)
-        XCTAssertEqual(model.prepareWindowToBeFocusedOnCurrentWorkspace(), 200)
+        XCTAssertEqual(model.nextWindowToFocus(), 200)
 
         model.unregisterWindowById(200)
-        XCTAssertEqual(model.prepareWindowToBeFocusedOnCurrentWorkspace(), 100)
+        XCTAssertEqual(model.nextWindowToFocus(), 100)
     }
 
     func testFocusHistoryNoDuplicates() {
@@ -154,10 +154,10 @@ final class WorkspacesTests: XCTestCase {
         model.saveFocusedWindowInWorkspace(1, 200)
         model.saveFocusedWindowInWorkspace(1, 100)
 
-        XCTAssertEqual(model.prepareWindowToBeFocusedOnCurrentWorkspace(), 100)
+        XCTAssertEqual(model.nextWindowToFocus(), 100)
 
         model.unregisterWindowById(100)
-        XCTAssertEqual(model.prepareWindowToBeFocusedOnCurrentWorkspace(), 200)
+        XCTAssertEqual(model.nextWindowToFocus(), 200)
     }
 
     func testSwitchTo() {
@@ -206,7 +206,7 @@ final class WorkspacesTests: XCTestCase {
         _ = model.switchTo(2, leavingFocusOn: 100)
         _ = model.switchTo(1, leavingFocusOn: nil)
 
-        XCTAssertEqual(model.prepareWindowToBeFocusedOnCurrentWorkspace(), 100)
+        XCTAssertEqual(model.nextWindowToFocus(), 100)
     }
 
     func testAllWindowIds() {
@@ -237,7 +237,7 @@ final class WorkspacesTests: XCTestCase {
         model.assignWindowToWorkspace(window, 1)
 
         XCTAssertEqual(model.workspace(for: 100), 1)
-        XCTAssertEqual(model.prepareWindowToBeFocusedOnCurrentWorkspace(), 100)
+        XCTAssertEqual(model.nextWindowToFocus(), 100)
     }
 
     func testAssignWindowToWorkspaceWithTabbedWindows() {
@@ -252,7 +252,7 @@ final class WorkspacesTests: XCTestCase {
         XCTAssertEqual(model.workspace(for: 200), 2)
 
         _ = model.switchTo(2, leavingFocusOn: nil)
-        XCTAssertEqual(model.prepareWindowToBeFocusedOnCurrentWorkspace(), 200)
+        XCTAssertEqual(model.nextWindowToFocus(), 200)
     }
 
     func testAssignWindowToWorkspaceClearsFocusedWindowAndWorkspaceEntry() {
@@ -264,10 +264,10 @@ final class WorkspacesTests: XCTestCase {
 
         model.assignWindowToWorkspace(window, 2)
         XCTAssertEqual(model.workspace(for: window.id), 2)
-        XCTAssertNil(model.prepareWindowToBeFocusedOnCurrentWorkspace())
+        XCTAssertNil(model.nextWindowToFocus())
 
         _ = model.switchTo(2, leavingFocusOn: nil)
-        XCTAssertEqual(model.prepareWindowToBeFocusedOnCurrentWorkspace(), window.id)
+        XCTAssertEqual(model.nextWindowToFocus(), window.id)
     }
 
     func testMoveWindowToWorkspaceMovesRegisteredWindow() {
@@ -284,7 +284,7 @@ final class WorkspacesTests: XCTestCase {
         XCTAssertEqual(model.windowIds(in: 2).count, 1)
 
         _ = model.switchTo(2, leavingFocusOn: nil)
-        XCTAssertEqual(model.prepareWindowToBeFocusedOnCurrentWorkspace(), 100)
+        XCTAssertEqual(model.nextWindowToFocus(), 100)
     }
 
     func testMoveWindowToWorkspaceMovesTabGroup() {
@@ -318,7 +318,7 @@ final class WorkspacesTests: XCTestCase {
 
         XCTAssertNil(model.workspace(for: 100))
         XCTAssertEqual(model.workspace(for: 200), 1)
-        XCTAssertEqual(model.prepareWindowToBeFocusedOnCurrentWorkspace(), 200)
+        XCTAssertEqual(model.nextWindowToFocus(), 200)
     }
 
     func testEligibleWindowToBeFocused() {
@@ -381,7 +381,7 @@ final class WorkspacesTests: XCTestCase {
             testCase.setup(model)
             _ = model.switchTo(1, leavingFocusOn: nil)
 
-            let windowId = model.prepareWindowToBeFocusedOnCurrentWorkspace()
+            let windowId = model.nextWindowToFocus()
 
             XCTAssertEqual(windowId, testCase.expectedWindowId, testCase.name)
         }

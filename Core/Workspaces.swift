@@ -83,7 +83,11 @@ final class Workspaces {
         tabGroups.siblings(of: windowId)
     }
 
-    func prepareWindowToBeFocusedOnCurrentWorkspace() -> CGWindowID? {
+    // A workspace with no usable focus history falls back to the first window in
+    // it, and that answer needs no recording to stay stable: the first window keeps
+    // being the answer until it leaves the workspace, and every way of leaving
+    // either purges it from the history or saves it somewhere else.
+    func nextWindowToFocus() -> CGWindowID? {
         // Focus history is not pruned when a window changes workspace: this
         // membership check, the only read of it, is what keeps an entry left
         // behind by a window that moved away out of the answer.
@@ -93,13 +97,7 @@ final class Workspaces {
             }
         }
 
-        let windows = workspaceWindowsMap[currentWorkspace] ?? []
-        if let first = windows.first {
-            saveFocusedWindowInWorkspace(currentWorkspace, first)
-            return first
-        }
-
-        return nil
+        return workspaceWindowsMap[currentWorkspace]?.first
     }
 
     private func assign(_ windowId: CGWindowID, to workspace: Int) {

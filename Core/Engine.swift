@@ -253,7 +253,7 @@ final class Engine {
                 }
             }
 
-            if let windowId = model.prepareWindowToBeFocusedOnCurrentWorkspace(),
+            if let windowId = model.nextWindowToFocus(),
                let win = window(windowId) {
                 win.focus()
                 return true
