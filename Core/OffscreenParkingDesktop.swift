@@ -1,10 +1,9 @@
 import AppKit
 import CoreGraphics
 
-// Realizes Placement on a single real macOS Space: storage windows are parked
-// in the bottom-right corner nub and restored to their captured frame on switch.
-// Ported from VirtualSpace.lua, replacing all hs.spaces (private CGS) usage with
-// public APIs injected as seams.
+// Inspired by Aerospace.app realizes Placement on a single real macOS Space: storage
+// windows are parked in the bottom-right corner nub and restored to their captured
+// frame on switch.
 final class OffscreenParkingDesktop: Desktop {
     // The bottom-right sliver a parked window is squeezed into. macOS clamps a
     // window from leaving all screens: horizontally to a 1px sliver, vertically

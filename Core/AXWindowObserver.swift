@@ -17,17 +17,57 @@ private func axObserverCallback(
 // Per-app AXObservers plus NSWorkspace launch/terminate surface the window
 // lifecycle events: created, focused, destroyed and (de)minimized.
 final class AXWindowObserver {
-    private struct ElementKey: Hashable {
-        let element: AXUIElement
+    // Which AX elements are already watched for destruction, and which window id
+    // each one maps to once the element itself can no longer answer (a destroyed
+    // element has no attributes).
+    struct Registry {
+        private struct WindowRef {
+            let pid: pid_t
+            let id: CGWindowID
+        }
 
-        static func == (lhs: ElementKey, rhs: ElementKey) -> Bool { CFEqual(lhs.element, rhs.element) }
-        func hash(into hasher: inout Hasher) { hasher.combine(CFHash(element)) }
+        private var refs: [AXUIElement: WindowRef] = [:]
+        private var elementsById: [CGWindowID: AXUIElement] = [:]
+
+        mutating func register(_ element: AXUIElement, pid: pid_t, id: CGWindowID) {
+            if let previous = refs[element] {
+                removeReverse(previous.id, element)
+            }
+            refs[element] = WindowRef(pid: pid, id: id)
+            elementsById[id] = element
+        }
+
+        mutating func removeWindow(for element: AXUIElement) -> CGWindowID? {
+            guard let ref = refs.removeValue(forKey: element) else { return nil }
+            removeReverse(ref.id, element)
+            return ref.id
+        }
+
+        mutating func evict(pid: pid_t) {
+            for (element, ref) in refs where ref.pid == pid {
+                refs[element] = nil
+                removeReverse(ref.id, element)
+            }
+        }
+
+        func unregistered(of elements: [AXUIElement]) -> [AXUIElement] {
+            elements.filter { refs[$0] == nil }
+        }
+
+        func element(for id: CGWindowID) -> (element: AXUIElement, pid: pid_t)? {
+            guard let element = elementsById[id], let ref = refs[element] else { return nil }
+            return (element, ref.pid)
+        }
+
+        private mutating func removeReverse(_ id: CGWindowID, _ element: AXUIElement) {
+            if elementsById[id] == element { elementsById[id] = nil }
+        }
     }
 
     private var handler: ((WindowEvent) -> Void)?
     private var observers: [pid_t: AXObserver] = [:]
     private var applications: [pid_t: NSRunningApplication] = [:]
-    private var registry = ObservedWindowRegistry<ElementKey>()
+    private var registry = Registry()
     private let ownPid = ProcessInfo.processInfo.processIdentifier
 
     // Returns the windows discovered while registering the observers, so the caller
@@ -54,10 +94,10 @@ final class AXWindowObserver {
     // Resolves a window id through the registry instead of sweeping every app's
     // windows over AX (each sweep is one IPC round trip per running app).
     func window(byId id: CGWindowID) -> AXWindow? {
-        guard let (key, pid) = registry.element(for: id),
+        guard let (element, pid) = registry.element(for: id),
               let app = applications[pid]
         else { return nil }
-        return AXWindow(element: key.element, application: app, id: id)
+        return AXWindow(element: element, application: app, id: id)
     }
 
     func handle(element: AXUIElement, notification: String, observer: AXObserver) {
@@ -81,7 +121,7 @@ final class AXWindowObserver {
             }
             handler?(.focused(AXWindow(element: element, application: app).snapshot()))
         case kAXUIElementDestroyedNotification:
-            guard let id = registry.removeWindow(for: ElementKey(element: element)) else {
+            guard let id = registry.removeWindow(for: element) else {
                 Log.observer.debug("dropped \(notification): element not registered")
                 return
             }
@@ -158,8 +198,8 @@ final class AXWindowObserver {
         guard let observer = observers[pid] else { return }
 
         let elements = windowElements(pid: pid)
-        for key in registry.unregistered(of: elements.map { ElementKey(element: $0) }) {
-            let axWindow = AXWindow(element: key.element, application: app)
+        for element in registry.unregistered(of: elements) {
+            let axWindow = AXWindow(element: element, application: app)
             guard axWindow.id != 0 else { continue }
             Log.observer.info("rescan found window \(axWindow.logDescription)")
             watchWindow(axWindow, observer: observer)
@@ -176,7 +216,7 @@ final class AXWindowObserver {
 
     private func watchWindow(_ window: AXWindow, observer: AXObserver) {
         let pid = window.application.processIdentifier
-        registry.register(ElementKey(element: window.element), pid: pid, id: window.id)
+        registry.register(window.element, pid: pid, id: window.id)
         for notification in [
             kAXUIElementDestroyedNotification,
             kAXWindowMiniaturizedNotification,
