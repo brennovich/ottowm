@@ -23,11 +23,11 @@ final class Engine {
     }
 
     var currentVirtualSpace: Int {
-        model.getCurrentVirtualSpace()
+        model.currentVirtualSpace
     }
 
     var managedWindowIds: Set<CGWindowID> {
-        model.allWindowIds()
+        model.allWindowIds
     }
 
     func start(windows: [WindowSnapshot]) {
@@ -48,7 +48,7 @@ final class Engine {
         duringOperation {
             switch event {
             case let .created(win):
-                assignWindowToVirtualSpace(win, model.getCurrentVirtualSpace())
+                assignWindowToVirtualSpace(win, model.currentVirtualSpace)
             case let .focused(win):
                 handleFocused(win)
             case let .destroyed(windowId):
@@ -56,7 +56,7 @@ final class Engine {
             case let .minimized(windowId):
                 handleMinimized(windowId)
             case let .unminimized(win):
-                assignWindowToVirtualSpace(win, model.getCurrentVirtualSpace())
+                assignWindowToVirtualSpace(win, model.currentVirtualSpace)
             }
         }
     }
@@ -65,10 +65,10 @@ final class Engine {
         operation("switchToVirtualSpace(\(virtualSpace))") {
             dropFocusedWindowIfFullScreen()
 
-            let onDesktop = desktop.isFrontmost() || model.allWindowIds().isEmpty
-            Log.engine.info("switch requested target=\(virtualSpace) current=\(self.model.getCurrentVirtualSpace()) onDesktop=\(onDesktop)")
+            let onDesktop = desktop.isFrontmost() || model.allWindowIds.isEmpty
+            Log.engine.info("switch requested target=\(virtualSpace) current=\(self.model.currentVirtualSpace) onDesktop=\(onDesktop)")
 
-            if virtualSpace == model.getCurrentVirtualSpace() {
+            if virtualSpace == model.currentVirtualSpace {
                 if !onDesktop {
                     returnToDesktop()
                 }
@@ -96,7 +96,7 @@ final class Engine {
                 return
             }
 
-            let placement: Placement = virtualSpace == model.getCurrentVirtualSpace() ? .active : .storage
+            let placement: Placement = virtualSpace == model.currentVirtualSpace ? .active : .storage
             Log.engine.info("moving window \(win.logDescription) to space \(virtualSpace) placement=\(placement)")
             desktop.place(win.id, placement)
             model.moveWindowToVirtualSpace(win.id, virtualSpace)
@@ -121,15 +121,15 @@ final class Engine {
 
         guard isValidWindow(win) else { return }
 
-        if let virtualSpace = model.getVirtualSpaceForWindow(win.id) {
+        if let virtualSpace = model.virtualSpace(for: win.id) {
             model.saveFocusedWindowInVirtualSpace(virtualSpace, win.id)
         } else {
-            assignWindowToVirtualSpace(win, model.getCurrentVirtualSpace())
+            assignWindowToVirtualSpace(win, model.currentVirtualSpace)
         }
     }
 
     private func handleDestroyed(_ windowId: CGWindowID) {
-        let hasTabSiblings = model.getTabSiblingsBeforeDestruction(windowId) != nil
+        let hasTabSiblings = model.tabSiblings(of: windowId) != nil
         Log.engine.debug("destroyed id=\(windowId) hadTabSiblings=\(hasTabSiblings)")
         model.unregisterWindowById(windowId)
         desktop.forget(windowId)
@@ -143,7 +143,7 @@ final class Engine {
     // bring it back on screen. It stops being managed until the user restores it,
     // and then joins whatever virtual space is current.
     private func handleMinimized(_ windowId: CGWindowID) {
-        guard let virtualSpace = model.getVirtualSpaceForWindow(windowId) else { return }
+        guard let virtualSpace = model.virtualSpace(for: windowId) else { return }
         Log.engine.info("minimized id=\(windowId), dropped from space \(virtualSpace)")
 
         model.unregisterWindowById(windowId)
@@ -158,7 +158,7 @@ final class Engine {
     // being managed until it comes back.
     private func dropFocusedWindowIfFullScreen() {
         guard let focused = focusedWindow.value(), focused.isFullScreen,
-              let virtualSpace = model.getVirtualSpaceForWindow(focused.id)
+              let virtualSpace = model.virtualSpace(for: focused.id)
         else { return }
 
         Log.engine.info("full screen id=\(focused.id), dropped from space \(virtualSpace)")
@@ -179,7 +179,7 @@ final class Engine {
 
             if currentVirtualSpaceIsClosing() { return }
 
-            let target = model.getVirtualSpaceForWindow(windowId) ?? 1
+            let target = model.virtualSpace(for: windowId) ?? 1
             Log.engine.info("manual navigation → space \(target) window id=\(windowId)")
             switchSpaces(target)
         }
@@ -187,7 +187,7 @@ final class Engine {
 
     private func switchSpaces(_ virtualSpace: Int) {
         if let focused = focusedWindow.value(), isValidWindow(focused) {
-            model.saveFocusedWindowInVirtualSpace(model.getCurrentVirtualSpace(), focused.id)
+            model.saveFocusedWindowInVirtualSpace(model.currentVirtualSpace, focused.id)
         }
 
         let categorized = model.categorizeWindowsForTransition(virtualSpace)
@@ -199,7 +199,7 @@ final class Engine {
             desktop.place(windowId, .storage)
         }
 
-        model.setCurrentVirtualSpace(virtualSpace)
+        model.currentVirtualSpace = virtualSpace
     }
 
     private func assignWindowToVirtualSpace(_ win: WindowSnapshot, _ virtualSpace: Int) {
@@ -219,10 +219,10 @@ final class Engine {
     @discardableResult
     private func restoreWindowsFocusForVirtualSpace() -> Bool {
         operation("restoreWindowsFocus") {
-            let currentSpace = model.getCurrentVirtualSpace()
+            let currentSpace = model.currentVirtualSpace
 
             if let osFocused = focusedWindow.value(), isValidWindow(osFocused) {
-                let virtualSpace = model.getVirtualSpaceForWindow(osFocused.id)
+                let virtualSpace = model.virtualSpace(for: osFocused.id)
                 if virtualSpace == currentSpace {
                     model.saveFocusedWindowInVirtualSpace(currentSpace, osFocused.id)
                     return true
@@ -267,7 +267,7 @@ final class Engine {
     // model still lists them but none of them is on screen anymore. Focus events
     // fired during that teardown must not be mistaken for manual navigation.
     private func currentVirtualSpaceIsClosing() -> Bool {
-        let windowIds = model.getWindowsInVirtualSpace(model.getCurrentVirtualSpace())
+        let windowIds = model.windowIds(in: model.currentVirtualSpace)
         if windowIds.isEmpty { return false }
 
         return windowIds.allSatisfy(windowIsGone)

@@ -7,14 +7,19 @@ final class Workspaces {
         var windowIds: [CGWindowID]
     }
 
+    var currentVirtualSpace = 1
+
     private var focusedWindows: [Int: [CGWindowID]] = [:]
     private var windowVirtualSpaceMap: [CGWindowID: Int] = [:]
     private var virtualSpaceWindowsMap: [Int: [CGWindowID]] = [:]
-    private var currentVirtualSpace = 1
 
     private var groups: [Int: TabGroup] = [:]
     private var windowToGroup: [CGWindowID: Int] = [:]
     private var nextGroupId = 1
+
+    var allWindowIds: Set<CGWindowID> {
+        Set(windowVirtualSpaceMap.keys)
+    }
 
     func saveFocusedWindowInVirtualSpace(_ virtualSpace: Int, _ windowId: CGWindowID) {
         var focusHistory = focusedWindows[virtualSpace] ?? []
@@ -23,11 +28,11 @@ final class Workspaces {
         focusedWindows[virtualSpace] = focusHistory
     }
 
-    func getVirtualSpaceForWindow(_ windowId: CGWindowID) -> Int? {
+    func virtualSpace(for windowId: CGWindowID) -> Int? {
         windowVirtualSpaceMap[windowId]
     }
 
-    func getWindowsInVirtualSpace(_ virtualSpace: Int) -> [CGWindowID] {
+    func windowIds(in virtualSpace: Int) -> [CGWindowID] {
         virtualSpaceWindowsMap[virtualSpace] ?? []
     }
 
@@ -72,8 +77,8 @@ final class Workspaces {
         if let groupId = windowToGroup[windowId] {
             groups[groupId]?.windowIds.removeAll { $0 == windowId }
 
-            if let firstTabSibling = getTabSiblingsBeforeDestruction(windowId)?.first {
-                saveFocusedWindowInVirtualSpace(getCurrentVirtualSpace(), firstTabSibling)
+            if let firstTabSibling = tabSiblings(of: windowId)?.first {
+                saveFocusedWindowInVirtualSpace(currentVirtualSpace, firstTabSibling)
             }
 
             windowToGroup[windowId] = nil
@@ -108,19 +113,7 @@ final class Workspaces {
         return (toActive: toActive, toStorage: toStorage)
     }
 
-    func allWindowIds() -> Set<CGWindowID> {
-        Set(windowVirtualSpaceMap.keys)
-    }
-
-    func getCurrentVirtualSpace() -> Int {
-        currentVirtualSpace
-    }
-
-    func setCurrentVirtualSpace(_ virtualSpace: Int) {
-        currentVirtualSpace = virtualSpace
-    }
-
-    func getTabSiblingsBeforeDestruction(_ windowId: CGWindowID) -> [CGWindowID]? {
+    func tabSiblings(of windowId: CGWindowID) -> [CGWindowID]? {
         guard let groupId = windowToGroup[windowId] else { return nil }
 
         let siblings = (groups[groupId]?.windowIds ?? []).filter { $0 != windowId }

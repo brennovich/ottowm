@@ -13,10 +13,10 @@ final class WorkspacesTests: XCTestCase {
         for testCase in cases {
             let model = Workspaces()
             for value in testCase.setValues {
-                model.setCurrentVirtualSpace(value)
+                model.currentVirtualSpace = value
             }
 
-            XCTAssertEqual(model.getCurrentVirtualSpace(), testCase.expected, testCase.name)
+            XCTAssertEqual(model.currentVirtualSpace, testCase.expected, testCase.name)
         }
     }
 
@@ -39,7 +39,7 @@ final class WorkspacesTests: XCTestCase {
 
             for assertion in testCase.expected {
                 XCTAssertEqual(
-                    model.getVirtualSpaceForWindow(assertion.window),
+                    model.virtualSpace(for: assertion.window),
                     assertion.space,
                     testCase.name
                 )
@@ -61,7 +61,7 @@ final class WorkspacesTests: XCTestCase {
 
             model.unregisterWindowById(testCase.windowId)
 
-            XCTAssertNil(model.getVirtualSpaceForWindow(testCase.windowId), testCase.name)
+            XCTAssertNil(model.virtualSpace(for: testCase.windowId), testCase.name)
         }
     }
 
@@ -72,8 +72,8 @@ final class WorkspacesTests: XCTestCase {
         model.assignWindowToSpace(makeSnapshot(200), 1)
         model.assignWindowToSpace(makeSnapshot(300), 2)
 
-        XCTAssertEqual(model.getWindowsInVirtualSpace(1), [100, 200])
-        XCTAssertEqual(model.getWindowsInVirtualSpace(3), [])
+        XCTAssertEqual(model.windowIds(in: 1), [100, 200])
+        XCTAssertEqual(model.windowIds(in: 3), [])
     }
 
     func testReassignWindowRemovesFromOldSpace() {
@@ -83,8 +83,8 @@ final class WorkspacesTests: XCTestCase {
         model.assignWindowToSpace(makeSnapshot(200), 1)
         model.assignWindowToSpace(makeSnapshot(100), 2)
 
-        XCTAssertEqual(model.getWindowsInVirtualSpace(1), [200])
-        XCTAssertEqual(model.getWindowsInVirtualSpace(2), [100])
+        XCTAssertEqual(model.windowIds(in: 1), [200])
+        XCTAssertEqual(model.windowIds(in: 2), [100])
     }
 
     func testReassignWindowToSameSpaceIsIdempotent() {
@@ -94,7 +94,7 @@ final class WorkspacesTests: XCTestCase {
         model.assignWindowToSpace(makeSnapshot(200), 1)
         model.assignWindowToSpace(makeSnapshot(100), 1)
 
-        XCTAssertEqual(model.getWindowsInVirtualSpace(1), [100, 200])
+        XCTAssertEqual(model.windowIds(in: 1), [100, 200])
     }
 
     func testRemoveWindowFromSpaceWithMultipleWindows() {
@@ -105,7 +105,7 @@ final class WorkspacesTests: XCTestCase {
         model.assignWindowToSpace(makeSnapshot(300), 1)
         model.unregisterWindowById(200)
 
-        let windows = model.getWindowsInVirtualSpace(1)
+        let windows = model.windowIds(in: 1)
 
         XCTAssertEqual(windows.count, 2)
         XCTAssertFalse(windows.contains(200))
@@ -119,7 +119,7 @@ final class WorkspacesTests: XCTestCase {
         model.assignWindowToSpace(makeSnapshot(100), 1)
         model.unregisterWindowById(100)
 
-        XCTAssertEqual(model.getWindowsInVirtualSpace(1).count, 0)
+        XCTAssertEqual(model.windowIds(in: 1).count, 0)
     }
 
     func testRemoveWindowDoesNotAffectFocusedWindowInOtherSpaces() {
@@ -134,7 +134,7 @@ final class WorkspacesTests: XCTestCase {
 
         XCTAssertNil(model.prepareWindowToBeFocusedOnCurrentVirtualSpace())
 
-        model.setCurrentVirtualSpace(2)
+        model.currentVirtualSpace = 2
         XCTAssertEqual(model.prepareWindowToBeFocusedOnCurrentVirtualSpace(), 200)
     }
 
@@ -227,7 +227,7 @@ final class WorkspacesTests: XCTestCase {
                 model.unregisterWindowById(windowId)
             }
 
-            XCTAssertEqual(model.allWindowIds(), testCase.expected, testCase.name)
+            XCTAssertEqual(model.allWindowIds, testCase.expected, testCase.name)
         }
     }
 
@@ -237,7 +237,7 @@ final class WorkspacesTests: XCTestCase {
 
         model.assignWindowToSpace(window, 1)
 
-        XCTAssertEqual(model.getVirtualSpaceForWindow(100), 1)
+        XCTAssertEqual(model.virtualSpace(for: 100), 1)
         XCTAssertEqual(model.prepareWindowToBeFocusedOnCurrentVirtualSpace(), 100)
     }
 
@@ -249,10 +249,10 @@ final class WorkspacesTests: XCTestCase {
         model.assignWindowToSpace(window1, 1)
         model.assignWindowToSpace(window2, 2)
 
-        XCTAssertEqual(model.getVirtualSpaceForWindow(100), 2)
-        XCTAssertEqual(model.getVirtualSpaceForWindow(200), 2)
+        XCTAssertEqual(model.virtualSpace(for: 100), 2)
+        XCTAssertEqual(model.virtualSpace(for: 200), 2)
 
-        model.setCurrentVirtualSpace(2)
+        model.currentVirtualSpace = 2
         XCTAssertEqual(model.prepareWindowToBeFocusedOnCurrentVirtualSpace(), 200)
     }
 
@@ -261,13 +261,13 @@ final class WorkspacesTests: XCTestCase {
         let window = makeSnapshot(100)
 
         model.assignWindowToSpace(window, 1)
-        XCTAssertEqual(model.getVirtualSpaceForWindow(window.id), 1)
+        XCTAssertEqual(model.virtualSpace(for: window.id), 1)
 
         model.assignWindowToSpace(window, 2)
-        XCTAssertEqual(model.getVirtualSpaceForWindow(window.id), 2)
+        XCTAssertEqual(model.virtualSpace(for: window.id), 2)
         XCTAssertNil(model.prepareWindowToBeFocusedOnCurrentVirtualSpace())
 
-        model.setCurrentVirtualSpace(2)
+        model.currentVirtualSpace = 2
         XCTAssertEqual(model.prepareWindowToBeFocusedOnCurrentVirtualSpace(), window.id)
     }
 
@@ -276,15 +276,15 @@ final class WorkspacesTests: XCTestCase {
         let window = makeSnapshot(100)
 
         model.assignWindowToSpace(window, 1)
-        XCTAssertEqual(model.getVirtualSpaceForWindow(100), 1)
+        XCTAssertEqual(model.virtualSpace(for: 100), 1)
 
         model.moveWindowToVirtualSpace(100, 2)
 
-        XCTAssertEqual(model.getVirtualSpaceForWindow(100), 2)
-        XCTAssertEqual(model.getWindowsInVirtualSpace(1).count, 0)
-        XCTAssertEqual(model.getWindowsInVirtualSpace(2).count, 1)
+        XCTAssertEqual(model.virtualSpace(for: 100), 2)
+        XCTAssertEqual(model.windowIds(in: 1).count, 0)
+        XCTAssertEqual(model.windowIds(in: 2).count, 1)
 
-        model.setCurrentVirtualSpace(2)
+        model.currentVirtualSpace = 2
         XCTAssertEqual(model.prepareWindowToBeFocusedOnCurrentVirtualSpace(), 100)
     }
 
@@ -296,15 +296,15 @@ final class WorkspacesTests: XCTestCase {
         model.assignWindowToSpace(window1, 1)
         model.assignWindowToSpace(window2, 1)
 
-        XCTAssertEqual(model.getVirtualSpaceForWindow(100), 1)
-        XCTAssertEqual(model.getVirtualSpaceForWindow(200), 1)
+        XCTAssertEqual(model.virtualSpace(for: 100), 1)
+        XCTAssertEqual(model.virtualSpace(for: 200), 1)
 
         model.moveWindowToVirtualSpace(100, 3)
 
-        XCTAssertEqual(model.getVirtualSpaceForWindow(100), 3)
-        XCTAssertEqual(model.getVirtualSpaceForWindow(200), 3)
-        XCTAssertEqual(model.getWindowsInVirtualSpace(1).count, 0)
-        XCTAssertEqual(model.getWindowsInVirtualSpace(3).count, 2)
+        XCTAssertEqual(model.virtualSpace(for: 100), 3)
+        XCTAssertEqual(model.virtualSpace(for: 200), 3)
+        XCTAssertEqual(model.windowIds(in: 1).count, 0)
+        XCTAssertEqual(model.windowIds(in: 3).count, 2)
     }
 
     func testTerminalAppTabsWithSlightlyDifferentYCoordinatesAreGroupedTogether() {
@@ -315,10 +315,10 @@ final class WorkspacesTests: XCTestCase {
         model.assignWindowToSpace(window1, 1)
         model.assignWindowToSpace(window2, 2)
 
-        XCTAssertEqual(model.getTabSiblingsBeforeDestruction(3426), [3459])
-        XCTAssertEqual(model.getTabSiblingsBeforeDestruction(3459), [3426])
-        XCTAssertEqual(model.getVirtualSpaceForWindow(3426), 2)
-        XCTAssertEqual(model.getVirtualSpaceForWindow(3459), 2)
+        XCTAssertEqual(model.tabSiblings(of: 3426), [3459])
+        XCTAssertEqual(model.tabSiblings(of: 3459), [3426])
+        XCTAssertEqual(model.virtualSpace(for: 3426), 2)
+        XCTAssertEqual(model.virtualSpace(for: 3459), 2)
     }
 
     func testUnregisterWindowByIdFromTabGroupWithRemainingWindows() {
@@ -329,14 +329,14 @@ final class WorkspacesTests: XCTestCase {
         model.assignWindowToSpace(window1, 1)
         model.assignWindowToSpace(window2, 1)
 
-        XCTAssertEqual(model.getTabSiblingsBeforeDestruction(100), [200])
+        XCTAssertEqual(model.tabSiblings(of: 100), [200])
 
         model.unregisterWindowById(100)
 
-        XCTAssertNil(model.getTabSiblingsBeforeDestruction(100))
-        XCTAssertNil(model.getTabSiblingsBeforeDestruction(200))
-        XCTAssertNil(model.getVirtualSpaceForWindow(100))
-        XCTAssertEqual(model.getVirtualSpaceForWindow(200), 1)
+        XCTAssertNil(model.tabSiblings(of: 100))
+        XCTAssertNil(model.tabSiblings(of: 200))
+        XCTAssertNil(model.virtualSpace(for: 100))
+        XCTAssertEqual(model.virtualSpace(for: 200), 1)
     }
 
     func testEligibleWindowToBeFocused() {
@@ -377,7 +377,7 @@ final class WorkspacesTests: XCTestCase {
                 { model in
                     model.assignWindowToSpace(makeSnapshot(100, appName: "Safari", tabCount: 2), 2)
                     model.assignWindowToSpace(makeSnapshot(200, appName: "Safari", tabCount: 2), 2)
-                    model.setCurrentVirtualSpace(2)
+                    model.currentVirtualSpace = 2
                     model.moveWindowToVirtualSpace(100, 1)
                     model.unregisterWindowById(100)
                 },
@@ -397,7 +397,7 @@ final class WorkspacesTests: XCTestCase {
             let model = Workspaces()
 
             testCase.setup(model)
-            model.setCurrentVirtualSpace(1)
+            model.currentVirtualSpace = 1
 
             let windowId = model.prepareWindowToBeFocusedOnCurrentVirtualSpace()
 
