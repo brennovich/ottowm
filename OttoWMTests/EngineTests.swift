@@ -44,6 +44,11 @@ final class EngineTests: XCTestCase {
         return window
     }
 
+    private func moveFocusedWindow(_ window: StubWindow, to workspace: Int) {
+        focused = window
+        engine.moveFocusedWindow(toWorkspace: workspace)
+    }
+
     func testStartRecoversAndSeedsWindowsIntoWorkspaceOne() {
         let win1 = makeWindow(100)
         let win2 = makeWindow(200, frame: CGRect(x: 50, y: 50, width: 400, height: 300))
@@ -141,7 +146,7 @@ final class EngineTests: XCTestCase {
         let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
         engine.handle(.created(win1.snapshot()))
         engine.handle(.created(win2.snapshot()))
-        engine.moveWindowToWorkspace(win2.snapshot(), 2)
+        moveFocusedWindow(win2, to: 2)
 
         XCTAssertEqual(desktop.placement(of: 200), .storage)
 
@@ -175,7 +180,7 @@ final class EngineTests: XCTestCase {
     func testSwitchToNonEmptyWorkspaceOffDesktopRestoresItsWindows() {
         let win = makeWindow(700)
         engine.handle(.created(win.snapshot()))
-        engine.moveWindowToWorkspace(win.snapshot(), 2)
+        moveFocusedWindow(win, to: 2)
         offScreenWindowIds = [700]
 
         engine.switchToWorkspace(2)
@@ -228,7 +233,7 @@ final class EngineTests: XCTestCase {
         let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
         engine.handle(.created(win1.snapshot()))
         engine.handle(.created(win2.snapshot()))
-        engine.moveWindowToWorkspace(win2.snapshot(), 2)
+        moveFocusedWindow(win2, to: 2)
 
         focused = win1
         focusedReadCount = 0
@@ -270,7 +275,7 @@ final class EngineTests: XCTestCase {
         let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
         engine.handle(.created(win1.snapshot()))
         engine.handle(.created(win2.snapshot()))
-        engine.moveWindowToWorkspace(win2.snapshot(), 2)
+        moveFocusedWindow(win2, to: 2)
 
         focused = win1
         engine.handle(.focused(win2.snapshot()))
@@ -284,7 +289,7 @@ final class EngineTests: XCTestCase {
         let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
         engine.handle(.created(win1.snapshot()))
         engine.handle(.created(win2.snapshot()))
-        engine.moveWindowToWorkspace(win2.snapshot(), 2)
+        moveFocusedWindow(win2, to: 2)
 
         windows[100] = nil
         focused = win2
@@ -299,7 +304,7 @@ final class EngineTests: XCTestCase {
         let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
         engine.handle(.created(win1.snapshot()))
         engine.handle(.created(win2.snapshot()))
-        engine.moveWindowToWorkspace(win2.snapshot(), 2)
+        moveFocusedWindow(win2, to: 2)
 
         offScreenWindowIds = [100]
         focused = win2
@@ -314,7 +319,7 @@ final class EngineTests: XCTestCase {
         let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
         engine.handle(.created(win1.snapshot()))
         engine.handle(.created(win2.snapshot()))
-        engine.moveWindowToWorkspace(win2.snapshot(), 2)
+        moveFocusedWindow(win2, to: 2)
 
         win1.isMinimized = true
         offScreenWindowIds = [100]
@@ -325,30 +330,32 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(desktop.placement(of: 200), .active)
     }
 
-    func testMoveWindowToWorkspaceUsesFocusedWindowWhenNil() {
+    func testMoveFocusedWindowToAnotherWorkspaceParksIt() {
         let win = makeWindow(100)
         engine.handle(.created(win.snapshot()))
-        focused = win
 
-        engine.moveWindowToWorkspace(nil, 2)
+        moveFocusedWindow(win, to: 2)
 
         XCTAssertEqual(desktop.placement(of: 100), .storage)
     }
 
-    func testMoveWindowToWorkspaceMovesExplicitWindow() {
-        let win = makeWindow(200)
-        engine.handle(.created(win.snapshot()))
+    func testMoveFocusedWindowAwayHandsFocusToAWindowLeftBehind() {
+        let win1 = makeWindow(100)
+        let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
+        engine.handle(.created(win1.snapshot()))
+        engine.handle(.created(win2.snapshot()))
 
-        engine.moveWindowToWorkspace(win.snapshot(), 2)
+        moveFocusedWindow(win2, to: 2)
 
-        XCTAssertEqual(desktop.placement(of: 200), .storage)
+        XCTAssertEqual(win1.focusCount, 1)
+        XCTAssertEqual(win2.focusCount, 0)
     }
 
-    func testMoveWindowToWorkspaceDoesNothingWithoutWindow() {
+    func testMoveWindowToWorkspaceDoesNothingWithoutFocusedWindow() {
         let win = makeWindow(100)
         engine.handle(.created(win.snapshot()))
 
-        engine.moveWindowToWorkspace(nil, 2)
+        engine.moveFocusedWindow(toWorkspace: 2)
 
         XCTAssertTrue(desktop.placeCalls.isEmpty)
         XCTAssertEqual(desktop.placement(of: 100), .active)
@@ -358,7 +365,7 @@ final class EngineTests: XCTestCase {
         let win = makeWindow(100)
         focused = win
 
-        engine.moveWindowToWorkspace(nil, 0)
+        engine.moveFocusedWindow(toWorkspace: 0)
 
         XCTAssertTrue(desktop.placeCalls.isEmpty)
         XCTAssertEqual(engine.managedWindowIds, [])
@@ -368,7 +375,7 @@ final class EngineTests: XCTestCase {
         let win = makeWindow(100, isFullScreen: true)
         focused = win
 
-        engine.moveWindowToWorkspace(nil, 2)
+        engine.moveFocusedWindow(toWorkspace: 2)
 
         XCTAssertTrue(desktop.placeCalls.isEmpty)
         XCTAssertEqual(engine.managedWindowIds, [])
@@ -379,11 +386,11 @@ final class EngineTests: XCTestCase {
         engine.handle(.created(win.snapshot()))
         focused = win
 
-        engine.moveWindowToWorkspace(nil, 2)
+        engine.moveFocusedWindow(toWorkspace: 2)
 
         XCTAssertEqual(desktop.placement(of: 100), .storage)
 
-        engine.moveWindowToWorkspace(nil, 1)
+        engine.moveFocusedWindow(toWorkspace: 1)
 
         XCTAssertEqual(desktop.placement(of: 100), .active)
     }
@@ -476,7 +483,7 @@ final class EngineTests: XCTestCase {
     func testMinimizedWindowIsLeftAloneWhenItsWorkspaceComesBack() {
         let win = makeWindow(100)
         engine.handle(.created(win.snapshot()))
-        engine.moveWindowToWorkspace(win.snapshot(), 2)
+        moveFocusedWindow(win, to: 2)
         engine.switchToWorkspace(2)
 
         win.isMinimized = true
@@ -494,7 +501,7 @@ final class EngineTests: XCTestCase {
     func testUnminimizedWindowJoinsTheCurrentWorkspace() {
         let win = makeWindow(100)
         engine.handle(.created(win.snapshot()))
-        engine.moveWindowToWorkspace(win.snapshot(), 2)
+        moveFocusedWindow(win, to: 2)
         engine.switchToWorkspace(2)
         win.isMinimized = true
         engine.handle(.minimized(100))

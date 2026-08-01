@@ -38,6 +38,11 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         engine.start(windows: windows.values.map { $0.snapshot() })
     }
 
+    private func moveFocusedWindow(_ window: StubWindow, to workspace: Int) {
+        focused = window
+        engine.moveFocusedWindow(toWorkspace: workspace)
+    }
+
     private func postNativeSpaceChange() {
         center.post(name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
     }
@@ -51,10 +56,9 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         let frame2 = CGRect(x: 300, y: 200, width: 640, height: 480)
         let win1 = addWindow(100, frame: frame1)
         let win2 = addWindow(200, frame: frame2)
-        focused = win1
         start()
 
-        engine.moveWindowToWorkspace(win2.snapshot(), 2)
+        moveFocusedWindow(win2, to: 2)
 
         XCTAssertEqual(win2.frame, nubFrame(size: frame2.size))
 
@@ -76,9 +80,8 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         let frame2 = CGRect(x: 300, y: 200, width: 640, height: 480)
         let win1 = addWindow(100, frame: frame1)
         let win2 = addWindow(200, frame: frame2)
-        focused = win1
         start()
-        engine.moveWindowToWorkspace(win2.snapshot(), 2)
+        moveFocusedWindow(win2, to: 2)
 
         focused = win2
         postNativeSpaceChange()
@@ -112,9 +115,8 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         let staleFrame = CGRect(x: 100, y: 100, width: 800, height: 600)
         let win1 = addWindow(100, frame: frame1)
         let oldWin = addWindow(700, frame: staleFrame)
-        focused = win1
         start()
-        engine.moveWindowToWorkspace(oldWin.snapshot(), 2)
+        moveFocusedWindow(oldWin, to: 2)
 
         windows[700] = nil
         engine.handle(.destroyed(700))
@@ -137,9 +139,8 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         let frame2 = CGRect(x: 300, y: 200, width: 640, height: 480)
         _ = addWindow(100, frame: frame1)
         let win2 = addWindow(200, frame: frame2)
-        focused = windows[100]
         start()
-        engine.moveWindowToWorkspace(win2.snapshot(), 2)
+        moveFocusedWindow(win2, to: 2)
 
         windows[100] = nil
         focused = win2
@@ -152,9 +153,8 @@ final class EngineDesktopIntegrationTests: XCTestCase {
     func testSwitchTakesASingleWindowListSnapshot() {
         let win1 = addWindow(100, frame: CGRect(x: 100, y: 100, width: 800, height: 600))
         let win2 = addWindow(200, frame: CGRect(x: 300, y: 200, width: 640, height: 480))
-        focused = win1
         start()
-        engine.moveWindowToWorkspace(win2.snapshot(), 2)
+        moveFocusedWindow(win2, to: 2)
         snapshotCount = 0
 
         engine.switchToWorkspace(2)

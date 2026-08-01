@@ -85,13 +85,13 @@ final class Engine {
         }
     }
 
-    func moveWindowToWorkspace(_ window: WindowSnapshot?, _ workspace: Int) {
-        operation("moveWindowToWorkspace(\(workspace))") {
+    func moveFocusedWindow(toWorkspace workspace: Int) {
+        operation("moveFocusedWindow(\(workspace))") {
             guard workspace >= 1 else {
                 Log.engine.info("move dropped: invalid workspace \(workspace)")
                 return
             }
-            guard let win = window ?? focusedWindow.value(), isValidWindow(win) else {
+            guard let win = focusedWindow.value(), isValidWindow(win) else {
                 Log.engine.info("move to \(workspace) dropped: no valid window to move")
                 return
             }

@@ -45,7 +45,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             case let .switchToWorkspace(workspace):
                 engine.switchToWorkspace(workspace)
             case let .moveWindowToWorkspace(workspace):
-                engine.moveWindowToWorkspace(nil, workspace)
+                engine.moveFocusedWindow(toWorkspace: workspace)
             }
         }
         self.hotkeys = hotkeys
