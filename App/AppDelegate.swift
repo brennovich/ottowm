@@ -21,19 +21,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             windowObserver.window(byId: id)
         }
 
-        let onScreenWindows = OperationCache { Self.onScreenWindowIds() }
-
-        let desktop = OffscreenParkingDesktop(
-            screen: MainScreen(),
-            window: windowById,
-            focusedWindowId: { AXWindow.focused()?.id }
-        )
-
         let engine = Engine(
-            desktop: desktop,
+            desktop: OffscreenParkingDesktop(
+                screen: MainScreen(),
+                window: windowById,
+                focusedWindowId: { AXWindow.focused()?.id }
+            ),
             window: windowById,
             focusedWindow: OperationCache { AXWindow.focused()?.snapshot() },
-            onScreenWindows: onScreenWindows
+            onScreenWindows: OperationCache {
+                Set((CGWindowListCopyWindowInfo(
+                    [.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
+                     as? [[String: Any]] ?? []
+                )
+                    .compactMap { $0[kCGWindowNumber as String] as? NSNumber }
+                    .map { CGWindowID($0.uint32Value) })
+            }
         )
         self.engine = engine
 
@@ -50,21 +53,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         self.hotkeys = hotkeys
 
-        if hotkeys.start() {
-            Log.app.notice("hotkeys active")
-        } else {
+        if !hotkeys.start() {
             Log.app.error("event tap creation failed (check Accessibility permission)")
         }
-    }
-
-    private static func onScreenWindowIds() -> Set<CGWindowID> {
-        guard let infoList = CGWindowListCopyWindowInfo(
-            [.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID
-        ) as? [[String: Any]] else {
-            Log.app.error("CGWindowListCopyWindowInfo returned nil")
-            return []
-        }
-
-        return OttoWM.onScreenWindowIds(from: infoList)
     }
 }

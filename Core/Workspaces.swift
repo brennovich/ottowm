@@ -1,6 +1,6 @@
 import CoreGraphics
 
-// Tracks windows in their respective workspace via mappings of windows to workspaces.
+// Tracks windows in their respective workspace.
 final class Workspaces {
     private(set) var currentWorkspace = 1
 
@@ -15,10 +15,7 @@ final class Workspaces {
     }
 
     func saveFocusedWindowInWorkspace(_ workspace: Int, _ windowId: CGWindowID) {
-        var focusHistory = focusedWindows[workspace] ?? []
-        focusHistory.removeAll { $0 == windowId }
-        focusHistory.insert(windowId, at: 0)
-        focusedWindows[workspace] = focusHistory
+        focusedWindows[workspace] = [windowId] + (focusedWindows[workspace] ?? []).filter { $0 != windowId }
     }
 
     func workspace(for windowId: CGWindowID) -> Int? {
@@ -46,65 +43,42 @@ final class Workspaces {
         }
         tabGroups.remove(windowId)
 
-        if let workspace = windowWorkspaceMap[windowId] {
+        if let workspace = windowWorkspaceMap.removeValue(forKey: windowId) {
             removeWindowFromList(workspace, windowId)
         }
-
         removeWindowFromFocusHistory(windowId)
-        windowWorkspaceMap[windowId] = nil
     }
 
-    // Commits the transition to the target workspace and returns the placements
-    // the desktop must perform for it: the windows that belong to the target
-    // workspace and everything else. `leavingFocusOn` is the window the workspace
-    // being left should come back to.
     func switchTo(_ targetWorkspace: Int, leavingFocusOn windowId: CGWindowID?) -> (toActive: [CGWindowID], toStorage: [CGWindowID]) {
+        let placement = (toActive: [CGWindowID](), toStorage: [CGWindowID]())
+        guard targetWorkspace != currentWorkspace else { return placement }
+ 
         if let windowId {
             saveFocusedWindowInWorkspace(currentWorkspace, windowId)
         }
-
-        var toActive: [CGWindowID] = []
-        var toStorage: [CGWindowID] = []
-
-        for (windowId, workspace) in windowWorkspaceMap {
-            if workspace == targetWorkspace {
-                toActive.append(windowId)
-            } else {
-                toStorage.append(windowId)
-            }
-        }
-
         currentWorkspace = targetWorkspace
 
-        return (toActive: toActive, toStorage: toStorage)
+        return windowWorkspaceMap.reduce(into: placement) { p, e in
+            if e.value == targetWorkspace {
+                p.toActive.append(e.key)
+            } else {
+                p.toStorage.append(e.key)
+            }
+        }
     }
 
     func tabSiblings(of windowId: CGWindowID) -> [CGWindowID]? {
         tabGroups.siblings(of: windowId)
     }
 
-    // A workspace with no usable focus history falls back to the first window in
-    // it, and that answer needs no recording to stay stable: the first window keeps
-    // being the answer until it leaves the workspace, and every way of leaving
-    // either purges it from the history or saves it somewhere else.
     func nextWindowToFocus() -> CGWindowID? {
-        // Focus history is not pruned when a window changes workspace: this
-        // membership check, the only read of it, is what keeps an entry left
-        // behind by a window that moved away out of the answer.
-        if let focusHistory = focusedWindows[currentWorkspace] {
-            for windowId in focusHistory where windowWorkspaceMap[windowId] == currentWorkspace {
-                return windowId
-            }
-        }
-
-        return workspaceWindowsMap[currentWorkspace]?.first
+        return focusedWindows[currentWorkspace]?.first { windowWorkspaceMap[$0] == currentWorkspace }
+                    ?? workspaceWindowsMap[currentWorkspace]?.first
     }
 
     private func assign(_ windowId: CGWindowID, to workspace: Int) {
-        let previousWorkspace = windowWorkspaceMap[windowId]
-        if previousWorkspace == workspace { return }
-
-        if let previousWorkspace {
+        if let previousWorkspace = windowWorkspaceMap[windowId] {
+            guard previousWorkspace != workspace else { return }
             removeWindowFromList(previousWorkspace, windowId)
         }
 
@@ -123,8 +97,6 @@ final class Workspaces {
     }
 
     private func removeWindowFromFocusHistory(_ windowId: CGWindowID) {
-        for workspace in focusedWindows.keys {
-            focusedWindows[workspace]?.removeAll { $0 == windowId }
-        }
+        focusedWindows = focusedWindows.mapValues { $0.filter { $0 != windowId } }
     }
 }

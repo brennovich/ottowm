@@ -174,7 +174,7 @@ final class WorkspacesTests: XCTestCase {
                 [200],
                 [100, 300, 400]
             ),
-            ("target equals current workspace", [(100, 1), (200, 1), (300, 2)], 1, [100, 200], [300]),
+            ("target equals current workspace places nothing", [(100, 1), (200, 1), (300, 2)], 1, [], []),
         ]
 
         for testCase in cases {

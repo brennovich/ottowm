@@ -150,7 +150,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         XCTAssertEqual(win2.frame, nubFrame(size: frame2.size))
     }
 
-    func testSwitchTakesASingleWindowListSnapshot() {
+    func testSwitchTakesASingleOnScreenWindowsSnapshot() {
         let win1 = addWindow(100, frame: CGRect(x: 100, y: 100, width: 800, height: 600))
         let win2 = addWindow(200, frame: CGRect(x: 300, y: 200, width: 640, height: 480))
         start()
