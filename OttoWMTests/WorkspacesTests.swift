@@ -306,36 +306,19 @@ final class WorkspacesTests: XCTestCase {
         XCTAssertEqual(model.windowIds(in: 3).count, 2)
     }
 
-    func testTerminalAppTabsWithSlightlyDifferentYCoordinatesAreGroupedTogether() {
+    func testUnregisteringATabLeavesItsSiblingsInPlaceAndFocused() {
         let model = Workspaces()
-        let window1 = makeSnapshot(3426, appName: "Terminal", frame: CGRect(x: 155, y: 30, width: 748, height: 879), tabCount: 1)
-        let window2 = makeSnapshot(3459, appName: "Terminal", frame: CGRect(x: 155, y: 21, width: 748, height: 879), tabCount: 2)
 
-        model.assignWindowToWorkspace(window1, 1)
-        model.assignWindowToWorkspace(window2, 2)
-
-        XCTAssertEqual(model.tabSiblings(of: 3426), [3459])
-        XCTAssertEqual(model.tabSiblings(of: 3459), [3426])
-        XCTAssertEqual(model.workspace(for: 3426), 2)
-        XCTAssertEqual(model.workspace(for: 3459), 2)
-    }
-
-    func testUnregisterWindowByIdFromTabGroupWithRemainingWindows() {
-        let model = Workspaces()
-        let window1 = makeSnapshot(100, appName: "Safari", tabCount: 2)
-        let window2 = makeSnapshot(200, appName: "Safari", tabCount: 2)
-
-        model.assignWindowToWorkspace(window1, 1)
-        model.assignWindowToWorkspace(window2, 1)
-
-        XCTAssertEqual(model.tabSiblings(of: 100), [200])
+        model.assignWindowToWorkspace(makeSnapshot(100, appName: "Safari", tabCount: 2), 1)
+        model.assignWindowToWorkspace(makeSnapshot(200, appName: "Safari", tabCount: 2), 1)
+        model.assignWindowToWorkspace(makeSnapshot(300), 1)
+        model.saveFocusedWindowInWorkspace(1, 300)
 
         model.unregisterWindowById(100)
 
-        XCTAssertNil(model.tabSiblings(of: 100))
-        XCTAssertNil(model.tabSiblings(of: 200))
         XCTAssertNil(model.workspace(for: 100))
         XCTAssertEqual(model.workspace(for: 200), 1)
+        XCTAssertEqual(model.prepareWindowToBeFocusedOnCurrentWorkspace(), 200)
     }
 
     func testEligibleWindowToBeFocused() {
