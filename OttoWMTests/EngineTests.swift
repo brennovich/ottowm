@@ -44,14 +44,14 @@ final class EngineTests: XCTestCase {
         return window
     }
 
-    func testStartSetsUpMainScreenAndSeedsWindowsIntoWorkspaceOne() {
+    func testStartRecoversAndSeedsWindowsIntoWorkspaceOne() {
         let win1 = makeWindow(100)
         let win2 = makeWindow(200, frame: CGRect(x: 50, y: 50, width: 400, height: 300))
 
         engine.start(windows: [win1.snapshot(), win2.snapshot()])
 
-        XCTAssertEqual(desktop.setupForMainScreenCount, 1)
-        XCTAssertEqual(desktop.setupWindowIds, [100, 200])
+        XCTAssertEqual(desktop.recoverCount, 1)
+        XCTAssertEqual(desktop.recoveredWindowIds, [100, 200])
         XCTAssertEqual(engine.managedWindowIds, [100, 200])
         XCTAssertEqual(engine.currentWorkspace, 1)
     }

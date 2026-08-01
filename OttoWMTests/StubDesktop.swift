@@ -4,13 +4,13 @@ final class StubDesktop: Desktop {
     private(set) var placements: [CGWindowID: Placement] = [:]
     private(set) var placeCalls: [(windowId: CGWindowID, placement: Placement)] = []
     private(set) var forgottenWindowIds: [CGWindowID] = []
-    private(set) var setupForMainScreenCount = 0
-    private(set) var setupWindowIds: [CGWindowID] = []
+    private(set) var recoverCount = 0
+    private(set) var recoveredWindowIds: [CGWindowID] = []
     private(set) var manualNavigationCallback: ((CGWindowID) -> Void)?
 
-    func setupForMainScreen(windows: [WindowSnapshot]) {
-        setupForMainScreenCount += 1
-        setupWindowIds = windows.map(\.id)
+    func recover(windows: [WindowSnapshot]) {
+        recoverCount += 1
+        recoveredWindowIds = windows.map(\.id)
     }
 
     func place(_ windowId: CGWindowID, _ placement: Placement) {

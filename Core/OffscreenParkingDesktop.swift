@@ -62,8 +62,8 @@ final class OffscreenParkingDesktop: Desktop {
         self.notificationCenter = notificationCenter
     }
 
-    func setupForMainScreen(windows: [WindowSnapshot]) {
-        Telemetry.shared.span("setupForMainScreen") {
+    func recover(windows: [WindowSnapshot]) {
+        Telemetry.shared.span("recover") {
             recoverWindowsStuckAtHiddenEdge(windows)
         }
     }

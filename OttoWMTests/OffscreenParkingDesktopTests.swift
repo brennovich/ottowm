@@ -136,12 +136,12 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(desktop.placement(of: 100), .active)
     }
 
-    func testSetupForMainScreenRecoversWindowsStuckInHiddenCorner() {
+    func testRecoverUnparksWindowsStuckInHiddenCorner() {
         let stuck = StubWindow(id: 200, frame: CGRect(x: 1791, y: 100, width: 800, height: 600))
         let normal = StubWindow(id: 300, frame: originalFrame)
         let desktop = makeDesktop([stuck, normal])
 
-        desktop.setupForMainScreen(windows: [stuck.snapshot(), normal.snapshot()])
+        desktop.recover(windows: [stuck.snapshot(), normal.snapshot()])
 
         XCTAssertEqual(stuck.frameSetCount, 1)
         XCTAssertFalse(OffscreenParkingDesktop.HiddenEdge(screen: testScreen).holds(stuck.frame))

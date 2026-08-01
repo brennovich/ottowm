@@ -32,7 +32,7 @@ final class Engine {
 
     func start(windows: [WindowSnapshot]) {
         operation("start") {
-            desktop.setupForMainScreen(windows: windows)
+            desktop.recover(windows: windows)
 
             for win in windows {
                 assignWindowToWorkspace(win, 1)
