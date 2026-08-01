@@ -4,14 +4,14 @@ import XCTest
 final class EngineDesktopIntegrationTests: XCTestCase {
     private var windows: [CGWindowID: StubWindow] = [:]
     private var focused: StubWindow?
-    private var onForeignNativeSpace = false
+    private var nativeSpaceWindowIds: Set<CGWindowID>?
     private var snapshotCount = 0
     private let center = NotificationCenter()
 
     private lazy var onScreenWindows = OperationCache { [weak self] () -> Set<CGWindowID> in
         guard let self else { return [] }
         self.snapshotCount += 1
-        return self.onForeignNativeSpace ? [] : Set(self.windows.keys)
+        return self.nativeSpaceWindowIds ?? Set(self.windows.keys)
     }
 
     private lazy var desktop: OffscreenParkingDesktop = OffscreenParkingDesktop(
@@ -96,13 +96,13 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         focused = win1
         start()
 
-        onForeignNativeSpace = true
+        nativeSpaceWindowIds = []
         engine.switchToVirtualSpace(3)
 
         XCTAssertEqual(win1.focusCount, 1)
         XCTAssertEqual(win1.frame, nubFrame(size: frame1.size))
 
-        onForeignNativeSpace = false
+        nativeSpaceWindowIds = nil
         engine.handle(.focused(win1.snapshot()))
 
         XCTAssertEqual(engine.currentVirtualSpace, 3)
@@ -162,6 +162,24 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         engine.switchToVirtualSpace(2)
 
         XCTAssertEqual(snapshotCount, 1)
+    }
+
+    func testSwitchFromAFullScreenWindowComesBackToTheDesktop() {
+        let frame1 = CGRect(x: 100, y: 100, width: 800, height: 600)
+        let frame2 = CGRect(x: 300, y: 200, width: 640, height: 480)
+        let win1 = addWindow(100, frame: frame1)
+        let win2 = addWindow(200, frame: frame2)
+        focused = win1
+        start()
+
+        win2.isFullScreen = true
+        focused = win2
+        nativeSpaceWindowIds = [200]
+        engine.switchToVirtualSpace(1)
+
+        XCTAssertEqual(engine.managedWindowIds, [100])
+        XCTAssertEqual(win1.focusCount, 1)
+        XCTAssertEqual(win2.frame, frame2)
     }
 
     func testMinimizedWindowIsLeftInPlaceAcrossSwitches() {

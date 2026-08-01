@@ -425,6 +425,44 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(other.focusCount, 0)
     }
 
+    func testSwitchDropsTheFocusedWindowThatWentFullScreen() {
+        let win1 = makeWindow(100)
+        let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
+        engine.handle(.created(win1.snapshot()))
+        engine.handle(.created(win2.snapshot()))
+        engine.handle(.focused(win2.snapshot()))
+
+        win2.isFullScreen = true
+        focused = win2
+        desktop.isFrontmostValue = false
+        engine.switchToVirtualSpace(1)
+
+        XCTAssertEqual(engine.managedWindowIds, [100])
+        XCTAssertEqual(desktop.forgottenWindowIds, [200])
+        XCTAssertEqual(win1.focusCount, 1)
+    }
+
+    func testWindowBackFromFullScreenJoinsTheCurrentVirtualSpace() {
+        let win1 = makeWindow(100)
+        let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
+        engine.handle(.created(win1.snapshot()))
+        engine.handle(.created(win2.snapshot()))
+        win2.isFullScreen = true
+        focused = win2
+        desktop.isFrontmostValue = false
+        engine.switchToVirtualSpace(1)
+
+        win2.isFullScreen = false
+        desktop.isFrontmostValue = true
+        engine.switchToVirtualSpace(2)
+
+        XCTAssertEqual(engine.managedWindowIds, [100, 200])
+
+        engine.switchToVirtualSpace(1)
+
+        XCTAssertEqual(desktop.placement(of: 200), .storage)
+    }
+
     func testMinimizedWindowIsDroppedFromItsVirtualSpace() {
         let win1 = makeWindow(100)
         let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))

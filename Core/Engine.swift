@@ -63,6 +63,8 @@ final class Engine {
 
     func switchToVirtualSpace(_ virtualSpace: Int) {
         operation("switchToVirtualSpace(\(virtualSpace))") {
+            dropFocusedWindowIfFullScreen()
+
             let onDesktop = desktop.isFrontmost() || model.allWindowIds().isEmpty
             Log.engine.info("switch requested target=\(virtualSpace) current=\(self.model.getCurrentVirtualSpace()) onDesktop=\(onDesktop)")
 
@@ -150,6 +152,20 @@ final class Engine {
         restoreWindowsFocusForVirtualSpace()
     }
 
+    // A window taken full screen gets its own native space, where it is the only
+    // thing on screen: it cannot be parked, and focusing it would keep the user
+    // there instead of bringing the desktop back. Like a minimized one, it stops
+    // being managed until it comes back.
+    private func dropFocusedWindowIfFullScreen() {
+        guard let focused = focusedWindow.value(), focused.isFullScreen,
+              let virtualSpace = model.getVirtualSpaceForWindow(focused.id)
+        else { return }
+
+        Log.engine.info("full screen id=\(focused.id), dropped from space \(virtualSpace)")
+        model.unregisterWindowById(focused.id)
+        desktop.forget(focused.id)
+    }
+
     // Focusing a hidden window means the user navigated to it behind OttoWM's back
     // (Cmd-Tab/Dock on the same native Space, or Mission Control from another one),
     // so follow them by switching to that window's virtual space.
@@ -205,10 +221,19 @@ final class Engine {
         operation("restoreWindowsFocus") {
             let currentSpace = model.getCurrentVirtualSpace()
 
-            if let osFocused = focusedWindow.value(), isValidWindow(osFocused),
-               model.getVirtualSpaceForWindow(osFocused.id) == currentSpace {
-                model.saveFocusedWindowInVirtualSpace(currentSpace, osFocused.id)
-                return true
+            if let osFocused = focusedWindow.value(), isValidWindow(osFocused) {
+                let virtualSpace = model.getVirtualSpaceForWindow(osFocused.id)
+                if virtualSpace == currentSpace {
+                    model.saveFocusedWindowInVirtualSpace(currentSpace, osFocused.id)
+                    return true
+                }
+                // On screen, focused, and in no virtual space: a window that left
+                // management while it was out of reach is back. It joins the space
+                // the user is on now, like a newly created one.
+                if virtualSpace == nil {
+                    assignWindowToVirtualSpace(osFocused, currentSpace)
+                    return true
+                }
             }
 
             if let windowId = model.prepareWindowToBeFocusedOnCurrentVirtualSpace(),
