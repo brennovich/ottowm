@@ -80,8 +80,10 @@ final class AXWindow: Window {
         let raiseResult = AXUIElementPerformAction(element, kAXRaiseAction as CFString)
         let mainResult = AXUIElementSetAttributeValue(element, kAXMainAttribute as CFString, kCFBooleanTrue)
         let activated = application.activate()
-        if raiseResult != .success || mainResult != .success || !activated {
-            Log.window.error("focus failed \(self.logDescription) raise=\(raiseResult.rawValue) main=\(mainResult.rawValue) activate=\(activated)")
+        if raiseResult != .success || mainResult != .success {
+            Log.window.error("focus failed \(self.logDescription) raise=\(raiseResult.rawValue) main=\(mainResult.rawValue)")
+        } else if !activated {
+            Log.window.debug("focus \(self.logDescription): application did not activate")
         }
     }
 
