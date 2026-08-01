@@ -62,6 +62,7 @@ final class EngineTests: XCTestCase {
             makeWindow(300, isStandard: false),
             makeWindow(400, isFullScreen: true),
             makeWindow(500),
+            makeWindow(600, isMinimized: true),
         ]
 
         engine.start(windows: seeds.map { $0.snapshot() })
@@ -89,6 +90,7 @@ final class EngineTests: XCTestCase {
             makeWindow(200, isStandard: false),
             makeWindow(300, isFullScreen: true),
             makeWindow(400),
+            makeWindow(500, isMinimized: true),
         ]
 
         for win in invalidWindows {
@@ -107,9 +109,14 @@ final class EngineTests: XCTestCase {
     }
 
     func testFocusedInvalidWindowIsIgnored() {
-        let win = makeWindow(0)
+        let invalidWindows = [
+            makeWindow(0),
+            makeWindow(100, isMinimized: true),
+        ]
 
-        engine.handle(.focused(win.snapshot()))
+        for win in invalidWindows {
+            engine.handle(.focused(win.snapshot()))
+        }
 
         XCTAssertEqual(engine.managedWindowIds, [])
     }
@@ -307,12 +314,13 @@ final class EngineTests: XCTestCase {
     }
 
     func testFocusedStorageWindowSwitchesWhenCurrentSpaceWindowIsOnlyMinimized() {
-        let win1 = makeWindow(100, isMinimized: true)
+        let win1 = makeWindow(100)
         let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
+        engine.handle(.created(win1.snapshot()))
         engine.handle(.created(win2.snapshot()))
         engine.moveWindowToVirtualSpace(win2.snapshot(), 2)
-        engine.handle(.created(win1.snapshot()))
 
+        win1.isMinimized = true
         desktop.absentWindowIds = [100]
         focused = win2
         engine.handle(.focused(win2.snapshot()))
@@ -415,6 +423,57 @@ final class EngineTests: XCTestCase {
 
         XCTAssertEqual(tab1.focusCount, 0)
         XCTAssertEqual(other.focusCount, 0)
+    }
+
+    func testMinimizedWindowIsDroppedFromItsVirtualSpace() {
+        let win1 = makeWindow(100)
+        let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
+        engine.handle(.created(win1.snapshot()))
+        engine.handle(.created(win2.snapshot()))
+
+        win2.isMinimized = true
+        engine.handle(.minimized(200))
+
+        XCTAssertEqual(engine.managedWindowIds, [100])
+        XCTAssertEqual(desktop.forgottenWindowIds, [200])
+        XCTAssertEqual(win1.focusCount, 1)
+    }
+
+    func testMinimizedWindowIsLeftAloneWhenItsVirtualSpaceComesBack() {
+        let win = makeWindow(100)
+        engine.handle(.created(win.snapshot()))
+        engine.moveWindowToVirtualSpace(win.snapshot(), 2)
+        engine.switchToVirtualSpace(2)
+
+        win.isMinimized = true
+        engine.handle(.minimized(100))
+        let placeCalls = desktop.placeCalls.count
+        let focusCount = win.focusCount
+
+        engine.switchToVirtualSpace(1)
+        engine.switchToVirtualSpace(2)
+
+        XCTAssertEqual(desktop.placeCalls.count, placeCalls)
+        XCTAssertEqual(win.focusCount, focusCount)
+    }
+
+    func testUnminimizedWindowJoinsTheCurrentVirtualSpace() {
+        let win = makeWindow(100)
+        engine.handle(.created(win.snapshot()))
+        engine.moveWindowToVirtualSpace(win.snapshot(), 2)
+        engine.switchToVirtualSpace(2)
+        win.isMinimized = true
+        engine.handle(.minimized(100))
+        engine.switchToVirtualSpace(1)
+
+        win.isMinimized = false
+        engine.handle(.unminimized(win.snapshot()))
+
+        XCTAssertEqual(engine.managedWindowIds, [100])
+
+        engine.switchToVirtualSpace(2)
+
+        XCTAssertEqual(desktop.placement(of: 100), .storage)
     }
 
     func testTabSiblingKeepsFocusWhenSeparateWindowCloses() {

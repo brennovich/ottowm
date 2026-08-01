@@ -53,6 +53,10 @@ final class Engine {
                 handleFocused(win)
             case let .destroyed(windowId):
                 handleDestroyed(windowId)
+            case let .minimized(windowId):
+                handleMinimized(windowId)
+            case let .unminimized(win):
+                assignWindowToVirtualSpace(win, model.getCurrentVirtualSpace())
             }
         }
     }
@@ -131,6 +135,19 @@ final class Engine {
         if !hasTabSiblings {
             restoreWindowsFocusForVirtualSpace()
         }
+    }
+
+    // A minimized window is out of reach: it cannot be moved, and focusing it would
+    // bring it back on screen. It stops being managed until the user restores it,
+    // and then joins whatever virtual space is current.
+    private func handleMinimized(_ windowId: CGWindowID) {
+        guard let virtualSpace = model.getVirtualSpaceForWindow(windowId) else { return }
+        Log.engine.info("minimized id=\(windowId), dropped from space \(virtualSpace)")
+
+        model.unregisterWindowById(windowId)
+        desktop.forget(windowId)
+
+        restoreWindowsFocusForVirtualSpace()
     }
 
     // Focusing a hidden window means the user navigated to it behind OttoWM's back
@@ -218,7 +235,7 @@ final class Engine {
     }
 
     private func isValidWindow(_ win: WindowSnapshot) -> Bool {
-        win.id != 0 && win.isStandard && !win.isFullScreen && desktop.contains(win.id)
+        win.id != 0 && win.isStandard && !win.isFullScreen && !win.isMinimized && desktop.contains(win.id)
     }
 
     // True while the current virtual space's windows are all mid-destruction: the

@@ -6,7 +6,7 @@ final class StubWindow: Window {
     let appName: String
     let isStandard: Bool
     let isFullScreen: Bool
-    let isMinimized: Bool
+    var isMinimized: Bool
     private(set) var frame: CGRect
 
     private(set) var frameSetCount = 0

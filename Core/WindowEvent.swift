@@ -5,6 +5,8 @@ enum WindowEvent {
     case created(WindowSnapshot)
     case focused(WindowSnapshot)
     case destroyed(CGWindowID)
+    case minimized(CGWindowID)
+    case unminimized(WindowSnapshot)
 }
 
 func shouldObserveApplication(activationPolicy: NSApplication.ActivationPolicy, pid: pid_t, ownPid: pid_t) -> Bool {

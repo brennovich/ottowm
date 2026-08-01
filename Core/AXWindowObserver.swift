@@ -14,8 +14,8 @@ private func axObserverCallback(
     windowObserver.handle(element: element, notification: notification as String, observer: observer)
 }
 
-// Per-app AXObservers plus NSWorkspace launch/terminate surface window
-// created/focused/destroyed events.
+// Per-app AXObservers plus NSWorkspace launch/terminate surface the window
+// lifecycle events: created, focused, destroyed and (de)minimized.
 final class AXWindowObserver {
     private struct ElementKey: Hashable {
         let element: AXUIElement
@@ -72,7 +72,7 @@ final class AXWindowObserver {
                 Log.observer.debug("dropped \(notification): no window id")
                 return
             }
-            watchForDestruction(window, observer: observer)
+            watchWindow(window, observer: observer)
             handler?(.created(window.snapshot()))
         case kAXFocusedWindowChangedNotification:
             guard let app = application(for: element) else {
@@ -86,6 +86,18 @@ final class AXWindowObserver {
                 return
             }
             handler?(.destroyed(id))
+        case kAXWindowMiniaturizedNotification:
+            guard let window = window(of: element) else {
+                Log.observer.debug("dropped \(notification): unknown window")
+                return
+            }
+            handler?(.minimized(window.id))
+        case kAXWindowDeminiaturizedNotification:
+            guard let window = window(of: element) else {
+                Log.observer.debug("dropped \(notification): unknown window")
+                return
+            }
+            handler?(.unminimized(window.snapshot()))
         default:
             break
         }
@@ -125,7 +137,7 @@ final class AXWindowObserver {
         for element in elements {
             let window = AXWindow(element: element, application: app)
             guard window.id != 0 else { continue }
-            watchForDestruction(window, observer: observer)
+            watchWindow(window, observer: observer)
 
             let snapshot = window.snapshot()
             windows.append(snapshot)
@@ -150,7 +162,7 @@ final class AXWindowObserver {
             let axWindow = AXWindow(element: key.element, application: app)
             guard axWindow.id != 0 else { continue }
             Log.observer.info("rescan found window \(axWindow.logDescription)")
-            watchForDestruction(axWindow, observer: observer)
+            watchWindow(axWindow, observer: observer)
             handler?(.created(axWindow.snapshot()))
         }
     }
@@ -162,10 +174,22 @@ final class AXWindowObserver {
         registry.evict(pid: pid)
     }
 
-    private func watchForDestruction(_ window: AXWindow, observer: AXObserver) {
+    private func watchWindow(_ window: AXWindow, observer: AXObserver) {
         let pid = window.application.processIdentifier
         registry.register(ElementKey(element: window.element), pid: pid, id: window.id)
-        addNotification(observer, window.element, kAXUIElementDestroyedNotification, pid: pid)
+        for notification in [
+            kAXUIElementDestroyedNotification,
+            kAXWindowMiniaturizedNotification,
+            kAXWindowDeminiaturizedNotification,
+        ] {
+            addNotification(observer, window.element, notification, pid: pid)
+        }
+    }
+
+    private func window(of element: AXUIElement) -> AXWindow? {
+        guard let app = application(for: element) else { return nil }
+        let window = AXWindow(element: element, application: app)
+        return window.id != 0 ? window : nil
     }
 
     private func addNotification(_ observer: AXObserver, _ element: AXUIElement, _ notification: String, pid: pid_t) {
