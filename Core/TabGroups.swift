@@ -2,8 +2,6 @@ import CoreGraphics
 
 // The windows macOS shows as tabs of one another. Membership is never exposed by
 // the OS, so a group is inferred from the window it was opened around.
-// Windows of the same group belong to the same workspace and move between
-// workspaces together.
 struct TabGroups {
     private struct Group {
         let representative: WindowSnapshot

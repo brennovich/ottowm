@@ -1,7 +1,5 @@
 import CoreGraphics
 
-// A handle on a live macOS window: one batched read of its state plus the two
-// commands OttoWM issues. Everything else works on WindowSnapshot values.
 protocol Window: AnyObject {
     func snapshot() -> WindowSnapshot
 

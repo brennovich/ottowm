@@ -144,11 +144,7 @@ final class AXWindowObserver {
     }
 
     private func observable(_ app: NSRunningApplication) -> Bool {
-        shouldObserveApplication(
-            activationPolicy: app.activationPolicy,
-            pid: app.processIdentifier,
-            ownPid: ownPid
-        )
+        app.activationPolicy == .regular && app.processIdentifier != ownPid
     }
 
     @discardableResult

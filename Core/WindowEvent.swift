@@ -8,7 +8,3 @@ enum WindowEvent {
     case minimized(CGWindowID)
     case unminimized(WindowSnapshot)
 }
-
-func shouldObserveApplication(activationPolicy: NSApplication.ActivationPolicy, pid: pid_t, ownPid: pid_t) -> Bool {
-    activationPolicy == .regular && pid != ownPid
-}
