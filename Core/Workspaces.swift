@@ -16,9 +16,7 @@ final class Workspaces {
     private var windowToGroup: [CGWindowID: Int] = [:]
     private var nextGroupId = 1
 
-    func saveFocusedWindowInVirtualSpace(_ virtualSpace: Int, _ windowId: CGWindowID?) {
-        guard let windowId else { return }
-
+    func saveFocusedWindowInVirtualSpace(_ virtualSpace: Int, _ windowId: CGWindowID) {
         var focusHistory = focusedWindows[virtualSpace] ?? []
         focusHistory.removeAll { $0 == windowId }
         focusHistory.insert(windowId, at: 0)
@@ -74,8 +72,8 @@ final class Workspaces {
         if let groupId = windowToGroup[windowId] {
             groups[groupId]?.windowIds.removeAll { $0 == windowId }
 
-            if let tabSiblings = getTabSiblingsBeforeDestruction(windowId) {
-                saveFocusedWindowInVirtualSpace(getCurrentVirtualSpace(), tabSiblings.first)
+            if let firstTabSibling = getTabSiblingsBeforeDestruction(windowId)?.first {
+                saveFocusedWindowInVirtualSpace(getCurrentVirtualSpace(), firstTabSibling)
             }
 
             windowToGroup[windowId] = nil
