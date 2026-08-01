@@ -93,21 +93,6 @@ final class Workspaces {
         windowVirtualSpaceMap[windowId] = nil
     }
 
-    func assignWindowToVirtualSpace(_ windowId: CGWindowID?, _ virtualSpace: Int?) {
-        guard let windowId, let virtualSpace else { return }
-
-        let previousVirtualSpace = windowVirtualSpaceMap[windowId]
-        if previousVirtualSpace == virtualSpace { return }
-
-        if let previousVirtualSpace {
-            removeWindowFromList(previousVirtualSpace, windowId)
-            focusedWindows[previousVirtualSpace]?.removeAll { $0 == windowId }
-        }
-
-        virtualSpaceWindowsMap[virtualSpace, default: []].append(windowId)
-        windowVirtualSpaceMap[windowId] = virtualSpace
-    }
-
     // Split the model's windows into the ones that belong to the target virtual
     // space and everything else, for a transition between two native spaces.
     func categorizeWindowsForTransition(_ targetVirtualSpace: Int) -> (toActive: [CGWindowID], toStorage: [CGWindowID]) {
@@ -158,6 +143,19 @@ final class Workspaces {
         }
 
         return nil
+    }
+
+    private func assignWindowToVirtualSpace(_ windowId: CGWindowID, _ virtualSpace: Int) {
+        let previousVirtualSpace = windowVirtualSpaceMap[windowId]
+        if previousVirtualSpace == virtualSpace { return }
+
+        if let previousVirtualSpace {
+            removeWindowFromList(previousVirtualSpace, windowId)
+            focusedWindows[previousVirtualSpace]?.removeAll { $0 == windowId }
+        }
+
+        virtualSpaceWindowsMap[virtualSpace, default: []].append(windowId)
+        windowVirtualSpaceMap[windowId] = virtualSpace
     }
 
     private func assignGroupToVirtualSpace(_ groupId: Int, _ virtualSpace: Int) {
