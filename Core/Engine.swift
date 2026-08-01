@@ -131,8 +131,7 @@ final class Engine {
     private func handleDestroyed(_ windowId: CGWindowID) {
         let hasTabSiblings = model.tabSiblings(of: windowId) != nil
         Log.engine.debug("destroyed id=\(windowId) hadTabSiblings=\(hasTabSiblings)")
-        model.unregisterWindowById(windowId)
-        desktop.forget(windowId)
+        unmanage(windowId)
 
         if !hasTabSiblings {
             restoreWindowsFocusForWorkspace()
@@ -146,8 +145,7 @@ final class Engine {
         guard let workspace = model.workspace(for: windowId) else { return }
         Log.engine.info("minimized id=\(windowId), dropped from workspace \(workspace)")
 
-        model.unregisterWindowById(windowId)
-        desktop.forget(windowId)
+        unmanage(windowId)
 
         restoreWindowsFocusForWorkspace()
     }
@@ -162,8 +160,12 @@ final class Engine {
         else { return }
 
         Log.engine.info("full screen id=\(focused.id), dropped from workspace \(workspace)")
-        model.unregisterWindowById(focused.id)
-        desktop.forget(focused.id)
+        unmanage(focused.id)
+    }
+
+    private func unmanage(_ windowId: CGWindowID) {
+        model.unregisterWindowById(windowId)
+        desktop.forget(windowId)
     }
 
     // Focusing a hidden window means the user navigated to it behind OttoWM's back
