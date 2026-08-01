@@ -27,13 +27,15 @@ final class EngineTests: XCTestCase {
         frame: CGRect = CGRect(x: 0, y: 0, width: 800, height: 600),
         tabCount: Int = 1,
         isStandard: Bool = true,
-        isFullScreen: Bool = false
+        isFullScreen: Bool = false,
+        isMinimized: Bool = false
     ) -> StubWindow {
         let window = StubWindow(
             id: id,
             tabCount: tabCount,
             frame: frame,
             appName: appName,
+            isMinimized: isMinimized,
             isStandard: isStandard,
             isFullScreen: isFullScreen
         )
@@ -282,10 +284,41 @@ final class EngineTests: XCTestCase {
         engine.moveWindowToVirtualSpace(win2.snapshot(), 2)
 
         windows[100] = nil
+        focused = win2
         engine.handle(.focused(win2.snapshot()))
 
         XCTAssertEqual(engine.currentVirtualSpace, 1)
         XCTAssertEqual(desktop.placement(of: 200), .storage)
+    }
+
+    func testFocusedStorageWindowDoesNotSwitchWhenCurrentSpaceWindowClosedBeforeItsDestroyedEvent() {
+        let win1 = makeWindow(100)
+        let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
+        engine.handle(.created(win1.snapshot()))
+        engine.handle(.created(win2.snapshot()))
+        engine.moveWindowToVirtualSpace(win2.snapshot(), 2)
+
+        desktop.absentWindowIds = [100]
+        focused = win2
+        engine.handle(.focused(win2.snapshot()))
+
+        XCTAssertEqual(engine.currentVirtualSpace, 1)
+        XCTAssertEqual(desktop.placement(of: 200), .storage)
+    }
+
+    func testFocusedStorageWindowSwitchesWhenCurrentSpaceWindowIsOnlyMinimized() {
+        let win1 = makeWindow(100, isMinimized: true)
+        let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
+        engine.handle(.created(win2.snapshot()))
+        engine.moveWindowToVirtualSpace(win2.snapshot(), 2)
+        engine.handle(.created(win1.snapshot()))
+
+        desktop.absentWindowIds = [100]
+        focused = win2
+        engine.handle(.focused(win2.snapshot()))
+
+        XCTAssertEqual(engine.currentVirtualSpace, 2)
+        XCTAssertEqual(desktop.placement(of: 200), .active)
     }
 
     func testMoveWindowToVirtualSpaceUsesFocusedWindowWhenNil() {

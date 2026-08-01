@@ -1,8 +1,6 @@
 import CoreGraphics
 
-// Representation of OttoWM Workspaces that tracks the state of windows and their
-// virtual spaces. It maintains a mapping of windows to virtual spaces, and auxiliary data
-// structures to keep consistent windows behaviour.
+// Tracks windows in their respective workspace via mappings of windows to workspace.
 final class Workspaces {
     private struct TabGroup {
         let representative: WindowSnapshot

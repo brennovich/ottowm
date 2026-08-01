@@ -222,12 +222,20 @@ final class Engine {
     }
 
     // True while the current virtual space's windows are all mid-destruction: the
-    // model still lists them but none resolve to a live window anymore. Focus events
+    // model still lists them but none of them is on screen anymore. Focus events
     // fired during that teardown must not be mistaken for manual navigation.
     private func currentVirtualSpaceIsClosing() -> Bool {
         let windowIds = model.getWindowsInVirtualSpace(model.getCurrentVirtualSpace())
         if windowIds.isEmpty { return false }
 
-        return windowIds.allSatisfy { window($0) == nil }
+        return windowIds.allSatisfy(windowIsGone)
+    }
+
+    // A closed window outlives its destruction notification: its AX element keeps
+    // resolving until the notification arrives, so presence on screen is what says
+    // it is gone. A minimized window is off screen too, and AX still answers for it.
+    private func windowIsGone(_ windowId: CGWindowID) -> Bool {
+        guard let win = window(windowId) else { return true }
+        return !desktop.contains(windowId) && !win.snapshot().isMinimized
     }
 }
