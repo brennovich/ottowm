@@ -150,7 +150,7 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         desktop.setupForMainScreen(windows: [stuck.snapshot(), normal.snapshot()])
 
         XCTAssertEqual(stuck.frameSetCount, 1)
-        XCTAssertLessThan(stuck.frame.minX, testScreen.fullFrame.maxX - hiddenEdgeDetectionMargin)
+        XCTAssertFalse(OffscreenParkingDesktop.HiddenEdge(screen: testScreen).holds(stuck.frame))
         XCTAssertEqual(normal.frameSetCount, 0)
     }
 

@@ -6,7 +6,44 @@ import CoreGraphics
 // Ported from VirtualSpace.lua, replacing all hs.spaces (private CGS) usage with
 // public APIs injected as seams.
 final class OffscreenParkingDesktop: Desktop {
-    private let screen: Screen
+    // The bottom-right sliver a parked window is squeezed into. macOS clamps a
+    // window from leaving all screens: horizontally to a 1px sliver, vertically
+    // keeping ~38px of title bar. Pinning both axes to the corner confines the
+    // leftover to a tiny ~1x38px nub.
+    struct HiddenEdge {
+        private static let epsilon: CGFloat = 1
+        private static let detectionMargin: CGFloat = 10
+
+        let screen: Screen
+
+        func frame(parking windowFrame: CGRect) -> CGRect {
+            CGRect(
+                x: screen.fullFrame.maxX - Self.epsilon,
+                y: screen.fullFrame.maxY - Self.epsilon,
+                width: windowFrame.width,
+                height: windowFrame.height
+            )
+        }
+
+        func holds(_ frame: CGRect) -> Bool {
+            frame.minX >= screen.fullFrame.maxX - Self.epsilon - Self.detectionMargin
+        }
+
+        func recovered(from windowFrame: CGRect) -> CGRect {
+            let visibleFrame = screen.visibleFrame
+            let width = min(windowFrame.width, visibleFrame.width)
+            let height = min(windowFrame.height, visibleFrame.height)
+
+            return CGRect(
+                x: visibleFrame.minX + (visibleFrame.width - width) / 2,
+                y: visibleFrame.minY + (visibleFrame.height - height) / 2,
+                width: width,
+                height: height
+            )
+        }
+    }
+
+    private let hiddenEdge: HiddenEdge
     private let window: (CGWindowID) -> (any Window)?
     private let onScreenWindowIds: () -> Set<CGWindowID>
     private let managedWindowIds: () -> Set<CGWindowID>
@@ -24,7 +61,7 @@ final class OffscreenParkingDesktop: Desktop {
         focusedWindowId: @escaping () -> CGWindowID?,
         notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter
     ) {
-        self.screen = screen
+        hiddenEdge = HiddenEdge(screen: screen)
         self.window = window
         self.onScreenWindowIds = onScreenWindowIds
         self.managedWindowIds = managedWindowIds
@@ -63,7 +100,7 @@ final class OffscreenParkingDesktop: Desktop {
             case .storage:
                 if hiddenWindowFrames[windowId] != nil { return }
                 guard let (win, originalFrame) = movableWindow(windowId, placement) else { return }
-                let hidden = hiddenFrame(for: originalFrame, on: screen)
+                let hidden = hiddenEdge.frame(parking: originalFrame)
                 hiddenWindowFrames[windowId] = originalFrame
                 win.setFrame(hidden)
                 Log.desktop.debug("hid id=\(windowId) from=\(originalFrame) to=\(hidden)")
@@ -125,19 +162,19 @@ final class OffscreenParkingDesktop: Desktop {
         for (windowId, originalFrame) in hiddenWindowFrames {
             guard let win = window(windowId),
                   let frame = win.movableFrame(),
-                  !isStuckAtHiddenEdge(frame, on: screen)
+                  !hiddenEdge.holds(frame)
             else { continue }
 
-            let hidden = hiddenFrame(for: originalFrame, on: screen)
+            let hidden = hiddenEdge.frame(parking: originalFrame)
             win.setFrame(hidden)
             Log.desktop.info("re-hid id=\(windowId) pulled back to \(frame), to=\(hidden)")
         }
     }
 
     private func recoverWindowsStuckAtHiddenEdge(_ windows: [WindowSnapshot]) {
-        for snapshot in windows where !snapshot.isMinimized && isStuckAtHiddenEdge(snapshot.frame, on: screen) {
+        for snapshot in windows where !snapshot.isMinimized && hiddenEdge.holds(snapshot.frame) {
             Log.desktop.info("recovering \(snapshot.logDescription) stuck at hidden edge")
-            let recovered = recoveredFrame(for: snapshot.frame, visibleFrame: screen.visibleFrame)
+            let recovered = hiddenEdge.recovered(from: snapshot.frame)
             window(snapshot.id)?.setFrame(recovered)
         }
     }
