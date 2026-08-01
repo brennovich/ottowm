@@ -38,6 +38,33 @@ final class TabGroupsTests: XCTestCase {
                 [200]
             ),
             (
+                "a window nudged within the y tolerance joins the group",
+                [
+                    makeSnapshot(100, tabCount: 2),
+                    makeSnapshot(200, frame: CGRect(x: 0, y: 10, width: 800, height: 600), tabCount: 2),
+                ],
+                100,
+                [100, 200]
+            ),
+            (
+                "a window past the y tolerance opens its own group",
+                [
+                    makeSnapshot(100, tabCount: 2),
+                    makeSnapshot(200, frame: CGRect(x: 0, y: 11, width: 800, height: 600), tabCount: 2),
+                ],
+                200,
+                [200]
+            ),
+            (
+                "a window of another size opens its own group",
+                [
+                    makeSnapshot(100, tabCount: 2),
+                    makeSnapshot(200, frame: CGRect(x: 0, y: 0, width: 801, height: 600), tabCount: 2),
+                ],
+                200,
+                [200]
+            ),
+            (
                 "a window without tabs never joins an existing group",
                 [makeSnapshot(100, tabCount: 2), makeSnapshot(200, tabCount: 1)],
                 200,
@@ -68,9 +95,9 @@ final class TabGroupsTests: XCTestCase {
     }
 
     func testSiblings() {
-        let cases: [(name: String, windows: [WindowSnapshot], subject: CGWindowID, expected: [CGWindowID]?)] = [
-            ("an unknown window has no siblings", [], 999, nil),
-            ("a window alone in its group has no siblings", [makeSnapshot(100)], 100, nil),
+        let cases: [(name: String, windows: [WindowSnapshot], subject: CGWindowID, expected: [CGWindowID])] = [
+            ("an unknown window has no siblings", [], 999, []),
+            ("a window alone in its group has no siblings", [makeSnapshot(100)], 100, []),
             (
                 "the other members of the group",
                 [makeSnapshot(100, tabCount: 2), makeSnapshot(200, tabCount: 2), makeSnapshot(300, tabCount: 2)],
@@ -97,9 +124,9 @@ final class TabGroupsTests: XCTestCase {
         tabGroups.remove(100)
 
         XCTAssertEqual(tabGroups.members(of: 100), [100])
-        XCTAssertNil(tabGroups.siblings(of: 100))
+        XCTAssertEqual(tabGroups.siblings(of: 100), [])
         XCTAssertEqual(tabGroups.members(of: 200), [200])
-        XCTAssertNil(tabGroups.siblings(of: 200))
+        XCTAssertEqual(tabGroups.siblings(of: 200), [])
     }
 
     func testRemovingEveryMemberRetiresTheGroup() {

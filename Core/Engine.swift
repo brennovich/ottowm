@@ -129,7 +129,7 @@ final class Engine {
     }
 
     private func handleDestroyed(_ windowId: CGWindowID) {
-        let hasTabSiblings = model.tabSiblings(of: windowId) != nil
+        let hasTabSiblings = !model.tabSiblings(of: windowId).isEmpty
         Log.engine.debug("destroyed id=\(windowId) hadTabSiblings=\(hasTabSiblings)")
         unmanage(windowId)
 

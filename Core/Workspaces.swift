@@ -38,7 +38,7 @@ final class Workspaces {
     }
 
     func unregisterWindowById(_ windowId: CGWindowID) {
-        if let firstTabSibling = tabGroups.siblings(of: windowId)?.first {
+        if let firstTabSibling = tabGroups.siblings(of: windowId).first {
             saveFocusedWindowInWorkspace(currentWorkspace, firstTabSibling)
         }
         tabGroups.remove(windowId)
@@ -67,7 +67,7 @@ final class Workspaces {
         }
     }
 
-    func tabSiblings(of windowId: CGWindowID) -> [CGWindowID]? {
+    func tabSiblings(of windowId: CGWindowID) -> [CGWindowID] {
         tabGroups.siblings(of: windowId)
     }
 

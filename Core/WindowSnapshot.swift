@@ -14,18 +14,5 @@ struct WindowSnapshot: Sendable, Equatable {
 }
 
 extension WindowSnapshot {
-    static let tabInferenceYTolerance: CGFloat = 10
-
     var logDescription: String { "id=\(id) app=\(appName)" }
-
-    // As macOS does not tell us whether two windows are tabs of the same
-    // application, infers with some heuristics.
-    func isTab(of other: WindowSnapshot) -> Bool {
-        tabCount > 1
-            && appName == other.appName
-            && frame.origin.x == other.frame.origin.x
-            && abs(frame.origin.y - other.frame.origin.y) <= Self.tabInferenceYTolerance
-            && frame.width == other.frame.width
-            && frame.height == other.frame.height
-    }
 }

@@ -3,6 +3,8 @@ import CoreGraphics
 // The windows macOS shows as tabs of one another. Membership is never exposed by
 // the OS, so a group is inferred from the window it was opened around.
 struct TabGroups {
+    private static let yTolerance: CGFloat = 10
+
     private struct Group {
         let representative: WindowSnapshot
         var windowIds: [CGWindowID]
@@ -10,60 +12,60 @@ struct TabGroups {
 
     private var groups: [Int: Group] = [:]
     private var windowToGroup: [CGWindowID: Int] = [:]
+
     // A group outlives its representative window, so groups cannot be keyed by
     // its id: macOS recycles window ids, and a new window inheriting a dead
     // representative's id would take over a group that still has members.
     private var nextGroupId = 1
 
     // Joins the group whose representative this window is a tab of, or opens a new
-    // one around it. A window already in a group keeps it.
+    // one around it.
     mutating func add(_ window: WindowSnapshot) {
         guard windowToGroup[window.id] == nil else { return }
 
-        if let groupId = groupRepresenting(window) {
-            groups[groupId]?.windowIds.append(window.id)
-            windowToGroup[window.id] = groupId
-            return
-        }
+        let groupId = groupRepresenting(window) ?? openGroup(around: window)
+        groups[groupId]?.windowIds.append(window.id)
+        windowToGroup[window.id] = groupId
+    }
 
-        groups[nextGroupId] = Group(representative: window, windowIds: [window.id])
-        windowToGroup[window.id] = nextGroupId
+    private mutating func openGroup(around window: WindowSnapshot) -> Int {
+        let groupId = nextGroupId
         nextGroupId += 1
+        groups[groupId] = Group(representative: window, windowIds: [])
+
+        return groupId
     }
 
-    // The windows that move together with this one, itself included. A window in
-    // no group moves alone.
     func members(of windowId: CGWindowID) -> [CGWindowID] {
-        guard let groupId = windowToGroup[windowId], let group = groups[groupId] else { return [windowId] }
-
-        return group.windowIds
+        return windowToGroup[windowId].flatMap { groups[$0]?.windowIds } ?? [windowId]
     }
 
-    func siblings(of windowId: CGWindowID) -> [CGWindowID]? {
-        guard windowToGroup[windowId] != nil else { return nil }
-
-        let siblings = members(of: windowId).filter { $0 != windowId }
-        return siblings.isEmpty ? nil : siblings
+    func siblings(of windowId: CGWindowID) -> [CGWindowID] {
+        return members(of: windowId).filter { $0 != windowId }
     }
 
     mutating func remove(_ windowId: CGWindowID) {
-        guard let groupId = windowToGroup[windowId] else { return }
+        guard let groupId = windowToGroup.removeValue(forKey: windowId),
+              var group = groups[groupId] else { return }
 
-        groups[groupId]?.windowIds.removeAll { $0 == windowId }
-        windowToGroup[windowId] = nil
-
-        if groups[groupId]?.windowIds.isEmpty ?? false {
-            groups[groupId] = nil
-        }
+        group.windowIds.removeAll { $0 == windowId }
+        groups[groupId] = group.windowIds.isEmpty ? nil : group
     }
 
     private func groupRepresenting(_ window: WindowSnapshot) -> Int? {
         guard window.tabCount > 1 else { return nil }
 
-        for (groupId, group) in groups where window.isTab(of: group.representative) {
-            return groupId
-        }
+        return groups.first { isTab(window, of: $0.value.representative) }?.key
+    }
 
-        return nil
+    // As macOS does not tell us whether two windows are tabs of the same
+    // application, infers with some heuristics.
+    private func isTab(_ window: WindowSnapshot, of representative: WindowSnapshot) -> Bool {
+        return window.tabCount > 1
+            && window.appName == representative.appName
+            && window.frame.origin.x == representative.frame.origin.x
+            && abs(window.frame.origin.y - representative.frame.origin.y) <= Self.yTolerance
+            && window.frame.width == representative.frame.width
+            && window.frame.height == representative.frame.height
     }
 }
