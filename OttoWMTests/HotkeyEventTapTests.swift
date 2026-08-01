@@ -22,7 +22,7 @@ final class HotkeyEventTapTests: XCTestCase {
         XCTAssertEqual(deferred.count, 1)
 
         deferred.forEach { $0() }
-        XCTAssertEqual(received, [.switchToVirtualSpace(1)])
+        XCTAssertEqual(received, [.switchToWorkspace(1)])
     }
 
     func testConsumedHotkeysAreDeferredInOrder() throws {
@@ -34,7 +34,7 @@ final class HotkeyEventTapTests: XCTestCase {
         _ = tap.handle(type: .keyDown, event: try keyDown(20, leftOption.union(.maskShift)))
         deferred.forEach { $0() }
 
-        XCTAssertEqual(received, [.switchToVirtualSpace(2), .moveWindowToVirtualSpace(3)])
+        XCTAssertEqual(received, [.switchToWorkspace(2), .moveWindowToWorkspace(3)])
     }
 
     func testUnmatchedKeyPassesThroughWithoutDeferringAnything() throws {

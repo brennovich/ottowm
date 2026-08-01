@@ -56,36 +56,36 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         focused = win1
         start()
 
-        engine.moveWindowToVirtualSpace(win2.snapshot(), 2)
+        engine.moveWindowToWorkspace(win2.snapshot(), 2)
 
         XCTAssertEqual(win2.frame, nubFrame(size: frame2.size))
 
-        engine.switchToVirtualSpace(2)
+        engine.switchToWorkspace(2)
 
         XCTAssertEqual(win1.frame, nubFrame(size: frame1.size))
         XCTAssertEqual(win2.frame, frame2)
 
         focused = win2
         engine.handle(.focused(win2.snapshot()))
-        engine.switchToVirtualSpace(1)
+        engine.switchToWorkspace(1)
 
         XCTAssertEqual(win1.frame, frame1)
         XCTAssertEqual(win2.frame, nubFrame(size: frame2.size))
     }
 
-    func testNativeSpaceChangeWithHiddenWindowFocusedSwitchesToItsSpace() {
+    func testNativeSpaceChangeWithHiddenWindowFocusedSwitchesToItsWorkspace() {
         let frame1 = CGRect(x: 100, y: 100, width: 800, height: 600)
         let frame2 = CGRect(x: 300, y: 200, width: 640, height: 480)
         let win1 = addWindow(100, frame: frame1)
         let win2 = addWindow(200, frame: frame2)
         focused = win1
         start()
-        engine.moveWindowToVirtualSpace(win2.snapshot(), 2)
+        engine.moveWindowToWorkspace(win2.snapshot(), 2)
 
         focused = win2
         postNativeSpaceChange()
 
-        XCTAssertEqual(engine.currentVirtualSpace, 2)
+        XCTAssertEqual(engine.currentWorkspace, 2)
         XCTAssertEqual(win2.frame, frame2)
         XCTAssertEqual(win1.frame, nubFrame(size: frame1.size))
     }
@@ -97,7 +97,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         start()
 
         nativeSpaceWindowIds = []
-        engine.switchToVirtualSpace(3)
+        engine.switchToWorkspace(3)
 
         XCTAssertEqual(win1.focusCount, 1)
         XCTAssertEqual(win1.frame, nubFrame(size: frame1.size))
@@ -105,7 +105,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         nativeSpaceWindowIds = nil
         engine.handle(.focused(win1.snapshot()))
 
-        XCTAssertEqual(engine.currentVirtualSpace, 3)
+        XCTAssertEqual(engine.currentWorkspace, 3)
         XCTAssertEqual(win1.frame, nubFrame(size: frame1.size))
     }
 
@@ -116,7 +116,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         let oldWin = addWindow(700, frame: staleFrame)
         focused = win1
         start()
-        engine.moveWindowToVirtualSpace(oldWin.snapshot(), 2)
+        engine.moveWindowToWorkspace(oldWin.snapshot(), 2)
 
         windows[700] = nil
         engine.handle(.destroyed(700))
@@ -127,27 +127,27 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         let newWin = addWindow(700, frame: recycledFrame)
         engine.handle(.created(newWin.snapshot()))
 
-        engine.switchToVirtualSpace(2)
-        engine.switchToVirtualSpace(1)
+        engine.switchToWorkspace(2)
+        engine.switchToWorkspace(1)
 
         XCTAssertEqual(newWin.frame, recycledFrame)
         XCTAssertEqual(win1.frame, frame1)
     }
 
-    func testClosingSpaceGuardIgnoresNativeSpaceChange() {
+    func testClosingWorkspaceGuardIgnoresNativeSpaceChange() {
         let frame1 = CGRect(x: 100, y: 100, width: 800, height: 600)
         let frame2 = CGRect(x: 300, y: 200, width: 640, height: 480)
         _ = addWindow(100, frame: frame1)
         let win2 = addWindow(200, frame: frame2)
         focused = windows[100]
         start()
-        engine.moveWindowToVirtualSpace(win2.snapshot(), 2)
+        engine.moveWindowToWorkspace(win2.snapshot(), 2)
 
         windows[100] = nil
         focused = win2
         postNativeSpaceChange()
 
-        XCTAssertEqual(engine.currentVirtualSpace, 1)
+        XCTAssertEqual(engine.currentWorkspace, 1)
         XCTAssertEqual(win2.frame, nubFrame(size: frame2.size))
     }
 
@@ -156,10 +156,10 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         let win2 = addWindow(200, frame: CGRect(x: 300, y: 200, width: 640, height: 480))
         focused = win1
         start()
-        engine.moveWindowToVirtualSpace(win2.snapshot(), 2)
+        engine.moveWindowToWorkspace(win2.snapshot(), 2)
         snapshotCount = 0
 
-        engine.switchToVirtualSpace(2)
+        engine.switchToWorkspace(2)
 
         XCTAssertEqual(snapshotCount, 1)
     }
@@ -175,7 +175,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         win2.isFullScreen = true
         focused = win2
         nativeSpaceWindowIds = [200]
-        engine.switchToVirtualSpace(1)
+        engine.switchToWorkspace(1)
 
         XCTAssertEqual(engine.managedWindowIds, [100])
         XCTAssertEqual(win1.focusCount, 1)
@@ -190,8 +190,8 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         focused = win1
         start()
 
-        engine.switchToVirtualSpace(2)
-        engine.switchToVirtualSpace(1)
+        engine.switchToWorkspace(2)
+        engine.switchToWorkspace(1)
 
         XCTAssertEqual(minimized.frameSetCount, 0)
         XCTAssertEqual(minimized.frame, minimizedFrame)

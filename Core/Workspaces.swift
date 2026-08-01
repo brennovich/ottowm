@@ -1,42 +1,42 @@
 import CoreGraphics
 
-// Tracks windows in their respective workspace via mappings of windows to workspace.
+// Tracks windows in their respective workspace via mappings of windows to workspaces.
 final class Workspaces {
     private struct TabGroup {
         let representative: WindowSnapshot
         var windowIds: [CGWindowID]
     }
 
-    var currentVirtualSpace = 1
+    var currentWorkspace = 1
 
     private var focusedWindows: [Int: [CGWindowID]] = [:]
-    private var windowVirtualSpaceMap: [CGWindowID: Int] = [:]
-    private var virtualSpaceWindowsMap: [Int: [CGWindowID]] = [:]
+    private var windowWorkspaceMap: [CGWindowID: Int] = [:]
+    private var workspaceWindowsMap: [Int: [CGWindowID]] = [:]
 
     private var groups: [Int: TabGroup] = [:]
     private var windowToGroup: [CGWindowID: Int] = [:]
     private var nextGroupId = 1
 
     var allWindowIds: Set<CGWindowID> {
-        Set(windowVirtualSpaceMap.keys)
+        Set(windowWorkspaceMap.keys)
     }
 
-    func saveFocusedWindowInVirtualSpace(_ virtualSpace: Int, _ windowId: CGWindowID) {
-        var focusHistory = focusedWindows[virtualSpace] ?? []
+    func saveFocusedWindowInWorkspace(_ workspace: Int, _ windowId: CGWindowID) {
+        var focusHistory = focusedWindows[workspace] ?? []
         focusHistory.removeAll { $0 == windowId }
         focusHistory.insert(windowId, at: 0)
-        focusedWindows[virtualSpace] = focusHistory
+        focusedWindows[workspace] = focusHistory
     }
 
-    func virtualSpace(for windowId: CGWindowID) -> Int? {
-        windowVirtualSpaceMap[windowId]
+    func workspace(for windowId: CGWindowID) -> Int? {
+        windowWorkspaceMap[windowId]
     }
 
-    func windowIds(in virtualSpace: Int) -> [CGWindowID] {
-        virtualSpaceWindowsMap[virtualSpace] ?? []
+    func windowIds(in workspace: Int) -> [CGWindowID] {
+        workspaceWindowsMap[workspace] ?? []
     }
 
-    func assignWindowToSpace(_ window: WindowSnapshot, _ virtualSpace: Int) {
+    func assignWindowToWorkspace(_ window: WindowSnapshot, _ workspace: Int) {
         let isNewWindow = windowToGroup[window.id] == nil
         if isNewWindow {
             var existingGroupId: Int?
@@ -59,18 +59,18 @@ final class Workspaces {
             }
         }
 
-        assignGroupToVirtualSpace(windowToGroup[window.id]!, virtualSpace)
-        saveFocusedWindowInVirtualSpace(virtualSpace, window.id)
+        assignGroup(windowToGroup[window.id]!, to: workspace)
+        saveFocusedWindowInWorkspace(workspace, window.id)
     }
 
-    func moveWindowToVirtualSpace(_ windowId: CGWindowID, _ virtualSpace: Int) {
+    func moveWindowToWorkspace(_ windowId: CGWindowID, _ workspace: Int) {
         if let groupId = windowToGroup[windowId] {
-            assignGroupToVirtualSpace(groupId, virtualSpace)
+            assignGroup(groupId, to: workspace)
         } else {
-            assignWindowToVirtualSpace(windowId, virtualSpace)
+            assign(windowId, to: workspace)
         }
 
-        saveFocusedWindowInVirtualSpace(virtualSpace, windowId)
+        saveFocusedWindowInWorkspace(workspace, windowId)
     }
 
     func unregisterWindowById(_ windowId: CGWindowID) {
@@ -78,7 +78,7 @@ final class Workspaces {
             groups[groupId]?.windowIds.removeAll { $0 == windowId }
 
             if let firstTabSibling = tabSiblings(of: windowId)?.first {
-                saveFocusedWindowInVirtualSpace(currentVirtualSpace, firstTabSibling)
+                saveFocusedWindowInWorkspace(currentWorkspace, firstTabSibling)
             }
 
             windowToGroup[windowId] = nil
@@ -88,22 +88,22 @@ final class Workspaces {
             }
         }
 
-        if let virtualSpace = windowVirtualSpaceMap[windowId] {
-            removeWindowFromList(virtualSpace, windowId)
+        if let workspace = windowWorkspaceMap[windowId] {
+            removeWindowFromList(workspace, windowId)
         }
 
         removeWindowFromFocusHistory(windowId)
-        windowVirtualSpaceMap[windowId] = nil
+        windowWorkspaceMap[windowId] = nil
     }
 
-    // Split the model's windows into the ones that belong to the target virtual
-    // space and everything else, for a transition between two native spaces.
-    func categorizeWindowsForTransition(_ targetVirtualSpace: Int) -> (toActive: [CGWindowID], toStorage: [CGWindowID]) {
+    // Split the model's windows into the ones that belong to the target
+    // workspace and everything else, for a transition between two workspaces.
+    func categorizeWindowsForTransition(_ targetWorkspace: Int) -> (toActive: [CGWindowID], toStorage: [CGWindowID]) {
         var toActive: [CGWindowID] = []
         var toStorage: [CGWindowID] = []
 
-        for (windowId, virtualSpace) in windowVirtualSpaceMap {
-            if virtualSpace == targetVirtualSpace {
+        for (windowId, workspace) in windowWorkspaceMap {
+            if workspace == targetWorkspace {
                 toActive.append(windowId)
             } else {
                 toStorage.append(windowId)
@@ -120,48 +120,48 @@ final class Workspaces {
         return siblings.isEmpty ? nil : siblings
     }
 
-    func prepareWindowToBeFocusedOnCurrentVirtualSpace() -> CGWindowID? {
-        if let focusHistory = focusedWindows[currentVirtualSpace] {
-            for windowId in focusHistory where windowVirtualSpaceMap[windowId] == currentVirtualSpace {
+    func prepareWindowToBeFocusedOnCurrentWorkspace() -> CGWindowID? {
+        if let focusHistory = focusedWindows[currentWorkspace] {
+            for windowId in focusHistory where windowWorkspaceMap[windowId] == currentWorkspace {
                 return windowId
             }
         }
 
-        let windows = virtualSpaceWindowsMap[currentVirtualSpace] ?? []
+        let windows = workspaceWindowsMap[currentWorkspace] ?? []
         if let first = windows.first {
-            saveFocusedWindowInVirtualSpace(currentVirtualSpace, first)
+            saveFocusedWindowInWorkspace(currentWorkspace, first)
             return first
         }
 
         return nil
     }
 
-    private func assignWindowToVirtualSpace(_ windowId: CGWindowID, _ virtualSpace: Int) {
-        let previousVirtualSpace = windowVirtualSpaceMap[windowId]
-        if previousVirtualSpace == virtualSpace { return }
+    private func assign(_ windowId: CGWindowID, to workspace: Int) {
+        let previousWorkspace = windowWorkspaceMap[windowId]
+        if previousWorkspace == workspace { return }
 
-        if let previousVirtualSpace {
-            removeWindowFromList(previousVirtualSpace, windowId)
-            focusedWindows[previousVirtualSpace]?.removeAll { $0 == windowId }
+        if let previousWorkspace {
+            removeWindowFromList(previousWorkspace, windowId)
+            focusedWindows[previousWorkspace]?.removeAll { $0 == windowId }
         }
 
-        virtualSpaceWindowsMap[virtualSpace, default: []].append(windowId)
-        windowVirtualSpaceMap[windowId] = virtualSpace
+        workspaceWindowsMap[workspace, default: []].append(windowId)
+        windowWorkspaceMap[windowId] = workspace
     }
 
-    private func assignGroupToVirtualSpace(_ groupId: Int, _ virtualSpace: Int) {
+    private func assignGroup(_ groupId: Int, to workspace: Int) {
         for windowId in groups[groupId]?.windowIds ?? [] {
-            assignWindowToVirtualSpace(windowId, virtualSpace)
+            assign(windowId, to: workspace)
         }
     }
 
-    private func removeWindowFromList(_ virtualSpace: Int, _ windowId: CGWindowID) {
-        virtualSpaceWindowsMap[virtualSpace]?.removeAll { $0 == windowId }
+    private func removeWindowFromList(_ workspace: Int, _ windowId: CGWindowID) {
+        workspaceWindowsMap[workspace]?.removeAll { $0 == windowId }
     }
 
     private func removeWindowFromFocusHistory(_ windowId: CGWindowID) {
-        for virtualSpace in focusedWindows.keys {
-            focusedWindows[virtualSpace]?.removeAll { $0 == windowId }
+        for workspace in focusedWindows.keys {
+            focusedWindows[workspace]?.removeAll { $0 == windowId }
         }
     }
 }

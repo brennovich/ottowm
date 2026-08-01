@@ -44,10 +44,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let hotkeys = HotkeyEventTap { action in
             switch action {
-            case let .switchToVirtualSpace(virtualSpace):
-                engine.switchToVirtualSpace(virtualSpace)
-            case let .moveWindowToVirtualSpace(virtualSpace):
-                engine.moveWindowToVirtualSpace(nil, virtualSpace)
+            case let .switchToWorkspace(workspace):
+                engine.switchToWorkspace(workspace)
+            case let .moveWindowToWorkspace(workspace):
+                engine.moveWindowToWorkspace(nil, workspace)
             }
         }
         self.hotkeys = hotkeys

@@ -1,8 +1,8 @@
 import CoreGraphics
 
 enum HotkeyAction: Equatable {
-    case switchToVirtualSpace(Int)
-    case moveWindowToVirtualSpace(Int)
+    case switchToWorkspace(Int)
+    case moveWindowToWorkspace(Int)
 }
 
 enum EventTapDecision: Equatable {
@@ -26,10 +26,10 @@ func eventTapDecision(type: CGEventType, keyCode: Int64, flags: CGEventFlags) ->
 private let leftOptionDeviceBit: UInt64 = 0x20
 private let rightOptionDeviceBit: UInt64 = 0x40
 
-private let virtualSpaceByKeyCode: [Int64: Int] = [18: 1, 19: 2, 20: 3, 21: 4]
+private let workspaceByKeyCode: [Int64: Int] = [18: 1, 19: 2, 20: 3, 21: 4]
 
 func hotkeyAction(keyCode: Int64, flags: CGEventFlags) -> HotkeyAction? {
-    guard let virtualSpace = virtualSpaceByKeyCode[keyCode],
+    guard let workspace = workspaceByKeyCode[keyCode],
           flags.contains(.maskAlternate),
           flags.rawValue & leftOptionDeviceBit != 0,
           flags.rawValue & rightOptionDeviceBit == 0,
@@ -38,6 +38,6 @@ func hotkeyAction(keyCode: Int64, flags: CGEventFlags) -> HotkeyAction? {
     else { return nil }
 
     return flags.contains(.maskShift)
-        ? .moveWindowToVirtualSpace(virtualSpace)
-        : .switchToVirtualSpace(virtualSpace)
+        ? .moveWindowToWorkspace(workspace)
+        : .switchToWorkspace(workspace)
 }

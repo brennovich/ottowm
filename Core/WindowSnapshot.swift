@@ -2,7 +2,7 @@ import CoreGraphics
 
 // A window's state at a point in time, read in one batched round trip. The pure
 // model and the engine work on these values instead of live windows, so tab
-// inference and space assignment cost no IPC at all.
+// inference and workspace assignment cost no IPC at all.
 struct WindowSnapshot: Sendable, Equatable {
     let id: CGWindowID
     let appName: String
