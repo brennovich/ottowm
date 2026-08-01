@@ -130,8 +130,7 @@ final class OffscreenParkingDesktop: Desktop {
 
     // macOS constrains a window to be fully on screen when the space it sits on
     // becomes active again, undoing a park issued while that space was in the
-    // background — which is what happens when a switch is triggered from an app's
-    // full screen space. Park them again, from the frame captured the first time.
+    // background.
     private func parkWindowsPulledBackOnScreen() {
         for (windowId, originalFrame) in hiddenWindowFrames {
             guard let win = window(windowId),
