@@ -214,6 +214,48 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(received, [])
     }
 
+    func testNativeSpaceChangeParksStoredWindowsPulledBackOnScreen() {
+        let win = StubWindow(id: 100, frame: originalFrame)
+        let center = NotificationCenter()
+        let desktop = makeDesktop([win], center: center)
+
+        desktop.startWatchingForManualNavigation { _ in }
+        desktop.place(100, .storage)
+        win.setFrame(CGRect(x: 200, y: 300, width: 800, height: 600))
+        center.post(name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
+
+        XCTAssertEqual(win.frame, CGRect(x: 1791, y: 1119, width: 800, height: 600))
+
+        desktop.place(100, .active)
+
+        XCTAssertEqual(win.frame, originalFrame)
+    }
+
+    func testNativeSpaceChangeLeavesWindowsAtTheHiddenEdgeAlone() {
+        let win = StubWindow(id: 100, frame: originalFrame)
+        let center = NotificationCenter()
+        let desktop = makeDesktop([win], center: center)
+
+        desktop.startWatchingForManualNavigation { _ in }
+        desktop.place(100, .storage)
+        center.post(name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
+
+        XCTAssertEqual(win.frameSetCount, 1)
+    }
+
+    func testNativeSpaceChangeToAHiddenWindowLeavesItForTheCallback() {
+        let win = StubWindow(id: 100, frame: originalFrame)
+        let center = NotificationCenter()
+        let desktop = makeDesktop([win], focusedWindowId: { win.id }, center: center)
+
+        desktop.startWatchingForManualNavigation { _ in }
+        desktop.place(100, .storage)
+        win.setFrame(CGRect(x: 200, y: 300, width: 800, height: 600))
+        center.post(name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
+
+        XCTAssertEqual(win.frame, CGRect(x: 200, y: 300, width: 800, height: 600))
+    }
+
     func testStartWatchingForManualNavigationReplacesPreviousSubscription() {
         let win = StubWindow(id: 100, frame: originalFrame)
         let center = NotificationCenter()

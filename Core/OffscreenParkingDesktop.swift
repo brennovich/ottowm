@@ -109,11 +109,29 @@ final class OffscreenParkingDesktop: Desktop {
 
     private func handleActiveSpaceChange(_ callback: (CGWindowID) -> Void) {
         guard let focusedId = focusedWindowId(), hiddenWindowFrames[focusedId] != nil else {
-            Log.desktop.debug("native space change ignored: no hidden window focused")
+            Log.desktop.debug("native space change: no hidden window focused")
+            parkWindowsPulledBackOnScreen()
             return
         }
         Log.desktop.info("native space change with hidden window focused id=\(focusedId)")
         callback(focusedId)
+    }
+
+    // macOS constrains a window to be fully on screen when the space it sits on
+    // becomes active again, undoing a park issued while that space was in the
+    // background — which is what happens when a switch is triggered from an app's
+    // full screen space. Park them again, from the frame captured the first time.
+    private func parkWindowsPulledBackOnScreen() {
+        for (windowId, originalFrame) in hiddenWindowFrames {
+            guard let win = window(windowId),
+                  let frame = win.movableFrame(),
+                  !isStuckAtHiddenEdge(frame, on: screen)
+            else { continue }
+
+            let hidden = hiddenFrame(for: originalFrame, on: screen)
+            win.setFrame(hidden)
+            Log.desktop.info("re-hid id=\(windowId) pulled back to \(frame), to=\(hidden)")
+        }
     }
 
     private func recoverWindowsStuckAtHiddenEdge(_ windows: [WindowSnapshot]) {
