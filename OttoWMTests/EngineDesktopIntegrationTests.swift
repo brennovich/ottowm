@@ -2,6 +2,8 @@ import AppKit
 import XCTest
 
 final class EngineDesktopIntegrationTests: XCTestCase {
+    private let frame1 = CGRect(x: 100, y: 100, width: 800, height: 600)
+    private let frame2 = CGRect(x: 300, y: 200, width: 640, height: 480)
     private var windows: [CGWindowID: StubWindow] = [:]
     private var focused: StubWindow?
     private var nativeSpaceWindowIds: Set<CGWindowID>?
@@ -47,17 +49,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         engine.moveFocusedWindow(toWorkspace: workspace)
     }
 
-    private func postNativeSpaceChange() {
-        center.post(name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
-    }
-
-    private func nubFrame(size: CGSize) -> CGRect {
-        CGRect(origin: CGPoint(x: 1791, y: 1119), size: size)
-    }
-
     func testSwitchRoundTripRestoresExactFrames() {
-        let frame1 = CGRect(x: 100, y: 100, width: 800, height: 600)
-        let frame2 = CGRect(x: 300, y: 200, width: 640, height: 480)
         let win1 = addWindow(100, frame: frame1)
         let win2 = addWindow(200, frame: frame2)
         start()
@@ -80,15 +72,13 @@ final class EngineDesktopIntegrationTests: XCTestCase {
     }
 
     func testNativeSpaceChangeWithHiddenWindowFocusedSwitchesToItsWorkspace() {
-        let frame1 = CGRect(x: 100, y: 100, width: 800, height: 600)
-        let frame2 = CGRect(x: 300, y: 200, width: 640, height: 480)
         let win1 = addWindow(100, frame: frame1)
         let win2 = addWindow(200, frame: frame2)
         start()
         moveFocusedWindow(win2, to: 2)
 
         focused = win2
-        postNativeSpaceChange()
+        center.postNativeSpaceChange()
 
         XCTAssertEqual(workspaces.currentWorkspace, 2)
         XCTAssertEqual(win2.frame, frame2)
@@ -96,7 +86,6 @@ final class EngineDesktopIntegrationTests: XCTestCase {
     }
 
     func testReturnToDesktopSuppressesFollowUpManualNavigation() {
-        let frame1 = CGRect(x: 100, y: 100, width: 800, height: 600)
         let win1 = addWindow(100, frame: frame1)
         focused = win1
         start()
@@ -115,10 +104,8 @@ final class EngineDesktopIntegrationTests: XCTestCase {
     }
 
     func testDestroyedHiddenWindowIdRecycledIsNotRestoredToStaleFrame() {
-        let frame1 = CGRect(x: 50, y: 50, width: 400, height: 300)
-        let staleFrame = CGRect(x: 100, y: 100, width: 800, height: 600)
         let win1 = addWindow(100, frame: frame1)
-        let oldWin = addWindow(700, frame: staleFrame)
+        let oldWin = addWindow(700, frame: frame2)
         start()
         moveFocusedWindow(oldWin, to: 2)
 
@@ -139,8 +126,6 @@ final class EngineDesktopIntegrationTests: XCTestCase {
     }
 
     func testClosingWorkspaceGuardIgnoresNativeSpaceChange() {
-        let frame1 = CGRect(x: 100, y: 100, width: 800, height: 600)
-        let frame2 = CGRect(x: 300, y: 200, width: 640, height: 480)
         _ = addWindow(100, frame: frame1)
         let win2 = addWindow(200, frame: frame2)
         start()
@@ -148,15 +133,15 @@ final class EngineDesktopIntegrationTests: XCTestCase {
 
         windows[100] = nil
         focused = win2
-        postNativeSpaceChange()
+        center.postNativeSpaceChange()
 
         XCTAssertEqual(workspaces.currentWorkspace, 1)
         XCTAssertEqual(win2.frame, nubFrame(size: frame2.size))
     }
 
     func testSwitchTakesASingleOnScreenWindowsSnapshot() {
-        let win1 = addWindow(100, frame: CGRect(x: 100, y: 100, width: 800, height: 600))
-        let win2 = addWindow(200, frame: CGRect(x: 300, y: 200, width: 640, height: 480))
+        _ = addWindow(100, frame: frame1)
+        let win2 = addWindow(200, frame: frame2)
         start()
         moveFocusedWindow(win2, to: 2)
         snapshotCount = 0
@@ -167,8 +152,6 @@ final class EngineDesktopIntegrationTests: XCTestCase {
     }
 
     func testSwitchFromAFullScreenWindowComesBackToTheDesktop() {
-        let frame1 = CGRect(x: 100, y: 100, width: 800, height: 600)
-        let frame2 = CGRect(x: 300, y: 200, width: 640, height: 480)
         let win1 = addWindow(100, frame: frame1)
         let win2 = addWindow(200, frame: frame2)
         focused = win1
@@ -185,8 +168,6 @@ final class EngineDesktopIntegrationTests: XCTestCase {
     }
 
     func testWindowMinimizedWhileParkedIsRecoveredWhenItComesBack() {
-        let frame1 = CGRect(x: 100, y: 100, width: 800, height: 600)
-        let frame2 = CGRect(x: 300, y: 200, width: 640, height: 480)
         _ = addWindow(100, frame: frame1)
         let win2 = addWindow(200, frame: frame2)
         start()
@@ -203,10 +184,8 @@ final class EngineDesktopIntegrationTests: XCTestCase {
     }
 
     func testMinimizedWindowIsLeftInPlaceAcrossSwitches() {
-        let frame1 = CGRect(x: 100, y: 100, width: 800, height: 600)
-        let minimizedFrame = CGRect(x: 300, y: 200, width: 640, height: 480)
         let win1 = addWindow(100, frame: frame1)
-        let minimized = addWindow(300, frame: minimizedFrame, isMinimized: true)
+        let minimized = addWindow(300, frame: frame2, isMinimized: true)
         focused = win1
         start()
 
@@ -214,7 +193,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         engine.switchToWorkspace(1)
 
         XCTAssertEqual(minimized.frameSetCount, 0)
-        XCTAssertEqual(minimized.frame, minimizedFrame)
+        XCTAssertEqual(minimized.frame, frame2)
         XCTAssertEqual(win1.frame, frame1)
     }
 }

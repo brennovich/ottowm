@@ -2,117 +2,57 @@ import CoreGraphics
 import XCTest
 
 final class WorkspacesTests: XCTestCase {
+    private func makeWorkspaces(assigning assignments: [(window: CGWindowID, workspace: Int)]) -> Workspaces {
+        let model = Workspaces()
+        for assignment in assignments {
+            model.assignWindowToWorkspace(makeSnapshot(assignment.window), assignment.workspace)
+        }
+        return model
+    }
+
     func testCurrentWorkspaceStartsAtOne() {
         XCTAssertEqual(Workspaces().currentWorkspace, 1)
     }
 
     func testWindowAssignment() {
-        let cases: [(name: String, assignments: [(window: CGWindowID, workspace: Int)], expected: [(window: CGWindowID, workspace: Int)])] = [
-            ("assign single window", [(100, 1)], [(100, 1)]),
-            (
-                "multiple windows to same workspace",
-                [(100, 1), (200, 1), (300, 2)],
-                [(100, 1), (200, 1), (300, 2)]
-            ),
-            ("reassign window to different workspace", [(100, 1), (100, 2)], [(100, 2)]),
+        let cases: [(name: String, assignments: [(window: CGWindowID, workspace: Int)], windowsByWorkspace: [Int: [CGWindowID]])] = [
+            ("assign single window", [(100, 1)], [1: [100]]),
+            ("multiple windows across workspaces", [(100, 1), (200, 1), (300, 2)], [1: [100, 200], 2: [300], 3: []]),
+            ("reassign window to a different workspace", [(100, 1), (200, 1), (100, 2)], [1: [200], 2: [100]]),
+            ("reassign window to the same workspace is idempotent", [(100, 1), (200, 1), (100, 1)], [1: [100, 200]]),
         ]
 
         for testCase in cases {
-            let model = Workspaces()
-            for assignment in testCase.assignments {
-                model.assignWindowToWorkspace(makeSnapshot(assignment.window), assignment.workspace)
-            }
+            let model = makeWorkspaces(assigning: testCase.assignments)
 
-            for assertion in testCase.expected {
-                XCTAssertEqual(
-                    model.workspace(for: assertion.window),
-                    assertion.workspace,
-                    testCase.name
-                )
+            for (workspace, windowIds) in testCase.windowsByWorkspace {
+                XCTAssertEqual(model.windowIds(in: workspace), windowIds, testCase.name)
+                for windowId in windowIds {
+                    XCTAssertEqual(model.workspace(for: windowId), workspace, testCase.name)
+                }
             }
         }
     }
 
-    func testUnregisterWindowsById() {
-        let cases: [(name: String, assigned: Bool, windowId: CGWindowID)] = [
-            ("remove assigned window", true, 100),
-            ("remove non-existent window", false, 999),
+    func testUnregisterWindow() {
+        let cases: [(name: String, assignments: [(window: CGWindowID, workspace: Int)], unregister: CGWindowID, remaining: [CGWindowID])] = [
+            ("remove the only window", [(100, 1)], 100, []),
+            ("remove non-existent window", [], 999, []),
+            ("remove one window among several", [(100, 1), (200, 1), (300, 1)], 200, [100, 300]),
         ]
 
         for testCase in cases {
-            let model = Workspaces()
-            if testCase.assigned {
-                model.assignWindowToWorkspace(makeSnapshot(testCase.windowId), 1)
-            }
+            let model = makeWorkspaces(assigning: testCase.assignments)
 
-            model.unregisterWindowById(testCase.windowId)
+            model.unregisterWindowById(testCase.unregister)
 
-            XCTAssertNil(model.workspace(for: testCase.windowId), testCase.name)
+            XCTAssertNil(model.workspace(for: testCase.unregister), testCase.name)
+            XCTAssertEqual(model.windowIds(in: 1), testCase.remaining, testCase.name)
         }
-    }
-
-    func testGetWindowsInWorkspace() {
-        let model = Workspaces()
-
-        model.assignWindowToWorkspace(makeSnapshot(100), 1)
-        model.assignWindowToWorkspace(makeSnapshot(200), 1)
-        model.assignWindowToWorkspace(makeSnapshot(300), 2)
-
-        XCTAssertEqual(model.windowIds(in: 1), [100, 200])
-        XCTAssertEqual(model.windowIds(in: 3), [])
-    }
-
-    func testReassignWindowRemovesFromOldWorkspace() {
-        let model = Workspaces()
-
-        model.assignWindowToWorkspace(makeSnapshot(100), 1)
-        model.assignWindowToWorkspace(makeSnapshot(200), 1)
-        model.assignWindowToWorkspace(makeSnapshot(100), 2)
-
-        XCTAssertEqual(model.windowIds(in: 1), [200])
-        XCTAssertEqual(model.windowIds(in: 2), [100])
-    }
-
-    func testReassignWindowToSameWorkspaceIsIdempotent() {
-        let model = Workspaces()
-
-        model.assignWindowToWorkspace(makeSnapshot(100), 1)
-        model.assignWindowToWorkspace(makeSnapshot(200), 1)
-        model.assignWindowToWorkspace(makeSnapshot(100), 1)
-
-        XCTAssertEqual(model.windowIds(in: 1), [100, 200])
-    }
-
-    func testRemoveWindowFromWorkspaceWithMultipleWindows() {
-        let model = Workspaces()
-
-        model.assignWindowToWorkspace(makeSnapshot(100), 1)
-        model.assignWindowToWorkspace(makeSnapshot(200), 1)
-        model.assignWindowToWorkspace(makeSnapshot(300), 1)
-        model.unregisterWindowById(200)
-
-        let windows = model.windowIds(in: 1)
-
-        XCTAssertEqual(windows.count, 2)
-        XCTAssertFalse(windows.contains(200))
-        XCTAssertTrue(windows.contains(100))
-        XCTAssertTrue(windows.contains(300))
-    }
-
-    func testRemoveLastWindowLeavesWorkspaceEmpty() {
-        let model = Workspaces()
-
-        model.assignWindowToWorkspace(makeSnapshot(100), 1)
-        model.unregisterWindowById(100)
-
-        XCTAssertEqual(model.windowIds(in: 1).count, 0)
     }
 
     func testRemoveWindowDoesNotAffectFocusedWindowInOtherWorkspaces() {
-        let model = Workspaces()
-
-        model.assignWindowToWorkspace(makeSnapshot(100), 1)
-        model.assignWindowToWorkspace(makeSnapshot(200), 2)
+        let model = makeWorkspaces(assigning: [(100, 1), (200, 2)])
         model.saveFocusedWindowInWorkspace(1, 100)
         model.saveFocusedWindowInWorkspace(2, 200)
 
@@ -125,11 +65,7 @@ final class WorkspacesTests: XCTestCase {
     }
 
     func testFocusHistoryMaintainsOrder() {
-        let model = Workspaces()
-
-        model.assignWindowToWorkspace(makeSnapshot(100), 1)
-        model.assignWindowToWorkspace(makeSnapshot(200), 1)
-        model.assignWindowToWorkspace(makeSnapshot(300), 1)
+        let model = makeWorkspaces(assigning: [(100, 1), (200, 1), (300, 1)])
 
         model.saveFocusedWindowInWorkspace(1, 100)
         model.saveFocusedWindowInWorkspace(1, 200)
@@ -145,10 +81,7 @@ final class WorkspacesTests: XCTestCase {
     }
 
     func testFocusHistoryNoDuplicates() {
-        let model = Workspaces()
-
-        model.assignWindowToWorkspace(makeSnapshot(100), 1)
-        model.assignWindowToWorkspace(makeSnapshot(200), 1)
+        let model = makeWorkspaces(assigning: [(100, 1), (200, 1)])
 
         model.saveFocusedWindowInWorkspace(1, 100)
         model.saveFocusedWindowInWorkspace(1, 200)
@@ -161,7 +94,7 @@ final class WorkspacesTests: XCTestCase {
     }
 
     func testSwitchTo() {
-        let cases: [(name: String, assignments: [(window: CGWindowID, workspace: Int)], target: Int, toActive: [CGWindowID], toStorage: [CGWindowID])] = [
+        let cases: [(name: String, assignments: [(window: CGWindowID, workspace: Int)], target: Int, toActive: Set<CGWindowID>, toStorage: Set<CGWindowID>)] = [
             ("no windows", [], 2, [], []),
             ("only target workspace windows", [(100, 2), (200, 2)], 2, [100, 200], []),
             ("only current workspace windows", [(100, 1), (200, 1)], 2, [], [100, 200]),
@@ -178,30 +111,18 @@ final class WorkspacesTests: XCTestCase {
         ]
 
         for testCase in cases {
-            let model = Workspaces()
-            for assignment in testCase.assignments {
-                model.assignWindowToWorkspace(makeSnapshot(assignment.window), assignment.workspace)
-            }
+            let model = makeWorkspaces(assigning: testCase.assignments)
 
             let result = model.switchTo(testCase.target, leavingFocusOn: nil)
 
             XCTAssertEqual(model.currentWorkspace, testCase.target, testCase.name)
-            XCTAssertEqual(result.toActive.count, testCase.toActive.count, testCase.name)
-            for windowId in testCase.toActive {
-                XCTAssertTrue(result.toActive.contains(windowId), testCase.name)
-            }
-            XCTAssertEqual(result.toStorage.count, testCase.toStorage.count, testCase.name)
-            for windowId in testCase.toStorage {
-                XCTAssertTrue(result.toStorage.contains(windowId), testCase.name)
-            }
+            XCTAssertEqual(Set(result.toActive), testCase.toActive, testCase.name)
+            XCTAssertEqual(Set(result.toStorage), testCase.toStorage, testCase.name)
         }
     }
 
     func testSwitchToSavesFocusInTheWorkspaceBeingLeft() {
-        let model = Workspaces()
-
-        model.assignWindowToWorkspace(makeSnapshot(100), 1)
-        model.assignWindowToWorkspace(makeSnapshot(200), 1)
+        let model = makeWorkspaces(assigning: [(100, 1), (200, 1)])
 
         _ = model.switchTo(2, leavingFocusOn: 100)
         _ = model.switchTo(1, leavingFocusOn: nil)
@@ -218,10 +139,7 @@ final class WorkspacesTests: XCTestCase {
         ]
 
         for testCase in cases {
-            let model = Workspaces()
-            for assignment in testCase.assignments {
-                model.assignWindowToWorkspace(makeSnapshot(assignment.window), assignment.workspace)
-            }
+            let model = makeWorkspaces(assigning: testCase.assignments)
             for windowId in testCase.unregister {
                 model.unregisterWindowById(windowId)
             }
@@ -230,23 +148,11 @@ final class WorkspacesTests: XCTestCase {
         }
     }
 
-    func testAssignWindowToWorkspaceWithSingleWindow() {
-        let model = Workspaces()
-        let window = makeSnapshot(100, appName: "Safari")
-
-        model.assignWindowToWorkspace(window, 1)
-
-        XCTAssertEqual(model.workspace(for: 100), 1)
-        XCTAssertEqual(model.nextWindowToFocus(), 100)
-    }
-
     func testAssignWindowToWorkspaceWithTabbedWindows() {
         let model = Workspaces()
-        let window1 = makeSnapshot(100, appName: "Safari", tabCount: 2)
-        let window2 = makeSnapshot(200, appName: "Safari", tabCount: 2)
 
-        model.assignWindowToWorkspace(window1, 1)
-        model.assignWindowToWorkspace(window2, 2)
+        model.assignWindowToWorkspace(makeSnapshot(100, appName: "Safari", tabCount: 2), 1)
+        model.assignWindowToWorkspace(makeSnapshot(200, appName: "Safari", tabCount: 2), 2)
 
         XCTAssertEqual(model.workspace(for: 100), 2)
         XCTAssertEqual(model.workspace(for: 200), 2)
@@ -256,32 +162,25 @@ final class WorkspacesTests: XCTestCase {
     }
 
     func testAssignWindowToWorkspaceClearsFocusedWindowAndWorkspaceEntry() {
-        let model = Workspaces()
-        let window = makeSnapshot(100)
+        let model = makeWorkspaces(assigning: [(100, 1)])
 
-        model.assignWindowToWorkspace(window, 1)
-        XCTAssertEqual(model.workspace(for: window.id), 1)
+        model.assignWindowToWorkspace(makeSnapshot(100), 2)
 
-        model.assignWindowToWorkspace(window, 2)
-        XCTAssertEqual(model.workspace(for: window.id), 2)
+        XCTAssertEqual(model.workspace(for: 100), 2)
         XCTAssertNil(model.nextWindowToFocus())
 
         _ = model.switchTo(2, leavingFocusOn: nil)
-        XCTAssertEqual(model.nextWindowToFocus(), window.id)
+        XCTAssertEqual(model.nextWindowToFocus(), 100)
     }
 
     func testMoveWindowToWorkspaceMovesRegisteredWindow() {
-        let model = Workspaces()
-        let window = makeSnapshot(100)
-
-        model.assignWindowToWorkspace(window, 1)
-        XCTAssertEqual(model.workspace(for: 100), 1)
+        let model = makeWorkspaces(assigning: [(100, 1)])
 
         model.moveWindowToWorkspace(100, 2)
 
         XCTAssertEqual(model.workspace(for: 100), 2)
-        XCTAssertEqual(model.windowIds(in: 1).count, 0)
-        XCTAssertEqual(model.windowIds(in: 2).count, 1)
+        XCTAssertEqual(model.windowIds(in: 1), [])
+        XCTAssertEqual(model.windowIds(in: 2), [100])
 
         _ = model.switchTo(2, leavingFocusOn: nil)
         XCTAssertEqual(model.nextWindowToFocus(), 100)
@@ -289,26 +188,19 @@ final class WorkspacesTests: XCTestCase {
 
     func testMoveWindowToWorkspaceMovesTabGroup() {
         let model = Workspaces()
-        let window1 = makeSnapshot(100, appName: "Safari", tabCount: 2)
-        let window2 = makeSnapshot(200, appName: "Safari", tabCount: 2)
-
-        model.assignWindowToWorkspace(window1, 1)
-        model.assignWindowToWorkspace(window2, 1)
-
-        XCTAssertEqual(model.workspace(for: 100), 1)
-        XCTAssertEqual(model.workspace(for: 200), 1)
+        model.assignWindowToWorkspace(makeSnapshot(100, appName: "Safari", tabCount: 2), 1)
+        model.assignWindowToWorkspace(makeSnapshot(200, appName: "Safari", tabCount: 2), 1)
 
         model.moveWindowToWorkspace(100, 3)
 
         XCTAssertEqual(model.workspace(for: 100), 3)
         XCTAssertEqual(model.workspace(for: 200), 3)
-        XCTAssertEqual(model.windowIds(in: 1).count, 0)
+        XCTAssertEqual(model.windowIds(in: 1), [])
         XCTAssertEqual(model.windowIds(in: 3).count, 2)
     }
 
     func testUnregisteringATabLeavesItsSiblingsInPlaceAndFocused() {
         let model = Workspaces()
-
         model.assignWindowToWorkspace(makeSnapshot(100, appName: "Safari", tabCount: 2), 1)
         model.assignWindowToWorkspace(makeSnapshot(200, appName: "Safari", tabCount: 2), 1)
         model.assignWindowToWorkspace(makeSnapshot(300), 1)

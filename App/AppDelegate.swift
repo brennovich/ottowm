@@ -6,6 +6,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var engine: Engine?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Read before anything else: a configuration the user has to fix stops the launch, and by
+        // the time the engine is running there are windows parked offscreen to restore.
+        let config: Config
+        switch ConfigFile.load() {
+        case let .success(loaded):
+            config = loaded
+        case let .failure(error):
+            Log.app.error("cannot start: \(error)")
+            exit(EXIT_FAILURE)
+        }
+
         let trusted = AXIsProcessTrustedWithOptions(
             [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         )
@@ -32,8 +43,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 onScreenWindowIds: OperationCache {
                     Set((CGWindowListCopyWindowInfo(
                         [.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
-                         as? [[String: Any]] ?? []
-                    )
+                         as? [[String: Any]] ?? [])
                         .compactMap { $0[kCGWindowNumber as String] as? NSNumber }
                         .map { CGWindowID($0.uint32Value) })
                 },
@@ -45,12 +55,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let windows = windowObserver.start { engine.handle($0) }
         engine.start(windows: windows)
 
-        let hotkeys = HotkeyEventTap { action in
+        let hotkeys = HotkeyEventTap(config: config) { action in
             switch action {
-            case let .switchToWorkspace(workspace):
-                engine.switchToWorkspace(workspace)
-            case let .moveWindowToWorkspace(workspace):
-                engine.moveFocusedWindow(toWorkspace: workspace)
+            case let .switchToWorkspace(workspace): engine.switchToWorkspace(workspace)
+            case let .moveWindowToWorkspace(workspace): engine.moveFocusedWindow(toWorkspace: workspace)
             }
         }
         self.hotkeys = hotkeys

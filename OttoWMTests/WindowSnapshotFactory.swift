@@ -9,13 +9,13 @@ func makeSnapshot(
     isFullScreen: Bool = false,
     isMinimized: Bool = false
 ) -> WindowSnapshot {
-    WindowSnapshot(
+    StubWindow(
         id: id,
         appName: appName,
+        frame: frame,
+        tabCount: tabCount,
         isStandard: isStandard,
         isFullScreen: isFullScreen,
-        isMinimized: isMinimized,
-        tabCount: tabCount,
-        frame: frame
-    )
+        isMinimized: isMinimized
+    ).snapshot()
 }

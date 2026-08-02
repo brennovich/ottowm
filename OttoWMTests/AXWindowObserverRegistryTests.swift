@@ -7,13 +7,6 @@ final class AXWindowObserverRegistryTests: XCTestCase {
     private let elementB = AXUIElementCreateApplication(902)
     private let elementC = AXUIElementCreateApplication(903)
 
-    func testRemoveWindowReturnsRegisteredId() {
-        var registry = AXWindowObserver.Registry()
-        registry.register(elementA, pid: 1, id: 100)
-
-        XCTAssertEqual(registry.removeWindow(for: elementA), 100)
-    }
-
     func testRemoveWindowForUnknownElementReturnsNil() {
         var registry = AXWindowObserver.Registry()
 
@@ -33,14 +26,6 @@ final class AXWindowObserverRegistryTests: XCTestCase {
         registry.register(AXUIElementCreateApplication(904), pid: 1, id: 100)
 
         XCTAssertEqual(registry.removeWindow(for: AXUIElementCreateApplication(904)), 100)
-    }
-
-    func testRegisterSameElementTwiceKeepsLastId() {
-        var registry = AXWindowObserver.Registry()
-        registry.register(elementA, pid: 1, id: 100)
-        registry.register(elementA, pid: 1, id: 200)
-
-        XCTAssertEqual(registry.removeWindow(for: elementA), 200)
     }
 
     func testEvictRemovesOnlyThatPidsElements() {
@@ -92,13 +77,14 @@ final class AXWindowObserverRegistryTests: XCTestCase {
         XCTAssertNil(registry.element(for: 999))
     }
 
-    func testElementForIdAfterReregisterTracksTheLastId() {
+    func testReregisteringAnElementTracksTheLastId() {
         var registry = AXWindowObserver.Registry()
         registry.register(elementA, pid: 1, id: 100)
         registry.register(elementA, pid: 1, id: 200)
 
         XCTAssertNil(registry.element(for: 100))
         XCTAssertEqual(registry.element(for: 200)?.element, elementA)
+        XCTAssertEqual(registry.removeWindow(for: elementA), 200)
     }
 
     func testElementForIdAfterRemoveReturnsNil() {

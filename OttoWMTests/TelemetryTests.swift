@@ -19,22 +19,14 @@ final class TelemetryTests: XCTestCase {
         XCTAssertEqual(result, 42)
     }
 
-    func testSpanRunsVoidBodyAndRecordsOnce() {
-        let telemetry = makeTelemetry()
-        var sideEffect = 0
-
-        telemetry.span("operation") { sideEffect = 123 }
-
-        XCTAssertEqual(sideEffect, 123)
-        XCTAssertEqual(recorded.count, 1)
-    }
-
-    func testSpanRecordsOperationNameAndClockDeltaInMilliseconds() {
+    func testSpanRunsVoidBodyAndRecordsOperationNameAndClockDeltaInMilliseconds() {
         clockReadings = [1.0, 1.0025]
         let telemetry = makeTelemetry()
+        var bodyRan = false
 
-        telemetry.span("saveWindowFocus") {}
+        telemetry.span("saveWindowFocus") { bodyRan = true }
 
+        XCTAssertTrue(bodyRan)
         XCTAssertEqual(recorded.count, 1)
         XCTAssertEqual(recorded[0].operation, "saveWindowFocus")
         XCTAssertEqual(recorded[0].ms, 2.5, accuracy: 0.0001)

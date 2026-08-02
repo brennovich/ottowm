@@ -1,0 +1,9 @@
+lopt-1 = switch-to-workspace 1
+lopt-2 = switch-to-workspace 2
+lopt-3 = switch-to-workspace 3
+lopt-4 = switch-to-workspace 4
+
+lopt-shift-1 = move-window-to-workspace 1
+lopt-shift-2 = move-window-to-workspace 2
+lopt-shift-3 = move-window-to-workspace 3
+lopt-shift-4 = move-window-to-workspace 4
