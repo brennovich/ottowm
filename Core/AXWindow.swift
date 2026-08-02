@@ -36,33 +36,29 @@ final class AXWindow: Window {
 
     func snapshot() -> WindowSnapshot {
         let attributes = axAttributes(element, [
-            kAXSubroleAttribute as String,
-            "AXFullScreen",
-            kAXMinimizedAttribute as String,
-            kAXPositionAttribute as String,
-            kAXSizeAttribute as String,
+            kAXSubroleAttribute,
+            FullScreenAttribute,
+            kAXMinimizedAttribute,
+            kAXPositionAttribute,
+            kAXSizeAttribute,
         ])
 
         return WindowSnapshot(
             id: id,
             appName: appName,
-            isStandard: attributes[kAXSubroleAttribute as String] as? String == kAXStandardWindowSubrole,
-            isFullScreen: (attributes["AXFullScreen"] as? Bool) ?? false,
-            isMinimized: (attributes[kAXMinimizedAttribute as String] as? Bool) ?? false,
+            isStandard: attributes[kAXSubroleAttribute] as? String == kAXStandardWindowSubrole,
+            isFullScreen: (attributes[FullScreenAttribute] as? Bool) ?? false,
+            isMinimized: (attributes[kAXMinimizedAttribute] as? Bool) ?? false,
             tabCount: tabCount,
-            frame: frame(position: attributes[kAXPositionAttribute as String], size: attributes[kAXSizeAttribute as String]) ?? .zero
+            frame: frame(position: attributes[kAXPositionAttribute], size: attributes[kAXSizeAttribute]) ?? .zero
         )
     }
 
     func movableFrame() -> CGRect? {
-        let attributes = axAttributes(element, [
-            kAXMinimizedAttribute as String,
-            kAXPositionAttribute as String,
-            kAXSizeAttribute as String,
-        ])
+        let attributes = axAttributes(element, [kAXMinimizedAttribute, kAXPositionAttribute, kAXSizeAttribute])
+        guard (attributes[kAXMinimizedAttribute] as? Bool) != true else { return nil }
 
-        guard (attributes[kAXMinimizedAttribute as String] as? Bool) != true else { return nil }
-        return frame(position: attributes[kAXPositionAttribute as String], size: attributes[kAXSizeAttribute as String])
+        return frame(position: attributes[kAXPositionAttribute], size: attributes[kAXSizeAttribute])
     }
 
     func setFrame(_ frame: CGRect) {
@@ -109,13 +105,13 @@ final class AXWindow: Window {
     }
 
     private func isRadioButton(_ element: AXUIElement) -> Bool {
-        axAttribute(element, kAXRoleAttribute) as? String == "AXRadioButton"
+        axAttribute(element, kAXRoleAttribute) as? String == RadioButtonRole
     }
 
     private func tabGroupTabs(of child: AXUIElement) -> [AXUIElement]? {
-        let attributes = axAttributes(child, [kAXRoleAttribute as String, kAXChildrenAttribute as String])
-        guard attributes[kAXRoleAttribute as String] as? String == "AXTabGroup" else { return nil }
-        return attributes[kAXChildrenAttribute as String] as? [AXUIElement]
+        let attributes = axAttributes(child, [kAXRoleAttribute, kAXChildrenAttribute])
+        guard attributes[kAXRoleAttribute] as? String == TabGroupRole else { return nil }
+        return attributes[kAXChildrenAttribute] as? [AXUIElement]
     }
 
     private func frame(position: AnyObject?, size: AnyObject?) -> CGRect? {

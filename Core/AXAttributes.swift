@@ -3,6 +3,11 @@ import ApplicationServices
 // Ceiling on how long a single AX round trip may block the caller.
 let axMessagingTimeoutSeconds: Float = 0.5
 
+// Undeclared by the AX headers, but answered by the applications we manage.
+let FullScreenAttribute = "AXFullScreen"
+let TabGroupRole = "AXTabGroup"
+let RadioButtonRole = "AXRadioButton"
+
 // Swift cannot dynamically cast to a CoreFoundation type (`as? AXValue` always
 // succeeds) so the type has to be checked by its CFTypeID.
 func axValue(_ value: AnyObject?) -> AXValue? {
