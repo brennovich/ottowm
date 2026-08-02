@@ -2,7 +2,19 @@ import CoreGraphics
 import XCTest
 
 final class HotkeyEventTapTests: XCTestCase {
-    private let leftOption: CGEventFlags = [.maskAlternate, CGEventFlags(rawValue: 0x20)]
+    private var deferred: [() -> Void] = []
+    private var received: [Action] = []
+
+    private func makeTap() throws -> HotkeyEventTap {
+        HotkeyEventTap(
+            config: try makeConfig([
+                "lalt-1": .switchToWorkspace(1),
+                "lalt-shift-3": .moveWindowToWorkspace(3),
+            ]),
+            dispatch: { self.deferred.append($0) },
+            handler: { self.received.append($0) }
+        )
+    }
 
     private func keyDown(_ keyCode: CGKeyCode, _ flags: CGEventFlags) throws -> CGEvent {
         let event = try XCTUnwrap(CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: true))
@@ -10,50 +22,41 @@ final class HotkeyEventTapTests: XCTestCase {
         return event
     }
 
-    func testConsumedHotkeyDefersTheActionOffTheCallback() throws {
-        var deferred: [() -> Void] = []
-        var received: [HotkeyAction] = []
-        let tap = HotkeyEventTap(dispatch: { deferred.append($0) }) { received.append($0) }
+    func testConsumedHotkeysRunOffTheCallbackInOrder() throws {
+        let tap = try makeTap()
 
-        let result = tap.handle(type: .keyDown, event: try keyDown(18, leftOption))
-
-        XCTAssertNil(result)
+        XCTAssertNil(tap.handle(type: .keyDown, event: try keyDown(18, .leftOption)))
+        XCTAssertNil(tap.handle(type: .keyDown, event: try keyDown(20, [.leftOption, .leftShift])))
         XCTAssertEqual(received, [])
-        XCTAssertEqual(deferred.count, 1)
 
         deferred.forEach { $0() }
-        XCTAssertEqual(received, [.switchToWorkspace(1)])
-    }
 
-    func testConsumedHotkeysAreDeferredInOrder() throws {
-        var deferred: [() -> Void] = []
-        var received: [HotkeyAction] = []
-        let tap = HotkeyEventTap(dispatch: { deferred.append($0) }) { received.append($0) }
-
-        _ = tap.handle(type: .keyDown, event: try keyDown(19, leftOption))
-        _ = tap.handle(type: .keyDown, event: try keyDown(20, leftOption.union(.maskShift)))
-        deferred.forEach { $0() }
-
-        XCTAssertEqual(received, [.switchToWorkspace(2), .moveWindowToWorkspace(3)])
+        XCTAssertEqual(received, [.switchToWorkspace(1), .moveWindowToWorkspace(3)])
     }
 
     func testUnmatchedKeyPassesThroughWithoutDeferringAnything() throws {
-        var deferred: [() -> Void] = []
-        let tap = HotkeyEventTap(dispatch: { deferred.append($0) }) { _ in }
+        let tap = try makeTap()
+        let event = try keyDown(0, .leftOption)
 
-        let event = try keyDown(0, leftOption)
-        let result = tap.handle(type: .keyDown, event: event)
+        XCTAssertTrue(tap.handle(type: .keyDown, event: event)?.takeUnretainedValue() === event)
+        XCTAssertEqual(deferred.count, 0)
+    }
 
-        XCTAssertTrue(result?.takeUnretainedValue() === event)
+    func testDisabledTapPassesABoundKeystrokeThrough() throws {
+        let tap = try makeTap()
+
+        for type: CGEventType in [.tapDisabledByTimeout, .tapDisabledByUserInput] {
+            let event = try keyDown(18, .leftOption)
+            XCTAssertTrue(tap.handle(type: type, event: event)?.takeUnretainedValue() === event)
+        }
+
         XCTAssertEqual(deferred.count, 0)
     }
 
     func testDeferredActionIsDroppedOnceTheTapIsReleased() throws {
-        var deferred: [() -> Void] = []
-        var received: [HotkeyAction] = []
-        var tap: HotkeyEventTap? = HotkeyEventTap(dispatch: { deferred.append($0) }) { received.append($0) }
+        var tap: HotkeyEventTap? = try makeTap()
 
-        _ = tap?.handle(type: .keyDown, event: try keyDown(18, leftOption))
+        _ = tap?.handle(type: .keyDown, event: try keyDown(18, .leftOption))
         tap = nil
         deferred.forEach { $0() }
 

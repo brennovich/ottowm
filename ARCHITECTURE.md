@@ -10,6 +10,7 @@ flowchart TB
     subgraph inputs[Inputs]
         AXWindowObserver
         HotkeyEventTap
+        ConfigFile
     end
 
     subgraph core[Model]
@@ -26,7 +27,8 @@ flowchart TB
     end
 
     AXWindowObserver -->|WindowEvent| Engine
-    HotkeyEventTap -->|HotkeyAction| Engine
+    ConfigFile -->|Config: KeyCombo → Action| HotkeyEventTap
+    HotkeyEventTap -->|Action| Engine
     Engine --> Workspaces
     Workspaces --> TabGroups
     Engine -->|place / focus / recover| Desktop
@@ -45,13 +47,16 @@ flowchart TB
 | `Screen` | The read side. Consistent, cached view of focused window and on-screen window ids. |
 | `AXWindowObserver` | Per-app `AXObserver`s + `NSWorkspace` notifications → `WindowEvent`. Keeps the `AXUIElement ↔ CGWindowID` registry. |
 | `HotkeyEventTap` | Session `CGEventTap` on keyDown. Needed over Carbon hotkeys because only raw device flags distinguish left from right Option. |
+| `Config` | The binding table: `KeyCombo` → `Action`, indexed by key code because the lookup runs in the event tap callback. Nothing else; a pure value. |
+| `ConfigFile` | Where the configuration comes from: `load()` resolves `$OTTOWM_CONFIG` / XDG and falls back to the copy bundled in `Contents/Resources` only when there is no user file at all. A file that is there but does not parse comes back as a `ConfigError`, which `AppDelegate` turns into an exit rather than binding keys the user did not ask for. `parse()` is the pure parser for the line format (`key combo = action`, blank lines skipped, nothing else) and stops at the first problem; a combo bound twice keeps the last line, and two different combos one keystroke could satisfy (`alt-1` and `lalt-1`) are both kept, with the lookup picking between them in no guaranteed order. `KeyCombo` and `Action` are the two halves of a line and live beside it under `Core/Config`; `KeyCombo` owns the `NX_DEVICE*` bits that pin a modifier to one side, and `ConfigError` carries the offending line. |
 | `OperationCache` | Holds one AX/CG read for the duration of an engine operation; each read is an IPC round trip. |
 
 ## Key types
 
 ```
 WindowEvent  = created | focused | destroyed | minimized | unminimized
-HotkeyAction = switchToWorkspace(n) | moveWindowToWorkspace(n)
+Action       = switchToWorkspace(n) | moveWindowToWorkspace(n)   // "switch-to-workspace n" in the config
+KeyCombo     = (keyCode, [ModifierKey: Side])                    // "lopt-shift-1"
 Placement    = active | storage
 WindowSnapshot(id, appName, isStandard, isFullScreen, isMinimized, tabCount, frame)
 ```
@@ -65,6 +70,9 @@ Frames are in top-left (AX) coordinates; `MainScreen` flips Cocoa rects into tha
 
 ```mermaid
 sequenceDiagram
+    AppDelegate->>ConfigFile: load()
+    ConfigFile-->>AppDelegate: Config (user file, else bundled) or ConfigError
+    Note right of AppDelegate: read first: a rejected file exits before any window moves
     AppDelegate->>AXWindowObserver: start(handler)
     AXWindowObserver-->>AppDelegate: [WindowSnapshot] discovered while registering
     AppDelegate->>Engine: start(windows)
@@ -72,6 +80,7 @@ sequenceDiagram
     Note right of Desktop: un-park windows left at the hidden edge by a previous run
     Engine->>Workspaces: assign every window to workspace 1
     Engine->>Desktop: startWatchingForManualNavigation
+    AppDelegate->>HotkeyEventTap: start()
 ```
 
 ### Workspace switch

@@ -27,25 +27,16 @@ final class EngineTests: XCTestCase {
         workspaces: workspaces
     )
 
-    private func makeWindow(
-        _ id: CGWindowID,
-        appName: String = "App",
-        frame: CGRect = CGRect(x: 0, y: 0, width: 800, height: 600),
-        tabCount: Int = 1,
-        isStandard: Bool = true,
-        isFullScreen: Bool = false,
-        isMinimized: Bool = false
-    ) -> StubWindow {
-        let window = StubWindow(
-            id: id,
-            tabCount: tabCount,
-            frame: frame,
-            appName: appName,
-            isMinimized: isMinimized,
-            isStandard: isStandard,
-            isFullScreen: isFullScreen
-        )
-        windows[id] = window
+    @discardableResult
+    private func add(_ window: StubWindow) -> StubWindow {
+        windows[window.id] = window
+        return window
+    }
+
+    @discardableResult
+    private func create(_ window: StubWindow) -> StubWindow {
+        add(window)
+        engine.handle(.created(window.snapshot()))
         return window
     }
 
@@ -55,8 +46,8 @@ final class EngineTests: XCTestCase {
     }
 
     func testStartRecoversAndSeedsWindowsIntoWorkspaceOne() {
-        let win1 = makeWindow(100)
-        let win2 = makeWindow(200, frame: CGRect(x: 50, y: 50, width: 400, height: 300))
+        let win1 = add(StubWindow(id: 100))
+        let win2 = add(StubWindow(id: 200))
 
         engine.start(windows: [win1.snapshot(), win2.snapshot()])
 
@@ -66,26 +57,28 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(workspaces.currentWorkspace, 1)
     }
 
-    func testStartSkipsInvalidWindows() {
+    func testInvalidWindowsAreNeverAdmitted() {
         offScreenWindowIds = [500]
-        let seeds = [
-            makeWindow(0),
-            makeWindow(300, isStandard: false),
-            makeWindow(400, isFullScreen: true),
-            makeWindow(500),
-            makeWindow(600, isMinimized: true),
+        let invalid = [
+            add(StubWindow(id: 0)),
+            add(StubWindow(id: 300, isStandard: false)),
+            add(StubWindow(id: 400, isFullScreen: true)),
+            add(StubWindow(id: 500)),
+            add(StubWindow(id: 600, isMinimized: true)),
         ]
 
-        engine.start(windows: seeds.map { $0.snapshot() })
+        engine.start(windows: invalid.map { $0.snapshot() })
+        for win in invalid {
+            engine.handle(.created(win.snapshot()))
+            engine.handle(.focused(win.snapshot()))
+        }
 
         XCTAssertEqual(workspaces.allWindowIds, [])
     }
 
     func testCreatedWindowIsAssignedToCurrentWorkspace() {
         engine.switchToWorkspace(2)
-        let win = makeWindow(100)
-
-        engine.handle(.created(win.snapshot()))
+        create(StubWindow(id: 100))
 
         XCTAssertEqual(workspaces.allWindowIds, [100])
 
@@ -94,49 +87,17 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(desktop.placement(of: 100), .storage)
     }
 
-    func testCreatedInvalidWindowIsIgnored() {
-        offScreenWindowIds = [400]
-        let invalidWindows = [
-            makeWindow(0),
-            makeWindow(200, isStandard: false),
-            makeWindow(300, isFullScreen: true),
-            makeWindow(400),
-            makeWindow(500, isMinimized: true),
-        ]
-
-        for win in invalidWindows {
-            engine.handle(.created(win.snapshot()))
-        }
-
-        XCTAssertEqual(workspaces.allWindowIds, [])
-    }
-
     func testFocusedUnknownWindowIsAssignedToCurrentWorkspace() {
-        let win = makeWindow(100)
+        let win = add(StubWindow(id: 100))
 
         engine.handle(.focused(win.snapshot()))
 
         XCTAssertEqual(workspaces.allWindowIds, [100])
     }
 
-    func testFocusedInvalidWindowIsIgnored() {
-        let invalidWindows = [
-            makeWindow(0),
-            makeWindow(100, isMinimized: true),
-        ]
-
-        for win in invalidWindows {
-            engine.handle(.focused(win.snapshot()))
-        }
-
-        XCTAssertEqual(workspaces.allWindowIds, [])
-    }
-
     func testFocusedWindowIsRememberedPerWorkspaceAcrossSwitches() {
-        let win1 = makeWindow(100)
-        let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
-        engine.handle(.created(win1.snapshot()))
-        engine.handle(.created(win2.snapshot()))
+        let win1 = create(StubWindow(id: 100))
+        let win2 = create(StubWindow(id: 200))
         engine.handle(.focused(win1.snapshot()))
 
         engine.switchToWorkspace(2)
@@ -147,10 +108,8 @@ final class EngineTests: XCTestCase {
     }
 
     func testSwitchHidesCurrentWorkspaceWindowsAndShowsTargetWindows() {
-        let win1 = makeWindow(100)
-        let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
-        engine.handle(.created(win1.snapshot()))
-        engine.handle(.created(win2.snapshot()))
+        create(StubWindow(id: 100))
+        let win2 = create(StubWindow(id: 200))
         moveFocusedWindow(win2, to: 2)
 
         XCTAssertEqual(desktop.placement(of: 200), .storage)
@@ -163,8 +122,7 @@ final class EngineTests: XCTestCase {
     }
 
     func testSwitchToSameWorkspaceOnFrontmostDesktopIsNoOp() {
-        let win = makeWindow(100)
-        engine.handle(.created(win.snapshot()))
+        let win = create(StubWindow(id: 100))
 
         engine.switchToWorkspace(1)
 
@@ -173,8 +131,7 @@ final class EngineTests: XCTestCase {
     }
 
     func testSwitchToSameWorkspaceOffDesktopRestoresFocus() {
-        let win = makeWindow(100)
-        engine.handle(.created(win.snapshot()))
+        let win = create(StubWindow(id: 100))
         offScreenWindowIds = [100]
 
         engine.switchToWorkspace(1)
@@ -183,8 +140,7 @@ final class EngineTests: XCTestCase {
     }
 
     func testSwitchToNonEmptyWorkspaceOffDesktopRestoresItsWindows() {
-        let win = makeWindow(700)
-        engine.handle(.created(win.snapshot()))
+        let win = create(StubWindow(id: 700))
         moveFocusedWindow(win, to: 2)
         offScreenWindowIds = [700]
 
@@ -202,9 +158,7 @@ final class EngineTests: XCTestCase {
     }
 
     func testBringToFrontInducedFocusDoesNotSwitchAwayFromEmptyWorkspace() {
-        for win in [makeWindow(72), makeWindow(88), makeWindow(187)] {
-            engine.handle(.created(win.snapshot()))
-        }
+        [72, 88, 187].forEach { create(StubWindow(id: $0)) }
         offScreenWindowIds = [72, 88, 187]
 
         engine.switchToWorkspace(3)
@@ -217,10 +171,8 @@ final class EngineTests: XCTestCase {
     }
 
     func testSwitchingAwayCapturesCurrentFocusBeforeLeaving() {
-        let win1 = makeWindow(100, appName: "Terminal")
-        let win2 = makeWindow(200, appName: "Terminal", frame: CGRect(x: 0, y: 200, width: 800, height: 600))
-        engine.handle(.created(win1.snapshot()))
-        engine.handle(.created(win2.snapshot()))
+        let win1 = create(StubWindow(id: 100))
+        let win2 = create(StubWindow(id: 200))
         engine.handle(.focused(win2.snapshot()))
 
         focused = win1
@@ -234,10 +186,8 @@ final class EngineTests: XCTestCase {
     }
 
     func testSwitchReadsTheFocusedWindowOnce() {
-        let win1 = makeWindow(100)
-        let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
-        engine.handle(.created(win1.snapshot()))
-        engine.handle(.created(win2.snapshot()))
+        let win1 = create(StubWindow(id: 100))
+        let win2 = create(StubWindow(id: 200))
         moveFocusedWindow(win2, to: 2)
 
         focused = win1
@@ -247,8 +197,22 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(focusedReadCount, 1)
     }
 
+    func testSwitchStillCompletesWhenTheRememberedWindowDiedMidOperation() {
+        create(StubWindow(id: 100))
+        let doomed = create(StubWindow(id: 200))
+        moveFocusedWindow(doomed, to: 2)
+
+        windows[200] = nil
+        focused = nil
+        engine.switchToWorkspace(2)
+
+        XCTAssertEqual(workspaces.currentWorkspace, 2)
+        XCTAssertEqual(desktop.placement(of: 100), .storage)
+        XCTAssertEqual(doomed.focusCount, 0)
+    }
+
     func testManualNavigationToHiddenWindowSwitchesToItsWorkspace() {
-        let win = makeWindow(700)
+        let win = add(StubWindow(id: 700))
         engine.start(windows: [win.snapshot()])
         engine.switchToWorkspace(2)
 
@@ -262,8 +226,7 @@ final class EngineTests: XCTestCase {
     }
 
     func testFocusedStorageWindowSwitchesToItsWorkspace() {
-        let win = makeWindow(700)
-        engine.handle(.created(win.snapshot()))
+        let win = create(StubWindow(id: 700))
         engine.switchToWorkspace(2)
 
         XCTAssertEqual(desktop.placement(of: 700), .storage)
@@ -276,10 +239,8 @@ final class EngineTests: XCTestCase {
     }
 
     func testStaleFocusEventForStorageWindowIsIgnored() {
-        let win1 = makeWindow(100)
-        let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
-        engine.handle(.created(win1.snapshot()))
-        engine.handle(.created(win2.snapshot()))
+        let win1 = create(StubWindow(id: 100))
+        let win2 = create(StubWindow(id: 200))
         moveFocusedWindow(win2, to: 2)
 
         focused = win1
@@ -290,10 +251,8 @@ final class EngineTests: XCTestCase {
     }
 
     func testFocusedStorageWindowDoesNotSwitchWhileCurrentWorkspaceIsClosing() {
-        let win1 = makeWindow(100)
-        let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
-        engine.handle(.created(win1.snapshot()))
-        engine.handle(.created(win2.snapshot()))
+        create(StubWindow(id: 100))
+        let win2 = create(StubWindow(id: 200))
         moveFocusedWindow(win2, to: 2)
 
         windows[100] = nil
@@ -305,10 +264,8 @@ final class EngineTests: XCTestCase {
     }
 
     func testFocusedStorageWindowDoesNotSwitchWhenCurrentWorkspaceWindowClosedBeforeItsDestroyedEvent() {
-        let win1 = makeWindow(100)
-        let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
-        engine.handle(.created(win1.snapshot()))
-        engine.handle(.created(win2.snapshot()))
+        create(StubWindow(id: 100))
+        let win2 = create(StubWindow(id: 200))
         moveFocusedWindow(win2, to: 2)
 
         offScreenWindowIds = [100]
@@ -320,10 +277,8 @@ final class EngineTests: XCTestCase {
     }
 
     func testFocusedStorageWindowSwitchesWhenCurrentWorkspaceWindowIsOnlyMinimized() {
-        let win1 = makeWindow(100)
-        let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
-        engine.handle(.created(win1.snapshot()))
-        engine.handle(.created(win2.snapshot()))
+        let win1 = create(StubWindow(id: 100))
+        let win2 = create(StubWindow(id: 200))
         moveFocusedWindow(win2, to: 2)
 
         win1.isMinimized = true
@@ -336,8 +291,7 @@ final class EngineTests: XCTestCase {
     }
 
     func testMoveFocusedWindowToAnotherWorkspaceParksIt() {
-        let win = makeWindow(100)
-        engine.handle(.created(win.snapshot()))
+        let win = create(StubWindow(id: 100))
 
         moveFocusedWindow(win, to: 2)
 
@@ -345,10 +299,8 @@ final class EngineTests: XCTestCase {
     }
 
     func testMoveFocusedWindowAwayHandsFocusToAWindowLeftBehind() {
-        let win1 = makeWindow(100)
-        let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
-        engine.handle(.created(win1.snapshot()))
-        engine.handle(.created(win2.snapshot()))
+        let win1 = create(StubWindow(id: 100))
+        let win2 = create(StubWindow(id: 200))
 
         moveFocusedWindow(win2, to: 2)
 
@@ -357,8 +309,7 @@ final class EngineTests: XCTestCase {
     }
 
     func testMoveWindowToWorkspaceDoesNothingWithoutFocusedWindow() {
-        let win = makeWindow(100)
-        engine.handle(.created(win.snapshot()))
+        create(StubWindow(id: 100))
 
         engine.moveFocusedWindow(toWorkspace: 2)
 
@@ -366,20 +317,11 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(desktop.placement(of: 100), .active)
     }
 
-    func testMoveWindowToWorkspaceIgnoresInvalidTarget() {
-        let win = makeWindow(100)
-        focused = win
-
+    func testMoveWindowToWorkspaceIgnoresInvalidTargetOrWindow() {
+        focused = add(StubWindow(id: 100))
         engine.moveFocusedWindow(toWorkspace: 0)
 
-        XCTAssertTrue(desktop.placeCalls.isEmpty)
-        XCTAssertEqual(workspaces.allWindowIds, [])
-    }
-
-    func testMoveWindowToWorkspaceIgnoresInvalidWindow() {
-        let win = makeWindow(100, isFullScreen: true)
-        focused = win
-
+        focused = add(StubWindow(id: 200, isFullScreen: true))
         engine.moveFocusedWindow(toWorkspace: 2)
 
         XCTAssertTrue(desktop.placeCalls.isEmpty)
@@ -387,8 +329,7 @@ final class EngineTests: XCTestCase {
     }
 
     func testMoveWindowToCurrentWorkspaceRestoresIt() {
-        let win = makeWindow(100)
-        engine.handle(.created(win.snapshot()))
+        let win = create(StubWindow(id: 100))
         focused = win
 
         engine.moveFocusedWindow(toWorkspace: 2)
@@ -401,11 +342,9 @@ final class EngineTests: XCTestCase {
     }
 
     func testDestroyedWindowRestoresFocusToPreviousWindow() {
-        let win1 = makeWindow(100, appName: "App1")
-        let win2 = makeWindow(200, appName: "App2", frame: CGRect(x: 0, y: 200, width: 800, height: 600))
-        engine.handle(.created(win1.snapshot()))
+        let win1 = create(StubWindow(id: 100))
         engine.handle(.focused(win1.snapshot()))
-        engine.handle(.created(win2.snapshot()))
+        create(StubWindow(id: 200))
 
         windows[200] = nil
         engine.handle(.destroyed(200))
@@ -417,14 +356,11 @@ final class EngineTests: XCTestCase {
 
     func testDestroyedTabbedWindowDoesNotStealFocus() {
         let tabFrame = CGRect(x: 400, y: 0, width: 800, height: 600)
-        let tab1 = makeWindow(300, appName: "Terminal", frame: tabFrame)
-        let tab2 = makeWindow(301, appName: "Terminal", frame: tabFrame, tabCount: 2)
-        let other = makeWindow(100, appName: "App1")
-        engine.handle(.created(tab1.snapshot()))
+        let tab1 = create(StubWindow(id: 300, appName: "Terminal", frame: tabFrame))
         engine.handle(.focused(tab1.snapshot()))
-        engine.handle(.created(tab2.snapshot()))
+        let tab2 = create(StubWindow(id: 301, appName: "Terminal", frame: tabFrame, tabCount: 2))
         engine.handle(.focused(tab2.snapshot()))
-        engine.handle(.created(other.snapshot()))
+        let other = create(StubWindow(id: 100))
 
         windows[301] = nil
         engine.handle(.destroyed(301))
@@ -434,10 +370,8 @@ final class EngineTests: XCTestCase {
     }
 
     func testSwitchDropsTheFocusedWindowThatWentFullScreen() {
-        let win1 = makeWindow(100)
-        let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
-        engine.handle(.created(win1.snapshot()))
-        engine.handle(.created(win2.snapshot()))
+        let win1 = create(StubWindow(id: 100))
+        let win2 = create(StubWindow(id: 200))
         engine.handle(.focused(win2.snapshot()))
 
         win2.isFullScreen = true
@@ -451,10 +385,8 @@ final class EngineTests: XCTestCase {
     }
 
     func testWindowBackFromFullScreenJoinsTheCurrentWorkspace() {
-        let win1 = makeWindow(100)
-        let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
-        engine.handle(.created(win1.snapshot()))
-        engine.handle(.created(win2.snapshot()))
+        create(StubWindow(id: 100))
+        let win2 = create(StubWindow(id: 200))
         win2.isFullScreen = true
         focused = win2
         offScreenWindowIds = [100]
@@ -472,10 +404,8 @@ final class EngineTests: XCTestCase {
     }
 
     func testMinimizedWindowIsDroppedFromItsWorkspace() {
-        let win1 = makeWindow(100)
-        let win2 = makeWindow(200, frame: CGRect(x: 0, y: 200, width: 800, height: 600))
-        engine.handle(.created(win1.snapshot()))
-        engine.handle(.created(win2.snapshot()))
+        let win1 = create(StubWindow(id: 100))
+        let win2 = create(StubWindow(id: 200))
 
         win2.isMinimized = true
         engine.handle(.minimized(200))
@@ -486,8 +416,7 @@ final class EngineTests: XCTestCase {
     }
 
     func testMinimizedWindowIsLeftAloneWhenItsWorkspaceComesBack() {
-        let win = makeWindow(100)
-        engine.handle(.created(win.snapshot()))
+        let win = create(StubWindow(id: 100))
         moveFocusedWindow(win, to: 2)
         engine.switchToWorkspace(2)
 
@@ -504,8 +433,7 @@ final class EngineTests: XCTestCase {
     }
 
     func testUnminimizedWindowJoinsTheCurrentWorkspace() {
-        let win = makeWindow(100)
-        engine.handle(.created(win.snapshot()))
+        let win = create(StubWindow(id: 100))
         moveFocusedWindow(win, to: 2)
         engine.switchToWorkspace(2)
         win.isMinimized = true
@@ -524,13 +452,10 @@ final class EngineTests: XCTestCase {
 
     func testTabSiblingKeepsFocusWhenSeparateWindowCloses() {
         let tabFrame = CGRect(x: 400, y: 0, width: 800, height: 600)
-        let tab1 = makeWindow(300, appName: "Terminal", frame: tabFrame)
-        let tab2 = makeWindow(301, appName: "Terminal", frame: tabFrame, tabCount: 2)
-        let other = makeWindow(100, appName: "App1")
-        engine.handle(.created(tab1.snapshot()))
-        engine.handle(.created(tab2.snapshot()))
+        let tab1 = create(StubWindow(id: 300, appName: "Terminal", frame: tabFrame))
+        let tab2 = create(StubWindow(id: 301, appName: "Terminal", frame: tabFrame, tabCount: 2))
         engine.handle(.focused(tab1.snapshot()))
-        engine.handle(.created(other.snapshot()))
+        let other = create(StubWindow(id: 100))
         engine.handle(.focused(other.snapshot()))
 
         focused = tab2

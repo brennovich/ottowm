@@ -2,6 +2,14 @@ import CoreGraphics
 import XCTest
 
 final class TabGroupsTests: XCTestCase {
+    private func makeTabGroups(_ windows: [WindowSnapshot]) -> TabGroups {
+        var tabGroups = TabGroups()
+        for window in windows {
+            tabGroups.add(window)
+        }
+        return tabGroups
+    }
+
     func testGrouping() {
         let cases: [(name: String, windows: [WindowSnapshot], subject: CGWindowID, expected: [CGWindowID])] = [
             (
@@ -85,12 +93,7 @@ final class TabGroupsTests: XCTestCase {
         ]
 
         for testCase in cases {
-            var tabGroups = TabGroups()
-            for window in testCase.windows {
-                tabGroups.add(window)
-            }
-
-            XCTAssertEqual(tabGroups.members(of: testCase.subject), testCase.expected, testCase.name)
+            XCTAssertEqual(makeTabGroups(testCase.windows).members(of: testCase.subject), testCase.expected, testCase.name)
         }
     }
 
@@ -107,19 +110,12 @@ final class TabGroupsTests: XCTestCase {
         ]
 
         for testCase in cases {
-            var tabGroups = TabGroups()
-            for window in testCase.windows {
-                tabGroups.add(window)
-            }
-
-            XCTAssertEqual(tabGroups.siblings(of: testCase.subject), testCase.expected, testCase.name)
+            XCTAssertEqual(makeTabGroups(testCase.windows).siblings(of: testCase.subject), testCase.expected, testCase.name)
         }
     }
 
     func testRemoveDetachesTheWindowFromItsGroup() {
-        var tabGroups = TabGroups()
-        tabGroups.add(makeSnapshot(100, tabCount: 2))
-        tabGroups.add(makeSnapshot(200, tabCount: 2))
+        var tabGroups = makeTabGroups([makeSnapshot(100, tabCount: 2), makeSnapshot(200, tabCount: 2)])
 
         tabGroups.remove(100)
 
@@ -130,9 +126,7 @@ final class TabGroupsTests: XCTestCase {
     }
 
     func testRemovingEveryMemberRetiresTheGroup() {
-        var tabGroups = TabGroups()
-        tabGroups.add(makeSnapshot(100, tabCount: 2))
-        tabGroups.add(makeSnapshot(200, tabCount: 2))
+        var tabGroups = makeTabGroups([makeSnapshot(100, tabCount: 2), makeSnapshot(200, tabCount: 2)])
 
         tabGroups.remove(100)
         tabGroups.remove(200)
@@ -142,9 +136,7 @@ final class TabGroupsTests: XCTestCase {
     }
 
     func testRemoveUnknownWindowIsANoOp() {
-        var tabGroups = TabGroups()
-        tabGroups.add(makeSnapshot(100, tabCount: 2))
-        tabGroups.add(makeSnapshot(200, tabCount: 2))
+        var tabGroups = makeTabGroups([makeSnapshot(100, tabCount: 2), makeSnapshot(200, tabCount: 2)])
 
         tabGroups.remove(999)
 

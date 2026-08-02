@@ -2,8 +2,8 @@ import CoreGraphics
 
 final class StubWindow: Window {
     let id: CGWindowID
-    let tabCount: Int
     let appName: String
+    let tabCount: Int
     let isStandard: Bool
     var isFullScreen: Bool
     var isMinimized: Bool
@@ -15,20 +15,20 @@ final class StubWindow: Window {
 
     init(
         id: CGWindowID,
-        tabCount: Int = 1,
-        frame: CGRect,
         appName: String = "App",
-        isMinimized: Bool = false,
+        frame: CGRect = CGRect(x: 0, y: 0, width: 800, height: 600),
+        tabCount: Int = 1,
         isStandard: Bool = true,
-        isFullScreen: Bool = false
+        isFullScreen: Bool = false,
+        isMinimized: Bool = false
     ) {
         self.id = id
-        self.tabCount = tabCount
-        self.frame = frame
         self.appName = appName
-        self.isMinimized = isMinimized
+        self.frame = frame
+        self.tabCount = tabCount
         self.isStandard = isStandard
         self.isFullScreen = isFullScreen
+        self.isMinimized = isMinimized
     }
 
     func snapshot() -> WindowSnapshot {

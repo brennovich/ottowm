@@ -18,15 +18,18 @@ private func hotkeyEventTapCallback(
 // the right Option key; matched keystrokes are consumed so they never reach the
 // focused application.
 final class HotkeyEventTap {
+    private let config: Config
     private let dispatch: (@escaping () -> Void) -> Void
-    private let handler: (HotkeyAction) -> Void
+    private let handler: (Action) -> Void
     private var tap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
 
     init(
+        config: Config,
         dispatch: @escaping (@escaping () -> Void) -> Void = { DispatchQueue.main.async(execute: $0) },
-        handler: @escaping (HotkeyAction) -> Void
+        handler: @escaping (Action) -> Void
     ) {
+        self.config = config
         self.dispatch = dispatch
         self.handler = handler
     }
@@ -49,29 +52,25 @@ final class HotkeyEventTap {
     }
 
     func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
-        let decision = eventTapDecision(
-            type: type,
-            keyCode: event.getIntegerValueField(.keyboardEventKeycode),
-            flags: event.flags
-        )
-
-        switch decision {
-        case .reenableAndPass:
+        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             Log.hotkey.error("event tap disabled (\(type == .tapDisabledByTimeout ? "timeout" : "userInput")), re-enabling")
             if let tap {
                 CGEvent.tapEnable(tap: tap, enable: true)
             }
             return Unmanaged.passUnretained(event)
-        case let .consume(action):
-            Log.hotkey.info("hotkey → \(action)")
-            // macOS disables a tap whose callback does not return promptly, so the
-            // action runs after the callback has already consumed the keystroke and
-            // returned.
-            dispatch { [weak self] in self?.handler(action) }
-            return nil
-        case .pass:
-            return Unmanaged.passUnretained(event)
         }
+
+        guard type == .keyDown, let action = config.action(
+            keyCode: event.getIntegerValueField(.keyboardEventKeycode),
+            flags: event.flags
+        ) else { return Unmanaged.passUnretained(event) }
+
+        Log.hotkey.info("hotkey → \(action)")
+        // macOS disables a tap whose callback does not return promptly, so the
+        // action runs after the callback has already consumed the keystroke and
+        // returned.
+        dispatch { [weak self] in self?.handler(action) }
+        return nil
     }
 
     deinit {
