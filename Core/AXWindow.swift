@@ -2,12 +2,11 @@ import AppKit
 import ApplicationServices
 import CoreGraphics
 
-// The stable CGWindowID for an AX window (same one AeroSpace relies on).
+// The stable CGWindowID for an AX window.
 @_silgen_name("_AXUIElementGetWindow")
 @discardableResult
 private func _AXUIElementGetWindow(_ element: AXUIElement, _ id: inout CGWindowID) -> AXError
 
-// A live macOS window driven through Accessibility.
 final class AXWindow: Window {
     let element: AXUIElement
     let application: NSRunningApplication
@@ -35,10 +34,8 @@ final class AXWindow: Window {
 
     var logDescription: String { "id=\(id) app=\(appName)" }
 
-    // Every attribute the model needs, in one round trip — except the tab count,
-    // which has to walk the window's children.
     func snapshot() -> WindowSnapshot {
-        let attributes = values([
+        let attributes = axAttributes(element, [
             kAXSubroleAttribute as String,
             "AXFullScreen",
             kAXMinimizedAttribute as String,
@@ -49,23 +46,23 @@ final class AXWindow: Window {
         return WindowSnapshot(
             id: id,
             appName: appName,
-            isStandard: attributes[0] as? String == kAXStandardWindowSubrole,
-            isFullScreen: (attributes[1] as? Bool) ?? false,
-            isMinimized: (attributes[2] as? Bool) ?? false,
+            isStandard: attributes[kAXSubroleAttribute as String] as? String == kAXStandardWindowSubrole,
+            isFullScreen: (attributes["AXFullScreen"] as? Bool) ?? false,
+            isMinimized: (attributes[kAXMinimizedAttribute as String] as? Bool) ?? false,
             tabCount: tabCount,
-            frame: frame(position: attributes[3], size: attributes[4]) ?? .zero
+            frame: frame(position: attributes[kAXPositionAttribute as String], size: attributes[kAXSizeAttribute as String]) ?? .zero
         )
     }
 
     func movableFrame() -> CGRect? {
-        let attributes = values([
+        let attributes = axAttributes(element, [
             kAXMinimizedAttribute as String,
             kAXPositionAttribute as String,
             kAXSizeAttribute as String,
         ])
 
-        guard (attributes[0] as? Bool) != true else { return nil }
-        return frame(position: attributes[1], size: attributes[2])
+        guard (attributes[kAXMinimizedAttribute as String] as? Bool) != true else { return nil }
+        return frame(position: attributes[kAXPositionAttribute as String], size: attributes[kAXSizeAttribute as String])
     }
 
     func setFrame(_ frame: CGRect) {
@@ -88,14 +85,10 @@ final class AXWindow: Window {
     }
 
     static func focused() -> AXWindow? {
-        guard let appElement = axElement(AXUIElementCreateSystemWide(), kAXFocusedApplicationAttribute) else { return nil }
-
-        var pid: pid_t = 0
-        guard AXUIElementGetPid(appElement, &pid) == .success,
-              let app = NSRunningApplication(processIdentifier: pid)
-        else { return nil }
-
-        return focused(of: app)
+        axElement(AXUIElementCreateSystemWide(), kAXFocusedApplicationAttribute)
+            .flatMap(axPid)
+            .flatMap(NSRunningApplication.init(processIdentifier:))
+            .flatMap(focused(of:))
     }
 
     static func focused(of app: NSRunningApplication) -> AXWindow? {
@@ -109,18 +102,20 @@ final class AXWindow: Window {
             Log.window.debug("tabCount children read failed \(self.logDescription), assuming 1")
             return 1
         }
+        return children.lazy
+            .compactMap(tabGroupTabs)
+            .first
+            .map { max($0.filter(isRadioButton).count, 1) } ?? 1
+    }
 
-        for child in children {
-            let attributes = values([kAXRoleAttribute as String, kAXChildrenAttribute as String], of: child)
-            guard attributes[0] as? String == "AXTabGroup",
-                  let tabs = attributes[1] as? [AXUIElement]
-            else { continue }
+    private func isRadioButton(_ element: AXUIElement) -> Bool {
+        axAttribute(element, kAXRoleAttribute) as? String == "AXRadioButton"
+    }
 
-            let count = tabs.filter { axAttribute($0, kAXRoleAttribute) as? String == "AXRadioButton" }.count
-            return count > 0 ? count : 1
-        }
-
-        return 1
+    private func tabGroupTabs(of child: AXUIElement) -> [AXUIElement]? {
+        let attributes = axAttributes(child, [kAXRoleAttribute as String, kAXChildrenAttribute as String])
+        guard attributes[kAXRoleAttribute as String] as? String == "AXTabGroup" else { return nil }
+        return attributes[kAXChildrenAttribute as String] as? [AXUIElement]
     }
 
     private func frame(position: AnyObject?, size: AnyObject?) -> CGRect? {
@@ -131,19 +126,5 @@ final class AXWindow: Window {
             return nil
         }
         return CGRect(origin: origin, size: size)
-    }
-
-    // One round trip for several attributes instead of one each. Returns a slot
-    // per requested attribute, nil where the read failed.
-    private func values(_ attributes: [String], of element: AXUIElement? = nil) -> [AnyObject?] {
-        var result: CFArray?
-        let target = element ?? self.element
-        let status = AXUIElementCopyMultipleAttributeValues(
-            target, attributes as CFArray, AXCopyMultipleAttributeOptions(rawValue: 0), &result
-        )
-        guard status == .success, let raw = result as? [AnyObject], raw.count == attributes.count else {
-            return Array(repeating: nil, count: attributes.count)
-        }
-        return discardingAXErrors(raw)
     }
 }
