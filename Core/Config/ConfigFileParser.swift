@@ -1,7 +1,6 @@
 import Foundation
 
-// The format a configuration is written in: one `key combo = action` per line, blank lines
-// skipped, comments are not supported.
+// The format a configuration is written in: one `key combo = action` per line.
 enum ConfigFileParser {
     private typealias Binding = (combo: KeyCombo, action: Action)
 
@@ -11,6 +10,7 @@ enum ConfigFileParser {
             .enumerated()
             .map { (number: $0.offset + 1, text: $0.element.trimmed) }
             .filter { !$0.text.isEmpty }
+            .filter { !$0.text.contains("#") }
 
         var bindings: [KeyCombo: Action] = [:]
         for line in lines {

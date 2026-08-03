@@ -40,11 +40,6 @@ final class ConfigFileParserTests: XCTestCase {
                 ConfigError(line: 1, reason: .syntax("= switch-to-workspace 1"))
             ),
             (
-                "comments are not supported",
-                "# switch to the first workspace\nlalt-1 = switch-to-workspace 1",
-                ConfigError(line: 1, reason: .syntax("# switch to the first workspace"))
-            ),
-            (
                 "a combo that does not parse, reported against its line",
                 "lalt-1 = switch-to-workspace 1\n\nlalt-nope = switch-to-workspace 2",
                 ConfigError(line: 3, reason: .unknownKey("nope"))
