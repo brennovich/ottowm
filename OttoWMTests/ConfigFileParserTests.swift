@@ -3,7 +3,9 @@ import XCTest
 final class ConfigFileParserTests: XCTestCase {
     func testParsesBindings() throws {
         let text = """
-        lopt-1 = switch-to-workspace 3
+        # With a comment
+          # And another comment
+        lopt-1 = switch-to-workspace 3  # side comment
         lalt-1 = switch-to-workspace 2
         lalt-1 = switch-to-workspace 1
 
