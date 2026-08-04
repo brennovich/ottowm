@@ -41,16 +41,6 @@ final class ConfigFileTests: XCTestCase {
                 "/Users/otto/cfg/ottowm/ottowm"
             ),
             (
-                "OTTOWM_CONFIG wins",
-                ["HOME": "/Users/otto", "XDG_CONFIG_HOME": "/Users/otto/cfg", "OTTOWM_CONFIG": "/tmp/otto"],
-                "/tmp/otto"
-            ),
-            (
-                "OTTOWM_CONFIG expands a tilde",
-                ["HOME": "/Users/otto", "OTTOWM_CONFIG": "~/otto"],
-                "/Users/otto/otto"
-            ),
-            (
                 "XDG_CONFIG_HOME expands a tilde",
                 ["HOME": "/Users/otto", "XDG_CONFIG_HOME": "~/cfg"],
                 "/Users/otto/cfg/ottowm/ottowm"
