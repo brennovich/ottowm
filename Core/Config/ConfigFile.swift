@@ -10,21 +10,24 @@ enum ConfigFile {
     ) -> Result<Config, ConfigError> {
         let path = userPath(environment: environment)
 
-        guard let text = read(path) else {
+        guard let bundledPath = bundle.url(forResource: name, withExtension: nil) else {
+            Log.config.error("the bundled configuration is missing, nothing is bound")
+            return .success(Config([:]))
+        }
+
+        let text = read(path) ?? {
             Log.config.info("no configuration at \(path.path), using the bundled defaults")
-            return .success(bundled(bundle: bundle, read: read))
-        }
+            return read(bundledPath)
+        }()
 
-        let config = ConfigFileParser.parse(text)
-        switch config {
-        case .success: Log.config.notice("loaded \(path.path)")
-        case let .failure(error): Log.config.error("\(path.path): \(error)")
-        }
-
-        return config
+        return text
+            .map(ConfigFileParser.parse)?
+            .map { Log.config.notice("loaded \(path.path)"); return $0 }
+            .mapError { Log.config.error("\(path.path): \($0)"); return $0 }
+            ?? .success(Config([:]))
     }
 
-    static func userPath(environment: [String: String]) -> URL {
+    private static func userPath(environment: [String: String]) -> URL {
         func value(_ name: String) -> String? { environment[name].flatMap { $0.isEmpty ? nil : $0 } }
 
         let home = value("HOME") ?? NSHomeDirectory()
@@ -32,17 +35,5 @@ enum ConfigFile {
         
         return URL(fileURLWithPath: path.hasPrefix("~/") ? home + path.dropFirst() : path)
             .appendingPathComponent("\(name)/\(name)")
-    }
-
-    private static func bundled(bundle: Bundle, read: (URL) -> String?) -> Config {
-        guard let path = bundle.url(forResource: name, withExtension: nil),
-              let text = read(path),
-              case let .success(config) = ConfigFileParser.parse(text)
-        else {
-            Log.config.error("the bundled configuration is missing or unparseable, nothing is bound")
-            return Config([:])
-        }
-
-        return config
     }
 }

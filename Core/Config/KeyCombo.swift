@@ -1,6 +1,5 @@
 import CoreGraphics
 
-// Which of the two physical keys satisfies a modifier.
 enum ModifierSide {
     case either, left, right
 }
@@ -63,10 +62,8 @@ struct KeyCombo: Hashable {
             case let .failure(reason):
                 return .failure(reason)
             case let .success(named):
-                for (key, side) in named {
-                    guard modifiers.updateValue(side, forKey: key) == nil else {
-                        return .failure(.duplicateModifier(name))
-                    }
+                guard named.allSatisfy({ modifiers.updateValue($0.1, forKey: $0.0) == nil }) else {
+                    return .failure(.duplicateModifier(name))
                 }
             }
         }

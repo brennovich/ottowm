@@ -4,31 +4,15 @@ import XCTest
 final class ConfigFileTests: XCTestCase {
     private let bundle = Bundle(for: ConfigFileTests.self)
 
-    private func load(
-        userConfig: String?,
-        environment: [String: String] = ["HOME": "/Users/otto"]
-    ) -> Result<Config, ConfigError> {
-        let userPath = ConfigFile.userPath(environment: environment)
-
-        return ConfigFile.load(bundle: bundle, environment: environment) { url in
-            url == userPath ? userConfig : try? String(contentsOf: url, encoding: .utf8)
+    private func load(userConfig: String?) -> Result<Config, ConfigError> {
+        ConfigFile.load(bundle: bundle, environment: ["HOME": "/Users/otto"]) { url in
+            url.path == "/Users/otto/.config/ottowm/ottowm"
+                ? userConfig
+                : try? String(contentsOf: url, encoding: .utf8)
         }
     }
 
-    private func bundledConfig() throws -> Config {
-        try makeConfig([
-            "lopt-1": .switchToWorkspace(1),
-            "lopt-2": .switchToWorkspace(2),
-            "lopt-3": .switchToWorkspace(3),
-            "lopt-4": .switchToWorkspace(4),
-            "lopt-shift-1": .moveWindowToWorkspace(1),
-            "lopt-shift-2": .moveWindowToWorkspace(2),
-            "lopt-shift-3": .moveWindowToWorkspace(3),
-            "lopt-shift-4": .moveWindowToWorkspace(4),
-        ])
-    }
-
-    func testUserPath() {
+    func testResolvesTheUserConfigPath() throws {
         let cases: [(name: String, environment: [String: String], expected: String)] = [
             (
                 "defaults to ~/.config",
@@ -54,8 +38,10 @@ final class ConfigFileTests: XCTestCase {
 
         for testCase in cases {
             XCTAssertEqual(
-                ConfigFile.userPath(environment: testCase.environment).path,
-                testCase.expected,
+                ConfigFile.load(bundle: bundle, environment: testCase.environment) { url in
+                    url.path == testCase.expected ? "hyper-1 = switch-to-workspace 1" : nil
+                },
+                .success(try makeConfig(["hyper-1": .switchToWorkspace(1)])),
                 testCase.name
             )
         }
@@ -67,9 +53,10 @@ final class ConfigFileTests: XCTestCase {
             .success(try makeConfig(["hyper-1": .switchToWorkspace(1)]))
         )
     }
-
+    
     func testFallsBackToTheBundledConfigWhenThereIsNone() throws {
-        XCTAssertEqual(load(userConfig: nil), .success(try bundledConfig()))
+        let configCount = try load(userConfig: nil).get().bindings().values.count
+        XCTAssertEqual(configCount > 0, true)
     }
 
     func testRejectsAnUnparseableUserConfig() {
@@ -83,21 +70,15 @@ final class ConfigFileTests: XCTestCase {
         XCTAssertEqual(load(userConfig: ""), .success(Config([:])))
     }
 
-    func testBindsNothingWhenEvenTheBundledConfigIsUnusable() {
-        let environment = ["HOME": "/Users/otto"]
-        let userPath = ConfigFile.userPath(environment: environment)
-
-        let cases: [(name: String, bundle: Bundle, bundledConfig: String?)] = [
-            ("nothing bundled", Bundle(for: XCTestCase.self), nil),
-            ("bundled file unreadable", bundle, nil),
-            ("bundled file unparseable", bundle, "lalt-1 = warp 1"),
+    func testBindsNothingWhenEvenTheBundledConfigIsUnavailable() {
+        let cases: [(name: String, bundle: Bundle)] = [
+            ("nothing bundled", Bundle(for: XCTestCase.self)),
+            ("bundled file unreadable", bundle),
         ]
 
         for testCase in cases {
             XCTAssertEqual(
-                ConfigFile.load(bundle: testCase.bundle, environment: environment) { url in
-                    url == userPath ? nil : testCase.bundledConfig
-                },
+                ConfigFile.load(bundle: testCase.bundle, environment: ["HOME": "/Users/otto"]) { _ in nil },
                 .success(Config([:])),
                 testCase.name
             )

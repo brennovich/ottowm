@@ -6,14 +6,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var engine: Engine?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Read before anything else: a configuration the user has to fix stops the launch, and by
-        // the time the engine is running there are windows parked offscreen to restore.
-        let config: Config
-        switch ConfigFile.load() {
-        case let .success(loaded):
-            config = loaded
-        case let .failure(error):
-            Log.app.error("cannot start: \(error)")
+        guard case let .success(config) = ConfigFile.load() else {
+            Log.app.error("unable to load a valid config, exiting")
             exit(EXIT_FAILURE)
         }
 
