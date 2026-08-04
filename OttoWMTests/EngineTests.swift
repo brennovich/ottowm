@@ -341,6 +341,44 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(desktop.placement(of: 100), .active)
     }
 
+    func testStartGroupsTabsAgainstTheFrameTheyWereRecoveredTo() {
+        let hiddenEdge = CGRect(x: 1791, y: 1082, width: 908, height: 798)
+        let recovered = CGRect(x: 442, y: 161, width: 908, height: 798)
+        let parkedTab = add(StubWindow(id: 300, appName: "Terminal", frame: hiddenEdge, tabCount: 2))
+        desktop.recoveredFrames = [300: recovered]
+
+        engine.start(windows: [parkedTab.snapshot()])
+        let lateTab = add(StubWindow(id: 301, appName: "Terminal", frame: recovered, tabCount: 2))
+        engine.handle(.focused(lateTab.snapshot()))
+
+        XCTAssertEqual(workspaces.tabSiblings(of: 301), [300])
+    }
+
+    func testTabDiscoveredDuringASwitchStaysInItsGroupsWorkspace() {
+        let tabFrame = CGRect(x: 400, y: 0, width: 800, height: 600)
+        create(StubWindow(id: 300, appName: "Terminal", frame: tabFrame, tabCount: 2))
+        let lateTab = add(StubWindow(id: 301, appName: "Terminal", frame: tabFrame, tabCount: 2))
+        focused = lateTab
+
+        engine.switchToWorkspace(2)
+
+        XCTAssertEqual(workspaces.workspace(for: 301), 1)
+        XCTAssertEqual(desktop.placement(of: 301), .storage)
+    }
+
+    func testFocusingATabOfAGroupParkedElsewhereFollowsTheUserToIt() {
+        let tabFrame = CGRect(x: 400, y: 0, width: 800, height: 600)
+        create(StubWindow(id: 300, appName: "Terminal", frame: tabFrame, tabCount: 2))
+        engine.switchToWorkspace(2)
+
+        let lateTab = add(StubWindow(id: 301, appName: "Terminal", frame: tabFrame, tabCount: 2))
+        focused = lateTab
+        engine.handle(.focused(lateTab.snapshot()))
+
+        XCTAssertEqual(workspaces.currentWorkspace, 1)
+        XCTAssertEqual(desktop.placement(of: 301), .active)
+    }
+
     func testDestroyedWindowRestoresFocusToPreviousWindow() {
         let win1 = create(StubWindow(id: 100))
         engine.handle(.focused(win1.snapshot()))

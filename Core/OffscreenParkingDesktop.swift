@@ -61,12 +61,19 @@ final class OffscreenParkingDesktop: Desktop {
         self.notificationCenter = notificationCenter
     }
 
-    func recover(windows: [WindowSnapshot]) {
+    // Returns the windows as they now stand: a recovered one no longer sits where its
+    // caller saw it, and the model has to record where it ended up.
+    func recover(windows: [WindowSnapshot]) -> [WindowSnapshot] {
         Telemetry.shared.span("recover") {
-            for snapshot in windows where !snapshot.isMinimized && hiddenEdge.holds(snapshot.frame) {
+            windows.map { snapshot in
+                guard !snapshot.isMinimized, hiddenEdge.holds(snapshot.frame),
+                      let win = window(snapshot.id)
+                else { return snapshot }
+
                 Log.desktop.info("recovering \(snapshot.logDescription) stuck at hidden edge")
                 let recovered = hiddenEdge.recovered(from: snapshot.frame)
-                window(snapshot.id)?.setFrame(recovered)
+                win.setFrame(recovered)
+                return snapshot.moved(to: recovered)
             }
         }
     }

@@ -20,9 +20,7 @@ final class Engine {
 
     func start(windows: [WindowSnapshot]) {
         screen.duringOperation("start") {
-            desktop.recover(windows: windows)
-
-            for win in windows {
+            for win in desktop.recover(windows: windows) {
                 assignWindowToWorkspace(win, 1)
             }
 
@@ -46,8 +44,9 @@ final class Engine {
             case let .unminimized(win):
                 // A window minimized while parked was forgotten where it stood, in the
                 // corner: unmanageable then, recoverable only now that it is back.
-                desktop.recover(windows: [win])
-                assignWindowToWorkspace(win, workspaces.currentWorkspace)
+                for recovered in desktop.recover(windows: [win]) {
+                    assignWindowToWorkspace(recovered, workspaces.currentWorkspace)
+                }
             }
         }
     }
@@ -117,8 +116,15 @@ final class Engine {
 
         if let workspace = workspaces.workspace(for: win.id) {
             workspaces.saveFocusedWindowInWorkspace(workspace, win.id)
-        } else {
-            assignWindowToWorkspace(win, workspaces.currentWorkspace)
+            return
+        }
+
+        assignWindowToWorkspace(win, workspaces.currentWorkspace)
+
+        // A tab discovered only now can belong to a group living in another workspace. The
+        // user reached it, so follow them there instead of parking it under their nose.
+        if let workspace = workspaces.workspace(for: win.id), workspace != workspaces.currentWorkspace {
+            handleManualNavigation(win.id)
         }
     }
 
@@ -195,7 +201,14 @@ final class Engine {
     private func assignWindowToWorkspace(_ win: WindowSnapshot, _ workspace: Int) {
         guard isValidWindow(win) else { return }
         workspaces.assignWindowToWorkspace(win, workspace)
-        Log.engine.info("assigned \(win.logDescription) → workspace \(workspace)")
+        let assigned = workspaces.workspace(for: win.id) ?? workspace
+        Log.engine.info("assigned \(win.logDescription) → workspace \(assigned)")
+
+        // Joining a tab group can land the window in a workspace that is not the one on
+        // screen, and it has to be parked with the rest of its group.
+        if assigned != workspaces.currentWorkspace {
+            desktop.place(win.id, .storage)
+        }
     }
 
     // Coming back from a unmanaged native space/fullscreen is only possible by focusing
@@ -228,10 +241,12 @@ final class Engine {
                     return true
                 }
                 // A window that left management while it was out of reach is back. It joins the
-                // workspace the user is on now, like a newly created one.
+                // workspace the user is on now, like a newly created one. Unless it belongs to
+                // a tab group that lives elsewhere, in which case it is parked and something
+                // else has to take the focus.
                 if workspace == nil {
                     assignWindowToWorkspace(osFocused, currentWorkspace)
-                    return true
+                    if workspaces.workspace(for: osFocused.id) == currentWorkspace { return true }
                 }
             }
 

@@ -148,16 +148,14 @@ final class WorkspacesTests: XCTestCase {
         }
     }
 
-    func testAssignWindowToWorkspaceWithTabbedWindows() {
+    func testAssignWindowToWorkspaceKeepsATabGroupWhereItAlreadyIs() {
         let model = Workspaces()
 
         model.assignWindowToWorkspace(makeSnapshot(100, appName: "Safari", tabCount: 2), 1)
         model.assignWindowToWorkspace(makeSnapshot(200, appName: "Safari", tabCount: 2), 2)
 
-        XCTAssertEqual(model.workspace(for: 100), 2)
-        XCTAssertEqual(model.workspace(for: 200), 2)
-
-        _ = model.switchTo(2, leavingFocusOn: nil)
+        XCTAssertEqual(model.workspace(for: 100), 1)
+        XCTAssertEqual(model.workspace(for: 200), 1)
         XCTAssertEqual(model.nextWindowToFocus(), 200)
     }
 

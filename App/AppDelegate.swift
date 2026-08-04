@@ -25,6 +25,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let windowById: (CGWindowID) -> AXWindow? = { [windowObserver] id in
             windowObserver.window(byId: id)
         }
+        let focusedWindow: () -> AXWindow? = { [windowObserver] in
+            windowObserver.focusedWindow()
+        }
 
         let engine = Engine(
             desktop: OffscreenParkingDesktop(
@@ -33,7 +36,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 focusedWindowId: { AXWindow.focused()?.id }
             ),
             screen: Screen(
-                focusedWindow: OperationCache { AXWindow.focused()?.snapshot() },
+                focusedWindow: OperationCache { focusedWindow()?.snapshot() },
                 onScreenWindowIds: OperationCache {
                     Set((CGWindowListCopyWindowInfo(
                         [.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)

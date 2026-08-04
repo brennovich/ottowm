@@ -13,4 +13,16 @@ struct WindowSnapshot: Sendable, Equatable {
 
 extension WindowSnapshot {
     var logDescription: String { "id=\(id) app=\(appName)" }
+
+    func moved(to frame: CGRect) -> WindowSnapshot {
+        WindowSnapshot(
+            id: id,
+            appName: appName,
+            isStandard: isStandard,
+            isFullScreen: isFullScreen,
+            isMinimized: isMinimized,
+            tabCount: tabCount,
+            frame: frame
+        )
+    }
 }

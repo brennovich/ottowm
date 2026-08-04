@@ -26,10 +26,14 @@ final class Workspaces {
         workspaceWindowsMap[workspace] ?? []
     }
 
+    // A tab group is one unit and it already sits somewhere: a window joining one lands
+    // where the group is, rather than dragging the whole group to the workspace it was
+    // discovered from.
     func assignWindowToWorkspace(_ window: WindowSnapshot, _ workspace: Int) {
         tabGroups.add(window)
-        assignTabGroup(of: window.id, to: workspace)
-        saveFocusedWindowInWorkspace(workspace, window.id)
+        let target = workspaceOfTabGroup(window.id) ?? workspace
+        assignTabGroup(of: window.id, to: target)
+        saveFocusedWindowInWorkspace(target, window.id)
     }
 
     func moveWindowToWorkspace(_ windowId: CGWindowID, _ workspace: Int) {
@@ -84,6 +88,10 @@ final class Workspaces {
 
         workspaceWindowsMap[workspace, default: []].append(windowId)
         windowWorkspaceMap[windowId] = workspace
+    }
+
+    private func workspaceOfTabGroup(_ windowId: CGWindowID) -> Int? {
+        tabGroups.siblings(of: windowId).lazy.compactMap { self.windowWorkspaceMap[$0] }.first
     }
 
     private func assignTabGroup(of windowId: CGWindowID, to workspace: Int) {

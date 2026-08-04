@@ -10,13 +10,18 @@ final class StubDesktop: Desktop {
     private(set) var recoveredWindowIds: [CGWindowID] = []
     private(set) var manualNavigationCallback: ((CGWindowID) -> Void)?
 
+    var recoveredFrames: [CGWindowID: CGRect] = [:]
+
     init(window: @escaping (CGWindowID) -> (any Window)? = { _ in nil }) {
         self.window = window
     }
 
-    func recover(windows: [WindowSnapshot]) {
+    func recover(windows: [WindowSnapshot]) -> [WindowSnapshot] {
         recoverCount += 1
         recoveredWindowIds = windows.map(\.id)
+        return windows.map { win in
+            recoveredFrames[win.id].map { win.moved(to: $0) } ?? win
+        }
     }
 
     func place(_ windowId: CGWindowID, _ placement: Placement) {

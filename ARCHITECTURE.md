@@ -42,10 +42,10 @@ flowchart TB
 |---|---|
 | `Engine` | Orchestrator. Turns events and hotkeys into model updates plus desktop moves. Owns the admission gate (`isValidWindow`). |
 | `Workspaces` | Pure model: window → workspace, per-workspace focus history, current workspace. No OS calls. |
-| `TabGroups` | Infers macOS tab siblings by heuristic (app name + identical frame + `tabCount > 1`); a group moves as a unit. |
+| `TabGroups` | Infers macOS tab siblings by heuristic (app name + identical frame + `tabCount > 1`); a group moves as a unit and stays where it is, so a window joining one lands in the group's workspace rather than dragging the group to its own. |
 | `Desktop` (`OffscreenParkingDesktop`) | The write side. Realizes `Placement` by parking storage windows in a 1px bottom-right sliver and restoring their captured frame. |
 | `Screen` | The read side. Consistent, cached view of focused window and on-screen window ids. |
-| `AXWindowObserver` | Per-app `AXObserver`s + `NSWorkspace` notifications → `WindowEvent`. Keeps the `AXUIElement ↔ CGWindowID` registry. |
+| `AXWindowObserver` | Per-app `AXObserver`s + `NSWorkspace` notifications → `WindowEvent`. Keeps the `AXUIElement ↔ CGWindowID` registry. An application lists only the active tab of a group in `kAXWindowsAttribute` and sends no notification when tabs switch, so a background tab cannot be enumerated at all: `focusedWindow()` adopts it into the registry at the one moment it is reachable, when it becomes focused. |
 | `HotkeyEventTap` | Session `CGEventTap` on keyDown. Needed over Carbon hotkeys because only raw device flags distinguish left from right Option. |
 | `Config` | The binding table: `KeyCombo` → `Action`, indexed by key code because the lookup runs in the event tap callback. Nothing else; a pure value. |
 | `ConfigFile` | Where the configuration comes from: `load()` resolves `$OTTOWM_CONFIG` / XDG and falls back to the copy bundled in `Contents/Resources` only when there is no user file at all. A file that is there but does not parse comes back as a `ConfigError`, which `AppDelegate` turns into an exit rather than binding keys the user did not ask for. `parse()` is the pure parser for the line format (`key combo = action`, blank lines skipped, nothing else) and stops at the first problem; a combo bound twice keeps the last line, and two different combos one keystroke could satisfy (`alt-1` and `lalt-1`) are both kept, with the lookup picking between them in no guaranteed order. `KeyCombo` and `Action` are the two halves of a line and live beside it under `Core/Config`; `KeyCombo` owns the `NX_DEVICE*` bits that pin a modifier to one side, and `ConfigError` carries the offending line. |
@@ -78,6 +78,7 @@ sequenceDiagram
     AppDelegate->>Engine: start(windows)
     Engine->>Desktop: recover(windows)
     Note right of Desktop: un-park windows left at the hidden edge by a previous run
+    Desktop-->>Engine: [WindowSnapshot] at the frames they were recovered to
     Engine->>Workspaces: assign every window to workspace 1
     Engine->>Desktop: startWatchingForManualNavigation
     AppDelegate->>HotkeyEventTap: start()
@@ -123,12 +124,19 @@ flowchart LR
 ```
 
 A window out of reach cannot be parked, so it stops being managed rather than being flagged.
-Anything coming back joins whatever workspace is current, like a brand-new window.
+Anything coming back joins whatever workspace is current, like a brand-new window — unless it is a
+tab of a group living elsewhere, which wins: the window is assigned there and parked, and a user who
+reached it by focusing it is followed to that workspace.
 
 ## Invariants
 
 - `isValidWindow` is the single admission gate: non-zero id, standard subrole, not fullscreen,
   not minimized, and currently on screen.
+- Every window the model records is one the registry can resolve. A window `Engine` cannot look up
+  cannot be placed, so it would sit visible on every workspace: anything reaching `Engine`, the
+  focused-window read included, is registered on the way in.
+- The model never records a frame the desktop has already changed: `recover` returns the windows at
+  the frame it left them, because `TabGroups` matches siblings by frame.
 - Only `Desktop` moves windows; `Engine` never touches AX geometry directly.
 - `Workspaces` is pure and fully unit-testable; `Desktop`/`Screen`/`Window` are protocols with
   stubs in `OttoWMTests`.

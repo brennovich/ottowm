@@ -47,8 +47,12 @@ final class AXWindowObserver {
             }
         }
 
+        func knows(_ element: AXUIElement) -> Bool {
+            refs[element] != nil
+        }
+
         func unregistered(of elements: [AXUIElement]) -> [AXUIElement] {
-            elements.filter { refs[$0] == nil }
+            elements.filter { !knows($0) }
         }
 
         func element(for id: CGWindowID) -> (element: AXUIElement, pid: pid_t)? {
@@ -94,6 +98,24 @@ final class AXWindowObserver {
         return AXWindow(element: element, application: app, id: id)
     }
 
+    // A window that is not the active tab of its group is absent from the application's
+    // window list, so becoming focused is the only moment it can be discovered. Taking it
+    // in here is what makes it placeable and puts it under the lifecycle notifications.
+    func focusedWindow() -> AXWindow? {
+        guard let window = AXWindow.focused() else { return nil }
+        adopt(window)
+        return window
+    }
+
+    private func adopt(_ window: AXWindow) {
+        guard window.id != 0, !registry.knows(window.element),
+              let observer = observers[window.application.processIdentifier]
+        else { return }
+
+        Log.observer.info("adopting \(window.logDescription)")
+        watchWindow(window, observer: observer)
+    }
+
     func handle(element: AXUIElement, notification: String, observer: AXObserver) {
         guard let event = event(for: element, notification: notification, observer: observer) else {
             Log.observer.debug("dropped \(notification)")
@@ -110,7 +132,11 @@ final class AXWindowObserver {
                 return .created(window.snapshot())
             }
         case kAXFocusedWindowChangedNotification:
-            return application(for: element).map { .focused(AXWindow(element: element, application: $0).snapshot()) }
+            return application(for: element).map { app in
+                let window = AXWindow(element: element, application: app)
+                adopt(window)
+                return .focused(window.snapshot())
+            }
         case kAXUIElementDestroyedNotification:
             return registry.removeWindow(for: element).map(WindowEvent.destroyed)
         case kAXWindowMiniaturizedNotification:
