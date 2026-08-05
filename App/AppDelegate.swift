@@ -47,10 +47,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 window: windowById
             )
         )
-        self.engine = engine
-
-        let windows = windowObserver.start { engine.handle($0) }
-        engine.start(windows: windows)
+        self.engine = engine.start(windows: windowObserver.start { engine.handle($0) })
 
         let hotkeys = HotkeyEventTap(config: config) { action in
             switch action {

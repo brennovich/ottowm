@@ -18,7 +18,7 @@ final class Engine {
         self.workspaces = workspaces
     }
 
-    func start(windows: [WindowSnapshot]) {
+    func start(windows: [WindowSnapshot]) -> Engine {
         screen.duringOperation("start") {
             for win in desktop.recover(windows: windows) {
                 assignWindowToWorkspace(win, 1)
@@ -28,6 +28,8 @@ final class Engine {
                 self?.handleManualNavigation(windowId)
             }
         }
+
+        return self
     }
 
     func handle(_ event: WindowEvent) {
