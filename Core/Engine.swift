@@ -64,6 +64,7 @@ final class Engine {
     func switchToWorkspace(_ workspace: Int) {
         screen.duringOperation("switchToWorkspace(\(workspace))") {
             dropFocusedWindowIfFullScreen()
+            admitFocusedWindow()
 
             // The desktop is in front when at least one window we manage is on screen:
             // a native Space showing something else (a full screen app) shows none of them.
@@ -151,6 +152,15 @@ final class Engine {
         unmanage(windowId, "minimized")
 
         restoreWindowsFocusForWorkspace()
+    }
+
+    // A window its application never announced is discovered when the focus is read,
+    // which can be in the middle of a switch. It was on screen in the workspace being
+    // left, so it joins that one rather than the one being entered.
+    private func admitFocusedWindow() {
+        guard let focused = screen.focused(), workspaces.workspace(for: focused.id) == nil else { return }
+
+        assignWindowToWorkspace(focused, workspaces.currentWorkspace)
     }
 
     private func dropFocusedWindowIfFullScreen() {

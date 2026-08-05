@@ -185,6 +185,21 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(win2.focusCount, 0)
     }
 
+    func testWindowDiscoveredWhileSwitchingJoinsTheWorkspaceItWasVisibleIn() {
+        create(StubWindow(id: 100))
+        add(StubWindow(id: 200))
+
+        focused = windows[200]
+        engine.switchToWorkspace(2)
+
+        XCTAssertEqual(workspaces.windowIds(in: 1), [100, 200])
+        XCTAssertEqual(desktop.placement(of: 200), .storage)
+
+        engine.switchToWorkspace(1)
+
+        XCTAssertEqual(desktop.placement(of: 200), .active)
+    }
+
     func testSwitchReadsTheFocusedWindowOnce() {
         let win1 = create(StubWindow(id: 100))
         let win2 = create(StubWindow(id: 200))
@@ -423,7 +438,7 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(win1.focusCount, 1)
     }
 
-    func testWindowBackFromFullScreenJoinsTheCurrentWorkspace() {
+    func testWindowBackFromFullScreenJoinsTheWorkspaceItReappearedIn() {
         create(StubWindow(id: 100))
         let win2 = create(StubWindow(id: 200))
         win2.isFullScreen = true
@@ -436,10 +451,11 @@ final class EngineTests: XCTestCase {
         engine.switchToWorkspace(2)
 
         XCTAssertEqual(workspaces.allWindowIds, [100, 200])
+        XCTAssertEqual(desktop.placement(of: 200), .storage)
 
         engine.switchToWorkspace(1)
 
-        XCTAssertEqual(desktop.placement(of: 200), .storage)
+        XCTAssertEqual(desktop.placement(of: 200), .active)
     }
 
     func testMinimizedWindowIsDroppedFromItsWorkspace() {
