@@ -30,8 +30,8 @@ final class Workspaces {
     // where the group is, rather than dragging the whole group to the workspace it was
     // discovered from. Returns the workspace the window actually landed in.
     @discardableResult
-    func assignWindowToWorkspace(_ window: WindowSnapshot, _ workspace: Int) -> Int {
-        tabGroups.add(window)
+    func assignWindowToWorkspace(_ window: WindowSnapshot, _ workspace: Int, tabCount: Int = 1) -> Int {
+        tabGroups.add(window, tabCount: tabCount)
         let target = workspaceOfTabGroup(window.id) ?? workspace
         assignTabGroup(of: window.id, to: target)
         saveFocusedWindowInWorkspace(target, window.id)

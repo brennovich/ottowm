@@ -151,8 +151,8 @@ final class WorkspacesTests: XCTestCase {
     func testAssignWindowToWorkspaceKeepsATabGroupWhereItAlreadyIsAndReportsIt() {
         let model = Workspaces()
 
-        XCTAssertEqual(model.assignWindowToWorkspace(makeSnapshot(100, appName: "Safari", tabCount: 2), 1), 1)
-        XCTAssertEqual(model.assignWindowToWorkspace(makeSnapshot(200, appName: "Safari", tabCount: 2), 2), 1)
+        XCTAssertEqual(model.assignWindowToWorkspace(makeSnapshot(100, appName: "Safari"), 1, tabCount: 2), 1)
+        XCTAssertEqual(model.assignWindowToWorkspace(makeSnapshot(200, appName: "Safari"), 2, tabCount: 2), 1)
 
         XCTAssertEqual(model.workspace(for: 100), 1)
         XCTAssertEqual(model.workspace(for: 200), 1)
@@ -186,8 +186,8 @@ final class WorkspacesTests: XCTestCase {
 
     func testMoveWindowToWorkspaceMovesTabGroup() {
         let model = Workspaces()
-        model.assignWindowToWorkspace(makeSnapshot(100, appName: "Safari", tabCount: 2), 1)
-        model.assignWindowToWorkspace(makeSnapshot(200, appName: "Safari", tabCount: 2), 1)
+        model.assignWindowToWorkspace(makeSnapshot(100, appName: "Safari"), 1, tabCount: 2)
+        model.assignWindowToWorkspace(makeSnapshot(200, appName: "Safari"), 1, tabCount: 2)
 
         model.moveWindowToWorkspace(100, 3)
 
@@ -199,8 +199,8 @@ final class WorkspacesTests: XCTestCase {
 
     func testUnregisteringATabLeavesItsSiblingsInPlaceAndFocused() {
         let model = Workspaces()
-        model.assignWindowToWorkspace(makeSnapshot(100, appName: "Safari", tabCount: 2), 1)
-        model.assignWindowToWorkspace(makeSnapshot(200, appName: "Safari", tabCount: 2), 1)
+        model.assignWindowToWorkspace(makeSnapshot(100, appName: "Safari"), 1, tabCount: 2)
+        model.assignWindowToWorkspace(makeSnapshot(200, appName: "Safari"), 1, tabCount: 2)
         model.assignWindowToWorkspace(makeSnapshot(300), 1)
         model.saveFocusedWindowInWorkspace(1, 300)
 
@@ -213,8 +213,8 @@ final class WorkspacesTests: XCTestCase {
 
     func testUnregisteringATabPromotesItsSiblingInTheGroupsOwnWorkspace() {
         let model = Workspaces()
-        model.assignWindowToWorkspace(makeSnapshot(100, appName: "Safari", tabCount: 2), 2)
-        model.assignWindowToWorkspace(makeSnapshot(200, appName: "Safari", tabCount: 2), 2)
+        model.assignWindowToWorkspace(makeSnapshot(100, appName: "Safari"), 2, tabCount: 2)
+        model.assignWindowToWorkspace(makeSnapshot(200, appName: "Safari"), 2, tabCount: 2)
         model.assignWindowToWorkspace(makeSnapshot(400), 2)
         model.saveFocusedWindowInWorkspace(2, 400)
 
@@ -260,8 +260,8 @@ final class WorkspacesTests: XCTestCase {
             (
                 "falls back to the first window when the workspace has no focus history",
                 { model in
-                    model.assignWindowToWorkspace(makeSnapshot(100, appName: "Safari", tabCount: 2), 2)
-                    model.assignWindowToWorkspace(makeSnapshot(200, appName: "Safari", tabCount: 2), 2)
+                    model.assignWindowToWorkspace(makeSnapshot(100, appName: "Safari"), 2, tabCount: 2)
+                    model.assignWindowToWorkspace(makeSnapshot(200, appName: "Safari"), 2, tabCount: 2)
                     _ = model.switchTo(2, leavingFocusOn: nil)
                     model.moveWindowToWorkspace(100, 1)
                     model.unregisterWindowById(100)

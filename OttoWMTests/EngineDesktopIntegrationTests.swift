@@ -197,6 +197,21 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         XCTAssertEqual(win1.frame, frame1)
     }
 
+    func testSwitchingReadsNoTabCounts() {
+        let win1 = addWindow(100, frame: frame1)
+        let win2 = addWindow(200, frame: frame2)
+        focused = win1
+        start()
+        moveFocusedWindow(win2, to: 2)
+
+        let before = windows.values.reduce(0) { $0 + $1.tabCountReadCount }
+        focused = win1
+        engine.switchToWorkspace(2)
+        engine.switchToWorkspace(1)
+
+        XCTAssertEqual(windows.values.reduce(0) { $0 + $1.tabCountReadCount }, before)
+    }
+
     func testWindowGoneWithoutNoticeIsDroppedOnTheNextSwitch() {
         let win1 = addWindow(100, frame: frame1)
         let vanished = addWindow(200, frame: frame2)

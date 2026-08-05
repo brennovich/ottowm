@@ -49,7 +49,6 @@ final class AXWindow: Window {
             isStandard: attributes[kAXSubroleAttribute] as? String == kAXStandardWindowSubrole,
             isFullScreen: (attributes[FullScreenAttribute] as? Bool) ?? false,
             isMinimized: (attributes[kAXMinimizedAttribute] as? Bool) ?? false,
-            tabCount: tabCount,
             frame: frame(position: attributes[kAXPositionAttribute], size: attributes[kAXSizeAttribute]) ?? .zero
         )
     }
@@ -96,7 +95,7 @@ final class AXWindow: Window {
         return AXWindow(element: element, application: app)
     }
 
-    private var tabCount: Int {
+    func tabCount() -> Int {
         guard let children = axAttribute(element, kAXChildrenAttribute) as? [AXUIElement] else {
             Log.window.debug("tabCount children read failed \(self.logDescription), assuming 1")
             return 1

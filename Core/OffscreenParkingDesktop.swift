@@ -112,12 +112,14 @@ final class OffscreenParkingDesktop: Desktop {
     }
 
     func focus(_ windowId: CGWindowID) -> Bool {
-        guard let win = window(windowId) else {
-            Log.desktop.debug("cannot focus id=\(windowId): window not found")
-            return false
+        Telemetry.shared.span("focus(\(windowId))") {
+            guard let win = window(windowId) else {
+                Log.desktop.debug("cannot focus id=\(windowId): window not found")
+                return false
+            }
+            win.focus()
+            return true
         }
-        win.focus()
-        return true
     }
 
     func startWatchingForManualNavigation(_ callback: @escaping (CGWindowID) -> Void) {

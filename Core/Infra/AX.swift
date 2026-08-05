@@ -2,7 +2,7 @@ import ApplicationServices
 import CoreGraphics
 
 // Ceiling on how long a single AX round trip may block the caller.
-let axMessagingTimeoutSeconds: Float = 0.3
+let axMessagingTimeoutSeconds: Float = 0.1
 
 // Undeclared by the AX headers, but answered by the applications we manage.
 let FullScreenAttribute = "AXFullScreen"

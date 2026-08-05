@@ -230,7 +230,9 @@ final class Engine {
     @discardableResult
     private func assignWindowToWorkspace(_ win: WindowSnapshot, _ workspace: Int) -> Int? {
         guard isValidWindow(win) else { return nil }
-        let assigned = workspaces.assignWindowToWorkspace(win, workspace)
+        // The one moment the tab group has to be worked out, and so the one moment
+        // worth walking the window's accessibility children for its tab count.
+        let assigned = workspaces.assignWindowToWorkspace(win, workspace, tabCount: screen.tabCount(of: win.id))
         Log.engine.info("assigned \(win.logDescription) → workspace \(assigned)")
 
         // Joining a tab group can land the window in a workspace that is not the one on

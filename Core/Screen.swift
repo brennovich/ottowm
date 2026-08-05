@@ -46,4 +46,8 @@ final class Screen {
     func snapshot(of windowId: CGWindowID) -> WindowSnapshot? {
         window(windowId)?.snapshot()
     }
+
+    func tabCount(of windowId: CGWindowID) -> Int {
+        window(windowId)?.tabCount() ?? 1
+    }
 }

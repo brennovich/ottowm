@@ -3,7 +3,7 @@ import CoreGraphics
 final class StubWindow: Window {
     let id: CGWindowID
     let appName: String
-    let tabCount: Int
+    let tabs: Int
     let isStandard: Bool
     var isFullScreen: Bool
     var isMinimized: Bool
@@ -13,6 +13,7 @@ final class StubWindow: Window {
     private(set) var sizeSetCount = 0
     private(set) var focusCount = 0
     private(set) var movableFrameCount = 0
+    private(set) var tabCountReadCount = 0
 
     init(
         id: CGWindowID,
@@ -26,7 +27,7 @@ final class StubWindow: Window {
         self.id = id
         self.appName = appName
         self.frame = frame
-        self.tabCount = tabCount
+        self.tabs = tabCount
         self.isStandard = isStandard
         self.isFullScreen = isFullScreen
         self.isMinimized = isMinimized
@@ -39,9 +40,13 @@ final class StubWindow: Window {
             isStandard: isStandard,
             isFullScreen: isFullScreen,
             isMinimized: isMinimized,
-            tabCount: tabCount,
             frame: frame
         )
+    }
+
+    func tabCount() -> Int {
+        tabCountReadCount += 1
+        return tabs
     }
 
     func movableFrame() -> CGRect? {

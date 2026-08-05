@@ -20,10 +20,10 @@ struct TabGroups {
 
     // Joins the group whose representative this window is a tab of, or opens a new
     // one around it.
-    mutating func add(_ window: WindowSnapshot) {
+    mutating func add(_ window: WindowSnapshot, tabCount: Int) {
         guard windowToGroup[window.id] == nil else { return }
 
-        let groupId = groupRepresenting(window) ?? openGroup(around: window)
+        let groupId = groupRepresenting(window, tabCount) ?? openGroup(around: window)
         groups[groupId]?.windowIds.append(window.id)
         windowToGroup[window.id] = groupId
     }
@@ -52,8 +52,8 @@ struct TabGroups {
         groups[groupId] = group.windowIds.isEmpty ? nil : group
     }
 
-    private func groupRepresenting(_ window: WindowSnapshot) -> Int? {
-        guard window.tabCount > 1 else { return nil }
+    private func groupRepresenting(_ window: WindowSnapshot, _ tabCount: Int) -> Int? {
+        guard tabCount > 1 else { return nil }
 
         return groups.first { isTab(window, of: $0.value.representative) }?.key
     }
@@ -61,8 +61,7 @@ struct TabGroups {
     // As macOS does not tell us whether two windows are tabs of the same
     // application, infers with some heuristics.
     private func isTab(_ window: WindowSnapshot, of representative: WindowSnapshot) -> Bool {
-        return window.tabCount > 1
-            && window.appName == representative.appName
+        return window.appName == representative.appName
             && window.frame.origin.x == representative.frame.origin.x
             && abs(window.frame.origin.y - representative.frame.origin.y) <= Self.yTolerance
             && window.frame.width == representative.frame.width

@@ -7,7 +7,6 @@ struct WindowSnapshot: Sendable, Equatable {
     let isStandard: Bool
     let isFullScreen: Bool
     let isMinimized: Bool
-    let tabCount: Int
     var frame: CGRect
 }
 
