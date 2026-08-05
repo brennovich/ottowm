@@ -81,10 +81,7 @@ final class AXWindow: Window {
     }
 
     static func focused() -> AXWindow? {
-        axElement(AXUIElementCreateSystemWide(), kAXFocusedApplicationAttribute)
-            .flatMap(axPid)
-            .flatMap(NSRunningApplication.init(processIdentifier:))
-            .flatMap(focused(of:))
+        NSWorkspace.shared.frontmostApplication.flatMap(focused(of:))
     }
 
     static func focused(of app: NSRunningApplication) -> AXWindow? {
