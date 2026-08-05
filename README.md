@@ -52,7 +52,7 @@ Actions take a workspace number, and workspaces are created on demand:
 Config is read once at launch; restart the agent to pick up edits. Errors show up in the log:
 
 ```sh
-log stream --predicate 'subsystem == "com.github.brennovich.ottowm" && category == "config"'
+log stream --level debug --predicate 'subsystem == "com.github.brennovich.ottowm" && category == "config"'
 ```
 
 ## Limitations
