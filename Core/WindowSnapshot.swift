@@ -8,21 +8,15 @@ struct WindowSnapshot: Sendable, Equatable {
     let isFullScreen: Bool
     let isMinimized: Bool
     let tabCount: Int
-    let frame: CGRect
+    var frame: CGRect
 }
 
 extension WindowSnapshot {
     var logDescription: String { "id=\(id) app=\(appName)" }
 
     func moved(to frame: CGRect) -> WindowSnapshot {
-        WindowSnapshot(
-            id: id,
-            appName: appName,
-            isStandard: isStandard,
-            isFullScreen: isFullScreen,
-            isMinimized: isMinimized,
-            tabCount: tabCount,
-            frame: frame
-        )
+        var moved = self
+        moved.frame = frame
+        return moved
     }
 }
