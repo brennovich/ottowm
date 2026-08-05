@@ -78,12 +78,15 @@ final class OffscreenParkingDesktop: Desktop {
         }
     }
 
-    func place(_ windowId: CGWindowID, _ placement: Placement) {
+    @discardableResult
+    func place(_ windowId: CGWindowID, _ placement: Placement) -> Bool {
         Telemetry.shared.span("place(\(windowId))") {
             switch placement {
             case .storage:
-                if hiddenWindowFrames[windowId] != nil { return }
-                guard let (win, originalFrame) = movableWindow(windowId, placement) else { return }
+                if hiddenWindowFrames[windowId] != nil { return reaches(windowId) }
+                guard let (win, originalFrame) = movableWindow(windowId, placement) else {
+                    return reaches(windowId)
+                }
                 let hidden = hiddenEdge.frame(parking: originalFrame)
                 hiddenWindowFrames[windowId] = originalFrame
                 move(win, from: originalFrame, to: hidden)
@@ -91,13 +94,16 @@ final class OffscreenParkingDesktop: Desktop {
             case .active:
                 guard let originalFrame = hiddenWindowFrames[windowId] else {
                     Log.desktop.info("cannot restore id=\(windowId): no saved frame")
-                    return
+                    return reaches(windowId)
                 }
-                guard let (win, parkedFrame) = movableWindow(windowId, placement) else { return }
+                guard let (win, parkedFrame) = movableWindow(windowId, placement) else {
+                    return reaches(windowId)
+                }
                 move(win, from: parkedFrame, to: originalFrame)
                 hiddenWindowFrames[windowId] = nil
                 Log.desktop.debug("restored id=\(windowId) to=\(originalFrame)")
             }
+            return true
         }
     }
 
@@ -132,6 +138,15 @@ final class OffscreenParkingDesktop: Desktop {
     private func move(_ win: any Window, from current: CGRect, to target: CGRect) {
         if current.origin != target.origin { win.setPosition(target.origin) }
         if current.size != target.size { win.setSize(target.size) }
+    }
+
+    // Whether the window still exists at all. One that is merely out of reach —
+    // minimized, or mid-relaunch — does and comes back; one nothing can resolve any
+    // more never will, and its owner has to hear about it: an application quitting
+    // evicts its windows without a destroyed notification for each of them, and the
+    // model would otherwise place a corpse on every switch forever.
+    private func reaches(_ windowId: CGWindowID) -> Bool {
+        window(windowId) != nil
     }
 
     private func movableWindow(_ windowId: CGWindowID, _ placement: Placement) -> (window: any Window, frame: CGRect)? {

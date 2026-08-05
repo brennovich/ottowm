@@ -210,11 +210,19 @@ final class Engine {
 
         let placements = workspaces.switchTo(workspace, leavingFocusOn: focusToKeep)
         Log.engine.info("switching to \(workspace) toActive=\(placements.toActive) toStorage=\(placements.toStorage)")
+        var gone: [CGWindowID] = []
         for windowId in placements.toActive {
-            desktop.place(windowId, .active)
+            if !desktop.place(windowId, .active) { gone.append(windowId) }
         }
         for windowId in placements.toStorage {
-            desktop.place(windowId, .storage)
+            if !desktop.place(windowId, .storage) { gone.append(windowId) }
+        }
+
+        // A switch is the only moment every managed window is looked at, so it is also
+        // where the ones that died unannounced surface. Left in, they would be placed
+        // on every switch from here on and could take the focus nothing can give them.
+        for windowId in gone {
+            unmanage(windowId, "gone")
         }
     }
 

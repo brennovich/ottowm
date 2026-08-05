@@ -11,6 +11,7 @@ final class StubDesktop: Desktop {
     private(set) var manualNavigationCallback: ((CGWindowID) -> Void)?
 
     var recoveredFrames: [CGWindowID: CGRect] = [:]
+    var goneWindowIds: Set<CGWindowID> = []
 
     init(window: @escaping (CGWindowID) -> (any Window)? = { _ in nil }) {
         self.window = window
@@ -24,9 +25,11 @@ final class StubDesktop: Desktop {
         }
     }
 
-    func place(_ windowId: CGWindowID, _ placement: Placement) {
+    @discardableResult
+    func place(_ windowId: CGWindowID, _ placement: Placement) -> Bool {
         placeCalls.append((windowId: windowId, placement: placement))
         placements[windowId] = placement
+        return !goneWindowIds.contains(windowId)
     }
 
     func placement(of windowId: CGWindowID) -> Placement {

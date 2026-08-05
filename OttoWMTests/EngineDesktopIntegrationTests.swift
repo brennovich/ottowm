@@ -196,4 +196,34 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         XCTAssertEqual(minimized.frame, frame2)
         XCTAssertEqual(win1.frame, frame1)
     }
+
+    func testWindowGoneWithoutNoticeIsDroppedOnTheNextSwitch() {
+        let win1 = addWindow(100, frame: frame1)
+        let vanished = addWindow(200, frame: frame2)
+        focused = win1
+        start()
+        moveFocusedWindow(vanished, to: 2)
+
+        windows[200] = nil
+        focused = win1
+        engine.switchToWorkspace(2)
+
+        XCTAssertNil(workspaces.workspace(for: 200))
+    }
+
+    func testFocusFallsToALiveWindowWhenTheRememberedOneIsGone() {
+        let win1 = addWindow(100, frame: frame1)
+        let live = addWindow(200, frame: frame2)
+        let vanished = addWindow(300, frame: frame2)
+        focused = win1
+        start()
+        moveFocusedWindow(live, to: 2)
+        moveFocusedWindow(vanished, to: 2)
+
+        windows[300] = nil
+        focused = win1
+        engine.switchToWorkspace(2)
+
+        XCTAssertEqual(live.focusCount, 1)
+    }
 }

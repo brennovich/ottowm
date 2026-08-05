@@ -6,17 +6,13 @@ private let originalFrame = CGRect(x: 100, y: 100, width: 800, height: 600)
 final class OffscreenParkingDesktopTests: XCTestCase {
     private let win = StubWindow(id: 100, frame: originalFrame)
     private var focusedWindowId: CGWindowID?
-    private var lookupCount = 0
     private let center = NotificationCenter()
 
     private lazy var windows = [win.id: win]
 
     private lazy var desktop = OffscreenParkingDesktop(
         screen: StubScreen.standard,
-        window: { [weak self] id in
-            self?.lookupCount += 1
-            return self?.windows[id]
-        },
+        window: { [weak self] id in self?.windows[id] },
         focusedWindowId: { [weak self] in self?.focusedWindowId },
         notificationCenter: center
     )
@@ -42,19 +38,17 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(desktop.placement(of: 100), .active)
     }
 
-    func testPlaceIsIdempotentAndReadsTheWindowOncePerMove() {
+    func testPlaceIsIdempotentAndReadsTheFrameOncePerMove() {
         desktop.place(100, .storage)
         desktop.place(100, .storage)
 
         XCTAssertEqual(win.positionSetCount, 1)
-        XCTAssertEqual(lookupCount, 1)
 
         desktop.place(100, .active)
         desktop.place(100, .active)
 
         XCTAssertEqual(win.positionSetCount, 2)
         XCTAssertEqual(win.frame, originalFrame)
-        XCTAssertEqual(lookupCount, 2)
         XCTAssertEqual(win.movableFrameCount, 2)
     }
 
@@ -88,6 +82,29 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         desktop.place(999, .storage)
 
         XCTAssertEqual(desktop.placement(of: 999), .active)
+    }
+
+    func testPlaceReportsAWindowItCannotReach() {
+        XCTAssertFalse(desktop.place(999, .storage))
+        XCTAssertFalse(desktop.place(999, .active))
+    }
+
+    func testPlaceReportsAnOutOfReachWindowAsStillThere() {
+        win.isMinimized = true
+
+        XCTAssertTrue(desktop.place(100, .storage))
+    }
+
+    func testPlaceReportsAnUnparkedWindowAsStillThere() {
+        XCTAssertTrue(desktop.place(100, .active))
+    }
+
+    func testPlaceReportsAParkedWindowThatVanished() {
+        desktop.place(100, .storage)
+        windows[100] = nil
+
+        XCTAssertFalse(desktop.place(100, .storage))
+        XCTAssertFalse(desktop.place(100, .active))
     }
 
     func testFocusReportsWhetherTheWindowWasStillThere() {

@@ -38,7 +38,7 @@ extension Telemetry {
     static let shared = Telemetry(
         now: { Double(DispatchTime.now().uptimeNanoseconds) / 1_000_000_000 },
         record: { operation, ms in
-            Log.telemetry.debug("\(operation) took \(String(format: "%.2f", ms))ms")
+            Log.telemetry.debug("\(operation) took \(String(format: "%.3f", ms))ms")
         },
         signpostLog: OSLog(subsystem: Log.subsystem, category: "telemetry")
     )
