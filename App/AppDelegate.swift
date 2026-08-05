@@ -12,16 +12,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             exit(EXIT_FAILURE)
         }
 
-        let trusted = AXIsProcessTrustedWithOptions(
-            [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
-        )
+        guard AccessibilityPermission.system().resolve() else { return }
 
         // Every AX call is a synchronous IPC round trip, and without a timeout a
         // beachballing application blocks the main thread for as long as it hangs.
         // Set on the system-wide element, this becomes the process-wide default.
         AXUIElementSetMessagingTimeout(AXUIElementCreateSystemWide(), axMessagingTimeoutSeconds)
 
-        Log.app.notice("OttoWM (\(AppInfo.version)) launched, accessibility=\(trusted)")
+        Log.app.notice("OttoWM (\(AppInfo.version)) launched")
 
         let windowById: (CGWindowID) -> AXWindow? = { [registry] id in
             registry.window(byId: id)

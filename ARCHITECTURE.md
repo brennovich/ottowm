@@ -54,6 +54,7 @@ flowchart TB
 | `Hotkeys` | Session `CGEventTap` on keyDown. Needed over Carbon hotkeys because only raw device flags distinguish left from right Option. Holds only a matcher `(keyCode, flags) → Action?` (in practice `Config.action`) and hands matched `Action`s to `Engine.handle`. |
 | `Config` | The binding table: `KeyCombo` → `Action`, indexed by key code because the lookup runs in the event tap callback. Nothing else; a pure value. |
 | `ConfigFile` | Where the configuration comes from: `load()` resolves `$OTTOWM_CONFIG` / XDG and falls back to the copy bundled in `Contents/Resources` only when there is no user file at all. A file that is there but does not parse comes back as a `ConfigError`, which `AppDelegate` turns into an exit rather than binding keys the user did not ask for. `parse()` is the pure parser for the line format (`key combo = action`, blank lines skipped, nothing else) and stops at the first problem; a combo bound twice keeps the last line, and two different combos one keystroke could satisfy (`alt-1` and `lalt-1`) are both kept, with the lookup picking between them in no guaranteed order. `KeyCombo` and `Action` are the two halves of a line and live beside it under `Core/Config`; `KeyCombo` owns the `NX_DEVICE*` bits that pin a modifier to one side, and `ConfigError` carries the offending line. |
+| `AccessibilityPermission` | The startup gate. Without the grant nothing can be read or moved, and an `LSUIElement` agent has no Dock icon or menu bar to quit from, so `resolve()` never lets the app run on silently: it offers Settings and a Quit button, taking a regular activation policy so the alert can come to front. The grant landing relaunches the app, off the undocumented `com.apple.accessibility.api` distributed notification — the second alert restarts by hand should it not fire. |
 | `OperationCache` | Holds one AX/CG read for the duration of an engine operation; each read is an IPC round trip. |
 
 ## Key types
@@ -78,6 +79,8 @@ sequenceDiagram
     AppDelegate->>ConfigFile: load()
     ConfigFile-->>AppDelegate: Config (user file, else bundled) or ConfigError
     Note right of AppDelegate: read first: a rejected file exits before any window moves
+    AppDelegate->>AccessibilityPermission: resolve()
+    AccessibilityPermission-->>AppDelegate: trusted, carry on (else alert, then quit or relaunch)
     AppDelegate->>AXWindowObserver: start(handler)
     AXWindowObserver-->>AppDelegate: [WindowSnapshot] discovered while registering
     AppDelegate->>Engine: start(windows)
