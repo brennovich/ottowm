@@ -18,6 +18,7 @@ final class Engine {
         self.workspaces = workspaces
     }
 
+    @discardableResult
     func start(windows: [WindowSnapshot]) -> Engine {
         screen.duringOperation("start") {
             for win in desktop.recover(windows: windows) {
@@ -50,6 +51,13 @@ final class Engine {
                     assignWindowToWorkspace(recovered, workspaces.currentWorkspace)
                 }
             }
+        }
+    }
+
+    func handle(_ action: Action) {
+        switch action {
+        case let .switchToWorkspace(workspace): switchToWorkspace(workspace)
+        case let .moveWindowToWorkspace(workspace): moveFocusedWindow(toWorkspace: workspace)
         }
     }
 

@@ -1,7 +1,6 @@
 # Architecture
 
-OttoWM is a headless agent (`App/main.swift` → `AppDelegate`) that fakes virtual workspaces on a
-single native macOS Space. Everything runs on the main run loop; there is no concurrency.
+OttoWM is a headless agent (`App/main.swift` → `AppDelegate`) that fakes virtual workspaces on a single native macOS Space. Everything runs on the main run loop; there is no concurrency.
 
 ## Layers
 
@@ -9,7 +8,7 @@ single native macOS Space. Everything runs on the main run loop; there is no con
 flowchart TB
     subgraph inputs[Inputs]
         AXWindowObserver
-        HotkeyEventTap
+        Hotkeys
         ConfigFile
     end
 
@@ -28,8 +27,8 @@ flowchart TB
     end
 
     AXWindowObserver -->|WindowEvent| Engine
-    ConfigFile -->|Config: KeyCombo → Action| HotkeyEventTap
-    HotkeyEventTap -->|Action| Engine
+    ConfigFile -->|"(keyCode, flags) → Action?"| Hotkeys
+    Hotkeys -->|Action| Engine
     Engine --> Workspaces
     Workspaces --> TabGroups
     Engine -->|place / focus / recover| Desktop
@@ -51,7 +50,7 @@ flowchart TB
 | `Screen` | The read side. Consistent, cached view of focused window and on-screen window ids. |
 | `AXWindowObserver` | Per-app `AXObserver`s + `NSWorkspace` notifications → `WindowEvent`. Registers every window it watches in `WindowRegistry` on the way in. |
 | `WindowRegistry` | The map of known windows: `AXUIElement ↔ CGWindowID` plus pid → application, kept current by `AXWindowObserver`; resolves ids back to live `AXWindow`s. An application lists only the active tab of a group in `kAXWindowsAttribute` and sends no notification when tabs switch, so a background tab cannot be enumerated at all: `adoptFocusedWindow()` adopts it into the registry at the one moment it is reachable, when it becomes focused. |
-| `HotkeyEventTap` | Session `CGEventTap` on keyDown. Needed over Carbon hotkeys because only raw device flags distinguish left from right Option. |
+| `Hotkeys` | Session `CGEventTap` on keyDown. Needed over Carbon hotkeys because only raw device flags distinguish left from right Option. Holds only a matcher `(keyCode, flags) → Action?` (in practice `Config.action`) and hands matched `Action`s to `Engine.handle`. |
 | `Config` | The binding table: `KeyCombo` → `Action`, indexed by key code because the lookup runs in the event tap callback. Nothing else; a pure value. |
 | `ConfigFile` | Where the configuration comes from: `load()` resolves `$OTTOWM_CONFIG` / XDG and falls back to the copy bundled in `Contents/Resources` only when there is no user file at all. A file that is there but does not parse comes back as a `ConfigError`, which `AppDelegate` turns into an exit rather than binding keys the user did not ask for. `parse()` is the pure parser for the line format (`key combo = action`, blank lines skipped, nothing else) and stops at the first problem; a combo bound twice keeps the last line, and two different combos one keystroke could satisfy (`alt-1` and `lalt-1`) are both kept, with the lookup picking between them in no guaranteed order. `KeyCombo` and `Action` are the two halves of a line and live beside it under `Core/Config`; `KeyCombo` owns the `NX_DEVICE*` bits that pin a modifier to one side, and `ConfigError` carries the offending line. |
 | `OperationCache` | Holds one AX/CG read for the duration of an engine operation; each read is an IPC round trip. |
@@ -86,14 +85,14 @@ sequenceDiagram
     Desktop-->>Engine: [WindowSnapshot] at the frames they were recovered to
     Engine->>Workspaces: assign every window to workspace 1
     Engine->>Desktop: startWatchingForManualNavigation
-    AppDelegate->>HotkeyEventTap: start()
+    AppDelegate->>Hotkeys: start()
 ```
 
 ### Workspace switch
 
 ```mermaid
 sequenceDiagram
-    HotkeyEventTap->>Engine: switchToWorkspace(n)
+    Hotkeys->>Engine: handle(switchToWorkspace(n))
     Engine->>Screen: showsAny(managed)?
     Engine->>Workspaces: switchTo(n, leavingFocusOn: focused)
     Workspaces-->>Engine: (toActive, toStorage)
@@ -105,8 +104,7 @@ sequenceDiagram
     end
 ```
 
-The whole operation runs inside `Screen.duringOperation`, so the focused window and the
-on-screen list are each read at most once.
+The whole operation runs inside `Screen.duringOperation`, so the focused window and the on-screen list are each read at most once.
 
 ### Manual navigation (Cmd-Tab / Dock / Mission Control)
 
@@ -115,9 +113,7 @@ The user can reach a parked window behind OttoWM's back. Two detectors, one hand
 - A `.focused` event for a window whose placement is `.storage` (same native Space).
 - `activeSpaceDidChangeNotification` with a hidden window focused (from another Space).
 
-`handleManualNavigation` then switches the model to that window's workspace, so OttoWM follows
-the user rather than fighting them. A one-shot `ignoreNextManualNavigation` flag suppresses the
-echo of a focus OttoWM itself caused.
+`handleManualNavigation` then switches the model to that window's workspace, so OttoWM follows the user rather than fighting them. A one-shot `ignoreNextManualNavigation` flag suppresses the echo of a focus OttoWM itself caused.
 
 ### Window lifecycle
 
@@ -128,22 +124,4 @@ flowchart LR
     unmanaged -->|unminimized, refocused| assigned
 ```
 
-A window out of reach cannot be parked, so it stops being managed rather than being flagged.
-Anything coming back joins whatever workspace is current, like a brand-new window — unless it is a
-tab of a group living elsewhere, which wins: the window is assigned there and parked, and a user who
-reached it by focusing it is followed to that workspace.
-
-## Invariants
-
-- `isValidWindow` is the single admission gate: non-zero id, standard subrole, not fullscreen,
-  not minimized, and currently on screen.
-- Every window the model records is one `WindowRegistry` can resolve. A window `Engine` cannot look
-  up cannot be placed, so it would sit visible on every workspace: anything reaching `Engine` is
-  registered on the way in, the focused-window read included (`adoptFocusedWindow()`).
-- The model never records a frame the desktop has already changed: `recover` returns the windows at
-  the frame it left them, because `TabGroups` matches siblings by frame.
-- Only `Desktop` moves windows; `Engine` never touches AX geometry directly.
-- `Workspaces` is pure and fully unit-testable; `Desktop`/`Screen`/`Window` are protocols with
-  stubs in `OttoWMTests`.
-- A parked window's original frame lives in `OffscreenParkingDesktop.hiddenWindowFrames`;
-  `forget` drops it when a window leaves management.
+A window out of reach cannot be parked, so it stops being managed rather than being flagged.  Anything coming back joins whatever workspace is current, like a brand-new window — unless it is a tab of a group living elsewhere, which wins: the window is assigned there and parked, and a user who reached it by focusing it is followed to that workspace.

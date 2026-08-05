@@ -489,6 +489,25 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(desktop.placement(of: 100), .storage)
     }
 
+    func testHandleActionSwitchesWorkspace() {
+        create(StubWindow(id: 100))
+
+        engine.handle(Action.switchToWorkspace(2))
+
+        XCTAssertEqual(workspaces.currentWorkspace, 2)
+        XCTAssertEqual(desktop.placement(of: 100), .storage)
+    }
+
+    func testHandleActionMovesFocusedWindowToWorkspace() {
+        let win = create(StubWindow(id: 100))
+        focused = win
+
+        engine.handle(Action.moveWindowToWorkspace(2))
+
+        XCTAssertEqual(desktop.placement(of: 100), .storage)
+        XCTAssertEqual(workspaces.workspace(for: 100), 2)
+    }
+
     func testTabSiblingKeepsFocusWhenSeparateWindowCloses() {
         let tabFrame = CGRect(x: 400, y: 0, width: 800, height: 600)
         let tab1 = create(StubWindow(id: 300, appName: "Terminal", frame: tabFrame))

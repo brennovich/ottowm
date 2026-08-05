@@ -3,7 +3,7 @@ import Cocoa
 class AppDelegate: NSObject, NSApplicationDelegate {
     private let registry = WindowRegistry()
     private lazy var windowObserver = AXWindowObserver(registry: registry)
-    private var hotkeys: HotkeyEventTap?
+    private var hotkeys: Hotkeys?
     private var engine: Engine?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -49,16 +49,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             )
         )
         self.engine = engine.start(windows: windowObserver.start { engine.handle($0) })
+        self.hotkeys = Hotkeys(keyCodeMatcher: config.action, handler: engine.handle)
 
-        let hotkeys = HotkeyEventTap(config: config) { action in
-            switch action {
-            case let .switchToWorkspace(workspace): engine.switchToWorkspace(workspace)
-            case let .moveWindowToWorkspace(workspace): engine.moveFocusedWindow(toWorkspace: workspace)
-            }
-        }
-        self.hotkeys = hotkeys
-
-        if !hotkeys.start() {
+        if self.hotkeys?.start() != true {
             Log.app.error("event tap creation failed (check Accessibility permission)")
         }
     }

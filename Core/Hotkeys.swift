@@ -1,35 +1,23 @@
 import CoreGraphics
 import Dispatch
 
-// The C-convention event tap callback: trampolines back to the HotkeyEventTap carried in refcon.
-private func hotkeyEventTapCallback(
-    _ proxy: CGEventTapProxy,
-    _ type: CGEventType,
-    _ event: CGEvent,
-    _ refcon: UnsafeMutableRawPointer?
-) -> Unmanaged<CGEvent>? {
-    guard let refcon else { return Unmanaged.passUnretained(event) }
-    let eventTap = Unmanaged<HotkeyEventTap>.fromOpaque(refcon).takeUnretainedValue()
-    return eventTap.handle(type: type, event: event)
-}
-
 // Global hotkeys via a session CGEventTap. An event tap (instead of Carbon's
 // RegisterEventHotKey) because only the raw event flags distinguish the left from
 // the right Option key; matched keystrokes are consumed so they never reach the
 // focused application.
-final class HotkeyEventTap {
-    private let config: Config
+final class Hotkeys {
+    private let keyCodeMatcher: (Int64, CGEventFlags) -> Action?
     private let dispatch: (@escaping () -> Void) -> Void
     private let handler: (Action) -> Void
     private var tap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
 
     init(
-        config: Config,
+        keyCodeMatcher: @escaping (Int64, CGEventFlags) -> Action?,
         dispatch: @escaping (@escaping () -> Void) -> Void = { DispatchQueue.main.async(execute: $0) },
         handler: @escaping (Action) -> Void
     ) {
-        self.config = config
+        self.keyCodeMatcher = keyCodeMatcher
         self.dispatch = dispatch
         self.handler = handler
     }
@@ -40,7 +28,11 @@ final class HotkeyEventTap {
             place: .headInsertEventTap,
             options: .defaultTap,
             eventsOfInterest: CGEventMask(1 << CGEventType.keyDown.rawValue),
-            callback: hotkeyEventTapCallback,
+            callback: { _, type, event, refcon in
+                guard let refcon else { return Unmanaged.passUnretained(event) }
+                return Unmanaged<Hotkeys>.fromOpaque(refcon).takeUnretainedValue()
+                    .handle(type: type, event: event)
+            },
             userInfo: Unmanaged.passUnretained(self).toOpaque()
         ) else { return false }
 
@@ -60,9 +52,9 @@ final class HotkeyEventTap {
             return Unmanaged.passUnretained(event)
         }
 
-        guard type == .keyDown, let action = config.action(
-            keyCode: event.getIntegerValueField(.keyboardEventKeycode),
-            flags: event.flags
+        guard type == .keyDown, let action = keyCodeMatcher(
+            event.getIntegerValueField(.keyboardEventKeycode),
+            event.flags
         ) else { return Unmanaged.passUnretained(event) }
 
         Log.hotkey.info("hotkey → \(action)")
@@ -74,11 +66,7 @@ final class HotkeyEventTap {
     }
 
     deinit {
-        if let tap {
-            CGEvent.tapEnable(tap: tap, enable: false)
-        }
-        if let runLoopSource {
-            CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-        }
+        if let tap { CGEvent.tapEnable(tap: tap, enable: false) }
+        if let runLoopSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes) }
     }
 }
