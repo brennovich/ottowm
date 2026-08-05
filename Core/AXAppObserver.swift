@@ -2,7 +2,9 @@ import ApplicationServices
 
 // One observed application's AX subscription surface: what to watch and how to let go.
 struct AppObserver {
-    let watch: (AXUIElement, String) -> Void
+    // Answers whether the subscription is in place, so a caller that depends on the
+    // notification can retry rather than stay deaf for the application's lifetime.
+    let watch: (AXUIElement, String) -> Bool
     let invalidate: () -> Void
 }
 
@@ -42,9 +44,10 @@ enum AXAppObserver {
         return AppObserver(
             watch: { element, notification in
                 let result = AXObserverAddNotification(observer, element, notification as CFString, box.toOpaque())
-                if result != .success {
-                    Log.observer.error("addNotification \(notification) failed pid=\(pid) err=\(result.rawValue)")
-                }
+                if result == .success || result == .notificationAlreadyRegistered { return true }
+
+                Log.observer.error("addNotification \(notification) failed pid=\(pid) err=\(result.rawValue)")
+                return false
             },
             invalidate: {
                 CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .defaultMode)

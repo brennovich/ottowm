@@ -12,11 +12,13 @@ private final class Harness {
     var focusedElements: [pid_t: AXUIElement] = [:]
     var systemFocusedWindow: AXWindow?
     var failingObserverPids: Set<pid_t> = []
+    var unreadyPids: Set<pid_t> = []
 
     private(set) var watched: [pid_t: [(element: AXUIElement, notification: String)]] = [:]
     private(set) var callbacks: [pid_t: (AXUIElement, String) -> Void] = [:]
     private(set) var invalidatedPids: [pid_t] = []
     private(set) var events: [WindowEvent] = []
+    private(set) var scheduledRetries: [() -> Void] = []
 
     private var nextElementToken: pid_t = 5000
 
@@ -27,10 +29,14 @@ private final class Harness {
             guard !self.failingObserverPids.contains(pid) else { return nil }
             self.callbacks[pid] = callback
             return AppObserver(
-                watch: { self.watched[pid, default: []].append(($0, $1)) },
+                watch: {
+                    self.watched[pid, default: []].append(($0, $1))
+                    return !self.unreadyPids.contains(pid)
+                },
                 invalidate: { self.invalidatedPids.append(pid) }
             )
         },
+        scheduleRetry: { self.scheduledRetries.append($0) },
         notificationCenter: center,
         runningApplications: { self.apps },
         windowElements: { self.elements[$0] ?? [] },
@@ -58,6 +64,16 @@ private final class Harness {
         let element = makeElement(id: id)
         elements[pid, default: []].append(element)
         return element
+    }
+
+    func runScheduledRetries() {
+        let retries = scheduledRetries
+        scheduledRetries = []
+        retries.forEach { $0() }
+    }
+
+    func appNotificationCount(pid: pid_t) -> Int {
+        watched[pid]?.filter { $0.notification == kAXWindowCreatedNotification }.count ?? 0
     }
 
     func post(_ name: Notification.Name, _ app: NSRunningApplication) {
@@ -263,6 +279,65 @@ final class AXWindowObserverTests: XCTestCase {
         harness.post(NSWorkspace.didLaunchApplicationNotification, app)
 
         XCTAssertEqual(harness.events, [])
+    }
+
+    func testApplicationLaunchWithUnreadyAccessibilityIsRetriedUntilItAnswers() {
+        let harness = Harness()
+        let app = StubRunningApplication(pid: 901)
+        harness.unreadyPids = [901]
+        _ = harness.start()
+
+        harness.post(NSWorkspace.didLaunchApplicationNotification, app)
+
+        XCTAssertEqual(harness.events, [])
+
+        harness.unreadyPids = []
+        let window = harness.addWindow(pid: 901, id: 100)
+        harness.runScheduledRetries()
+
+        XCTAssertEqual(harness.eventDescriptions, ["created(100)"])
+        XCTAssertTrue(harness.registry.knows(window))
+        XCTAssertEqual(harness.appNotificationCount(pid: 901), 2)
+        XCTAssertTrue(harness.scheduledRetries.isEmpty)
+    }
+
+    func testSuccessfulSubscriptionIsNotRetried() {
+        let harness = Harness()
+        harness.apps = [StubRunningApplication(pid: 901)]
+        harness.addWindow(pid: 901, id: 100)
+
+        _ = harness.start()
+
+        XCTAssertTrue(harness.scheduledRetries.isEmpty)
+    }
+
+    func testSubscriptionIsGivenUpAfterTheAttemptLimit() {
+        let harness = Harness()
+        harness.apps = [StubRunningApplication(pid: 901)]
+        harness.unreadyPids = [901]
+        _ = harness.start()
+
+        while !harness.scheduledRetries.isEmpty {
+            harness.runScheduledRetries()
+        }
+
+        XCTAssertEqual(harness.appNotificationCount(pid: 901), AXWindowObserver.subscriptionAttempts)
+    }
+
+    func testRetryDoesNotReAnnounceKnownWindows() {
+        let harness = Harness()
+        let app = StubRunningApplication(pid: 901)
+        harness.unreadyPids = [901]
+        harness.addWindow(pid: 901, id: 100)
+        _ = harness.start()
+        harness.post(NSWorkspace.didLaunchApplicationNotification, app)
+
+        XCTAssertEqual(harness.eventDescriptions, ["created(100)"])
+
+        harness.unreadyPids = []
+        harness.runScheduledRetries()
+
+        XCTAssertEqual(harness.eventDescriptions, ["created(100)"])
     }
 
     func testApplicationLaunchIgnoresNonRegularApps() {
