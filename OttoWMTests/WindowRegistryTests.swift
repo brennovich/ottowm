@@ -149,35 +149,6 @@ final class WindowRegistryTests: XCTestCase {
         XCTAssertNil(registry.window(byId: 100))
     }
 
-    func testAdoptFocusedWindowAdoptsAndReturnsTheFocusedWindow() {
-        let focused = AXWindow(element: element, application: app, id: 100)
-        let registry = WindowRegistry(focusedWindow: { focused })
-        var adopted: [AXWindow] = []
-        registry.adopt = { adopted.append($0) }
-
-        let window = registry.adoptFocusedWindow()
-
-        XCTAssertTrue(window === focused)
-        XCTAssertEqual(adopted.count, 1)
-        XCTAssertTrue(adopted.first === focused)
-    }
-
-    func testAdoptFocusedWindowWithoutFocusReturnsNil() {
-        let registry = WindowRegistry(focusedWindow: { nil })
-        var adopted: [AXWindow] = []
-        registry.adopt = { adopted.append($0) }
-
-        XCTAssertNil(registry.adoptFocusedWindow())
-        XCTAssertEqual(adopted.count, 0)
-    }
-
-    func testAdoptFocusedWindowWithoutAdoptHookStillReturnsTheWindow() {
-        let focused = AXWindow(element: element, application: app, id: 100)
-        let registry = WindowRegistry(focusedWindow: { focused })
-
-        XCTAssertTrue(registry.adoptFocusedWindow() === focused)
-    }
-
     func testApplicationForPid() {
         let registry = WindowRegistry()
         registry.add(app)

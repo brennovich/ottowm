@@ -9,33 +9,15 @@ final class WindowRegistry {
         let id: CGWindowID
     }
 
-    // Adoption subscribes the window to AX notifications, which needs the per-pid
-    // AXObserver; AXWindowObserver wires this in its init.
-    var adopt: ((AXWindow) -> Void)?
-
     private var refs: [AXUIElement: WindowRef] = [:]
     private var elementsById: [CGWindowID: AXUIElement] = [:]
     private var applications: [pid_t: NSRunningApplication] = [:]
-    private let focusedWindow: () -> AXWindow?
-
-    init(focusedWindow: @escaping () -> AXWindow? = AXWindow.focused) {
-        self.focusedWindow = focusedWindow
-    }
 
     func window(byId id: CGWindowID) -> AXWindow? {
         guard let (element, pid) = element(for: id),
               let app = applications[pid]
         else { return nil }
         return AXWindow(element: element, application: app, id: id)
-    }
-
-    // A window that is not the active tab of its group is absent from the application's
-    // window list, so becoming focused is the only moment it can be discovered. Taking it
-    // in here is what makes it placeable and puts it under the lifecycle notifications.
-    func adoptFocusedWindow() -> AXWindow? {
-        guard let window = focusedWindow() else { return nil }
-        adopt?(window)
-        return window
     }
 
     func add(_ app: NSRunningApplication) {

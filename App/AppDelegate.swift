@@ -26,8 +26,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let windowById: (CGWindowID) -> AXWindow? = { [registry] id in
             registry.window(byId: id)
         }
-        let adoptFocusedWindow: () -> AXWindow? = { [registry] in
-            registry.adoptFocusedWindow()
+        let adoptFocusedWindow: () -> AXWindow? = { [windowObserver] in
+            windowObserver.adoptFocusedWindow()
         }
 
         let engine = Engine(

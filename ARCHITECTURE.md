@@ -38,6 +38,7 @@ flowchart TB
     Desktop --> AXWindow
     Desktop --> MainScreen
     Screen --> WindowRegistry
+    Screen -->|adopt focused| AXWindowObserver
     WindowRegistry --> AXWindow
 ```
 
@@ -48,8 +49,8 @@ flowchart TB
 | `TabGroups` | Infers macOS tab siblings by heuristic (app name + identical frame + `tabCount > 1`); a group moves as a unit and stays where it is, so a window joining one lands in the group's workspace rather than dragging the group to its own. |
 | `Desktop` (`OffscreenParkingDesktop`) | The write side. Realizes `Placement` by parking storage windows in a 1px bottom-right sliver and restoring their captured frame. |
 | `Screen` | The read side. Consistent, cached view of focused window and on-screen window ids. |
-| `AXWindowObserver` | Per-app `AXObserver`s + `NSWorkspace` notifications → `WindowEvent`. Registers every window it watches in `WindowRegistry` on the way in. |
-| `WindowRegistry` | The map of known windows: `AXUIElement ↔ CGWindowID` plus pid → application, kept current by `AXWindowObserver`; resolves ids back to live `AXWindow`s. An application lists only the active tab of a group in `kAXWindowsAttribute` and sends no notification when tabs switch, so a background tab cannot be enumerated at all: `adoptFocusedWindow()` adopts it into the registry at the one moment it is reachable, when it becomes focused. |
+| `AXWindowObserver` | Per-app `AXObserver`s + `NSWorkspace` notifications → `WindowEvent`. Registers every window it watches in `WindowRegistry` on the way in. An application lists only the active tab of a group in `kAXWindowsAttribute` and sends no notification when tabs switch, so a background tab cannot be enumerated at all: `adoptFocusedWindow()` takes it in at the one moment it is reachable, when it becomes focused. The `AXObserverCreate`/run-loop machinery lives behind `AXAppObserver.make`; every other OS touchpoint is an injected closure, so the translation logic is tested in `AXWindowObserverTests`. |
+| `WindowRegistry` | The map of known windows: `AXUIElement ↔ CGWindowID` plus pid → application, kept current by `AXWindowObserver`; resolves ids back to live `AXWindow`s. |
 | `Hotkeys` | Session `CGEventTap` on keyDown. Needed over Carbon hotkeys because only raw device flags distinguish left from right Option. Holds only a matcher `(keyCode, flags) → Action?` (in practice `Config.action`) and hands matched `Action`s to `Engine.handle`. |
 | `Config` | The binding table: `KeyCombo` → `Action`, indexed by key code because the lookup runs in the event tap callback. Nothing else; a pure value. |
 | `ConfigFile` | Where the configuration comes from: `load()` resolves `$OTTOWM_CONFIG` / XDG and falls back to the copy bundled in `Contents/Resources` only when there is no user file at all. A file that is there but does not parse comes back as a `ConfigError`, which `AppDelegate` turns into an exit rather than binding keys the user did not ask for. `parse()` is the pure parser for the line format (`key combo = action`, blank lines skipped, nothing else) and stops at the first problem; a combo bound twice keeps the last line, and two different combos one keystroke could satisfy (`alt-1` and `lalt-1`) are both kept, with the lookup picking between them in no guaranteed order. `KeyCombo` and `Action` are the two halves of a line and live beside it under `Core/Config`; `KeyCombo` owns the `NX_DEVICE*` bits that pin a modifier to one side, and `ConfigError` carries the offending line. |
