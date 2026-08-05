@@ -6,25 +6,28 @@ import os
 struct Telemetry {
     private let now: () -> TimeInterval
     private let record: (String, Double) -> Void
-    private let signposter: OSSignposter?
+    private let signpostLog: OSLog?
 
     init(
         now: @escaping () -> TimeInterval,
         record: @escaping (String, Double) -> Void,
-        signposter: OSSignposter? = nil
+        signpostLog: OSLog? = nil
     ) {
         self.now = now
         self.record = record
-        self.signposter = signposter
+        self.signpostLog = signpostLog
     }
 
     func span<T>(_ operation: String, _ body: () throws -> T) rethrows -> T {
-        let interval = signposter.map { ($0, $0.beginInterval("span", "\(operation)")) }
+        let interval = signpostLog.map { ($0, OSSignpostID(log: $0)) }
+        if let (log, id) = interval {
+            os_signpost(.begin, log: log, name: "span", signpostID: id, "%{public}@", operation)
+        }
         let start = now()
         defer {
             record(operation, (now() - start) * 1000)
-            if let (signposter, state) = interval {
-                signposter.endInterval("span", state)
+            if let (log, id) = interval {
+                os_signpost(.end, log: log, name: "span", signpostID: id)
             }
         }
         return try body()
@@ -37,6 +40,6 @@ extension Telemetry {
         record: { operation, ms in
             Log.telemetry.debug("\(operation) took \(String(format: "%.2f", ms))ms")
         },
-        signposter: OSSignposter(subsystem: Log.subsystem, category: "telemetry")
+        signpostLog: OSLog(subsystem: Log.subsystem, category: "telemetry")
     )
 }

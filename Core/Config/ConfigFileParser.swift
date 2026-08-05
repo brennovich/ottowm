@@ -18,7 +18,7 @@ enum ConfigFileParser {
     }
 
     private static func binding(in line: String) -> Result<[KeyCombo: Action], ConfigError.Reason> {
-        guard let parts = line.firstRange(of: "=") else { return .failure(.syntax(line)) }
+        guard let parts = line.range(of: "=") else { return .failure(.syntax(line)) }
         guard case let key = line[..<parts.lowerBound].trimmed, !key.isEmpty else { return .failure(.syntax(line)) }
 
         return KeyCombo.parse(key).flatMap { kc in Action.parse(line[parts.upperBound...].trimmed).map { [kc: $0] }}
