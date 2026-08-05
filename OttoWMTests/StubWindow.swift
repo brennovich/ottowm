@@ -9,7 +9,8 @@ final class StubWindow: Window {
     var isMinimized: Bool
     private(set) var frame: CGRect
 
-    private(set) var frameSetCount = 0
+    private(set) var positionSetCount = 0
+    private(set) var sizeSetCount = 0
     private(set) var focusCount = 0
     private(set) var movableFrameCount = 0
 
@@ -48,10 +49,19 @@ final class StubWindow: Window {
         return isMinimized ? nil : frame
     }
 
-    func setFrame(_ frame: CGRect) {
-        self.frame = frame
-        frameSetCount += 1
+    func setPosition(_ origin: CGPoint) {
+        frame.origin = origin
+        positionSetCount += 1
+    }
+
+    func setSize(_ size: CGSize) {
+        frame.size = size
+        sizeSetCount += 1
     }
 
     func focus() { focusCount += 1 }
+
+    func moveTo(_ frame: CGRect) {
+        self.frame = frame
+    }
 }

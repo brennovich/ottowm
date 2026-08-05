@@ -61,11 +61,17 @@ final class AXWindow: Window {
         return frame(position: attributes[kAXPositionAttribute], size: attributes[kAXSizeAttribute])
     }
 
-    func setFrame(_ frame: CGRect) {
-        let positionResult = AXUIElementSetAttributeValue(element, kAXPositionAttribute as CFString, encodeCGPoint(frame.origin))
-        let sizeResult = AXUIElementSetAttributeValue(element, kAXSizeAttribute as CFString, encodeCGSize(frame.size))
-        if positionResult != .success || sizeResult != .success {
-            Log.window.error("set frame failed \(self.logDescription) position=\(positionResult.rawValue) size=\(sizeResult.rawValue) target=\(frame)")
+    func setPosition(_ origin: CGPoint) {
+        let result = AXUIElementSetAttributeValue(element, kAXPositionAttribute as CFString, encodeCGPoint(origin))
+        if result != .success {
+            Log.window.error("set position failed \(self.logDescription) err=\(result.rawValue) target=\(origin)")
+        }
+    }
+
+    func setSize(_ size: CGSize) {
+        let result = AXUIElementSetAttributeValue(element, kAXSizeAttribute as CFString, encodeCGSize(size))
+        if result != .success {
+            Log.window.error("set size failed \(self.logDescription) err=\(result.rawValue) target=\(size)")
         }
     }
 

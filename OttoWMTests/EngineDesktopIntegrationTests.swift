@@ -192,7 +192,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         engine.switchToWorkspace(2)
         engine.switchToWorkspace(1)
 
-        XCTAssertEqual(minimized.frameSetCount, 0)
+        XCTAssertEqual(minimized.positionSetCount, 0)
         XCTAssertEqual(minimized.frame, frame2)
         XCTAssertEqual(win1.frame, frame1)
     }

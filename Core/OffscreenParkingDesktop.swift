@@ -72,7 +72,7 @@ final class OffscreenParkingDesktop: Desktop {
 
                 Log.desktop.info("recovering \(snapshot.logDescription) stuck at hidden edge")
                 let recovered = hiddenEdge.recovered(from: snapshot.frame)
-                win.setFrame(recovered)
+                move(win, from: snapshot.frame, to: recovered)
                 return snapshot.moved(to: recovered)
             }
         }
@@ -86,15 +86,15 @@ final class OffscreenParkingDesktop: Desktop {
                 guard let (win, originalFrame) = movableWindow(windowId, placement) else { return }
                 let hidden = hiddenEdge.frame(parking: originalFrame)
                 hiddenWindowFrames[windowId] = originalFrame
-                win.setFrame(hidden)
+                move(win, from: originalFrame, to: hidden)
                 Log.desktop.debug("hid id=\(windowId) from=\(originalFrame) to=\(hidden)")
             case .active:
                 guard let originalFrame = hiddenWindowFrames[windowId] else {
                     Log.desktop.info("cannot restore id=\(windowId): no saved frame")
                     return
                 }
-                guard let (win, _) = movableWindow(windowId, placement) else { return }
-                win.setFrame(originalFrame)
+                guard let (win, parkedFrame) = movableWindow(windowId, placement) else { return }
+                move(win, from: parkedFrame, to: originalFrame)
                 hiddenWindowFrames[windowId] = nil
                 Log.desktop.debug("restored id=\(windowId) to=\(originalFrame)")
             }
@@ -128,7 +128,12 @@ final class OffscreenParkingDesktop: Desktop {
     func forget(_ windowId: CGWindowID) {
         hiddenWindowFrames[windowId] = nil
     }
-    
+
+    private func move(_ win: any Window, from current: CGRect, to target: CGRect) {
+        if current.origin != target.origin { win.setPosition(target.origin) }
+        if current.size != target.size { win.setSize(target.size) }
+    }
+
     private func movableWindow(_ windowId: CGWindowID, _ placement: Placement) -> (window: any Window, frame: CGRect)? {
         guard let win = window(windowId), let frame = win.movableFrame() else {
             Log.desktop.info("cannot move id=\(windowId) to \(placement): window not found or not movable")
@@ -150,7 +155,7 @@ final class OffscreenParkingDesktop: Desktop {
                 else { continue }
                 
                 let hidden = hiddenEdge.frame(parking: originalFrame)
-                win.setFrame(hidden)
+                move(win, from: frame, to: hidden)
                 Log.desktop.info("re-hid id=\(windowId) pulled back to \(frame), to=\(hidden)")
             }
             return
