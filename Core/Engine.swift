@@ -121,11 +121,10 @@ final class Engine {
             return
         }
 
-        assignWindowToWorkspace(win, workspaces.currentWorkspace)
-
         // A tab discovered only now can belong to a group living in another workspace. The
         // user reached it, so follow them there instead of parking it under their nose.
-        if let workspace = workspaces.workspace(for: win.id), workspace != workspaces.currentWorkspace {
+        if let assigned = assignWindowToWorkspace(win, workspaces.currentWorkspace),
+           assigned != workspaces.currentWorkspace {
             handleManualNavigation(win.id)
         }
     }
@@ -200,10 +199,11 @@ final class Engine {
         }
     }
 
-    private func assignWindowToWorkspace(_ win: WindowSnapshot, _ workspace: Int) {
-        guard isValidWindow(win) else { return }
-        workspaces.assignWindowToWorkspace(win, workspace)
-        let assigned = workspaces.workspace(for: win.id) ?? workspace
+    // Returns the workspace the window landed in, or nil when it was not admitted.
+    @discardableResult
+    private func assignWindowToWorkspace(_ win: WindowSnapshot, _ workspace: Int) -> Int? {
+        guard isValidWindow(win) else { return nil }
+        let assigned = workspaces.assignWindowToWorkspace(win, workspace)
         Log.engine.info("assigned \(win.logDescription) → workspace \(assigned)")
 
         // Joining a tab group can land the window in a workspace that is not the one on
@@ -211,6 +211,7 @@ final class Engine {
         if assigned != workspaces.currentWorkspace {
             desktop.place(win.id, .storage)
         }
+        return assigned
     }
 
     // Coming back from a unmanaged native space/fullscreen is only possible by focusing
@@ -246,9 +247,9 @@ final class Engine {
                 // workspace the user is on now, like a newly created one. Unless it belongs to
                 // a tab group that lives elsewhere, in which case it is parked and something
                 // else has to take the focus.
-                if workspace == nil {
-                    assignWindowToWorkspace(osFocused, currentWorkspace)
-                    if workspaces.workspace(for: osFocused.id) == currentWorkspace { return true }
+                if workspace == nil,
+                   assignWindowToWorkspace(osFocused, currentWorkspace) == currentWorkspace {
+                    return true
                 }
             }
 
