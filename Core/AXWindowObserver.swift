@@ -17,59 +17,15 @@ private func axObserverCallback(
 // Per-app AXObservers plus NSWorkspace launch/terminate surface the window
 // lifecycle events: created, focused, destroyed and (de)minimized.
 final class AXWindowObserver {
-    struct Registry {
-        private struct WindowRef {
-            let pid: pid_t
-            let id: CGWindowID
-        }
-
-        private var refs: [AXUIElement: WindowRef] = [:]
-        private var elementsById: [CGWindowID: AXUIElement] = [:]
-
-        mutating func register(_ element: AXUIElement, pid: pid_t, id: CGWindowID) {
-            if let previous = refs[element] {
-                removeReverse(previous.id, element)
-            }
-            refs[element] = WindowRef(pid: pid, id: id)
-            elementsById[id] = element
-        }
-
-        mutating func removeWindow(for element: AXUIElement) -> CGWindowID? {
-            guard let ref = refs.removeValue(forKey: element) else { return nil }
-            removeReverse(ref.id, element)
-            return ref.id
-        }
-
-        mutating func evict(pid: pid_t) {
-            for (element, ref) in refs where ref.pid == pid {
-                refs[element] = nil
-                removeReverse(ref.id, element)
-            }
-        }
-
-        func knows(_ element: AXUIElement) -> Bool {
-            refs[element] != nil
-        }
-
-        func unregistered(of elements: [AXUIElement]) -> [AXUIElement] {
-            elements.filter { !knows($0) }
-        }
-
-        func element(for id: CGWindowID) -> (element: AXUIElement, pid: pid_t)? {
-            guard let element = elementsById[id], let ref = refs[element] else { return nil }
-            return (element, ref.pid)
-        }
-
-        private mutating func removeReverse(_ id: CGWindowID, _ element: AXUIElement) {
-            if elementsById[id] == element { elementsById[id] = nil }
-        }
-    }
-
+    private let registry: WindowRegistry
     private var handler: ((WindowEvent) -> Void)?
     private var observers: [pid_t: AXObserver] = [:]
-    private var applications: [pid_t: NSRunningApplication] = [:]
-    private var registry = Registry()
     private let ownPid = ProcessInfo.processInfo.processIdentifier
+
+    init(registry: WindowRegistry) {
+        self.registry = registry
+        registry.adopt = { [weak self] in self?.adopt($0) }
+    }
 
     // Returns the windows discovered while registering the observers, so the caller
     // can seed the model with them instead of sweeping every application again.
@@ -89,22 +45,6 @@ final class AXWindowObserver {
                            name: NSWorkspace.didActivateApplicationNotification, object: nil)
 
         return windows
-    }
-
-    func window(byId id: CGWindowID) -> AXWindow? {
-        guard let (element, pid) = registry.element(for: id),
-              let app = applications[pid]
-        else { return nil }
-        return AXWindow(element: element, application: app, id: id)
-    }
-
-    // A window that is not the active tab of its group is absent from the application's
-    // window list, so becoming focused is the only moment it can be discovered. Taking it
-    // in here is what makes it placeable and puts it under the lifecycle notifications.
-    func focusedWindow() -> AXWindow? {
-        guard let window = AXWindow.focused() else { return nil }
-        adopt(window)
-        return window
     }
 
     private func adopt(_ window: AXWindow) {
@@ -164,7 +104,7 @@ final class AXWindowObserver {
             return []
         }
 
-        applications[pid] = app
+        registry.add(app)
         observers[pid] = observer
 
         let appElement = AXUIElementCreateApplication(pid)
@@ -223,7 +163,7 @@ final class AXWindowObserver {
     }
 
     private func application(for element: AXUIElement) -> NSRunningApplication? {
-        axPid(element).flatMap { applications[$0] ?? NSRunningApplication(processIdentifier: $0) }
+        axPid(element).flatMap { registry.application(for: $0) ?? NSRunningApplication(processIdentifier: $0) }
     }
 
     @objc private func applicationLaunched(_ notification: Notification) {
@@ -241,7 +181,6 @@ final class AXWindowObserver {
         guard let observer = observers.removeValue(forKey: pid) else { return }
         
         CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .defaultMode)
-        applications[pid] = nil
         registry.evict(pid: pid)
     }
 

@@ -1,20 +1,24 @@
+import AppKit
 import ApplicationServices
 import CoreGraphics
 import XCTest
 
-final class AXWindowObserverRegistryTests: XCTestCase {
+final class WindowRegistryTests: XCTestCase {
     private let elementA = AXUIElementCreateApplication(901)
     private let elementB = AXUIElementCreateApplication(902)
     private let elementC = AXUIElementCreateApplication(903)
+    private let app = NSRunningApplication.current
+    private lazy var pid = app.processIdentifier
+    private lazy var element = AXUIElementCreateApplication(pid)
 
     func testRemoveWindowForUnknownElementReturnsNil() {
-        var registry = AXWindowObserver.Registry()
+        let registry = WindowRegistry()
 
         XCTAssertNil(registry.removeWindow(for: elementA))
     }
 
     func testRemoveWindowTwiceReturnsNilTheSecondTime() {
-        var registry = AXWindowObserver.Registry()
+        let registry = WindowRegistry()
         registry.register(elementA, pid: 1, id: 100)
 
         XCTAssertEqual(registry.removeWindow(for: elementA), 100)
@@ -22,14 +26,14 @@ final class AXWindowObserverRegistryTests: XCTestCase {
     }
 
     func testMatchesElementsByValueNotByInstance() {
-        var registry = AXWindowObserver.Registry()
+        let registry = WindowRegistry()
         registry.register(AXUIElementCreateApplication(904), pid: 1, id: 100)
 
         XCTAssertEqual(registry.removeWindow(for: AXUIElementCreateApplication(904)), 100)
     }
 
     func testEvictRemovesOnlyThatPidsElements() {
-        var registry = AXWindowObserver.Registry()
+        let registry = WindowRegistry()
         registry.register(elementA, pid: 1, id: 100)
         registry.register(elementB, pid: 1, id: 200)
         registry.register(elementC, pid: 2, id: 300)
@@ -50,7 +54,7 @@ final class AXWindowObserverRegistryTests: XCTestCase {
         ]
 
         for testCase in cases {
-            var registry = AXWindowObserver.Registry()
+            let registry = WindowRegistry()
             for (index, element) in testCase.registered.enumerated() {
                 registry.register(element, pid: 1, id: CGWindowID(index + 100))
             }
@@ -60,7 +64,7 @@ final class AXWindowObserverRegistryTests: XCTestCase {
     }
 
     func testElementForIdReturnsRegisteredElementAndPid() {
-        var registry = AXWindowObserver.Registry()
+        let registry = WindowRegistry()
         registry.register(elementA, pid: 1, id: 100)
         registry.register(elementB, pid: 2, id: 200)
 
@@ -71,14 +75,14 @@ final class AXWindowObserverRegistryTests: XCTestCase {
     }
 
     func testElementForUnknownIdReturnsNil() {
-        var registry = AXWindowObserver.Registry()
+        let registry = WindowRegistry()
         registry.register(elementA, pid: 1, id: 100)
 
         XCTAssertNil(registry.element(for: 999))
     }
 
     func testReregisteringAnElementTracksTheLastId() {
-        var registry = AXWindowObserver.Registry()
+        let registry = WindowRegistry()
         registry.register(elementA, pid: 1, id: 100)
         registry.register(elementA, pid: 1, id: 200)
 
@@ -88,7 +92,7 @@ final class AXWindowObserverRegistryTests: XCTestCase {
     }
 
     func testElementForIdAfterRemoveReturnsNil() {
-        var registry = AXWindowObserver.Registry()
+        let registry = WindowRegistry()
         registry.register(elementA, pid: 1, id: 100)
         _ = registry.removeWindow(for: elementA)
 
@@ -96,7 +100,7 @@ final class AXWindowObserverRegistryTests: XCTestCase {
     }
 
     func testElementForIdAfterEvictReturnsNil() {
-        var registry = AXWindowObserver.Registry()
+        let registry = WindowRegistry()
         registry.register(elementA, pid: 1, id: 100)
         registry.evict(pid: 1)
 
@@ -104,10 +108,88 @@ final class AXWindowObserverRegistryTests: XCTestCase {
     }
 
     func testRemovedElementReappearsInUnregistered() {
-        var registry = AXWindowObserver.Registry()
+        let registry = WindowRegistry()
         registry.register(elementA, pid: 1, id: 100)
         _ = registry.removeWindow(for: elementA)
 
         XCTAssertEqual(registry.unregistered(of: [elementA]), [elementA])
+    }
+
+    func testWindowByUnknownIdReturnsNil() {
+        let registry = WindowRegistry()
+
+        XCTAssertNil(registry.window(byId: 100))
+    }
+
+    func testWindowByIdReturnsRegisteredWindow() {
+        let registry = WindowRegistry()
+        registry.add(app)
+        registry.register(element, pid: pid, id: 100)
+
+        let window = registry.window(byId: 100)
+
+        XCTAssertEqual(window?.id, 100)
+        XCTAssertEqual(window?.element, element)
+        XCTAssertEqual(window?.application.processIdentifier, pid)
+    }
+
+    func testWindowByIdWithoutApplicationReturnsNil() {
+        let registry = WindowRegistry()
+        registry.register(element, pid: pid, id: 100)
+
+        XCTAssertNil(registry.window(byId: 100))
+    }
+
+    func testWindowByIdAfterEvictReturnsNil() {
+        let registry = WindowRegistry()
+        registry.add(app)
+        registry.register(element, pid: pid, id: 100)
+        registry.evict(pid: pid)
+
+        XCTAssertNil(registry.window(byId: 100))
+    }
+
+    func testAdoptFocusedWindowAdoptsAndReturnsTheFocusedWindow() {
+        let focused = AXWindow(element: element, application: app, id: 100)
+        let registry = WindowRegistry(focusedWindow: { focused })
+        var adopted: [AXWindow] = []
+        registry.adopt = { adopted.append($0) }
+
+        let window = registry.adoptFocusedWindow()
+
+        XCTAssertTrue(window === focused)
+        XCTAssertEqual(adopted.count, 1)
+        XCTAssertTrue(adopted.first === focused)
+    }
+
+    func testAdoptFocusedWindowWithoutFocusReturnsNil() {
+        let registry = WindowRegistry(focusedWindow: { nil })
+        var adopted: [AXWindow] = []
+        registry.adopt = { adopted.append($0) }
+
+        XCTAssertNil(registry.adoptFocusedWindow())
+        XCTAssertEqual(adopted.count, 0)
+    }
+
+    func testAdoptFocusedWindowWithoutAdoptHookStillReturnsTheWindow() {
+        let focused = AXWindow(element: element, application: app, id: 100)
+        let registry = WindowRegistry(focusedWindow: { focused })
+
+        XCTAssertTrue(registry.adoptFocusedWindow() === focused)
+    }
+
+    func testApplicationForPid() {
+        let registry = WindowRegistry()
+        registry.add(app)
+
+        XCTAssertEqual(registry.application(for: pid), app)
+    }
+
+    func testApplicationForPidAfterEvictReturnsNil() {
+        let registry = WindowRegistry()
+        registry.add(app)
+        registry.evict(pid: pid)
+
+        XCTAssertNil(registry.application(for: pid))
     }
 }

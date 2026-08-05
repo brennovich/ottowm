@@ -1,7 +1,8 @@
 import Cocoa
 
 class AppDelegate: NSObject, NSApplicationDelegate {
-    private let windowObserver = AXWindowObserver()
+    private let registry = WindowRegistry()
+    private lazy var windowObserver = AXWindowObserver(registry: registry)
     private var hotkeys: HotkeyEventTap?
     private var engine: Engine?
 
@@ -22,11 +23,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         Log.app.notice("OttoWM (\(AppInfo.version)) launched, accessibility=\(trusted)")
 
-        let windowById: (CGWindowID) -> AXWindow? = { [windowObserver] id in
-            windowObserver.window(byId: id)
+        let windowById: (CGWindowID) -> AXWindow? = { [registry] id in
+            registry.window(byId: id)
         }
-        let focusedWindow: () -> AXWindow? = { [windowObserver] in
-            windowObserver.focusedWindow()
+        let adoptFocusedWindow: () -> AXWindow? = { [registry] in
+            registry.adoptFocusedWindow()
         }
 
         let engine = Engine(
@@ -36,7 +37,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 focusedWindowId: { AXWindow.focused()?.id }
             ),
             screen: Screen(
-                focusedWindow: OperationCache { focusedWindow()?.snapshot() },
+                focusedWindow: OperationCache { adoptFocusedWindow()?.snapshot() },
                 onScreenWindowIds: OperationCache {
                     Set((CGWindowListCopyWindowInfo(
                         [.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
