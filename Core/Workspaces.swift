@@ -43,9 +43,15 @@ final class Workspaces {
         saveFocusedWindowInWorkspace(workspace, windowId)
     }
 
-    func unregisterWindowById(_ windowId: CGWindowID) {
-        if let firstTabSibling = tabGroups.siblings(of: windowId).first {
-            saveFocusedWindowInWorkspace(currentWorkspace, firstTabSibling)
+    // Returns whether a surviving tab sibling took over the focus, so there is
+    // nothing left to restore.
+    @discardableResult
+    func unregisterWindowById(_ windowId: CGWindowID) -> Bool {
+        var focusSettled = false
+        if let firstTabSibling = tabGroups.siblings(of: windowId).first,
+           let siblingWorkspace = windowWorkspaceMap[firstTabSibling] {
+            saveFocusedWindowInWorkspace(siblingWorkspace, firstTabSibling)
+            focusSettled = true
         }
         tabGroups.remove(windowId)
 
@@ -53,6 +59,7 @@ final class Workspaces {
             removeWindowFromList(workspace, windowId)
         }
         removeWindowFromFocusHistory(windowId)
+        return focusSettled
     }
 
     func switchTo(_ targetWorkspace: Int, leavingFocusOn windowId: CGWindowID?) -> (toActive: [CGWindowID], toStorage: [CGWindowID]) {
@@ -71,10 +78,6 @@ final class Workspaces {
                 p.toStorage.append(e.key)
             }
         }
-    }
-
-    func tabSiblings(of windowId: CGWindowID) -> [CGWindowID] {
-        tabGroups.siblings(of: windowId)
     }
 
     func nextWindowToFocus() -> CGWindowID? {

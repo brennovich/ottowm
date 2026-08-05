@@ -130,10 +130,9 @@ final class Engine {
     }
 
     private func handleDestroyed(_ windowId: CGWindowID) {
-        let hasTabSiblings = !workspaces.tabSiblings(of: windowId).isEmpty
-        unmanage(windowId, "destroyed")
+        let focusSettled = unmanage(windowId, "destroyed")
 
-        if !hasTabSiblings {
+        if !focusSettled {
             restoreWindowsFocusForWorkspace()
         }
     }
@@ -159,12 +158,14 @@ final class Engine {
     // own native space, a destroyed one is gone for good. It stops being managed
     // rather than being flagged, and a window that comes back joins whatever workspace
     // is current, like a brand new one.
-    private func unmanage(_ windowId: CGWindowID, _ reason: String) {
+    @discardableResult
+    private func unmanage(_ windowId: CGWindowID, _ reason: String) -> Bool {
         let workspace = workspaces.workspace(for: windowId).map { String($0) } ?? "none"
         Log.engine.info("\(reason) id=\(windowId), dropped from workspace \(workspace)")
 
-        workspaces.unregisterWindowById(windowId)
+        let focusSettled = workspaces.unregisterWindowById(windowId)
         desktop.forget(windowId)
+        return focusSettled
     }
 
     // Focusing a hidden window means the user navigated to it behind OttoWM's back

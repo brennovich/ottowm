@@ -44,7 +44,7 @@ final class WorkspacesTests: XCTestCase {
         for testCase in cases {
             let model = makeWorkspaces(assigning: testCase.assignments)
 
-            model.unregisterWindowById(testCase.unregister)
+            XCTAssertFalse(model.unregisterWindowById(testCase.unregister), testCase.name)
 
             XCTAssertNil(model.workspace(for: testCase.unregister), testCase.name)
             XCTAssertEqual(model.windowIds(in: 1), testCase.remaining, testCase.name)
@@ -204,10 +204,23 @@ final class WorkspacesTests: XCTestCase {
         model.assignWindowToWorkspace(makeSnapshot(300), 1)
         model.saveFocusedWindowInWorkspace(1, 300)
 
-        model.unregisterWindowById(100)
+        XCTAssertTrue(model.unregisterWindowById(100))
 
         XCTAssertNil(model.workspace(for: 100))
         XCTAssertEqual(model.workspace(for: 200), 1)
+        XCTAssertEqual(model.nextWindowToFocus(), 200)
+    }
+
+    func testUnregisteringATabPromotesItsSiblingInTheGroupsOwnWorkspace() {
+        let model = Workspaces()
+        model.assignWindowToWorkspace(makeSnapshot(100, appName: "Safari", tabCount: 2), 2)
+        model.assignWindowToWorkspace(makeSnapshot(200, appName: "Safari", tabCount: 2), 2)
+        model.assignWindowToWorkspace(makeSnapshot(400), 2)
+        model.saveFocusedWindowInWorkspace(2, 400)
+
+        model.unregisterWindowById(100)
+
+        _ = model.switchTo(2, leavingFocusOn: nil)
         XCTAssertEqual(model.nextWindowToFocus(), 200)
     }
 

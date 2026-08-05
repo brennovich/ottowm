@@ -351,7 +351,8 @@ final class EngineTests: XCTestCase {
         let lateTab = add(StubWindow(id: 301, appName: "Terminal", frame: recovered, tabCount: 2))
         engine.handle(.focused(lateTab.snapshot()))
 
-        XCTAssertEqual(workspaces.tabSiblings(of: 301), [300])
+        workspaces.moveWindowToWorkspace(300, 2)
+        XCTAssertEqual(workspaces.workspace(for: 301), 2)
     }
 
     func testTabDiscoveredDuringASwitchStaysInItsGroupsWorkspace() {
