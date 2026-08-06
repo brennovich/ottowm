@@ -74,10 +74,11 @@ log stream --level debug --predicate 'subsystem == "com.github.brennovich.ottowm
 ## Build and test
 
 ```sh
-make build   # xcodebuild, code signing disabled
-make test    # runs the OttoWMTests unit-test bundle
-make release # generates a signed OttoWM.app
-make install # copies the signed app to /Applications
+make build      # xcodebuild, code signing disabled
+make test       # runs the OttoWMTests unit-test bundle
+make release    # generates a signed OttoWM.app
+make install    # copies the signed app to /Applications
+make acceptance # e2e of the installed app
 ```
 
 Run a single test:

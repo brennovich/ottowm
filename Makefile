@@ -14,12 +14,15 @@ RELEASE_DIR = $(BUILD_DIR)/Release
 APP = $(RELEASE_DIR)/$(SCHEME).app
 ZIP = $(BUILD_DIR)/$(SCHEME)-$(VERSION).zip
 
+ACCEPTANCE_SOURCES := $(shell find Acceptance -name '*.swift')
+ACCEPTANCE = $(BUILD_DIR)/acceptance
+
 INSTALL_DIR ?= /Applications
 INSTALLED = $(INSTALL_DIR)/$(SCHEME).app
 
 CODE_SIGN_IDENTITY ?= -
 
-.PHONY: build test release install clean version
+.PHONY: build test acceptance release install clean version
 
 version:
 	@echo $(VERSION)
@@ -29,6 +32,13 @@ build:
 
 test:
 	set -o pipefail; $(XCODEBUILD) test 2>&1 | $(XCBEAUTIFY)
+
+acceptance: $(ACCEPTANCE)
+	$(ACCEPTANCE)
+
+$(ACCEPTANCE): $(ACCEPTANCE_SOURCES)
+	@mkdir -p $(BUILD_DIR)
+	swiftc -o $@ $(ACCEPTANCE_SOURCES)
 
 release: $(ZIP)
 

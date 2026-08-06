@@ -26,10 +26,7 @@ jobs:
 
   commit:
     needs: version
-    strategy:
-      matrix:
-        os: [macos-15, macos-26]
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
       - id: build
@@ -37,20 +34,66 @@ jobs:
       - id: test
         run: make test
       - id: release
-        if: matrix.os == 'macos-15'
         env:
           BUILD_NUMBER: ${{ needs.version.outputs.build }}
         run: make release
       - id: upload
-        if: matrix.os == 'macos-15'
         uses: actions/upload-artifact@v7
         with:
           name: OttoWM
           path: build/OttoWM-${{ needs.version.outputs.version }}.zip
           if-no-files-found: error
 
-  release:
+  acceptance:
     needs: [version, commit]
+    strategy:
+      matrix:
+        os: [macos-15, macos-26]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: download
+        uses: actions/download-artifact@v8
+        with:
+          name: OttoWM
+          path: build
+      - id: install
+        run: |
+          ditto -x -k build/OttoWM-${{ needs.version.outputs.version }}.zip /Applications
+          xattr -cr /Applications/OttoWM.app
+      - id: harness
+        run: make build/acceptance
+      - id: grant-permissions
+        run: |
+          brew install tccutil
+          sudo tccutil --insert /Applications/OttoWM.app/Contents/MacOS/OttoWM
+          sudo tccutil --enable /Applications/OttoWM.app/Contents/MacOS/OttoWM
+          sudo tccutil --insert com.apple.Terminal
+          sudo tccutil --enable com.apple.Terminal
+          sleep 2
+          sudo tccutil --list | grep -q "OttoWM" || exit 1
+      - id: run
+        run: |
+          log stream --style compact --level debug \
+            --predicate 'subsystem == "com.github.brennovich.ottowm"' > ottowm.log 2>&1 &
+          streamer=$!
+          trap 'kill $streamer 2>/dev/null' EXIT
+          make acceptance
+      - id: screenshot
+        if: always()
+        run: screencapture -x screen.png || true
+      - id: upload
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: acceptance-${{ matrix.os }}
+          path: |
+            ottowm.log
+            screen.png
+          if-no-files-found: warn
+
+  release:
+    needs: [version, acceptance]
     if: github.ref == 'refs/heads/main' && needs.version.outputs.untagged == 'true'
     runs-on: ubuntu-latest
     permissions:
