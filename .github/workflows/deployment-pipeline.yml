@@ -3,7 +3,29 @@ name: deployment-pipeline
 on: push
 
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.read.outputs.version }}
+      build: ${{ steps.read.outputs.build }}
+      untagged: ${{ steps.read.outputs.untagged }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: read
+        run: |
+          version=$(make version)
+          echo "version=$version" >> $GITHUB_OUTPUT
+          echo "build=$(git rev-list --count HEAD)" >> $GITHUB_OUTPUT
+          if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
+            echo "untagged=false" >> $GITHUB_OUTPUT
+          else
+            echo "untagged=true" >> $GITHUB_OUTPUT
+          fi
+
   commit:
+    needs: version
     strategy:
       matrix:
         os: [macos-15, macos-26]
@@ -14,3 +36,39 @@ jobs:
         run: make build
       - id: test
         run: make test
+      - id: release
+        if: matrix.os == 'macos-15'
+        env:
+          BUILD_NUMBER: ${{ needs.version.outputs.build }}
+        run: make release
+      - id: upload
+        if: matrix.os == 'macos-15'
+        uses: actions/upload-artifact@v7
+        with:
+          name: OttoWM
+          path: build/OttoWM-${{ needs.version.outputs.version }}.zip
+          if-no-files-found: error
+
+  release:
+    needs: [version, commit]
+    if: github.ref == 'refs/heads/main' && needs.version.outputs.untagged == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: release
+    steps:
+      - id: download
+        uses: actions/download-artifact@v8
+        with:
+          name: OttoWM
+          path: build
+      - id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release create "v${{ needs.version.outputs.version }}" \
+            --target "${{ github.sha }}" \
+            --generate-notes \
+            "build/OttoWM-${{ needs.version.outputs.version }}.zip"

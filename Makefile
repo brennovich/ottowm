@@ -6,6 +6,7 @@ XCBEAUTIFY := $(if $(shell command -v xcbeautify),xcbeautify --disable-logging,c
 
 PROJECT = $(SCHEME).xcodeproj/project.pbxproj
 VERSION := $(shell awk -F' = ' '/MARKETING_VERSION/ {gsub(/;/, "", $$2); print $$2; exit}' $(PROJECT))
+BUILD_NUMBER ?= $(shell git rev-list --count HEAD)
 SOURCES := $(shell find App Core -name '*.swift') $(SCHEME).entitlements $(PROJECT)
 
 BUILD_DIR = build
@@ -18,7 +19,10 @@ INSTALLED = $(INSTALL_DIR)/$(SCHEME).app
 
 CODE_SIGN_IDENTITY ?= -
 
-.PHONY: build test release install clean
+.PHONY: build test release install clean version
+
+version:
+	@echo $(VERSION)
 
 build:
 	set -o pipefail; $(XCODEBUILD) build 2>&1 | $(XCBEAUTIFY)
@@ -38,6 +42,7 @@ $(APP): $(SOURCES)
 		CODE_SIGN_STYLE=Manual \
 		CODE_SIGN_IDENTITY=$(CODE_SIGN_IDENTITY) \
 		CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
+		CURRENT_PROJECT_VERSION=$(BUILD_NUMBER) \
 		DEVELOPMENT_TEAM= \
 		PROVISIONING_PROFILE_SPECIFIER= \
 		ARCHS="arm64 x86_64" \

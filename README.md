@@ -24,6 +24,18 @@ Out of the box (bundled config):
 
 > Only the **left** Option key triggers the default bindings; the right one is left free for typing special characters™.
 
+## Install
+
+Download the latest `OttoWM-<version>.zip` from [Releases](https://github.com/brennovich/ottowm/releases):
+
+```sh
+unzip OttoWM-0.1.0.zip -d /Applications
+xattr -cr /Applications/OttoWM.app
+open /Applications/OttoWM.app
+```
+
+The app is ad-hoc signed, so Gatekeeper refuses it as coming from an unidentified developer until you clear the quarantine attribute. OttoWM needs Accessibility permission; grant it in System Settings → Privacy & Security → Accessibility on first launch.
+
 ## Configuration
 
 OttoWM reads `~/.config/ottowm/ottowm` (or `$XDG_CONFIG_HOME/ottowm/ottowm`. The defaults ship inside the app, so start from those:
@@ -76,3 +88,7 @@ xcodebuild -scheme OttoWM test CODE_SIGNING_ALLOWED=NO \
 ```
 
 No third-party dependencies.
+
+## Releasing
+
+`MARKETING_VERSION` in `OttoWM.xcodeproj/project.pbxproj` is the version. Bump it, commit, and push to `main`, then CI tags `v<version>`, builds the universal zip and publishes the release. Pushing without bumping just builds an workflow artifact.
