@@ -68,6 +68,16 @@ final class HotkeysTests: XCTestCase {
         XCTAssertEqual(deferred.count, 0)
     }
 
+    func testAReleasedTapPassesEveryKeystrokeThroughUnmatched() throws {
+        let hotkeys = makeHotkeys()
+        hotkeys.stop()
+        let event = try keyDown(18, .leftOption)
+
+        XCTAssertTrue(hotkeys.handle(type: .keyDown, event: event)?.takeUnretainedValue() === event)
+        XCTAssertEqual(matched.count, 0)
+        XCTAssertEqual(deferred.count, 0)
+    }
+
     func testDeferredActionIsDroppedOnceTheTapIsReleased() throws {
         var hotkeys: Hotkeys? = makeHotkeys()
 
