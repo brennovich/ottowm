@@ -12,7 +12,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             exit(EXIT_FAILURE)
         }
 
-        guard AccessibilityPermission.system().resolve() else { return }
+        let permission = AccessibilityPermission.system()
+        guard permission.resolve() else { return }
 
         // Every AX call is a synchronous IPC round trip, and without a timeout a
         // beachballing application blocks the main thread for as long as it hangs.
@@ -49,7 +50,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         self.engine = engine.start(windows: windowObserver.start { engine.handle($0) })
         self.hotkeys = Hotkeys(keyCodeMatcher: config.action, handler: engine.handle)
 
-        if self.hotkeys?.start() != true {
+        startHotkeys()
+
+        permission.watchTrust(
+            lost: { [weak self] in self?.hotkeys?.stop() },
+            regained: { [weak self] in self?.startHotkeys() }
+        )
+    }
+
+    private func startHotkeys() {
+        if hotkeys?.start() != true {
             Log.app.error("event tap creation failed (check Accessibility permission)")
         }
     }

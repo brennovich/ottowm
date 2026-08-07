@@ -8,6 +8,8 @@ final class AccessibilityPermissionTests: XCTestCase {
     private var openedSettings = false
     private var relaunches = 0
     private var quits = 0
+    private var releases = 0
+    private var restarts = 0
     private var notifyChange: (() -> Void)?
 
     private func makePermission() -> AccessibilityPermission {
@@ -123,5 +125,54 @@ final class AccessibilityPermissionTests: XCTestCase {
         _ = makePermission().resolve()
 
         XCTAssertEqual(watchingWhenAsked, [true, true])
+    }
+
+    func testARevocationWhileRunningReleasesTheTapOnce() throws {
+        trusted = true
+        watchTrust()
+        let changed = try XCTUnwrap(notifyChange)
+
+        trusted = false
+        changed()
+        changed()
+
+        XCTAssertEqual(releases, 1)
+        XCTAssertEqual(restarts, 0)
+    }
+
+    func testAChangeThatLeavesTheTrustInPlaceReleasesNothing() throws {
+        trusted = true
+        watchTrust()
+
+        try XCTUnwrap(notifyChange)()
+
+        XCTAssertEqual(releases, 0)
+        XCTAssertEqual(restarts, 0)
+    }
+
+    // The workspace assignments and the frames of the parked windows only live in
+    // memory, and a revocation leaves them untouched: relaunching would collapse
+    // every window into workspace 1 and lose the frame each parked one is owed.
+    func testTrustComingBackAfterARevocationRestartsInPlace() throws {
+        trusted = true
+        watchTrust()
+        let changed = try XCTUnwrap(notifyChange)
+
+        trusted = false
+        changed()
+        trusted = true
+        changed()
+        changed()
+
+        XCTAssertEqual(releases, 1)
+        XCTAssertEqual(restarts, 1)
+        XCTAssertEqual(relaunches, 0)
+    }
+
+    private func watchTrust() {
+        makePermission().watchTrust(
+            lost: { self.releases += 1 },
+            regained: { self.restarts += 1 }
+        )
     }
 }

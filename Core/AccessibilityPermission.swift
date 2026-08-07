@@ -62,6 +62,36 @@ struct AccessibilityPermission {
 
         return false
     }
+
+    // Trust granted at launch can be taken away while running, and the process is told
+    // nothing beyond the same unpayloaded notification a grant arrives on. What cannot
+    // wait for the user to notice is the event tap: it carries the keystrokes of every
+    // application, and OttoWM holding on to one it can no longer serve is what leaves a
+    // whole session unable to type.
+    //
+    // Nothing else is torn down. The workspace assignments and the frame each parked
+    // window is owed are plain memory that a revocation cannot reach, and going blind
+    // for a while is a case the model already answers for: windows that died meanwhile
+    // are swept on the next switch, and ones that appeared are adopted when focused.
+    // The AXObserver subscriptions outlive the round trip and keep delivering once the
+    // trust is back, so there is nothing to resubscribe either.
+    func watchTrust(lost: @escaping () -> Void, regained: @escaping () -> Void) {
+        var trusted = true
+        watchForChange {
+            guard trusted else {
+                guard self.isTrusted() else { return }
+                trusted = true
+                Log.app.notice("accessibility permission restored, taking the event tap back")
+                regained()
+                return
+            }
+
+            guard !self.isTrusted() else { return }
+            trusted = false
+            Log.app.error("accessibility permission revoked, releasing the event tap")
+            lost()
+        }
+    }
 }
 
 extension AccessibilityPermission {
