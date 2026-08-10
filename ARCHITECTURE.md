@@ -44,7 +44,7 @@ flowchart TB
 
 | Component | Role |
 |---|---|
-| `Engine` | Orchestrator. Turns events and hotkeys into model updates plus desktop moves. Owns the admission gate (`isValidWindow`). |
+| `Engine` | Orchestrator. Turns events and hotkeys into model updates plus desktop moves. Owns the admission gate (`isValidWindow`), which is `WindowSnapshot.isAdmissible` plus the one thing a snapshot cannot answer for itself, whether the window is on screen. |
 | `Workspaces` | Pure model: window → workspace, per-workspace focus history, current workspace. No OS calls. |
 | `TabGroups` | Infers macOS tab siblings by heuristic (app name + identical frame + `tabCount > 1`); a group moves as a unit and stays where it is, so a window joining one lands in the group's workspace rather than dragging the group to its own. |
 | `Desktop` (`OffscreenParkingDesktop`) | The write side. Realizes `Placement` by parking storage windows in a 1px bottom-right sliver and restoring their captured frame. |
@@ -64,7 +64,7 @@ WindowEvent  = created | focused | destroyed | minimized | unminimized
 Action       = switchToWorkspace(n) | moveWindowToWorkspace(n)   // "switch-to-workspace n" in the config
 KeyCombo     = (keyCode, [ModifierKey: Side])                    // "lopt-shift-1"
 Placement    = active | storage
-WindowSnapshot(id, appName, isStandard, isFullScreen, isMinimized, tabCount, frame)
+WindowSnapshot(id, appName, isStandard, hasCloseButton, hasMinimizeButton, isFullScreen, isMinimized, frame)
 ```
 
 Windows are identified by `CGWindowID`, obtained from the private `_AXUIElementGetWindow`.

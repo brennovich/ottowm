@@ -5,6 +5,8 @@ final class StubWindow: Window {
     let appName: String
     let tabs: Int
     let isStandard: Bool
+    let hasCloseButton: Bool
+    let hasMinimizeButton: Bool
     var isFullScreen: Bool
     var isMinimized: Bool
     private(set) var frame: CGRect
@@ -21,6 +23,8 @@ final class StubWindow: Window {
         frame: CGRect = CGRect(x: 0, y: 0, width: 800, height: 600),
         tabCount: Int = 1,
         isStandard: Bool = true,
+        hasCloseButton: Bool = true,
+        hasMinimizeButton: Bool = true,
         isFullScreen: Bool = false,
         isMinimized: Bool = false
     ) {
@@ -29,6 +33,8 @@ final class StubWindow: Window {
         self.frame = frame
         self.tabs = tabCount
         self.isStandard = isStandard
+        self.hasCloseButton = hasCloseButton
+        self.hasMinimizeButton = hasMinimizeButton
         self.isFullScreen = isFullScreen
         self.isMinimized = isMinimized
     }
@@ -38,6 +44,8 @@ final class StubWindow: Window {
             id: id,
             appName: appName,
             isStandard: isStandard,
+            hasCloseButton: hasCloseButton,
+            hasMinimizeButton: hasMinimizeButton,
             isFullScreen: isFullScreen,
             isMinimized: isMinimized,
             frame: frame

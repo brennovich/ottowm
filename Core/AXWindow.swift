@@ -37,6 +37,8 @@ final class AXWindow: Window {
     func snapshot() -> WindowSnapshot {
         let attributes = axAttributes(element, [
             kAXSubroleAttribute,
+            kAXCloseButtonAttribute,
+            kAXMinimizeButtonAttribute,
             FullScreenAttribute,
             kAXMinimizedAttribute,
             kAXPositionAttribute,
@@ -47,6 +49,8 @@ final class AXWindow: Window {
             id: id,
             appName: appName,
             isStandard: attributes[kAXSubroleAttribute] as? String == kAXStandardWindowSubrole,
+            hasCloseButton: attributes[kAXCloseButtonAttribute] != nil,
+            hasMinimizeButton: attributes[kAXMinimizeButtonAttribute] != nil,
             isFullScreen: (attributes[FullScreenAttribute] as? Bool) ?? false,
             isMinimized: (attributes[kAXMinimizedAttribute] as? Bool) ?? false,
             frame: frame(position: attributes[kAXPositionAttribute], size: attributes[kAXSizeAttribute]) ?? .zero

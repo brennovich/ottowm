@@ -293,8 +293,7 @@ final class Engine {
 
     // The single admission gate: anything entering the model passes through here.
     private func isValidWindow(_ win: WindowSnapshot) -> Bool {
-        win.id != 0 && win.isStandard && !win.isFullScreen && !win.isMinimized
-            && screen.shows(win.id)
+        win.isAdmissible && screen.shows(win.id)
     }
 
     // AX still resolves elements of windows that are already gone, so a workspace whose

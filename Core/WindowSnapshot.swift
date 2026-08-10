@@ -5,12 +5,28 @@ struct WindowSnapshot: Sendable, Equatable {
     let id: CGWindowID
     let appName: String
     let isStandard: Bool
+    let hasCloseButton: Bool
+    let hasMinimizeButton: Bool
     let isFullScreen: Bool
     let isMinimized: Bool
     var frame: CGRect
 }
 
 extension WindowSnapshot {
+    // The rule everything entering the model is held to, minus the one thing a snapshot
+    // cannot answer for itself: whether the window is on screen.
+    //
+    // A standard subrole is the plain case. It is not the only one: a window whose
+    // application draws its own decorations reports AXDialog, as does a hidden
+    // application's, and a Quick Look or an image viewer reports AXFloatingWindow. What
+    // separates the real windows in that crowd from the popups is the title bar itself,
+    // and what is left of it in the accessibility tree are the buttons — a popup gets a
+    // close button at most, never one to send it to the Dock.
+    var isAdmissible: Bool {
+        id != 0 && !isFullScreen && !isMinimized
+            && (isStandard || (hasCloseButton && hasMinimizeButton))
+    }
+
     var logDescription: String { "id=\(id) app=\(appName)" }
 
     func moved(to frame: CGRect) -> WindowSnapshot {

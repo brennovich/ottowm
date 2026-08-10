@@ -61,7 +61,7 @@ final class EngineTests: XCTestCase {
         offScreenWindowIds = [500]
         let invalid = [
             add(StubWindow(id: 0)),
-            add(StubWindow(id: 300, isStandard: false)),
+            add(StubWindow(id: 300, isStandard: false, hasMinimizeButton: false)),
             add(StubWindow(id: 400, isFullScreen: true)),
             add(StubWindow(id: 500)),
             add(StubWindow(id: 600, isMinimized: true)),
@@ -74,6 +74,14 @@ final class EngineTests: XCTestCase {
         }
 
         XCTAssertEqual(workspaces.allWindowIds, [])
+    }
+
+    func testAWindowThatIsNotStandardButKeepsItsTitleBarButtonsIsAdmitted() {
+        let win = add(StubWindow(id: 100, isStandard: false))
+
+        engine.handle(.created(win.snapshot()))
+
+        XCTAssertEqual(workspaces.allWindowIds, [100])
     }
 
     func testCreatedWindowIsAssignedToCurrentWorkspace() {
