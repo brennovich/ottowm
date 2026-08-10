@@ -13,6 +13,7 @@ private final class Harness {
     var systemFocusedWindow: AXWindow?
     var failingObserverPids: Set<pid_t> = []
     var unreadyPids: Set<pid_t> = []
+    var deadElements: Set<AXUIElement> = []
 
     private(set) var watched: [pid_t: [(element: AXUIElement, notification: String)]] = [:]
     private(set) var callbacks: [pid_t: (AXUIElement, String) -> Void] = [:]
@@ -45,7 +46,8 @@ private final class Harness {
             self.focusedElements[app.processIdentifier].map {
                 AXWindow(element: $0, application: app, id: self.windowIds[$0] ?? 0)
             }
-        }
+        },
+        isAlive: { !self.deadElements.contains($0) }
     )
 
     func start() -> [WindowSnapshot] {
@@ -406,6 +408,49 @@ final class AXWindowObserverTests: XCTestCase {
         harness.post(NSWorkspace.didActivateApplicationNotification, StubRunningApplication(pid: 901))
 
         XCTAssertEqual(harness.events, [])
+    }
+
+    func testDropDeadWindowsAnnouncesAndForgetsTheOnesThatNoLongerAnswer() {
+        let harness = Harness()
+        harness.apps = [StubRunningApplication(pid: 901)]
+        let alive = harness.addWindow(pid: 901, id: 100)
+        let dead = harness.addWindow(pid: 901, id: 200)
+        _ = harness.start()
+        harness.deadElements = [dead]
+
+        harness.observer.dropDeadWindows()
+
+        XCTAssertEqual(harness.eventDescriptions, ["destroyed(200)"])
+        XCTAssertFalse(harness.registry.knows(dead))
+        XCTAssertTrue(harness.registry.knows(alive))
+    }
+
+    func testDropDeadWindowsKeepsEveryWindowThatStillAnswers() {
+        let harness = Harness()
+        harness.apps = [StubRunningApplication(pid: 901)]
+        harness.addWindow(pid: 901, id: 100)
+        _ = harness.start()
+
+        harness.observer.dropDeadWindows()
+
+        XCTAssertEqual(harness.events, [])
+    }
+
+    // A window closed by its button while its application is in the background takes no
+    // activation with it, so the sweep cannot be scoped to the application activated.
+    func testApplicationActivationSweepsTheWindowsOfEveryApplication() {
+        let harness = Harness()
+        let activated = StubRunningApplication(pid: 901)
+        harness.apps = [activated, StubRunningApplication(pid: 902)]
+        harness.addWindow(pid: 901, id: 100)
+        let dead = harness.addWindow(pid: 902, id: 200)
+        _ = harness.start()
+        harness.deadElements = [dead]
+
+        harness.post(NSWorkspace.didActivateApplicationNotification, activated)
+
+        XCTAssertEqual(harness.eventDescriptions, ["destroyed(200)"])
+        XCTAssertFalse(harness.registry.knows(dead))
     }
 
     func testAdoptFocusedWindowAdoptsAndReturnsTheFocusedWindow() {

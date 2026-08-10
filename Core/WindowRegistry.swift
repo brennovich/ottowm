@@ -54,6 +54,10 @@ final class WindowRegistry {
         refs[element] != nil
     }
 
+    func knownWindows() -> [(element: AXUIElement, id: CGWindowID)] {
+        refs.map { (element: $0.key, id: $0.value.id) }
+    }
+
     func unregistered(of elements: [AXUIElement]) -> [AXUIElement] {
         elements.filter { !knows($0) }
     }

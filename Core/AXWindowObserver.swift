@@ -16,6 +16,7 @@ final class AXWindowObserver {
     private let windowElements: (pid_t) -> [AXUIElement]
     private let makeWindow: (AXUIElement, NSRunningApplication) -> AXWindow
     private let focusedWindowOf: (NSRunningApplication) -> AXWindow?
+    private let isAlive: (AXUIElement) -> Bool
     private var handler: ((WindowEvent) -> Void)?
     private var observers: [pid_t: AppObserver] = [:]
     private let ownPid = ProcessInfo.processInfo.processIdentifier
@@ -46,7 +47,14 @@ final class AXWindowObserver {
             axAttribute(AXUIElementCreateApplication($0), kAXWindowsAttribute) as? [AXUIElement] ?? []
         },
         makeWindow: @escaping (AXUIElement, NSRunningApplication) -> AXWindow = AXWindow.init(element:application:),
-        focusedWindowOf: @escaping (NSRunningApplication) -> AXWindow? = AXWindow.focused(of:)
+        focusedWindowOf: @escaping (NSRunningApplication) -> AXWindow? = AXWindow.focused(of:),
+        // Only a reference the application no longer knows answers invalidUIElement: a
+        // window that is merely unreachable for now, or slow, answers something else and
+        // is left alone.
+        isAlive: @escaping (AXUIElement) -> Bool = { element in
+            var value: CFTypeRef?
+            return AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &value) != .invalidUIElement
+        }
     ) {
         self.registry = registry
         self.focusedWindow = focusedWindow
@@ -57,6 +65,20 @@ final class AXWindowObserver {
         self.windowElements = windowElements
         self.makeWindow = makeWindow
         self.focusedWindowOf = focusedWindowOf
+        self.isAlive = isAlive
+    }
+
+    // kAXUIElementDestroyedNotification is not delivered for every window that dies: the
+    // close button of a window whose application is not in front takes it away without a
+    // word, and nothing would ever say so. Asking every window we know whether it still
+    // answers at all is the net, and the moments to cast it are the ones where a corpse
+    // is about to cost something, such as an application coming to front.
+    func dropDeadWindows() {
+        for (element, id) in registry.knownWindows() where !isAlive(element) {
+            _ = registry.removeWindow(for: element)
+            Log.observer.info("window died unannounced id=\(id)")
+            handler?(.destroyed(id))
+        }
     }
 
     // A window that is not the active tab of its group is absent from the application's
@@ -230,6 +252,8 @@ final class AXWindowObserver {
         guard let app = app(from: notification), observable(app),
               let observer = observers[app.processIdentifier]
         else { return }
+
+        dropDeadWindows()
 
         let elements = registry.unregistered(of: windowElements(app.processIdentifier))
         for snapshot in watchWindows(of: elements, app: app, observer: observer) {

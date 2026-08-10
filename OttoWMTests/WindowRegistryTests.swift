@@ -32,6 +32,16 @@ final class WindowRegistryTests: XCTestCase {
         XCTAssertEqual(registry.removeWindow(for: AXUIElementCreateApplication(904)), 100)
     }
 
+    func testKnownWindowsPairsEveryRegisteredElementWithItsId() {
+        let registry = WindowRegistry()
+        registry.register(elementA, pid: 1, id: 100)
+        registry.register(elementB, pid: 2, id: 200)
+        _ = registry.removeWindow(for: elementA)
+
+        XCTAssertEqual(registry.knownWindows().map(\.id), [200])
+        XCTAssertEqual(registry.knownWindows().map(\.element), [elementB])
+    }
+
     func testEvictRemovesOnlyThatPidsElements() {
         let registry = WindowRegistry()
         registry.register(elementA, pid: 1, id: 100)
