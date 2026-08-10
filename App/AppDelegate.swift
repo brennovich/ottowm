@@ -2,7 +2,11 @@ import Cocoa
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     private let registry = WindowRegistry()
-    private lazy var windowObserver = AXWindowObserver(registry: registry)
+    private let screenLock = ScreenLock()
+    private lazy var windowObserver = AXWindowObserver(
+        registry: registry,
+        screenIsLocked: { [screenLock] in screenLock.isLocked }
+    )
     private var hotkeys: Hotkeys?
     private var engine: Engine?
 
@@ -45,10 +49,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                         .map { CGWindowID($0.uint32Value) })
                 },
                 window: windowById
-            )
+            ),
+            screenIsLocked: { [screenLock] in screenLock.isLocked }
         )
         self.engine = engine.start(windows: windowObserver.start { engine.handle($0) })
         self.hotkeys = Hotkeys(keyCodeMatcher: config.action, handler: engine.handle)
+
+        // Whatever happened behind the lock screen was not believed while it was up.
+        screenLock.startWatching { [windowObserver] in windowObserver.dropDeadWindows() }
 
         startHotkeys()
 

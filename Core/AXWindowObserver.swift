@@ -3,6 +3,7 @@ import ApplicationServices
 import CoreGraphics
 
 private let subscriptionRetryDelay: TimeInterval = 0.1
+private let lockScreenBundleId = "com.apple.loginwindow"
 
 // Per-app AXObservers plus NSWorkspace launch/terminate surface the window
 // lifecycle events: created, focused, destroyed and (de)minimized.
@@ -17,6 +18,7 @@ final class AXWindowObserver {
     private let makeWindow: (AXUIElement, NSRunningApplication) -> AXWindow
     private let focusedWindowOf: (NSRunningApplication) -> AXWindow?
     private let isAlive: (AXUIElement) -> Bool
+    private let screenIsLocked: () -> Bool
     private var handler: ((WindowEvent) -> Void)?
     private var observers: [pid_t: AppObserver] = [:]
     private let ownPid = ProcessInfo.processInfo.processIdentifier
@@ -54,7 +56,8 @@ final class AXWindowObserver {
         isAlive: @escaping (AXUIElement) -> Bool = { element in
             var value: CFTypeRef?
             return AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &value) != .invalidUIElement
-        }
+        },
+        screenIsLocked: @escaping () -> Bool = { false }
     ) {
         self.registry = registry
         self.focusedWindow = focusedWindow
@@ -66,14 +69,17 @@ final class AXWindowObserver {
         self.makeWindow = makeWindow
         self.focusedWindowOf = focusedWindowOf
         self.isAlive = isAlive
+        self.screenIsLocked = screenIsLocked
     }
 
     // kAXUIElementDestroyedNotification is not delivered for every window that dies: the
     // close button of a window whose application is not in front takes it away without a
     // word, and nothing would ever say so. Asking every window we know whether it still
     // answers at all is the net, and the moments to cast it are the ones where a corpse
-    // is about to cost something, such as an application coming to front.
+    // is about to cost something: an application coming to front, the screen unlocking.
     func dropDeadWindows() {
+        guard !screenIsLocked() else { return }
+
         for (element, id) in registry.knownWindows() where !isAlive(element) {
             _ = registry.removeWindow(for: element)
             Log.observer.info("window died unannounced id=\(id)")
@@ -150,8 +156,12 @@ final class AXWindowObserver {
         }
     }
 
+    // The login window comes and goes with the lock screen and owns a window covering
+    // the whole display: managed, it would be parked in the corner the moment the user
+    // came back.
     private func observable(_ app: NSRunningApplication) -> Bool {
         app.activationPolicy == .regular && app.processIdentifier != ownPid
+            && app.bundleIdentifier != lockScreenBundleId
     }
 
     private func observe(_ app: NSRunningApplication) -> [WindowSnapshot] {

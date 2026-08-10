@@ -6,16 +6,19 @@ final class Engine {
     private let desktop: any Desktop
     private let screen: Screen
     private let workspaces: Workspaces
+    private let screenIsLocked: () -> Bool
     private var ignoreNextManualNavigation = false
 
     init(
         desktop: any Desktop,
         screen: Screen,
-        workspaces: Workspaces = Workspaces()
+        workspaces: Workspaces = Workspaces(),
+        screenIsLocked: @escaping () -> Bool = { false }
     ) {
         self.desktop = desktop
         self.screen = screen
         self.workspaces = workspaces
+        self.screenIsLocked = screenIsLocked
     }
 
     @discardableResult
@@ -34,6 +37,15 @@ final class Engine {
     }
 
     func handle(_ event: WindowEvent) {
+        // A locked screen answers for every window the way a closed one does, and the
+        // model would take that literally: windows unmanaged and, worse, the frames the
+        // parked ones are owed forgotten. Nothing said while the screen is covered is
+        // worth believing, and whatever really happened is swept up on unlock.
+        guard !screenIsLocked() else {
+            Log.engine.debug("window event ignored: the screen is locked")
+            return
+        }
+
         screen.duringOperation {
             switch event {
             case let .created(win):

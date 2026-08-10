@@ -6,6 +6,7 @@ final class EngineTests: XCTestCase {
     private var focused: StubWindow?
     private var focusedReadCount = 0
     private var offScreenWindowIds: Set<CGWindowID> = []
+    private var screenIsLocked = false
     private let workspaces = Workspaces()
 
     private lazy var desktop = StubDesktop(window: { [weak self] id in self?.windows[id] })
@@ -24,7 +25,8 @@ final class EngineTests: XCTestCase {
             },
             window: { [weak self] id in self?.windows[id] }
         ),
-        workspaces: workspaces
+        workspaces: workspaces,
+        screenIsLocked: { [weak self] in self?.screenIsLocked ?? false }
     )
 
     @discardableResult
@@ -414,6 +416,32 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(win1.focusCount, 1)
         XCTAssertEqual(desktop.forgottenWindowIds, [200])
         XCTAssertEqual(workspaces.allWindowIds, [100])
+    }
+
+    func testWindowEventsAreIgnoredWhileTheScreenIsLocked() {
+        let win = create(StubWindow(id: 100))
+        engine.switchToWorkspace(2)
+        screenIsLocked = true
+
+        engine.handle(.destroyed(100))
+        engine.handle(.minimized(100))
+        engine.handle(.created(add(StubWindow(id: 200)).snapshot()))
+
+        XCTAssertEqual(workspaces.allWindowIds, [100])
+        XCTAssertEqual(desktop.forgottenWindowIds, [])
+        XCTAssertEqual(desktop.placement(of: win.id), .storage)
+    }
+
+    func testWindowEventsAreHandledOnceTheScreenIsUnlocked() {
+        create(StubWindow(id: 100))
+        screenIsLocked = true
+        engine.handle(.destroyed(100))
+        screenIsLocked = false
+
+        engine.handle(.destroyed(100))
+
+        XCTAssertEqual(workspaces.allWindowIds, [])
+        XCTAssertEqual(desktop.forgottenWindowIds, [100])
     }
 
     func testDestroyedTabbedWindowDoesNotStealFocus() {

@@ -14,6 +14,7 @@ private final class Harness {
     var failingObserverPids: Set<pid_t> = []
     var unreadyPids: Set<pid_t> = []
     var deadElements: Set<AXUIElement> = []
+    var screenIsLocked = false
 
     private(set) var watched: [pid_t: [(element: AXUIElement, notification: String)]] = [:]
     private(set) var callbacks: [pid_t: (AXUIElement, String) -> Void] = [:]
@@ -47,7 +48,8 @@ private final class Harness {
                 AXWindow(element: $0, application: app, id: self.windowIds[$0] ?? 0)
             }
         },
-        isAlive: { !self.deadElements.contains($0) }
+        isAlive: { !self.deadElements.contains($0) },
+        screenIsLocked: { self.screenIsLocked }
     )
 
     func start() -> [WindowSnapshot] {
@@ -156,6 +158,15 @@ final class AXWindowObserverTests: XCTestCase {
         XCTAssertEqual(snapshots.map(\.id), [200])
         XCTAssertNil(harness.registry.application(for: 901))
         XCTAssertNotNil(harness.registry.application(for: 902))
+    }
+
+    func testStartSkipsTheLockScreen() {
+        let harness = Harness()
+        harness.apps = [StubRunningApplication(pid: 901, bundleId: "com.apple.loginwindow")]
+        harness.addWindow(pid: 901, id: 100)
+
+        XCTAssertEqual(harness.start().count, 0)
+        XCTAssertTrue(harness.callbacks.isEmpty)
     }
 
     func testWindowNotificationMapping() {
@@ -434,6 +445,20 @@ final class AXWindowObserverTests: XCTestCase {
         harness.observer.dropDeadWindows()
 
         XCTAssertEqual(harness.events, [])
+    }
+
+    func testDropDeadWindowsDoesNothingWhileTheScreenIsLocked() {
+        let harness = Harness()
+        harness.apps = [StubRunningApplication(pid: 901)]
+        let window = harness.addWindow(pid: 901, id: 100)
+        _ = harness.start()
+        harness.deadElements = [window]
+        harness.screenIsLocked = true
+
+        harness.observer.dropDeadWindows()
+
+        XCTAssertEqual(harness.events, [])
+        XCTAssertTrue(harness.registry.knows(window))
     }
 
     // A window closed by its button while its application is in the background takes no
