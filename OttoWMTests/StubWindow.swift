@@ -16,6 +16,9 @@ final class StubWindow: Window {
     private(set) var focusCount = 0
     private(set) var movableFrameCount = 0
     private(set) var tabCountReadCount = 0
+    private(set) var animatedWriteCount = 0
+
+    private var animationsDisabled = false
 
     init(
         id: CGWindowID,
@@ -62,19 +65,31 @@ final class StubWindow: Window {
         return isMinimized ? nil : frame
     }
 
+    func withoutAnimations(_ body: () -> Void) {
+        animationsDisabled = true
+        body()
+        animationsDisabled = false
+    }
+
     func setPosition(_ origin: CGPoint) {
         frame.origin = origin
         positionSetCount += 1
+        countAnimatedWrite()
     }
 
     func setSize(_ size: CGSize) {
         frame.size = size
         sizeSetCount += 1
+        countAnimatedWrite()
     }
 
     func focus() { focusCount += 1 }
 
     func moveTo(_ frame: CGRect) {
         self.frame = frame
+    }
+
+    private func countAnimatedWrite() {
+        if !animationsDisabled { animatedWriteCount += 1 }
     }
 }

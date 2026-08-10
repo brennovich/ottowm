@@ -69,6 +69,33 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(win.frame, originalFrame)
     }
 
+    func testPlaceWritesTheFrameWithAnimationsDisabled() {
+        desktop.place(100, .storage)
+        win.moveTo(nubFrame(size: CGSize(width: 400, height: 300)))
+        desktop.place(100, .active)
+
+        XCTAssertEqual(win.positionSetCount + win.sizeSetCount, 3)
+        XCTAssertEqual(win.animatedWriteCount, 0)
+    }
+
+    func testRecoverWritesTheFrameWithAnimationsDisabled() {
+        let stuck = addWindow(200, frame: CGRect(x: 1791, y: 100, width: 3000, height: 600))
+
+        desktop.recover(windows: [stuck.snapshot()])
+
+        XCTAssertEqual(stuck.positionSetCount + stuck.sizeSetCount, 2)
+        XCTAssertEqual(stuck.animatedWriteCount, 0)
+    }
+
+    func testNativeSpaceChangeReHidesWithAnimationsDisabled() {
+        desktop.startWatchingForManualNavigation { _ in }
+        desktop.place(100, .storage)
+        win.moveTo(CGRect(x: 200, y: 300, width: 800, height: 600))
+        center.postNativeSpaceChange()
+
+        XCTAssertEqual(win.animatedWriteCount, 0)
+    }
+
     func testPlaceSkipsMinimizedWindows() {
         win.isMinimized = true
 

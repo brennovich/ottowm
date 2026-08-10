@@ -64,6 +64,19 @@ final class AXWindow: Window {
         return frame(position: attributes[kAXPositionAttribute], size: attributes[kAXSizeAttribute])
     }
 
+    // An application animates a frame write while AXEnhancedUserInterface is on, and
+    // macOS turns that attribute on as soon as an assistive client like OttoWM attaches.
+    // The move flickers, and a frame read taken mid animation answers where the window
+    // was rather than where it now is. Credited to yabai and Rectangle, via AeroSpace.
+    func withoutAnimations(_ body: () -> Void) {
+        let appElement = AXUIElementCreateApplication(application.processIdentifier)
+        let enhanced = axAttribute(appElement, EnhancedUserInterfaceAttribute) as? Bool == true
+
+        if enhanced { setEnhancedUserInterface(appElement, false) }
+        body()
+        if enhanced { setEnhancedUserInterface(appElement, true) }
+    }
+
     func setPosition(_ origin: CGPoint) {
         let result = AXUIElementSetAttributeValue(element, kAXPositionAttribute as CFString, encodeCGPoint(origin))
         if result != .success {
@@ -108,6 +121,15 @@ final class AXWindow: Window {
             .compactMap(tabGroupTabs)
             .first
             .map { max($0.filter(isRadioButton).count, 1) } ?? 1
+    }
+
+    private func setEnhancedUserInterface(_ appElement: AXUIElement, _ enabled: Bool) {
+        let result = AXUIElementSetAttributeValue(
+            appElement, EnhancedUserInterfaceAttribute as CFString, enabled ? kCFBooleanTrue : kCFBooleanFalse
+        )
+        if result != .success {
+            Log.window.debug("enhanced user interface \(enabled) failed \(self.logDescription) err=\(result.rawValue)")
+        }
     }
 
     private func isRadioButton(_ element: AXUIElement) -> Bool {

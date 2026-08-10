@@ -6,6 +6,7 @@ let axMessagingTimeoutSeconds: Float = 0.1
 
 // Undeclared by the AX headers, but answered by the applications we manage.
 let FullScreenAttribute = "AXFullScreen"
+let EnhancedUserInterfaceAttribute = "AXEnhancedUserInterface"
 let TabGroupRole = "AXTabGroup"
 let RadioButtonRole = "AXRadioButton"
 

@@ -138,8 +138,10 @@ final class OffscreenParkingDesktop: Desktop {
     }
 
     private func move(_ win: any Window, from current: CGRect, to target: CGRect) {
-        if current.origin != target.origin { win.setPosition(target.origin) }
-        if current.size != target.size { win.setSize(target.size) }
+        win.withoutAnimations {
+            if current.origin != target.origin { win.setPosition(target.origin) }
+            if current.size != target.size { win.setSize(target.size) }
+        }
     }
 
     // Whether the window still exists at all. One that is merely out of reach —
