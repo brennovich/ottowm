@@ -1,0 +1,14 @@
+{
+  "admissible" : true,
+  "app" : "Finder",
+  "hasCloseButton" : true,
+  "hasFullScreenButton" : true,
+  "hasMinimizeButton" : true,
+  "hasZoomButton" : true,
+  "id" : 15751,
+  "isFullScreen" : false,
+  "isMinimized" : false,
+  "note" : "a Finder browser window",
+  "role" : "AXWindow",
+  "subrole" : "AXStandardWindow"
+}

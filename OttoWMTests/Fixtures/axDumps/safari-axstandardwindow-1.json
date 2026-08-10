@@ -1,0 +1,14 @@
+{
+  "admissible" : true,
+  "app" : "Safari",
+  "hasCloseButton" : true,
+  "hasFullScreenButton" : true,
+  "hasMinimizeButton" : true,
+  "hasZoomButton" : true,
+  "id" : 15274,
+  "isFullScreen" : false,
+  "isMinimized" : false,
+  "note" : "a browser window, the plain case",
+  "role" : "AXWindow",
+  "subrole" : "AXStandardWindow"
+}

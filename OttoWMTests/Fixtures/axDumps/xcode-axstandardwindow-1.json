@@ -1,0 +1,14 @@
+{
+  "admissible" : true,
+  "app" : "Xcode",
+  "hasCloseButton" : true,
+  "hasFullScreenButton" : true,
+  "hasMinimizeButton" : true,
+  "hasZoomButton" : true,
+  "id" : 15210,
+  "isFullScreen" : false,
+  "isMinimized" : false,
+  "note" : "the Xcode workspace window",
+  "role" : "AXWindow",
+  "subrole" : "AXStandardWindow"
+}

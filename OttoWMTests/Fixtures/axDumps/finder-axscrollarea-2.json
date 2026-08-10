@@ -1,0 +1,14 @@
+{
+  "admissible" : false,
+  "app" : "Finder",
+  "hasCloseButton" : false,
+  "hasFullScreenButton" : false,
+  "hasMinimizeButton" : false,
+  "hasZoomButton" : false,
+  "id" : 0,
+  "isFullScreen" : false,
+  "isMinimized" : false,
+  "note" : "the desktop itself, listed among Finder's windows and no window at all",
+  "role" : "AXScrollArea",
+  "subrole" : ""
+}

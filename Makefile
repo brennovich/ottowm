@@ -17,12 +17,16 @@ ZIP = $(BUILD_DIR)/$(SCHEME)-$(VERSION).zip
 ACCEPTANCE_SOURCES := $(shell find Acceptance -name '*.swift')
 ACCEPTANCE = $(BUILD_DIR)/acceptance
 
+AXDUMP_SOURCES := $(shell find Tools/AXDump -name '*.swift')
+AXDUMP = $(BUILD_DIR)/axdump
+AXDUMP_DIR = OttoWMTests/Fixtures/axDumps
+
 INSTALL_DIR ?= /Applications
 INSTALLED = $(INSTALL_DIR)/$(SCHEME).app
 
 CODE_SIGN_IDENTITY ?= -
 
-.PHONY: build test acceptance release install clean version
+.PHONY: build test acceptance axdump release install clean version
 
 version:
 	@echo $(VERSION)
@@ -39,6 +43,13 @@ acceptance: $(ACCEPTANCE)
 $(ACCEPTANCE): $(ACCEPTANCE_SOURCES)
 	@mkdir -p $(BUILD_DIR)
 	swiftc -o $@ $(ACCEPTANCE_SOURCES)
+
+axdump: $(AXDUMP)
+	$(AXDUMP) $(AXDUMP_DIR) $(ARGS)
+
+$(AXDUMP): $(AXDUMP_SOURCES)
+	@mkdir -p $(BUILD_DIR)
+	swiftc -o $@ $(AXDUMP_SOURCES)
 
 release: $(ZIP)
 

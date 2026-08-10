@@ -1,0 +1,14 @@
+{
+  "admissible" : true,
+  "app" : "Music",
+  "hasCloseButton" : true,
+  "hasFullScreenButton" : true,
+  "hasMinimizeButton" : true,
+  "hasZoomButton" : true,
+  "id" : 15961,
+  "isFullScreen" : false,
+  "isMinimized" : false,
+  "note" : "the Music window",
+  "role" : "AXWindow",
+  "subrole" : "AXStandardWindow"
+}
