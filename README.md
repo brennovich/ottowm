@@ -3,7 +3,7 @@
   <h3 align="center">OttoWM</h3>
   <p align="center">
     A tiny virtual workspace manager for macOS<br>
-    <i>Inspired on <a href="https://github.com/venam/2bwm">2bwm</a> and <a href="https://github.com/wmutils/core">wmutils</a>.
+    <i>Inspired on <a href="https://github.com/venam/2bwm">2bwm</a> and <a href="https://github.com/wmutils/core">wmutils</a></i>.
   </p>
 </p>
 
