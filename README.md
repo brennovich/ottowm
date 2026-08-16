@@ -1,8 +1,9 @@
-# OttoWM
-
-A tiny virtual workspace manager for macOS.
-
-Inspired on  [2bwm](https://github.com/venam/2bwm) and [wmutils](https://github.com/wmutils/core). OttoWM does **not tile**.
+<p align="center">
+  <img src="App/Assets.xcassets/AppIcon.appiconset/icon_256x256.png" alt="OttoWM icon" width="128" height="128">
+  <h1 align="center">OttoWM</h1>
+  <p align="center"><b>A tiny virtual workspace manager for macOS</b>.</p>
+  <p align="center">i>Inspired on <a href="https://github.com/venam/2bwm">2bwm</a> and <a href="https://github.com/wmutils/core">wmutils</a>.</p>
+</p>
 
 ## Functionality
 
@@ -70,3 +71,4 @@ log stream --level debug --predicate 'subsystem == "com.github.brennovich.ottowm
 ## Limitations
 
 - No Multi-Single screen support (yet)
+- No Window controls (move, resize)
