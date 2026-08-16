@@ -47,7 +47,10 @@ func eventually(
             report("ok, \(description)")
             return
         }
-        Thread.sleep(forTimeInterval: interval)
+        // NSWorkspace tracks the frontmost application through notifications delivered to
+        // the main run loop, so a probe that only sleeps reads the same stale value until
+        // the deadline. Waiting on the run loop is what lets those arrive.
+        RunLoop.current.run(until: Date().addingTimeInterval(interval))
     } while Date() < deadline
 
     fail("\(description), gave up after \(Int(timeout))s with \(observed ?? "nothing to report")")
