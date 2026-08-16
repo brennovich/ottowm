@@ -17,11 +17,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let permission = AccessibilityPermission.system()
-        guard permission.resolve() else { return }
+        switch permission.inquire() {
+        case .granted:
+            break
+        case .relaunching:
+            // The relaunch is asynchronous and exits this process once the new
+            // instance is on its way, so nothing here may exit before it lands.
+            return
+        case .quit:
+            Log.app.error("unable to acquire accessibility permissions, exiting")
+            exit(EXIT_FAILURE)
+        }
 
         // Every AX call is a synchronous IPC round trip, and without a timeout a
         // beachballing application blocks the main thread for as long as it hangs.
-        // Set on the system-wide element, this becomes the process-wide default.
+        //
+        // Set on the system-wide element to make it the process-wide default.
         AXUIElementSetMessagingTimeout(AXUIElementCreateSystemWide(), axMessagingTimeoutSeconds)
 
         Log.app.notice("OttoWM (\(AppInfo.version)) launched")

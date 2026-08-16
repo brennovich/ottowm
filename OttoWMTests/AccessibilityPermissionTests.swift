@@ -7,10 +7,10 @@ final class AccessibilityPermissionTests: XCTestCase {
     private var watchingWhenAsked: [Bool] = []
     private var openedSettings = false
     private var relaunches = 0
-    private var quits = 0
     private var releases = 0
     private var restarts = 0
     private var notifyChange: (() -> Void)?
+    private var whileAsking: (() -> Void)?
 
     private func makePermission() -> AccessibilityPermission {
         AccessibilityPermission(
@@ -18,12 +18,12 @@ final class AccessibilityPermissionTests: XCTestCase {
             ask: { request in
                 self.requests.append(request)
                 self.watchingWhenAsked.append(self.notifyChange != nil)
+                self.whileAsking?()
                 return self.responses.removeFirst()
             },
             openSettings: { self.openedSettings = true },
             watchForChange: { self.notifyChange = $0 },
-            relaunch: { self.relaunches += 1 },
-            quit: { self.quits += 1 }
+            relaunch: { self.relaunches += 1 }
         )
     }
 
@@ -32,11 +32,10 @@ final class AccessibilityPermissionTests: XCTestCase {
             let name: String
             let trusted: Bool
             let responses: [AccessibilityPermission.Response]
-            let canStart: Bool
+            let outcome: AccessibilityPermission.Outcome
             let requests: [AccessibilityPermission.Request]
             let openedSettings: Bool
             let relaunches: Int
-            let quits: Int
         }
 
         let testCases = [
@@ -44,41 +43,37 @@ final class AccessibilityPermissionTests: XCTestCase {
                 name: "granted at launch",
                 trusted: true,
                 responses: [],
-                canStart: true,
+                outcome: .granted,
                 requests: [],
                 openedSettings: false,
-                relaunches: 0,
-                quits: 0
+                relaunches: 0
             ),
             TestCase(
                 name: "quits at the first alert",
                 trusted: false,
                 responses: [.quit],
-                canStart: false,
+                outcome: .quit,
                 requests: [.openSettings],
                 openedSettings: false,
-                relaunches: 0,
-                quits: 1
+                relaunches: 0
             ),
             TestCase(
                 name: "quits once settings are open",
                 trusted: false,
                 responses: [.confirm, .quit],
-                canStart: false,
+                outcome: .quit,
                 requests: [.openSettings, .restart],
                 openedSettings: true,
-                relaunches: 0,
-                quits: 1
+                relaunches: 0
             ),
             TestCase(
                 name: "restarts on request",
                 trusted: false,
                 responses: [.confirm, .confirm],
-                canStart: false,
+                outcome: .relaunching,
                 requests: [.openSettings, .restart],
                 openedSettings: true,
-                relaunches: 1,
-                quits: 0
+                relaunches: 1
             ),
         ]
 
@@ -88,19 +83,17 @@ final class AccessibilityPermissionTests: XCTestCase {
             requests = []
             openedSettings = false
             relaunches = 0
-            quits = 0
 
-            XCTAssertEqual(makePermission().resolve(), testCase.canStart, testCase.name)
+            XCTAssertEqual(makePermission().inquire(), testCase.outcome, testCase.name)
             XCTAssertEqual(requests, testCase.requests, testCase.name)
             XCTAssertEqual(openedSettings, testCase.openedSettings, testCase.name)
             XCTAssertEqual(relaunches, testCase.relaunches, testCase.name)
-            XCTAssertEqual(quits, testCase.quits, testCase.name)
         }
     }
 
     func testAGrantArrivingWhileWaitingRelaunchesOnce() throws {
         responses = [.confirm, .quit]
-        _ = makePermission().resolve()
+        _ = makePermission().inquire()
         let changed = try XCTUnwrap(notifyChange)
 
         trusted = true
@@ -110,9 +103,20 @@ final class AccessibilityPermissionTests: XCTestCase {
         XCTAssertEqual(relaunches, 1)
     }
 
+    func testAGrantArrivingWhileAnAlertIsUpRelaunchesEvenIfTheUserQuits() {
+        responses = [.quit]
+        whileAsking = {
+            self.trusted = true
+            self.notifyChange?()
+        }
+
+        XCTAssertEqual(makePermission().inquire(), .relaunching)
+        XCTAssertEqual(relaunches, 1)
+    }
+
     func testAChangeThatIsNotOurGrantKeepsWaiting() throws {
         responses = [.confirm, .quit]
-        _ = makePermission().resolve()
+        _ = makePermission().inquire()
 
         try XCTUnwrap(notifyChange)()
 
@@ -122,7 +126,7 @@ final class AccessibilityPermissionTests: XCTestCase {
     func testTheGrantIsWatchedForBeforeAnyAlertIsShown() {
         responses = [.confirm, .quit]
 
-        _ = makePermission().resolve()
+        _ = makePermission().inquire()
 
         XCTAssertEqual(watchingWhenAsked, [true, true])
     }

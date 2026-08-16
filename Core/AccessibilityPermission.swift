@@ -1,15 +1,6 @@
 import AppKit
 import ApplicationServices
 
-// Posted by the system whenever the accessibility trust database changes,
-// for any application and without a payload. Undeclared by any header, and the
-// state it announces is not readable by this process for a moment after it
-// lands, hence the settle delay before the trust is read back.
-private let accessibilityChangeNotification = "com.apple.accessibility.api"
-private let accessibilityGrantSettleSeconds = 1.0
-
-private let accessibilitySettingsURL = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
-
 struct AccessibilityPermission {
     enum Request {
         case openSettings
@@ -21,20 +12,22 @@ struct AccessibilityPermission {
         case quit
     }
 
+    enum Outcome {
+        case granted
+        case relaunching
+        case quit
+    }
+
     let isTrusted: () -> Bool
     let ask: (Request) -> Response
     let openSettings: () -> Void
     let watchForChange: (@escaping () -> Void) -> Void
     let relaunch: () -> Void
-    let quit: () -> Void
 
-    func resolve() -> Bool {
-        if isTrusted() { return true }
-
+    func inquire() -> Outcome {
+        if isTrusted() { return .granted }
         Log.app.notice("accessibility permission missing")
 
-        // Watched before the first alert, so a grant made while one is up still
-        // relaunches. Once is enough: the process is on its way out by then.
         var relaunching = false
         watchForChange {
             guard !relaunching, self.isTrusted() else { return }
@@ -43,38 +36,18 @@ struct AccessibilityPermission {
             self.relaunch()
         }
 
-        if ask(.openSettings) == .quit {
-            quit()
-            return false
-        }
-
+        // A grant landing while an alert is up starts the relaunch from under it, and
+        // the answer the user gives afterwards cannot cut that relaunch short.
+        if ask(.openSettings) == .quit { return relaunching ? .relaunching : .quit }
         openSettings()
+        if ask(.restart) == .quit { return relaunching ? .relaunching : .quit }
 
-        if ask(.restart) == .quit {
-            quit()
-            return false
-        }
-
-        // Unconditional: a restart without the grant lands back on this gate,
-        // which beats a button that does nothing.
         relaunching = true
         relaunch()
 
-        return false
+        return .relaunching
     }
 
-    // Trust granted at launch can be taken away while running, and the process is told
-    // nothing beyond the same unpayloaded notification a grant arrives on. What cannot
-    // wait for the user to notice is the event tap: it carries the keystrokes of every
-    // application, and OttoWM holding on to one it can no longer serve is what leaves a
-    // whole session unable to type.
-    //
-    // Nothing else is torn down. The workspace assignments and the frame each parked
-    // window is owed are plain memory that a revocation cannot reach, and going blind
-    // for a while is a case the model already answers for: windows that died meanwhile
-    // are swept on the next switch, and ones that appeared are adopted when focused.
-    // The AXObserver subscriptions outlive the round trip and keep delivering once the
-    // trust is back, so there is nothing to resubscribe either.
     func watchTrust(lost: @escaping () -> Void, regained: @escaping () -> Void) {
         var trusted = true
         watchForChange {
@@ -99,15 +72,13 @@ extension AccessibilityPermission {
         AccessibilityPermission(
             isTrusted: { AXIsProcessTrusted() },
             ask: { alertResponse(to: $0) },
-            openSettings: { NSWorkspace.shared.open(URL(string: accessibilitySettingsURL)!) },
+            openSettings: { NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!) },
             watchForChange: { changed in
                 DistributedNotificationCenter.default().addObserver(
-                    forName: Notification.Name(accessibilityChangeNotification),
+                    forName: Notification.Name("com.apple.accessibility.api"),
                     object: nil,
                     queue: .main
-                ) { _ in
-                    DispatchQueue.main.asyncAfter(deadline: .now() + accessibilityGrantSettleSeconds, execute: changed)
-                }
+                ) { _ in DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: changed) }
             },
             relaunch: {
                 let configuration = NSWorkspace.OpenConfiguration()
@@ -115,16 +86,12 @@ extension AccessibilityPermission {
                 NSWorkspace.shared.openApplication(
                     at: Bundle.main.bundleURL, configuration: configuration
                 ) { _, _ in exit(EXIT_SUCCESS) }
-            },
-            quit: { exit(EXIT_SUCCESS) }
+            }
         )
     }
 }
 
 private func alertResponse(to request: AccessibilityPermission.Request) -> AccessibilityPermission.Response {
-    // An LSUIElement agent takes a regular activation policy for as long as it is
-    // asking: the Dock icon it brings is the way out for a user who walks away
-    // from the alert.
     NSApp.setActivationPolicy(.regular)
     NSApp.activate(ignoringOtherApps: true)
 
@@ -143,7 +110,6 @@ private func alertResponse(to request: AccessibilityPermission.Request) -> Acces
     }
 
     alert.addButton(withTitle: "Quit")
-
     alert.layout()
 
     return alert.runModal() == .alertFirstButtonReturn ? .confirm : .quit
