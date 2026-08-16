@@ -1,9 +1,10 @@
 <p align="center">
   <img src="App/Assets.xcassets/AppIcon.appiconset/icon_256x256.png" alt="OttoWM icon" width="128" height="128">
+  <h3>OttoWM</h3>
   <p align="center">
-    <b>OttoWM</b><br>
-    A tiny virtual workspace manager for macOS
+    A tiny virtual workspace manager for macOS<br>
     <i>Inspired on <a href="https://github.com/venam/2bwm">2bwm</a> and <a href="https://github.com/wmutils/core">wmutils</a>.
+  </p>
 </p>
 
 ## Functionality
