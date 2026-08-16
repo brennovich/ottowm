@@ -1,0 +1,11 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect x="0.5" y="0.5" width="1023" height="1023" stroke="#171717" style="stroke:#171717;stroke:color(display-p3 0.0906 0.0906 0.0906);stroke-opacity:1;"/>
+<line x1="128" y1="328" x2="767" y2="328" stroke="#CCCCCC" style="stroke:#CCCCCC;stroke:color(display-p3 0.8000 0.8000 0.8000);stroke-opacity:1;" stroke-width="2"/>
+<line x1="256" y1="456" x2="895" y2="456" stroke="#CCCCCC" style="stroke:#CCCCCC;stroke:color(display-p3 0.8000 0.8000 0.8000);stroke-opacity:1;" stroke-width="2"/>
+<circle cx="301" cy="421" r="19" fill="#FF383C" style="fill:#FF383C;fill:color(display-p3 1.0000 0.2196 0.2353);fill-opacity:1;"/>
+<circle cx="361" cy="421" r="19" fill="#FFCC00" style="fill:#FFCC00;fill:color(display-p3 1.0000 0.8000 0.0000);fill-opacity:1;"/>
+<circle cx="421" cy="421" r="19" fill="#34C759" style="fill:#34C759;fill:color(display-p3 0.2039 0.7804 0.3490);fill-opacity:1;"/>
+<circle cx="173" cy="293" r="19" fill="#FF383C" style="fill:#FF383C;fill:color(display-p3 1.0000 0.2196 0.2353);fill-opacity:1;"/>
+<circle cx="233" cy="293" r="19" fill="#FFCC00" style="fill:#FFCC00;fill:color(display-p3 1.0000 0.8000 0.0000);fill-opacity:1;"/>
+<circle cx="293" cy="293" r="19" fill="#34C759" style="fill:#34C759;fill:color(display-p3 0.2039 0.7804 0.3490);fill-opacity:1;"/>
+</svg>

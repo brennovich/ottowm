@@ -7,7 +7,8 @@ XCBEAUTIFY := $(if $(shell command -v xcbeautify),xcbeautify --disable-logging,c
 PROJECT = $(SCHEME).xcodeproj/project.pbxproj
 VERSION := $(shell awk -F' = ' '/MARKETING_VERSION/ {gsub(/;/, "", $$2); print $$2; exit}' $(PROJECT))
 BUILD_NUMBER ?= $(shell git rev-list --count HEAD)
-SOURCES := $(shell find App Core -name '*.swift') $(SCHEME).entitlements $(PROJECT)
+RESOURCES := $(shell find App/Assets.xcassets -type f) App/AppIcon.icon/icon.json
+SOURCES := $(shell find App Core -name '*.swift') $(RESOURCES) $(SCHEME).entitlements $(PROJECT)
 
 BUILD_DIR = build
 RELEASE_DIR = $(BUILD_DIR)/Release

@@ -7,3 +7,6 @@ DerivedData/
 .swiftpm/
 .build/
 Package.resolved
+
+.DS_Store
+Icon/Exports/
