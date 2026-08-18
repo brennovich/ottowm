@@ -66,9 +66,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         self.engine = engine.start(windows: windowObserver.start { engine.handle($0) })
         self.hotkeys = Hotkeys(keyCodeMatcher: config.action, handler: engine.handle)
 
-        // Whatever happened behind the lock screen was not believed while it was up.
         screenLock.startWatching { [windowObserver] in windowObserver.dropDeadWindows() }
-
         startHotkeys()
 
         permission.watchTrust(
