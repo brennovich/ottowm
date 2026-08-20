@@ -8,6 +8,7 @@ final class Engine {
     private let workspaces: Workspaces
     private let screenIsLocked: () -> Bool
     private var ignoreNextManualNavigation = false
+    private var fullscreenWindowOriginalWorkspace: [CGWindowID: Int] = [:]
 
     init(
         desktop: any Desktop,
@@ -116,6 +117,9 @@ final class Engine {
             Log.engine.info("moving window \(win.logDescription) to workspace \(workspace) placement=\(placement)")
             desktop.place(win.id, placement)
             workspaces.moveWindowToWorkspace(win.id, workspace)
+            // Said out loud, this is where the window belongs from now on, whatever it
+            // was owed for having gone full screen.
+            fullscreenWindowOriginalWorkspace[win.id] = nil
 
             restoreWindowsFocusForWorkspace()
         }
@@ -136,6 +140,8 @@ final class Engine {
         }
 
         guard isValidWindow(win) else { return }
+
+        if followWindowBackFromFullScreen(win) { return }
 
         if let workspace = workspaces.workspace(for: win.id) {
             workspaces.saveFocusedWindowInWorkspace(workspace, win.id)
@@ -177,10 +183,24 @@ final class Engine {
 
     private func dropFocusedWindowIfFullScreen() {
         guard let focused = screen.focused(), focused.isFullScreen,
-              workspaces.workspace(for: focused.id) != nil
+              let workspace = workspaces.workspace(for: focused.id)
         else { return }
 
+        // Unlike a minimized or destroyed one, a full screen window has a home to come
+        // back to: the workspace it left, not whichever one happens to be current when it
+        // returns. Kept aside after unmanaging, which is what wipes the window's slate.
         unmanage(focused.id, "fullscreen")
+        fullscreenWindowOriginalWorkspace[focused.id] = workspace
+    }
+
+    private func followWindowBackFromFullScreen(_ win: WindowSnapshot) -> Bool {
+        guard let workspaceBeforeFullscreen = fullscreenWindowOriginalWorkspace[win.id] else { return false }
+
+        Log.engine.info("\(win.logDescription) is back from full screen → workspace \(workspaceBeforeFullscreen)")
+        if workspaceBeforeFullscreen != workspaces.currentWorkspace {
+            transitionToWorkspace(workspaceBeforeFullscreen)
+        }
+        return assignWindowToWorkspace(win, workspaceBeforeFullscreen) != nil
     }
 
     // A window out of reach cannot be parked, and focusing it would strand the user
@@ -195,6 +215,7 @@ final class Engine {
 
         let focusSettled = workspaces.unregisterWindowById(windowId)
         desktop.forget(windowId)
+        fullscreenWindowOriginalWorkspace[windowId] = nil
         return focusSettled
     }
 
@@ -243,7 +264,8 @@ final class Engine {
     private func assignWindowToWorkspace(_ win: WindowSnapshot, _ workspace: Int) -> Int? {
         guard isValidWindow(win) else { return nil }
 
-        let assigned = workspaces.assignWindowToWorkspace(win, workspace, tabCount: screen.tabCount(of: win.id))
+        let workspaceBeforeWindowEnteredFullscreen = fullscreenWindowOriginalWorkspace.removeValue(forKey: win.id) ?? workspace
+        let assigned = workspaces.assignWindowToWorkspace(win, workspaceBeforeWindowEnteredFullscreen, tabCount: screen.tabCount(of: win.id))
         Log.engine.info("assigned \(win.logDescription) → workspace \(assigned)")
 
         desktop.place(win.id, assigned == workspaces.currentWorkspace ? .active : .storage)
@@ -274,6 +296,8 @@ final class Engine {
             let currentWorkspace = workspaces.currentWorkspace
 
             if let osFocused = screen.focused(), isValidWindow(osFocused) {
+                if followWindowBackFromFullScreen(osFocused) { return true }
+
                 let workspace = workspaces.workspace(for: osFocused.id)
                 if workspace == currentWorkspace {
                     workspaces.saveFocusedWindowInWorkspace(currentWorkspace, osFocused.id)
@@ -298,7 +322,6 @@ final class Engine {
         }
     }
 
-    // The single admission gate: anything entering the model passes through here.
     private func isValidWindow(_ win: WindowSnapshot) -> Bool {
         win.isAdmissible && screen.shows(win.id)
     }

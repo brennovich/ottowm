@@ -476,24 +476,74 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(win1.focusCount, 1)
     }
 
-    func testWindowBackFromFullScreenJoinsTheWorkspaceItReappearedIn() {
+    func testWindowBackFromFullScreenReturnsToTheWorkspaceItLeftAndTakesTheDesktopThere() {
         create(StubWindow(id: 100))
         let win2 = create(StubWindow(id: 200))
         win2.isFullScreen = true
         focused = win2
         offScreenWindowIds = [100]
         engine.switchToWorkspace(1)
+        engine.switchToWorkspace(2)
 
         win2.isFullScreen = false
         offScreenWindowIds = []
+        engine.handle(.focused(win2.snapshot()))
+
+        XCTAssertEqual(workspaces.workspace(for: 200), 1)
+        XCTAssertEqual(workspaces.currentWorkspace, 1)
+        XCTAssertEqual(desktop.placement(of: 200), .active)
+    }
+
+    func testWindowFoundBackFromFullScreenWhileRestoringFocusReturnsToTheWorkspaceItLeft() {
+        create(StubWindow(id: 100))
+        let win2 = create(StubWindow(id: 200))
+        win2.isFullScreen = true
+        focused = win2
+        offScreenWindowIds = [100]
+        engine.switchToWorkspace(1)
+        engine.switchToWorkspace(2)
+        create(StubWindow(id: 300))
+
+        win2.isFullScreen = false
+        offScreenWindowIds = []
+        windows[300] = nil
+        engine.handle(.destroyed(300))
+
+        XCTAssertEqual(workspaces.workspace(for: 200), 1)
+        XCTAssertEqual(workspaces.currentWorkspace, 1)
+        XCTAssertEqual(desktop.placement(of: 200), .active)
+        XCTAssertEqual(desktop.placement(of: 100), .active)
+    }
+
+    func testMovingAWindowBackFromFullScreenOverridesTheWorkspaceItLeft() {
+        create(StubWindow(id: 100))
+        let win2 = create(StubWindow(id: 200))
+        win2.isFullScreen = true
+        focused = win2
+        offScreenWindowIds = [100]
+        engine.switchToWorkspace(1)
         engine.switchToWorkspace(2)
 
-        XCTAssertEqual(workspaces.allWindowIds, [100, 200])
-        XCTAssertEqual(desktop.placement(of: 200), .storage)
+        win2.isFullScreen = false
+        offScreenWindowIds = []
+        engine.moveFocusedWindow(toWorkspace: 3)
+        engine.handle(.focused(win2.snapshot()))
 
-        engine.switchToWorkspace(1)
+        XCTAssertEqual(workspaces.workspace(for: 200), 3)
+        XCTAssertEqual(workspaces.currentWorkspace, 2)
+    }
 
-        XCTAssertEqual(desktop.placement(of: 200), .active)
+    func testWindowThatWasNeverManagedBeforeGoingFullScreenJoinsTheCurrentWorkspace() {
+        create(StubWindow(id: 100))
+        engine.switchToWorkspace(2)
+        let win2 = add(StubWindow(id: 200, isFullScreen: true))
+        focused = win2
+
+        win2.isFullScreen = false
+        engine.handle(.focused(win2.snapshot()))
+
+        XCTAssertEqual(workspaces.workspace(for: 200), 2)
+        XCTAssertEqual(workspaces.currentWorkspace, 2)
     }
 
     func testMinimizedWindowIsDroppedFromItsWorkspace() {
