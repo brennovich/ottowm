@@ -10,6 +10,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
     private var snapshotCount = 0
     private let center = NotificationCenter()
     private let workspaces = Workspaces()
+    private let hiddenEdge = OffscreenParkingDesktop.HiddenEdge(screen: StubScreen.standard)
 
     private lazy var onScreenWindows = OperationCache { [weak self] () -> Set<CGWindowID> in
         guard let self else { return [] }
@@ -179,8 +180,48 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         win2.isMinimized = false
         engine.handle(.unminimized(win2.snapshot()))
 
-        XCTAssertFalse(OffscreenParkingDesktop.HiddenEdge(screen: StubScreen.standard).holds(win2.frame))
+        XCTAssertFalse(hiddenEdge.holds(win2.frame))
         XCTAssertTrue(workspaces.allWindowIds.contains(200))
+    }
+
+    func testWindowReadmittedWhileStrandedAtTheHiddenEdgeIsBroughtBack() {
+        let win1 = addWindow(100, frame: frame1)
+        let win2 = addWindow(200, frame: frame2)
+        focused = win1
+        start()
+        moveFocusedWindow(win2, to: 2)
+
+        win2.isMinimized = true
+        engine.handle(.minimized(200))
+        win2.isMinimized = false
+
+        focused = win2
+        engine.handle(.focused(win2.snapshot()))
+
+        XCTAssertEqual(workspaces.workspace(for: 200), 1)
+        XCTAssertFalse(hiddenEdge.holds(win2.frame))
+    }
+
+    func testAWindowRecoveredFromTheHiddenEdgeKeepsItsNewFrameAcrossSwitches() {
+        let win1 = addWindow(100, frame: frame1)
+        let win2 = addWindow(200, frame: frame2)
+        focused = win1
+        start()
+        moveFocusedWindow(win2, to: 2)
+
+        win2.isMinimized = true
+        engine.handle(.minimized(200))
+        win2.isMinimized = false
+        focused = win2
+        engine.handle(.focused(win2.snapshot()))
+        let recovered = win2.frame
+
+        focused = win1
+        engine.switchToWorkspace(2)
+        engine.switchToWorkspace(1)
+
+        XCTAssertEqual(win2.frame, recovered)
+        XCTAssertEqual(win1.frame, frame1)
     }
 
     func testMinimizedWindowIsLeftInPlaceAcrossSwitches() {

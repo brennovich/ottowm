@@ -133,6 +133,7 @@ final class EngineTests: XCTestCase {
 
     func testSwitchToSameWorkspaceOnFrontmostDesktopIsNoOp() {
         let win = create(StubWindow(id: 100))
+        desktop.clearPlaceCalls()
 
         engine.switchToWorkspace(1)
 
@@ -335,6 +336,7 @@ final class EngineTests: XCTestCase {
 
     func testMoveWindowToWorkspaceDoesNothingWithoutFocusedWindow() {
         create(StubWindow(id: 100))
+        desktop.clearPlaceCalls()
 
         engine.moveFocusedWindow(toWorkspace: 2)
 

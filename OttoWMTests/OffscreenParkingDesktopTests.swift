@@ -8,6 +8,8 @@ final class OffscreenParkingDesktopTests: XCTestCase {
     private var focusedWindowId: CGWindowID?
     private let center = NotificationCenter()
 
+    private let hiddenEdge = OffscreenParkingDesktop.HiddenEdge(screen: StubScreen.standard)
+
     private lazy var windows = [win.id: win]
 
     private lazy var desktop = OffscreenParkingDesktop(
@@ -38,7 +40,7 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(desktop.placement(of: 100), .active)
     }
 
-    func testPlaceIsIdempotentAndReadsTheFrameOncePerMove() {
+    func testPlaceIsIdempotent() {
         desktop.place(100, .storage)
         desktop.place(100, .storage)
 
@@ -49,7 +51,13 @@ final class OffscreenParkingDesktopTests: XCTestCase {
 
         XCTAssertEqual(win.positionSetCount, 2)
         XCTAssertEqual(win.frame, originalFrame)
-        XCTAssertEqual(win.movableFrameCount, 2)
+    }
+
+    func testPlaceDoesNotReadTheFrameOfAnAlreadyParkedWindow() {
+        desktop.place(100, .storage)
+        desktop.place(100, .storage)
+
+        XCTAssertEqual(win.movableFrameCount, 1)
     }
 
     func testPlaceWritesOnlyThePositionWhenTheSizeIsUnchanged() {
@@ -94,6 +102,31 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         center.postNativeSpaceChange()
 
         XCTAssertEqual(win.animatedWriteCount, 0)
+    }
+
+    func testPlaceNeverRecordsAHiddenEdgeFrameAsTheFrameOwed() {
+        let stranded = addWindow(200, frame: nubFrame(size: originalFrame.size))
+
+        desktop.place(200, .storage)
+        desktop.place(200, .active)
+
+        XCTAssertFalse(hiddenEdge.holds(stranded.frame))
+    }
+
+    func testPlaceRecoversAStrandedWindowItNeverParked() {
+        let stranded = addWindow(200, frame: nubFrame(size: originalFrame.size))
+
+        desktop.place(200, .active)
+
+        XCTAssertFalse(hiddenEdge.holds(stranded.frame))
+        XCTAssertEqual(desktop.placement(of: 200), .active)
+    }
+
+    func testPlaceLeavesAnUnparkedWindowOnScreenAlone() {
+        desktop.place(100, .active)
+
+        XCTAssertEqual(win.positionSetCount, 0)
+        XCTAssertEqual(win.frame, originalFrame)
     }
 
     func testPlaceSkipsMinimizedWindows() {
@@ -154,7 +187,7 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         desktop.recover(windows: [stuck.snapshot(), win.snapshot()])
 
         XCTAssertEqual(stuck.positionSetCount, 1)
-        XCTAssertFalse(OffscreenParkingDesktop.HiddenEdge(screen: StubScreen.standard).holds(stuck.frame))
+        XCTAssertFalse(hiddenEdge.holds(stuck.frame))
         XCTAssertEqual(win.positionSetCount, 0)
     }
 

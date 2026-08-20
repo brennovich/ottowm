@@ -84,24 +84,23 @@ final class OffscreenParkingDesktop: Desktop {
             switch placement {
             case .storage:
                 if hiddenWindowFrames[windowId] != nil { return reaches(windowId) }
-                guard let (win, originalFrame) = movableWindow(windowId, placement) else {
+                guard let (win, currentFrame) = movableWindow(windowId, placement) else {
                     return reaches(windowId)
                 }
+                let originalFrame = onScreenFrame(windowId, currentFrame)
                 let hidden = hiddenEdge.frame(parking: originalFrame)
                 hiddenWindowFrames[windowId] = originalFrame
-                move(win, from: originalFrame, to: hidden)
-                Log.desktop.debug("hid id=\(windowId) from=\(originalFrame) to=\(hidden)")
+                move(win, from: currentFrame, to: hidden)
+                Log.desktop.debug("hid id=\(windowId) from=\(currentFrame) to=\(hidden)")
             case .active:
-                guard let originalFrame = hiddenWindowFrames[windowId] else {
-                    Log.desktop.info("cannot restore id=\(windowId): no saved frame")
+                guard let (win, currentFrame) = movableWindow(windowId, placement) else {
                     return reaches(windowId)
                 }
-                guard let (win, parkedFrame) = movableWindow(windowId, placement) else {
-                    return reaches(windowId)
-                }
-                move(win, from: parkedFrame, to: originalFrame)
+                let target = onScreenFrame(windowId, hiddenWindowFrames[windowId] ?? currentFrame)
                 hiddenWindowFrames[windowId] = nil
-                Log.desktop.debug("restored id=\(windowId) to=\(originalFrame)")
+                guard target != currentFrame else { return true }
+                move(win, from: currentFrame, to: target)
+                Log.desktop.debug("restored id=\(windowId) to=\(target)")
             }
             return true
         }
@@ -137,6 +136,17 @@ final class OffscreenParkingDesktop: Desktop {
         hiddenWindowFrames[windowId] = nil
     }
 
+    // The corner is somewhere a window is put, never somewhere it belongs: a frame
+    // standing in it is answered with one back on screen, so no window is ever parked
+    // in the corner it already occupies nor handed it back as the place it came from.
+    private func onScreenFrame(_ windowId: CGWindowID, _ frame: CGRect) -> CGRect {
+        guard hiddenEdge.holds(frame) else { return frame }
+
+        let recovered = hiddenEdge.recovered(from: frame)
+        Log.desktop.info("id=\(windowId) frame \(frame) sits at the hidden edge, taking \(recovered) instead")
+        return recovered
+    }
+
     private func move(_ win: any Window, from current: CGRect, to target: CGRect) {
         win.withoutAnimations {
             if current.origin != target.origin { win.setPosition(target.origin) }
@@ -144,9 +154,7 @@ final class OffscreenParkingDesktop: Desktop {
         }
     }
 
-    // Whether the window still exists at all. One that is merely out of reach —
-    // minimized, or mid-relaunch — does and comes back; one nothing can resolve any
-    // more never will, and its owner has to hear about it: an application quitting
+    // Whether the window still exists at all. Because an application quitting
     // evicts its windows without a destroyed notification for each of them, and the
     // model would otherwise place a corpse on every switch forever.
     private func reaches(_ windowId: CGWindowID) -> Bool {

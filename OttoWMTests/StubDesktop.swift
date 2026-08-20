@@ -32,6 +32,10 @@ final class StubDesktop: Desktop {
         return !goneWindowIds.contains(windowId)
     }
 
+    func clearPlaceCalls() {
+        placeCalls = []
+    }
+
     func placement(of windowId: CGWindowID) -> Placement {
         placements[windowId] ?? .active
     }
