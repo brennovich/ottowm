@@ -5,9 +5,7 @@ import CoreGraphics
 // windows are parked in the bottom-right corner nub and restored to their captured
 // frame on switch.
 final class OffscreenParkingDesktop: Desktop {
-    // The bottom-right sliver a parked window is squeezed into. macOS clamps a
-    // window from leaving all screens: horizontally to a 1px sliver, vertically
-    // keeping ~38px of title bar.
+    // The bottom-right sliver a parked window is squeezed into.
     struct HiddenEdge {
         private static let epsilon: CGFloat = 1
         private static let detectionMargin: CGFloat = 10
@@ -154,7 +152,7 @@ final class OffscreenParkingDesktop: Desktop {
         }
     }
 
-    // Whether the window still exists at all. Because an application quitting
+    // Whether the window still exists at all. An application quitting
     // evicts its windows without a destroyed notification for each of them, and the
     // model would otherwise place a corpse on every switch forever.
     private func reaches(_ windowId: CGWindowID) -> Bool {

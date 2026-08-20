@@ -2,23 +2,15 @@ import CoreGraphics
 import Dispatch
 import Foundation
 
-// Global hotkeys via a session CGEventTap. An event tap (instead of Carbon's
-// RegisterEventHotKey) because only the raw event flags distinguish the left from
-// the right Option key; matched keystrokes are consumed so they never reach the
-// focused application.
-//
-// The tap gets a thread of its own. The window server holds every keystroke in the
-// session until this callback returns, so a tap serviced by the main run loop stalls
-// the keyboard of every application for as long as the main thread spends in
-// synchronous AX round trips — long enough, once an application stops answering,
-// for macOS to disable the tap for being late.
-//
-// Every mutable field below belongs to that thread once start() has handed it over,
-// which is why stop() asks the thread to do the release rather than doing it itself.
+// Global hotkeys via a session CGEventTap for more refined control of key events,
+// such as left/right modifiers positions. The tap gets a thread of its own.
 final class Hotkeys {
     private let keyCodeMatcher: (Int64, CGEventFlags) -> Action?
     private let dispatch: (@escaping () -> Void) -> Void
     private let handler: (Action) -> Void
+
+    // Every mutable field below belongs to that thread once start() has handed it over,
+    // which is why stop() asks the thread to do the release rather than doing it itself.
     private var tap: CFMachPort?
     private var runLoop: CFRunLoop?
     private var released = false
@@ -41,8 +33,7 @@ final class Hotkeys {
             eventsOfInterest: CGEventMask(1 << CGEventType.keyDown.rawValue),
             callback: { _, type, event, refcon in
                 guard let refcon else { return Unmanaged.passUnretained(event) }
-                return Unmanaged<Hotkeys>.fromOpaque(refcon).takeUnretainedValue()
-                    .handle(type: type, event: event)
+                return Unmanaged<Hotkeys>.fromOpaque(refcon).takeUnretainedValue().handle(type: type, event: event)
             },
             userInfo: Unmanaged.passUnretained(self).toOpaque()
         ) else { return false }

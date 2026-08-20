@@ -59,7 +59,7 @@ struct TabGroups {
     }
 
     // As macOS does not tell us whether two windows are tabs of the same
-    // application, infers with some heuristics.
+    // application.
     private func isTab(_ window: WindowSnapshot, of representative: WindowSnapshot) -> Bool {
         return window.appName == representative.appName
             && window.frame.origin.x == representative.frame.origin.x
