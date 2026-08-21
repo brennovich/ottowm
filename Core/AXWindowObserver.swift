@@ -12,6 +12,7 @@ final class AXWindowObserver {
     private let focusedWindow: () -> AXWindow?
     private let makeObserver: (pid_t, @escaping (AXUIElement, String) -> Void) -> AppObserver?
     private let scheduleRetry: (@escaping () -> Void) -> Void
+    private let now: () -> Date
     private let notificationCenter: NotificationCenter
     private let runningApplications: () -> [NSRunningApplication]
     private let windowElements: (pid_t) -> [AXUIElement]
@@ -23,7 +24,12 @@ final class AXWindowObserver {
     private var observers: [pid_t: AppObserver] = [:]
     private let ownPid = ProcessInfo.processInfo.processIdentifier
 
-    static let subscriptionAttempts = 5
+    // A freshly launched application can take seconds before its AX interface answers at
+    // all, and a big one takes longer: a cold Safari needs around seven attempts on a 2019
+    // MacBook Pro. Until it answers, its windows are announced to nobody, so the retries
+    // are given a window wide enough for the slowest application rather than a handful of
+    // tries. An application still silent by the end never had an AX interface to offer.
+    static let subscriptionWindow: TimeInterval = 15
 
     private static let applicationNotifications = [
         kAXWindowCreatedNotification,
@@ -43,6 +49,7 @@ final class AXWindowObserver {
         scheduleRetry: @escaping (@escaping () -> Void) -> Void = { work in
             DispatchQueue.main.asyncAfter(deadline: .now() + subscriptionRetryDelay, execute: work)
         },
+        now: @escaping () -> Date = Date.init,
         notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
         runningApplications: @escaping () -> [NSRunningApplication] = { NSWorkspace.shared.runningApplications },
         windowElements: @escaping (pid_t) -> [AXUIElement] = {
@@ -63,6 +70,7 @@ final class AXWindowObserver {
         self.focusedWindow = focusedWindow
         self.makeObserver = makeObserver
         self.scheduleRetry = scheduleRetry
+        self.now = now
         self.notificationCenter = notificationCenter
         self.runningApplications = runningApplications
         self.windowElements = windowElements
@@ -177,14 +185,14 @@ final class AXWindowObserver {
         registry.add(app)
         observers[pid] = observer
 
-        return subscribe(to: app, observer: observer, attempt: 1)
+        return subscribe(to: app, observer: observer, deadline: now().addingTimeInterval(Self.subscriptionWindow))
     }
 
     // A just launched application has no AX interface to answer yet: the subscriptions
     // fail and its window list comes back empty. Nothing else ever retries the
     // application level notifications, so without this the application stays silent for
     // the rest of its life and the window it opens on launch is never announced.
-    private func subscribe(to app: NSRunningApplication, observer: AppObserver, attempt: Int) -> [WindowSnapshot] {
+    private func subscribe(to app: NSRunningApplication, observer: AppObserver, deadline: Date) -> [WindowSnapshot] {
         let pid = app.processIdentifier
         let appElement = AXUIElementCreateApplication(pid)
         let subscribed = Self.applicationNotifications
@@ -195,21 +203,24 @@ final class AXWindowObserver {
         Log.observer.info("observing pid=\(pid) app=\(app.localizedName ?? "") windows=\(elements.count) subscribed=\(subscribed)")
 
         if !subscribed {
-            retrySubscription(to: app, attempt: attempt + 1)
+            retrySubscription(to: app, deadline: deadline)
         }
 
         return watchWindows(of: elements, app: app, observer: observer)
     }
 
-    private func retrySubscription(to app: NSRunningApplication, attempt: Int) {
-        guard attempt <= Self.subscriptionAttempts else {
-            Log.observer.error("giving up on pid=\(app.processIdentifier) app=\(app.localizedName ?? ""): unreachable")
+    private func retrySubscription(to app: NSRunningApplication, deadline: Date) {
+        guard now() < deadline else {
+            Log.observer.error(
+                "giving up on pid=\(app.processIdentifier) app=\(app.localizedName ?? ""): "
+                    + "unreachable for \(Int(Self.subscriptionWindow))s"
+            )
             return
         }
 
         scheduleRetry { [weak self] in
             guard let self, let observer = observers[app.processIdentifier] else { return }
-            for snapshot in subscribe(to: app, observer: observer, attempt: attempt) {
+            for snapshot in subscribe(to: app, observer: observer, deadline: deadline) {
                 Log.observer.info("retry found window \(snapshot.logDescription)")
                 handler?(.created(snapshot))
             }

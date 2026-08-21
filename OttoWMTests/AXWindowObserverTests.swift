@@ -15,6 +15,10 @@ private final class Harness {
     var unreadyPids: Set<pid_t> = []
     var deadElements: Set<AXUIElement> = []
     var screenIsLocked = false
+    // What one attempt against an application that is not answering costs, so a test
+    // that runs the retries also spends the time they would really take.
+    let retryStep: TimeInterval = 0.4
+    var clock = Date(timeIntervalSinceReferenceDate: 0)
 
     private(set) var watched: [pid_t: [(element: AXUIElement, notification: String)]] = [:]
     private(set) var callbacks: [pid_t: (AXUIElement, String) -> Void] = [:]
@@ -39,6 +43,7 @@ private final class Harness {
             )
         },
         scheduleRetry: { self.scheduledRetries.append($0) },
+        now: { self.clock },
         notificationCenter: center,
         runningApplications: { self.apps },
         windowElements: { self.elements[$0] ?? [] },
@@ -73,6 +78,7 @@ private final class Harness {
     func runScheduledRetries() {
         let retries = scheduledRetries
         scheduledRetries = []
+        clock.addTimeInterval(retryStep)
         retries.forEach { $0() }
     }
 
@@ -324,17 +330,37 @@ final class AXWindowObserverTests: XCTestCase {
         XCTAssertTrue(harness.scheduledRetries.isEmpty)
     }
 
-    func testSubscriptionIsGivenUpAfterTheAttemptLimit() {
+    func testSubscriptionKeepsBeingRetriedForAnApplicationThatAnswersLate() {
+        let harness = Harness()
+        let app = StubRunningApplication(pid: 901)
+        harness.unreadyPids = [901]
+        _ = harness.start()
+        harness.post(NSWorkspace.didLaunchApplicationNotification, app)
+
+        // A cold Safari takes about seven attempts before its AX interface answers at all.
+        for _ in 1...7 { harness.runScheduledRetries() }
+        harness.unreadyPids = []
+        let window = harness.addWindow(pid: 901, id: 100)
+        harness.runScheduledRetries()
+
+        XCTAssertEqual(harness.eventDescriptions, ["created(100)"])
+        XCTAssertTrue(harness.registry.knows(window))
+    }
+
+    func testSubscriptionIsGivenUpOnceTheSubscriptionWindowHasPassed() {
         let harness = Harness()
         harness.apps = [StubRunningApplication(pid: 901)]
         harness.unreadyPids = [901]
         _ = harness.start()
+        let started = harness.clock
 
         while !harness.scheduledRetries.isEmpty {
             harness.runScheduledRetries()
         }
 
-        XCTAssertEqual(harness.appNotificationCount(pid: 901), AXWindowObserver.subscriptionAttempts)
+        let spent = harness.clock.timeIntervalSince(started)
+        XCTAssertGreaterThanOrEqual(spent, AXWindowObserver.subscriptionWindow)
+        XCTAssertLessThan(spent, AXWindowObserver.subscriptionWindow + harness.retryStep * 2)
     }
 
     func testRetryDoesNotReAnnounceKnownWindows() {
