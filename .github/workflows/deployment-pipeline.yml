@@ -62,7 +62,7 @@ jobs:
           ditto -x -k build/OttoWM-${{ needs.version.outputs.version }}.zip /Applications
           xattr -cr /Applications/OttoWM.app
       - id: harness
-        run: make build/acceptance
+        run: make build/acceptance build/benchmark
       - id: grant-permissions
         run: |
           brew install tccutil
@@ -79,6 +79,8 @@ jobs:
           streamer=$!
           trap 'kill $streamer 2>/dev/null' EXIT
           make acceptance
+      - id: benchmark
+        run: make benchmark
       - id: screenshot
         if: always()
         run: screencapture -x screen.png || true
@@ -90,6 +92,13 @@ jobs:
           path: |
             ottowm.log
             screen.png
+          if-no-files-found: warn
+      - id: upload-benchmark
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-${{ matrix.os }}
+          path: build/benchmark.json
           if-no-files-found: warn
 
   release:

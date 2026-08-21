@@ -23,6 +23,11 @@ HARNESS_SOURCES := $(shell find Harness -name '*.swift')
 ACCEPTANCE_SOURCES := $(shell find Acceptance -name '*.swift') $(HARNESS_SOURCES)
 ACCEPTANCE = $(BUILD_DIR)/acceptance
 
+BENCHMARK_SOURCES := $(shell find Benchmark -name '*.swift') $(HARNESS_SOURCES)
+BENCHMARK = $(BUILD_DIR)/benchmark
+BENCHMARK_BUDGET_MS ?= 500
+BENCHMARK_ARGS ?=
+
 AXDUMP_SOURCES := $(shell find Tools/AXDump -name '*.swift')
 AXDUMP = $(BUILD_DIR)/axdump
 AXDUMP_DIR = OttoWMTests/Fixtures/axDumps
@@ -32,7 +37,7 @@ INSTALLED = $(INSTALL_DIR)/$(SCHEME).app
 
 CODE_SIGN_IDENTITY ?= -
 
-.PHONY: build test acceptance axdump release install clean version
+.PHONY: build test acceptance benchmark axdump release install clean version
 
 version:
 	@echo $(VERSION)
@@ -49,6 +54,13 @@ acceptance: $(ACCEPTANCE)
 $(ACCEPTANCE): $(ACCEPTANCE_SOURCES)
 	@mkdir -p $(BUILD_DIR)
 	swiftc -o $@ $(ACCEPTANCE_SOURCES)
+
+benchmark: $(BENCHMARK)
+	$(BENCHMARK) --budget-p95 $(BENCHMARK_BUDGET_MS) $(BENCHMARK_ARGS)
+
+$(BENCHMARK): $(BENCHMARK_SOURCES)
+	@mkdir -p $(BUILD_DIR)
+	swiftc -O -o $@ $(BENCHMARK_SOURCES)
 
 axdump: $(AXDUMP)
 	$(AXDUMP) $(AXDUMP_DIR) $(ARGS)
