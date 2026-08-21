@@ -4,8 +4,8 @@ import CoreGraphics
 // sit on screen, and the handle to the single native Space everything happens on.
 protocol Desktop {
     func recover(windows: [WindowSnapshot]) -> [WindowSnapshot]
-    // Reports whether the window is still there to be placed at all, so a caller
-    // holding one that is gone can stop asking.
+    // Reports whether the window still exists to be placed, so a caller holding a
+    // gone one can stop asking.
     @discardableResult
     func place(_ windowId: CGWindowID, _ placement: Placement) -> Bool
     func placement(of windowId: CGWindowID) -> Placement

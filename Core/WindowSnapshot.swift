@@ -13,11 +13,10 @@ struct WindowSnapshot: Sendable, Equatable {
 }
 
 extension WindowSnapshot {
-    // A standard subrole is the plain case. It is not the only one: a window whose
-    // application draws its own decorations reports AXDialog, as does a hidden
-    // application's, and a Quick Look or an image viewer reports AXFloatingWindow. What
-    // separates the real windows in that crowd from the popups is the title bar itself,
-    // and what is left of it in the accessibility tree are the buttons.
+    // A standard subrole is not the only real window: an application drawing its own
+    // decorations reports AXDialog, as does a hidden application's, and Quick Look or an
+    // image viewer reports AXFloatingWindow. The title bar buttons are what separate the
+    // real windows from the popups.
     var isAdmissible: Bool {
         id != 0 && !isFullScreen && !isMinimized && (isStandard || (hasCloseButton && hasMinimizeButton))
     }

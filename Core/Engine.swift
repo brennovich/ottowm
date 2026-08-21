@@ -1,6 +1,6 @@
 import CoreGraphics
 
-// Orchestrates windows lifecycle events and hotkey commands, keeping the pure
+// Orchestrates window lifecycle events and hotkey commands, keeping the pure
 // Workspaces model and the physical Desktop in sync.
 final class Engine {
     private let desktop: any Desktop
@@ -38,10 +38,9 @@ final class Engine {
     }
 
     func handle(_ event: WindowEvent) {
-        // A locked screen answers for every window the way a closed one does, and the
-        // model would take that literally: windows unmanaged and, worse, the frames the
-        // parked ones are owed forgotten. Nothing said while the screen is covered is
-        // worth believing, and whatever really happened is swept up on unlock.
+        // Behind the lock screen every window reads as closed. Acting on that would
+        // unmanage the windows and lose the frames parked ones are restored to. Events
+        // are dropped until unlock, which resyncs the state.
         guard !screenIsLocked() else {
             Log.engine.debug("window event ignored: the screen is locked")
             return
@@ -58,8 +57,8 @@ final class Engine {
             case let .minimized(windowId):
                 handleMinimized(windowId)
             case let .unminimized(win):
-                // A window minimized while parked was forgotten where it stood, in the
-                // corner: unmanageable then, recoverable only now that it is back.
+                // A window minimized while parked was unmanaged with its frame left at
+                // the corner. Recovering it is only possible now that it is back.
                 for recovered in desktop.recover(windows: [win]) {
                     assignWindowToWorkspace(recovered, workspaces.currentWorkspace)
                 }
@@ -79,8 +78,8 @@ final class Engine {
             dropFocusedWindowIfFullScreen()
             admitFocusedWindow()
 
-            // The desktop is in front when at least one window we manage is on screen:
-            // a native Space showing something else (a full screen app) shows none of them.
+            // The desktop is in front when at least one managed window is on screen:
+            // another native Space (a full screen app) shows none of them.
             let managed = workspaces.allWindowIds
             let onDesktop = managed.isEmpty || screen.showsAny(managed)
             Log.engine.info("switch requested target=\(workspace) current=\(self.workspaces.currentWorkspace) onDesktop=\(onDesktop)")
@@ -117,8 +116,8 @@ final class Engine {
             Log.engine.info("moving window \(win.logDescription) to workspace \(workspace) placement=\(placement)")
             desktop.place(win.id, placement)
             workspaces.moveWindowToWorkspace(win.id, workspace)
-            // Said out loud, this is where the window belongs from now on, whatever it
-            // was owed for having gone full screen.
+            // An explicit move overrides the workspace a full screen window would
+            // otherwise return to.
             fullscreenWindowOriginalWorkspace[win.id] = nil
 
             restoreWindowsFocusForWorkspace()
@@ -128,9 +127,9 @@ final class Engine {
     private func handleFocused(_ win: WindowSnapshot) {
         if desktop.placement(of: win.id) == .storage {
             // Focus notifications are delivered asynchronously, so this one may
-            // describe a focus OttoWM itself caused before the switch that hid the
-            // window. Acting on such an echo bounces straight back to the workspace we
-            // just left. Only the window the OS considers focused right now counts.
+            // describe a focus OttoWM caused before the switch that hid the window.
+            // Acting on that echo bounces back to the workspace just left, so only the
+            // window the OS considers focused right now counts.
             guard screen.focused()?.id == win.id else {
                 Log.engine.debug("ignoring stale focus event id=\(win.id)")
                 return
@@ -148,8 +147,8 @@ final class Engine {
             return
         }
 
-        // A tab discovered only now can belong to a group living in another workspace. The
-        // user reached it, so follow them there instead of parking it under their nose.
+        // A tab discovered only now can belong to a group in another workspace. The user
+        // reached it, so follow them there instead of parking it.
         if let assigned = assignWindowToWorkspace(win, workspaces.currentWorkspace),
            assigned != workspaces.currentWorkspace {
             handleManualNavigation(win.id)
@@ -173,8 +172,8 @@ final class Engine {
     }
 
     // A window its application never announced is discovered when the focus is read,
-    // which can be in the middle of a switch. It was on screen in the workspace being
-    // left, so it joins that one rather than the one being entered.
+    // which can happen mid switch. It was on screen in the workspace being left, so it
+    // joins that one rather than the one being entered.
     private func admitFocusedWindow() {
         guard let focused = screen.focused(), workspaces.workspace(for: focused.id) == nil else { return }
 
@@ -186,9 +185,9 @@ final class Engine {
               let workspace = workspaces.workspace(for: focused.id)
         else { return }
 
-        // Unlike a minimized or destroyed one, a full screen window has a home to come
-        // back to: the workspace it left, not whichever one happens to be current when it
-        // returns. Kept aside after unmanaging, which is what wipes the window's slate.
+        // Unlike a minimized or destroyed one, a full screen window returns to the
+        // workspace it left rather than the current one. Recorded after unmanaging,
+        // which clears every other trace of the window.
         unmanage(focused.id, "fullscreen")
         fullscreenWindowOriginalWorkspace[focused.id] = workspace
     }
@@ -203,11 +202,10 @@ final class Engine {
         return assignWindowToWorkspace(win, workspaceBeforeFullscreen) != nil
     }
 
-    // A window out of reach cannot be parked, and focusing it would strand the user
-    // away from the desktop: a minimized one is off screen, a full screen one owns its
-    // own native space, a destroyed one is gone for good. It stops being managed
-    // rather than being flagged, and a window that comes back joins whatever workspace
-    // is current, like a brand new one.
+    // A window out of reach cannot be parked, and focusing it would strand the user away
+    // from the desktop: minimized ones are off screen, full screen ones own a native
+    // Space, destroyed ones are gone. It stops being managed rather than being flagged,
+    // so one that comes back joins the current workspace like a new window.
     @discardableResult
     private func unmanage(_ windowId: CGWindowID, _ reason: String) -> Bool {
         let workspace = workspaces.workspace(for: windowId).map { String($0) } ?? "none"
@@ -219,9 +217,9 @@ final class Engine {
         return focusSettled
     }
 
-    // Focusing a hidden window means the user navigated to it behind OttoWM's back
-    // (Cmd-Tab/Dock on the same native Space, or Mission Control from another one),
-    // so follow them by switching to that window's workspace.
+    // Focusing a hidden window means the user navigated to it outside OttoWM (Cmd-Tab or
+    // the Dock on the same native Space, Mission Control from another one), so follow
+    // them by switching to that window's workspace.
     private func handleManualNavigation(_ windowId: CGWindowID) {
         screen.duringOperation {
             if ignoreNextManualNavigation {
@@ -230,10 +228,10 @@ final class Engine {
                 return
             }
 
-            // AX still resolves elements of windows that are already destroyed, so quitting an app,
-            // or closing the last windows of a workspace, emits focus events for dying windows.
-            // Without the guard, those events would be read as manual navigation and send the user
-            // to a workspace whose contents no longer exist.
+            // AX still resolves elements of destroyed windows, so quitting an app or
+            // closing the last windows of a workspace emits focus events for them.
+            // Without this guard they would read as manual navigation and switch to a
+            // workspace with nothing left in it.
             let currentWindowIds = workspaces.windowIds(in: workspaces.currentWorkspace)
             if !currentWindowIds.isEmpty && currentWindowIds.allSatisfy({ id in
                 screen.snapshot(of: id).map { !screen.shows(id) && !$0.isMinimized } ?? true
@@ -268,9 +266,9 @@ final class Engine {
         return assigned
     }
 
-    // Coming back from a unmanaged native space/fullscreen is only possible by focusing
-    // a managed application. When the workspace is empty our last resort is to bring any
-    // managed window to focus.
+    // Leaving an unmanaged native Space or full screen window is only possible by
+    // focusing a managed application. When the workspace is empty, focus any managed
+    // window instead.
     private func returnToDesktop() {
         guard !restoreWindowsFocusForWorkspace() else { return }
 
@@ -299,10 +297,9 @@ final class Engine {
                     workspaces.saveFocusedWindowInWorkspace(currentWorkspace, osFocused.id)
                     return true
                 }
-                // A window that left management while it was out of reach is back. It joins the
-                // workspace the user is on now, like a newly created one. Unless it belongs to
-                // a tab group that lives elsewhere, in which case it is parked and something
-                // else has to take the focus.
+                // A window that left management while out of reach is back, and joins
+                // the current workspace like a new one. Unless its tab group lives
+                // elsewhere, in which case it is parked and something else takes focus.
                 if workspace == nil,
                    assignWindowToWorkspace(osFocused, currentWorkspace) == currentWorkspace {
                     return true

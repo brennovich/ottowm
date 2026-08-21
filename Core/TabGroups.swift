@@ -13,9 +13,8 @@ struct TabGroups {
     private var groups: [Int: Group] = [:]
     private var windowToGroup: [CGWindowID: Int] = [:]
 
-    // A group outlives its representative window, so groups cannot be keyed by
-    // its id: macOS recycles window ids, and a new window inheriting a dead
-    // representative's id would take over a group that still has members.
+    // Groups outlive their representative window and macOS recycles window ids, so a
+    // group keyed by that id could be taken over by an unrelated new window.
     private var nextGroupId = 1
 
     // Joins the group whose representative this window is a tab of, or opens a new
@@ -58,8 +57,8 @@ struct TabGroups {
         return groups.first { isTab(window, of: $0.value.representative) }?.key
     }
 
-    // As macOS does not tell us whether two windows are tabs of the same
-    // application.
+    // macOS does not report tab membership, so it is inferred from two windows sharing
+    // an application and a frame, within a tolerance on y.
     private func isTab(_ window: WindowSnapshot, of representative: WindowSnapshot) -> Bool {
         return window.appName == representative.appName
             && window.frame.origin.x == representative.frame.origin.x

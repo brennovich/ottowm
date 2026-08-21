@@ -4,7 +4,7 @@ import CoreGraphics
 // Ceiling on how long a single AX round trip may block the caller.
 let axMessagingTimeoutSeconds: Float = 0.1
 
-// Undeclared by the AX headers, but answered by the applications we manage.
+// Undeclared by the AX headers, but supported by the applications we manage.
 let FullScreenAttribute = "AXFullScreen"
 let EnhancedUserInterfaceAttribute = "AXEnhancedUserInterface"
 let TabGroupRole = "AXTabGroup"
@@ -26,7 +26,7 @@ func axAttribute(_ element: AXUIElement, _ attribute: String) -> AnyObject? {
 }
 
 // An element-valued attribute needs the same force cast as axValue, and for the
-// same reason: `as? AXUIElement` would answer yes to anything.
+// same reason: `as? AXUIElement` succeeds for any type.
 func axElement(_ element: AXUIElement, _ attribute: String) -> AXUIElement? {
     guard let value = axAttribute(element, attribute) else { return nil }
     return (value as! AXUIElement)

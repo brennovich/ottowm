@@ -26,8 +26,8 @@ final class Workspaces {
         workspaceWindowsMap[workspace] ?? []
     }
 
-    // A tab group is one unit and it already sits somewhere: a window joining one lands
-    // where the group is, rather than dragging the whole group to the workspace it was
+    // A tab group is one unit that already sits somewhere, so a window joining one lands
+    // where the group is rather than dragging the group to the workspace it was
     // discovered from. Returns the workspace the window actually landed in.
     @discardableResult
     func assignWindowToWorkspace(_ window: WindowSnapshot, _ workspace: Int, tabCount: Int = 1) -> Int {

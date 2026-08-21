@@ -29,10 +29,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             exit(EXIT_FAILURE)
         }
 
-        // Every AX call is a synchronous IPC round trip, and without a timeout a
-        // beachballing application blocks the main thread for as long as it hangs.
-        //
-        // Set on the system-wide element to make it the process-wide default.
+        // Every AX call is a synchronous IPC round trip; without a timeout a beachballing
+        // application blocks the main thread for as long as it hangs. Set on the
+        // system-wide element to make it the process-wide default.
         AXUIElementSetMessagingTimeout(AXUIElementCreateSystemWide(), axMessagingTimeoutSeconds)
 
         Log.app.notice("OttoWM (\(AppInfo.version)) launched")

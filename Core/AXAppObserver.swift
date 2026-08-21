@@ -2,8 +2,8 @@ import ApplicationServices
 
 // One observed application's AX subscription surface: what to watch and how to let go.
 struct AppObserver {
-    // Answers whether the subscription is in place, so a caller that depends on the
-    // notification can retry rather than stay deaf for the application's lifetime.
+    // Reports whether the subscription is in place, so a caller depending on the
+    // notification can retry instead of never hearing from the application again.
     let watch: (AXUIElement, String) -> Bool
     let invalidate: () -> Void
 }
@@ -26,9 +26,8 @@ private func axObserverCallback(
     box.callback(element, notification as String)
 }
 
-// The real AXObserver machinery behind AppObserver: creation, the refcon
-// trampoline (bridging a C callback API to object-oriented/closure-based code)
-// and the main run loop source.
+// The AXObserver machinery behind AppObserver: creation, the refcon trampoline
+// from the C callback to a Swift closure, and the main run loop source.
 enum AXAppObserver {
     static func make(pid: pid_t, callback: @escaping (AXUIElement, String) -> Void) -> AppObserver? {
         var observer: AXObserver?

@@ -24,10 +24,9 @@ final class AXWindowObserver {
     private var observers: [pid_t: AppObserver] = [:]
     private let ownPid = ProcessInfo.processInfo.processIdentifier
 
-    // A freshly launched application can take seconds before its AX interface answers at
-    // all. Until it answers, its windows are announced to nobody, hence the retries. An
-    // application that fails all retries is ignored, and possibly never had an AX
-    // interface to offer.
+    // A freshly launched application can take seconds before its AX interface responds,
+    // and until then its windows are never announced, hence the retries. One that fails
+    // every retry is ignored; it may have no AX interface at all.
     static let subscriptionWindow: TimeInterval = 15
 
     private static let applicationNotifications = [
@@ -56,10 +55,9 @@ final class AXWindowObserver {
         },
         makeWindow: @escaping (AXUIElement, NSRunningApplication) -> AXWindow = AXWindow.init(element:application:),
         focusedWindowOf: @escaping (NSRunningApplication) -> AXWindow? = AXWindow.focused(of:),
-        // Only an element the application has actually forgotten answers with
-        // invalidUIElement. A window that is merely slow or unreachable for the moment
-        // fails with some other error, so anything but invalidUIElement counts as alive
-        // and is left alone.
+        // Only an element the application has actually released returns invalidUIElement.
+        // A window that is merely slow or momentarily unreachable fails with some other
+        // error, so anything but invalidUIElement counts as alive.
         isAlive: @escaping (AXUIElement) -> Bool = { element in
             var value: CFTypeRef?
             return AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &value) != .invalidUIElement
@@ -81,10 +79,9 @@ final class AXWindowObserver {
     }
 
     // kAXUIElementDestroyedNotification is not delivered for every window that dies: the
-    // close button of a window whose application is not in front takes it away without a
-    // word, and nothing would ever say so. Asking every window we know whether it still
-    // answers at all is the net, and the moments to cast it are the ones where a corpse
-    // is about to cost something: an application coming to front, the screen unlocking.
+    // close button of a window whose application is not in front removes it silently.
+    // Probing every known window catches those, and is done when a stale entry is about
+    // to matter: an application coming to front, the screen unlocking.
     func dropDeadWindows() {
         guard !screenIsLocked() else { return }
 
@@ -97,7 +94,7 @@ final class AXWindowObserver {
 
     // A window that is not the active tab of its group is absent from the application's
     // window list, so becoming focused is the only moment it can be discovered. Adopting
-    // it here is what makes it placeable and puts it under the lifecycle notifications.
+    // it makes it placeable and subscribes it to the lifecycle notifications.
     func adoptFocusedWindow() -> AXWindow? {
         guard let window = focusedWindow() else { return nil }
         adopt(window)
@@ -164,9 +161,8 @@ final class AXWindowObserver {
         }
     }
 
-    // The login window comes and goes with the lock screen and owns a window covering
-    // the whole display: managed, it would be parked in the corner the moment the user
-    // came back.
+    // The login window comes and goes with the lock screen and covers the whole display.
+    // Managed, it would be parked in the corner the moment the user came back.
     private func observable(_ app: NSRunningApplication) -> Bool {
         app.activationPolicy == .regular && app.processIdentifier != ownPid
             && app.bundleIdentifier != lockScreenBundleId
@@ -188,10 +184,10 @@ final class AXWindowObserver {
         return subscribe(to: app, observer: observer, deadline: now().addingTimeInterval(Self.subscriptionWindow))
     }
 
-    // A just launched application has no AX interface to answer yet: the subscriptions
-    // fail and its window list comes back empty. Nothing else ever retries the
-    // application level notifications, so without this the application stays silent for
-    // the rest of its life and the window it opens on launch is never announced.
+    // A just launched application has no AX interface yet: the subscriptions fail and its
+    // window list comes back empty. Nothing else retries the application level
+    // notifications, so without this it stays silent for the rest of its life and the
+    // window it opens on launch is never announced.
     private func subscribe(to app: NSRunningApplication, observer: AppObserver, deadline: Date) -> [WindowSnapshot] {
         let pid = app.processIdentifier
         let appElement = AXUIElementCreateApplication(pid)
