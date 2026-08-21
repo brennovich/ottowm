@@ -10,10 +10,6 @@ struct Config: Equatable {
             $0[$1.key.keyCode, default: [:]][$1.key] = $1.value
         }
     }
-    
-    func bindings() -> [KeyCombo: Action] {
-        Dictionary(uniqueKeysWithValues: bindingsByKeyCode.values.flatMap { $0 })
-    }
 
     func action(keyCode: Int64, flags: CGEventFlags) -> Action? {
         bindingsByKeyCode[keyCode]?.first { $0.key.matches(flags) }?.value

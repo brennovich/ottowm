@@ -34,12 +34,6 @@ final class AXAttributesTests: XCTestCase {
         XCTAssertNil(axAttributes(systemWide, ["AXNotAnAttribute"])["AXNotAnAttribute"])
     }
 
-    func testPidOfApplicationElement() {
-        let pid = ProcessInfo.processInfo.processIdentifier
-
-        XCTAssertEqual(axPid(AXUIElementCreateApplication(pid)), pid)
-    }
-
     func testKeepsNonErrorValues() {
         let values: [AnyObject] = [true as NSNumber, encodeCGSize(CGSize(width: 8, height: 6))]
 

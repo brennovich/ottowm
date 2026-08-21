@@ -47,11 +47,6 @@ func axAttributes(_ element: AXUIElement, _ attributes: [String]) -> [String: An
     })
 }
 
-func axPid(_ element: AXUIElement) -> pid_t? {
-    var pid: pid_t = 0
-    return AXUIElementGetPid(element, &pid) == .success ? pid : nil
-}
-
 // AXUIElementCopyMultipleAttributeValues reports a per-attribute failure inline,
 // as an AXValue of type .axError, rather than failing the whole call.
 func discardingAXErrors(_ values: [AnyObject]) -> [AnyObject?] {

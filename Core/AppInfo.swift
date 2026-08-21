@@ -1,3 +1,9 @@
+import Foundation
+
 enum AppInfo {
-    static let version = "0.0.2"
+    // Read from the bundle so MARKETING_VERSION, which `make bump` writes, stays the only
+    // place a version is spelled out.
+    static func version(_ bundle: Bundle = .main) -> String {
+        bundle.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+    }
 }

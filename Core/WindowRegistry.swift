@@ -24,10 +24,6 @@ final class WindowRegistry {
         applications[app.processIdentifier] = app
     }
 
-    func application(for pid: pid_t) -> NSRunningApplication? {
-        applications[pid]
-    }
-
     func register(_ element: AXUIElement, pid: pid_t, id: CGWindowID) {
         if let previous = refs[element] {
             removeReverse(previous.id, element)

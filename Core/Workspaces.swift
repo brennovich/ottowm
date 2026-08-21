@@ -65,7 +65,7 @@ final class Workspaces {
     func switchTo(_ targetWorkspace: Int, leavingFocusOn windowId: CGWindowID?) -> (toActive: [CGWindowID], toStorage: [CGWindowID]) {
         let placement = (toActive: [CGWindowID](), toStorage: [CGWindowID]())
         guard targetWorkspace != currentWorkspace else { return placement }
- 
+
         if let windowId {
             saveFocusedWindowInWorkspace(currentWorkspace, windowId)
         }

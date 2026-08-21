@@ -34,7 +34,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // system-wide element to make it the process-wide default.
         AXUIElementSetMessagingTimeout(AXUIElementCreateSystemWide(), axMessagingTimeoutSeconds)
 
-        Log.app.notice("OttoWM (\(AppInfo.version)) launched")
+        Log.app.notice("OttoWM (\(AppInfo.version())) launched")
 
         let windowById: (CGWindowID) -> AXWindow? = { [registry] id in
             registry.window(byId: id)

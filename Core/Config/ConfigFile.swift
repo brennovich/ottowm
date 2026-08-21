@@ -32,7 +32,7 @@ enum ConfigFile {
 
         let home = value("HOME") ?? NSHomeDirectory()
         let path = value("XDG_CONFIG_HOME") ?? "\(home)/.config"
-        
+
         return URL(fileURLWithPath: path.hasPrefix("~/") ? home + path.dropFirst() : path)
             .appendingPathComponent("\(name)/\(name)")
     }

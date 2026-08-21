@@ -158,19 +158,4 @@ final class WindowRegistryTests: XCTestCase {
 
         XCTAssertNil(registry.window(byId: 100))
     }
-
-    func testApplicationForPid() {
-        let registry = WindowRegistry()
-        registry.add(app)
-
-        XCTAssertEqual(registry.application(for: pid), app)
-    }
-
-    func testApplicationForPidAfterEvictReturnsNil() {
-        let registry = WindowRegistry()
-        registry.add(app)
-        registry.evict(pid: pid)
-
-        XCTAssertNil(registry.application(for: pid))
-    }
 }

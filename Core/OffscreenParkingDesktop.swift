@@ -76,21 +76,21 @@ final class OffscreenParkingDesktop: Desktop {
 
     @discardableResult
     func place(_ windowId: CGWindowID, _ placement: Placement) -> Bool {
+        // An already parked window is left where it is rather than read at all.
+        if placement == .storage, hiddenWindowFrames[windowId] != nil { return reaches(windowId) }
+
+        guard let (win, currentFrame) = movableWindow(windowId, placement) else {
+            return reaches(windowId)
+        }
+
         switch placement {
         case .storage:
-            if hiddenWindowFrames[windowId] != nil { return reaches(windowId) }
-            guard let (win, currentFrame) = movableWindow(windowId, placement) else {
-                return reaches(windowId)
-            }
             let originalFrame = onScreenFrame(windowId, currentFrame)
             let hidden = hiddenEdge.frame(parking: originalFrame)
             hiddenWindowFrames[windowId] = originalFrame
             move(win, from: currentFrame, to: hidden)
             Log.desktop.debug("hid id=\(windowId) from=\(currentFrame) to=\(hidden)")
         case .active:
-            guard let (win, currentFrame) = movableWindow(windowId, placement) else {
-                return reaches(windowId)
-            }
             let target = onScreenFrame(windowId, hiddenWindowFrames[windowId] ?? currentFrame)
             hiddenWindowFrames[windowId] = nil
             guard target != currentFrame else { return true }
@@ -171,7 +171,7 @@ final class OffscreenParkingDesktop: Desktop {
                       let frame = win.movableFrame(),
                       !hiddenEdge.holds(frame)
                 else { continue }
-                
+
                 let hidden = hiddenEdge.frame(parking: originalFrame)
                 move(win, from: frame, to: hidden)
                 Log.desktop.info("re-hid id=\(windowId) pulled back to \(frame), to=\(hidden)")

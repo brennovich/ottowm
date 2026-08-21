@@ -53,10 +53,11 @@ final class ConfigFileTests: XCTestCase {
             .success(try makeConfig(["hyper-1": .switchToWorkspace(1)]))
         )
     }
-    
+
     func testFallsBackToTheBundledConfigWhenThereIsNone() throws {
-        let configCount = try load(userConfig: nil).get().bindings().values.count
-        XCTAssertEqual(configCount > 0, true)
+        let config = try load(userConfig: nil).get()
+
+        XCTAssertEqual(config.action(keyCode: 18, flags: .leftOption), .switchToWorkspace(1))
     }
 
     func testRejectsAnUnparseableUserConfig() {

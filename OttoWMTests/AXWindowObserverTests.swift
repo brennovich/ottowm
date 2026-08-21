@@ -162,8 +162,8 @@ final class AXWindowObserverTests: XCTestCase {
         let snapshots = harness.start()
 
         XCTAssertEqual(snapshots.map(\.id), [200])
-        XCTAssertNil(harness.registry.application(for: 901))
-        XCTAssertNotNil(harness.registry.application(for: 902))
+        XCTAssertNil(harness.registry.window(byId: 100))
+        XCTAssertNotNil(harness.registry.window(byId: 200))
     }
 
     func testStartSkipsTheLockScreen() {
@@ -398,7 +398,7 @@ final class AXWindowObserverTests: XCTestCase {
         harness.post(NSWorkspace.didTerminateApplicationNotification, app)
 
         XCTAssertEqual(harness.invalidatedPids, [901])
-        XCTAssertNil(harness.registry.application(for: 901))
+        XCTAssertNil(harness.registry.window(byId: 100))
         XCTAssertFalse(harness.registry.knows(window))
     }
 
