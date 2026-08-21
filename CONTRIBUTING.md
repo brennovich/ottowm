@@ -5,7 +5,7 @@
 ```sh
 make build      # xcodebuild, code signing disabled
 make test       # runs the OttoWMTests unit-test bundle
-make bump       # bumps MARKETING_VERSION, PART=patch by default
+make bump       # bumps MARKETING_VERSION, also bump/minor and bump/major
 make release    # generates a signed OttoWM.app
 make install    # copies the signed app to /Applications
 make acceptance # e2e of the installed app
@@ -31,4 +31,4 @@ CI runs both on every push, on each macOS runner in the matrix.
 
 ## Releasing
 
-`MARKETING_VERSION` in `OttoWM.xcodeproj/project.pbxproj` is the version. `make bump` rewrites it and prints the new one, `PART=minor` or `PART=major` for the other two digits. Commit the change and push to `main`, then CI tags `v<version>`, builds the universal zip and publishes the release. Pushing without bumping just builds a workflow artifact.
+`MARKETING_VERSION` in `OttoWM.xcodeproj/project.pbxproj` is the version. `make bump` rewrites it and prints the new one, `make bump/minor` or `make bump/major` for the other two digits. Commit the change and push to `main`, then CI tags `v<version>`, builds the universal zip and publishes the release. Pushing without bumping just builds a workflow artifact.

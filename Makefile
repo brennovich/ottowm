@@ -7,7 +7,6 @@ XCBEAUTIFY := $(if $(shell command -v xcbeautify),xcbeautify --disable-logging,c
 PROJECT = $(SCHEME).xcodeproj/project.pbxproj
 VERSION := $(shell awk -F' = ' '/MARKETING_VERSION/ {gsub(/;/, "", $$2); print $$2; exit}' $(PROJECT))
 BUILD_NUMBER ?= $(shell git rev-list --count HEAD)
-PART ?= patch
 NEXT_VERSION = $(shell awk -v version=$(VERSION) -v part=$(PART) 'BEGIN { \
 	split(version, v, "."); \
 	if (part == "major") { v[1]++; v[2] = 0; v[3] = 0 } \
@@ -33,9 +32,7 @@ ACCEPTANCE = $(BUILD_DIR)/acceptance
 
 BENCHMARK_SOURCES := $(shell find Benchmark -name '*.swift') $(HARNESS_SOURCES)
 BENCHMARK = $(BUILD_DIR)/benchmark
-BENCHMARK_BUDGET_MS ?= 500
-BENCHMARK_INSTANCES ?= 1
-BENCHMARK_ARGS ?=
+BENCHMARK_ARGS ?= --budget-p95 500
 
 AXDUMP_SOURCES := $(shell find Tools/AXDump -name '*.swift')
 AXDUMP = $(BUILD_DIR)/axdump
@@ -51,8 +48,11 @@ CODE_SIGN_IDENTITY ?= -
 version:
 	@echo $(VERSION)
 
-bump:
-	@test -n "$(NEXT_VERSION)" || { echo "PART must be major, minor or patch" >&2; exit 1; }
+bump: bump/patch
+
+bump/%: PART = $*
+bump/%:
+	@test -n "$(NEXT_VERSION)" || { echo "$@ must be bump/major, bump/minor or bump/patch" >&2; exit 1; }
 	@sed -i '' 's/MARKETING_VERSION = $(VERSION);/MARKETING_VERSION = $(NEXT_VERSION);/' $(PROJECT)
 	@echo $(NEXT_VERSION)
 
@@ -70,7 +70,7 @@ $(ACCEPTANCE): $(ACCEPTANCE_SOURCES)
 	swiftc -o $@ $(ACCEPTANCE_SOURCES)
 
 benchmark: $(BENCHMARK)
-	$(BENCHMARK) --budget-p95 $(BENCHMARK_BUDGET_MS) --instances $(BENCHMARK_INSTANCES) $(BENCHMARK_ARGS)
+	$(BENCHMARK) $(BENCHMARK_ARGS)
 
 $(BENCHMARK): $(BENCHMARK_SOURCES)
 	@mkdir -p $(BUILD_DIR)

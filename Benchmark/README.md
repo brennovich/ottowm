@@ -10,8 +10,8 @@ What a hotkey costs the user: the wall time from posting it to seeing every wind
 ```sh
 make benchmark
 make benchmark BENCHMARK_ARGS="--iterations 100 --warmup 5"
-make benchmark BENCHMARK_INSTANCES=3
-make benchmark BENCHMARK_BUDGET_MS=250
+make benchmark BENCHMARK_ARGS="--instances 3"
+make benchmark BENCHMARK_ARGS="--budget-p95 250"
 ```
 
 ## What it measures
@@ -29,16 +29,16 @@ Before each hotkey goes out the desk is waited on until every window reads the s
 
 ## Options
 
-Passed through `BENCHMARK_ARGS`, except the three the Makefile passes itself.
+All of them passed through `BENCHMARK_ARGS`, which the Makefile sets to `--budget-p95 500`. Setting it replaces that rather than adding to it, so a run given other flags has no budget unless it names one.
 
-| Flag           | Default                    | Effect                                                 |
-| -------------- | -------------------------- | ------------------------------------------------------ |
-| `--iterations` | 100                        | Measured iterations                                    |
-| `--warmup`     | 2                          | Iterations run and discarded first                     |
-| `--instances`  | `BENCHMARK_INSTANCES`, 1   | Desks staged, four windows each                        |
-| `--budget-p95` | `BENCHMARK_BUDGET_MS`, 500 | Fails the run when a p95 goes over it                  |
-| `--output`     | `build/benchmark.json`     | Where the record is written                            |
-| `--summary`    | `$GITHUB_STEP_SUMMARY`     | A file the markdown table is appended to, if it is set |
+| Flag           | Default                | Effect                                                 |
+| -------------- | ---------------------- | ------------------------------------------------------ |
+| `--iterations` | 100                    | Measured iterations                                    |
+| `--warmup`     | 2                      | Iterations run and discarded first                     |
+| `--instances`  | 1                      | Desks staged, four windows each                        |
+| `--budget-p95` | none                   | Fails the run when a p95 goes over it                  |
+| `--output`     | `build/benchmark.json` | Where the record is written                            |
+| `--summary`    | `$GITHUB_STEP_SUMMARY` | A file the markdown table is appended to, if it is set |
 
 ## Output
 
@@ -54,10 +54,10 @@ Percentiles are nearest rank, so every one reported is a sample that really happ
 
 ## Pricing a window
 
-`BENCHMARK_INSTANCES` is there to price a window: run the same iterations at one, two and three, and the slope between them is what each window adds to a switch. The desk is staged and torn down per run, so a sweep is three runs and not one, and nothing carries between them beyond the machine. And `resolution` climbs with the instance count too, because a switch is only done once every window is read in place. Part of any slope is the harness looking harder rather than the app working harder, and the resolution column is what tells the two apart.
+`--instances` is there to price a window: run the same iterations at one, two and three, and the slope between them is what each window adds to a switch. The desk is staged and torn down per run, so a sweep is three runs and not one, and nothing carries between them beyond the machine. And `resolution` climbs with the instance count too, because a switch is only done once every window is read in place. Part of any slope is the harness looking harder rather than the app working harder, and the resolution column is what tells the two apart.
 
 ## Budget
 
-The run fails when a p95 goes over `BENCHMARK_BUDGET_MS`, 500 by default against the single digit milliseconds a four window desk takes, so it catches a collapse rather than policing milliseconds. Tune it once the CI runners have shown what they measure.
+The run fails when a p95 goes over `--budget-p95`, 500 by default against the single digit milliseconds a four window desk takes, so it catches a collapse rather than policing milliseconds. Tune it once the CI runners have shown what they measure.
 
 CI runs the benchmark right after the acceptance scenarios on every push, on each macOS runner in the matrix, appends the table to the job summary and uploads `benchmark.json` as the `benchmark-<runner>` artifact.

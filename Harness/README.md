@@ -32,7 +32,7 @@ A plausible one, a file browser, a terminal, a browser and an editor, because a 
 
 The last window staged, the TextEdit document, is the one the hotkeys move between workspaces. The other three only ever move because the workspace they stand on was left. Every window is titled after the run and its instance and is claimed as it is found, so with more than one desk on screen the second Finder cannot answer to the first one's title.
 
-`Session.start(instances:)` stages that many copies of the whole desk, so three is twelve windows rather than four. The benchmark exposes it as `BENCHMARK_INSTANCES`; the acceptance run always takes one.
+`Session.start(instances:)` stages that many copies of the whole desk, so three is twelve windows rather than four. The benchmark exposes it as `--instances`; the acceptance run always takes one.
 
 Safari is the exception to how the windows are opened. `open -a Safari` hands the page to whichever window is already up when Safari prefers tabs, and a tab that is not the active one cannot be read through the accessibility API, so the second desk's page opens and is unfindable at the same time. It is asked for a new document instead, which is Safari's own word for a window. That needs Automation permission for whatever runs the harness, and a Safari launched cold by that script comes up on the Start Page with the URL dropped. Neither is legible in what `osascript` prints, so nothing reads it: the window failing to arrive is what the fallback waits on, and the plain open is tried after ten seconds. That stages a single desk fine and cannot stage a sweep.
 
