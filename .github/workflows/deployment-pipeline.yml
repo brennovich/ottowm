@@ -75,17 +75,20 @@ jobs:
           sudo tccutil --enable com.apple.Terminal
           sleep 2
           sudo tccutil --list | grep -q "OttoWM" || exit 1
-      - id: run
+      - id: log
         run: |
-          log stream --style compact --level debug \
+          nohup log stream --style compact --level debug \
             --predicate 'subsystem == "com.github.brennovich.ottowm"' > ottowm.log 2>&1 &
-          streamer=$!
-          trap 'kill $streamer 2>/dev/null' EXIT
-          make acceptance
+          echo $! > log.pid
+      - id: run
+        run: make acceptance
       - id: load-test
         run: make benchmark BENCHMARK_ARGS="--iterations 25 --budget-p95 500 --output build/benchmark-1.json"
       - id: soak-test
         run: make benchmark BENCHMARK_ARGS="--iterations 25 --instances 3 --budget-p95 500 --output build/benchmark-3.json"
+      - id: stop-log
+        if: always()
+        run: kill "$(cat log.pid)" 2>/dev/null || true
       - id: screenshot
         if: always()
         run: screencapture -x screen.png || true
