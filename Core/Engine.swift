@@ -9,6 +9,12 @@ final class Engine {
     private let screenIsLocked: () -> Bool
     private var ignoreNextManualNavigation = false
     private var fullscreenWindowOriginalWorkspace: [CGWindowID: Int] = [:]
+    // The window OttoWM last asked for the focus, and the ones it asked for earlier and
+    // replaced while their answer was still on its way. macOS delivers that answer all the
+    // same, by which time a switch may have parked the window, and a focus event naming a
+    // parked window reads exactly like the user reaching for one.
+    private var awaitedFocus: CGWindowID?
+    private var supersededFocus: Set<CGWindowID> = []
 
     init(
         desktop: any Desktop,
@@ -125,12 +131,19 @@ final class Engine {
     }
 
     private func handleFocused(_ win: WindowSnapshot) {
+        let isEcho = supersededFocus.remove(win.id) != nil
+        if awaitedFocus == win.id {
+            awaitedFocus = nil
+            supersededFocus = []
+        }
+
         if desktop.placement(of: win.id) == .storage {
             // Focus notifications are delivered asynchronously, so this one may
             // describe a focus OttoWM caused before the switch that hid the window.
             // Acting on that echo bounces back to the workspace just left, so only the
-            // window the OS considers focused right now counts.
-            guard screen.focused()?.id == win.id else {
+            // window the OS considers focused right now, and whose focus OttoWM is not
+            // still owed an answer for, counts.
+            guard screen.focused()?.id == win.id, !isEcho else {
                 Log.engine.debug("ignoring stale focus event id=\(win.id)")
                 return
             }
@@ -221,6 +234,8 @@ final class Engine {
         let focusSettled = workspaces.unregisterWindowById(windowId)
         desktop.forget(windowId)
         fullscreenWindowOriginalWorkspace[windowId] = nil
+        if awaitedFocus == windowId { awaitedFocus = nil }
+        supersededFocus.remove(windowId)
         return focusSettled
     }
 
@@ -283,7 +298,7 @@ final class Engine {
         Log.engine.debug("returning to desktop, ignoring next manual navigation")
 
         for windowId in workspaces.allWindowIds {
-            if desktop.focus(windowId) {
+            if requestFocus(windowId) {
                 Log.engine.debug("brought the desktop to front via id=\(windowId)")
                 return
             }
@@ -313,13 +328,21 @@ final class Engine {
                 }
             }
 
-            if let windowId = workspaces.nextWindowToFocus(), desktop.focus(windowId) {
+            if let windowId = workspaces.nextWindowToFocus(), requestFocus(windowId) {
                 return true
             }
 
             Log.engine.debug("no window to focus in workspace \(currentWorkspace)")
             return false
         }
+    }
+
+    private func requestFocus(_ windowId: CGWindowID) -> Bool {
+        guard desktop.focus(windowId) else { return false }
+
+        if let awaitedFocus, awaitedFocus != windowId { supersededFocus.insert(awaitedFocus) }
+        awaitedFocus = windowId
+        return true
     }
 
     private func isValidWindow(_ win: WindowSnapshot) -> Bool {

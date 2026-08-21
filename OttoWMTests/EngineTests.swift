@@ -276,6 +276,20 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(desktop.placement(of: 200), .storage)
     }
 
+    func testFocusEchoFromTheWorkspaceLeftDoesNotBounceBack() {
+        let win1 = create(StubWindow(id: 100))
+        let win2 = create(StubWindow(id: 200))
+        moveFocusedWindow(win2, to: 2)
+        focused = win1
+
+        engine.switchToWorkspace(2)
+        engine.handle(.focused(win1.snapshot()))
+
+        XCTAssertEqual(workspaces.currentWorkspace, 2)
+        XCTAssertEqual(desktop.placement(of: 100), .storage)
+        XCTAssertEqual(desktop.placement(of: 200), .active)
+    }
+
     func testFocusedStorageWindowDoesNotSwitchWhileCurrentWorkspaceIsClosing() {
         create(StubWindow(id: 100))
         let win2 = create(StubWindow(id: 200))
