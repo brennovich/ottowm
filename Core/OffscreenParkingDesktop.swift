@@ -100,6 +100,13 @@ final class OffscreenParkingDesktop: Desktop {
         return true
     }
 
+    func restoreAll() {
+        Log.desktop.info("restoring \(self.hiddenWindowFrames.count) parked windows")
+        for windowId in hiddenWindowFrames.keys.sorted() {
+            place(windowId, .active)
+        }
+    }
+
     func placement(of windowId: CGWindowID) -> Placement {
         hiddenWindowFrames[windowId] != nil ? .storage : .active
     }

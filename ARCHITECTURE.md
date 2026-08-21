@@ -47,7 +47,7 @@ flowchart TB
 | `Engine` | Orchestrator. Turns events and hotkeys into model updates plus desktop moves. Owns the admission gate (`isValidWindow`), which is `WindowSnapshot.isAdmissible` plus the one thing a snapshot cannot answer for itself, whether the window is on screen. Window events are dropped while the screen is locked, where every answer is a blank. |
 | `Workspaces` | Pure model: window → workspace, per-workspace focus history, current workspace. No OS calls. |
 | `TabGroups` | Infers macOS tab siblings by heuristic (app name + identical frame + `tabCount > 1`); a group moves as a unit and stays where it is, so a window joining one lands in the group's workspace rather than dragging the group to its own. |
-| `Desktop` (`OffscreenParkingDesktop`) | The write side. Realizes `Placement` by parking storage windows in a 1px bottom-right sliver and restoring their captured frame. Every frame write goes through `Window.withoutAnimations`, since an application that thinks an assistive client is watching animates the move and answers reads with where the window was. |
+| `Desktop` (`OffscreenParkingDesktop`) | The write side. Realizes `Placement` by parking storage windows in a 1px bottom-right sliver and restoring their captured frame; `restoreAll()` hands every one of them back at once, which is what leaving means. Every frame write goes through `Window.withoutAnimations`, since an application that thinks an assistive client is watching animates the move and answers reads with where the window was. |
 | `Screen` | The read side. Consistent, cached view of focused window and on-screen window ids. |
 | `AXWindowObserver` | Per-app `AXObserver`s + `NSWorkspace` notifications → `WindowEvent`. Registers every window it watches in `WindowRegistry` on the way in. An application lists only the active tab of a group in `kAXWindowsAttribute` and sends no notification when tabs switch, so a background tab cannot be enumerated at all: `adoptFocusedWindow()` takes it in at the one moment it is reachable, when it becomes focused. The `AXObserverCreate`/run-loop machinery lives behind `AXAppObserver.make`; every other OS touchpoint is an injected closure, so the translation logic is tested in `AXWindowObserverTests`. `kAXUIElementDestroyedNotification` is not delivered for a window closed by its button while its application is in the background, so `dropDeadWindows()` asks every window it knows whether it still answers at all; it runs when an application comes to front and when the screen unlocks. |
 | `WindowRegistry` | The map of known windows: `AXUIElement ↔ CGWindowID` plus pid → application, kept current by `AXWindowObserver`; resolves ids back to live `AXWindow`s. |
@@ -92,6 +92,10 @@ sequenceDiagram
     Engine->>Desktop: startWatchingForManualNavigation
     AppDelegate->>Hotkeys: start()
 ```
+
+### Shutdown
+
+An `LSUIElement` agent has no quit action, so a signal is the only way out and `SIGTERM` is taken off its default action, which would end the process with every parked window stranded at the hidden edge. Delivery goes to a `DispatchSourceSignal` on the main queue instead, the one place the accessibility writes are allowed, and `Engine.stop` asks the desktop for `restoreAll()` before the process exits: OttoWM leaving takes the workspaces with it, and nothing else would ever bring those windows back.
 
 ### Workspace switch
 

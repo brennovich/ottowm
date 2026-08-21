@@ -18,6 +18,7 @@ OttoWM fakes multiple workspaces on a **single native macOS Space**: the active 
 - Native Tabbed windows (Terminal, Ghostty, Finder, …) support.
 - Compatible with native interaction: if you reach a hidden window via Cmd-Tab, the Dock, or Mission Control, OttoWM switches to that window's workspace
 - Headless agent: no Dock icon, no menu bar item, no UI.
+- Leaves the desk as it found it: quitting the agent (`killall OttoWM`) puts every parked window back at its own frame first.
 
 ### Hotkeys
 

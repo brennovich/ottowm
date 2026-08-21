@@ -1,5 +1,6 @@
 // Scenario, a window sent to another workspace parks at the hidden edge and comes back,
-// and the desk it was standing on goes with the workspace it belongs to.
+// and the desk it was standing on goes with the workspace it belongs to. Whatever is
+// parked when OttoWM is told to quit is handed back before it goes.
 
 let session = Session.start()
 
@@ -17,6 +18,10 @@ report("posting lopt-1")
 switchToWorkspace(1)
 session.expect("the rest of the desk came back", session.others) { $0.isWhereItWas }
 session.expect("the \(session.movable.name) window parked again", [session.movable], session.isParked)
+
+report("terminating OttoWM")
+session.quit()
+session.expect("the whole desk came back", session.subjects) { $0.isWhereItWas }
 
 session.finish()
 

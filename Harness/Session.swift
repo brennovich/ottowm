@@ -212,6 +212,15 @@ struct Session {
         }
     }
 
+    // The agent has no quit action, a signal is the only way out of it, and the desk it
+    // took over is owed back whole when it goes.
+    func quit() {
+        ottowm.terminate()
+        eventually("OttoWM exited") { [ottowm] in
+            ottowm.isRunning ? "still running" : nil
+        }
+    }
+
     func finish() {
         for cleanup in cleanups.reversed() { cleanup() }
         cleanups = []

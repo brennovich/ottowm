@@ -35,6 +35,12 @@ final class StubDesktop: Desktop {
         placeCalls = []
     }
 
+    func restoreAll() {
+        for (windowId, placement) in placements where placement == .storage {
+            place(windowId, .active)
+        }
+    }
+
     func placement(of windowId: CGWindowID) -> Placement {
         placements[windowId] ?? .active
     }

@@ -59,6 +59,18 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(workspaces.currentWorkspace, 1)
     }
 
+    func testStopBringsEveryParkedWindowBack() {
+        let win1 = create(StubWindow(id: 100))
+        let win2 = create(StubWindow(id: 200))
+        moveFocusedWindow(win1, to: 2)
+        moveFocusedWindow(win2, to: 3)
+
+        engine.stop()
+
+        XCTAssertEqual(desktop.placement(of: 100), .active)
+        XCTAssertEqual(desktop.placement(of: 200), .active)
+    }
+
     func testInvalidWindowsAreNeverAdmitted() {
         offScreenWindowIds = [500]
         let invalid = [

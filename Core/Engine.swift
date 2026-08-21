@@ -43,6 +43,12 @@ final class Engine {
         return self
     }
 
+    // OttoWM leaving takes the workspaces with it, and a window parked at the hidden
+    // edge would be stranded there with nothing left to bring it back.
+    func stop() {
+        desktop.restoreAll()
+    }
+
     func handle(_ event: WindowEvent) {
         // Behind the lock screen every window reads as closed. Acting on that would
         // unmanage the windows and lose the frames parked ones are restored to. Events

@@ -174,6 +174,21 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertFalse(desktop.focus(200))
     }
 
+    func testRestoreAllBringsEveryParkedWindowBack() {
+        let other = addWindow(200, frame: CGRect(x: 300, y: 200, width: 400, height: 300))
+        let onScreen = addWindow(300, frame: CGRect(x: 50, y: 50, width: 200, height: 200))
+        desktop.place(100, .storage)
+        desktop.place(200, .storage)
+
+        desktop.restoreAll()
+
+        XCTAssertEqual(win.frame, originalFrame)
+        XCTAssertEqual(other.frame, CGRect(x: 300, y: 200, width: 400, height: 300))
+        XCTAssertEqual(desktop.placement(of: 100), .active)
+        XCTAssertEqual(desktop.placement(of: 200), .active)
+        XCTAssertEqual(onScreen.positionSetCount, 0)
+    }
+
     func testForgetClearsHiddenState() {
         desktop.place(100, .storage)
         desktop.forget(100)
