@@ -186,6 +186,13 @@ struct Session {
         return session
     }
 
+    // Where every window stands right now, for a wait that gives up without one.
+    var standing: String {
+        subjects
+            .map { "\($0.name) \(isParked($0) ? "parked" : "at \($0.frame().map { "\($0.origin)" } ?? "nowhere")")" }
+            .joined(separator: ", ")
+    }
+
     func isParked(_ subject: Subject) -> Bool {
         guard let frame = subject.frame() else { return false }
 

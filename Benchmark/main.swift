@@ -156,7 +156,7 @@ func measure(_ description: String, _ trigger: () -> Void, until settled: () -> 
         }
 
         guard Double(now - start) < placementTimeout * 1_000_000_000 else {
-            fail("\(description) did not happen within \(Int(placementTimeout))s")
+            fail("\(description) did not happen within \(Int(placementTimeout))s, \(session.standing)")
         }
         usleep(samplingInterval)
     }
