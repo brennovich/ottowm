@@ -43,6 +43,12 @@ final class Workspaces {
         saveFocusedWindowInWorkspace(workspace, windowId)
     }
 
+    // The windows macOS takes out of reach together with this one: a tab group is a single
+    // window to it, so its tabs are minimized, restored and moved as one.
+    func tabGroupMembers(of windowId: CGWindowID) -> [CGWindowID] {
+        tabGroups.members(of: windowId)
+    }
+
     // Returns whether a surviving tab sibling took over the focus, so there is
     // nothing left to restore.
     @discardableResult

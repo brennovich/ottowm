@@ -558,6 +558,24 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(win1.focusCount, 1)
     }
 
+    func testMinimizedTabGroupHandsFocusToAWindowStillOnScreen() {
+        let tabFrame = CGRect(x: 400, y: 0, width: 800, height: 600)
+        let tab1 = create(StubWindow(id: 300, appName: "Terminal", frame: tabFrame))
+        engine.handle(.focused(tab1.snapshot()))
+        let tab2 = create(StubWindow(id: 301, appName: "Terminal", frame: tabFrame, tabCount: 2))
+        engine.handle(.focused(tab2.snapshot()))
+        let other = create(StubWindow(id: 100))
+
+        tab1.isMinimized = true
+        tab2.isMinimized = true
+        engine.handle(.minimized(301))
+
+        XCTAssertEqual(workspaces.allWindowIds, [100])
+        XCTAssertEqual(desktop.forgottenWindowIds, [300, 301])
+        XCTAssertEqual(other.focusCount, 1)
+        XCTAssertEqual(tab1.focusCount, 0)
+    }
+
     func testMinimizedWindowIsLeftAloneWhenItsWorkspaceComesBack() {
         let win = create(StubWindow(id: 100))
         moveFocusedWindow(win, to: 2)

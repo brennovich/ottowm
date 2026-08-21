@@ -163,10 +163,17 @@ final class Engine {
         }
     }
 
+    // A minimize takes the whole tab group to the Dock, so every tab goes out of reach at
+    // once. Dropping only the one the notification named would leave its siblings managed
+    // and focusable, and focusing one of those brings the group back up. It also means no
+    // sibling is left to inherit the focus, the way one does when a tab is closed, so
+    // unlike handleDestroyed this always looks for a new window to focus.
     private func handleMinimized(_ windowId: CGWindowID) {
         guard workspaces.workspace(for: windowId) != nil else { return }
 
-        unmanage(windowId, "minimized")
+        for memberId in workspaces.tabGroupMembers(of: windowId) {
+            unmanage(memberId, "minimized")
+        }
 
         restoreWindowsFocusForWorkspace()
     }
