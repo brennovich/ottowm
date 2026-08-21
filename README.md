@@ -5,7 +5,8 @@
   </h3>
   <p>
     A tiny virtual workspace manager for macOS<br>
-    <i>Inspired on <a href="https://github.com/venam/2bwm">2bwm</a> and <a href="https://github.com/wmutils/core">wmutils</a></i>.
+    <i>Inspired on <a href="https://github.com/venam/2bwm">2bwm</a> and <a href="https://github.com/wmutils/core">wmutils</a>,<br>
+    and on <a href="https://github.com/nikitabobko/AeroSpace">AeroSpace</a> technical aspects</i>.
   </p>
 </div>
 
