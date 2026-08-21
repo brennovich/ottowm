@@ -7,7 +7,7 @@
   </p>
 </p>
 
-## Functionality
+<hr>
 
 OttoWM fakes multiple workspaces on a **single native macOS Space**: the active workspace's windows stay where you put them; every other workspace's windows are parked off-screen and restored to their exact frame when you switch back. No native Spaces, no animations, no Mission Control involved.
 
@@ -74,3 +74,7 @@ log stream --level debug --predicate 'subsystem == "com.github.brennovich.ottowm
 
 - No Multi-Single screen support (yet)
 - No Window controls (move, resize)
+
+<hr>
+
+**Note**: though I've been a software developer for quite some time, this project was built with the assistance of AI tools, undertaking the opportunity to learn Swift and macOS development.
