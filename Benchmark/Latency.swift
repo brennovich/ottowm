@@ -1,16 +1,24 @@
 import Foundation
 
+// One timed operation: how long it took, and how closely it was watched while it ran.
+struct Observation {
+    let milliseconds: Double
+    let sampling: Sampling
+}
+
 // One measured operation and the samples collected for it, in milliseconds.
 struct Latency {
     let operation: String
     private(set) var samples: [Double] = []
+    private var sampling = Sampling()
 
     init(_ operation: String) {
         self.operation = operation
     }
 
-    mutating func record(_ milliseconds: Double) {
-        samples.append(rounded(milliseconds))
+    mutating func record(_ observation: Observation) {
+        samples.append(rounded(observation.milliseconds))
+        sampling.record(observation.sampling)
     }
 
     var summary: Summary {
@@ -27,6 +35,7 @@ struct Latency {
             max: sorted.last ?? 0,
             mean: mean,
             perSecond: mean == 0 ? 0 : rounded(1000 / mean),
+            resolution: rounded(sampling.meanMs),
             samples: samples
         )
     }
@@ -62,6 +71,11 @@ struct Sampling {
         nanoseconds += interval
     }
 
+    mutating func record(_ other: Sampling) {
+        polls += other.polls
+        nanoseconds += other.nanoseconds
+    }
+
     var meanMs: Double {
         polls == 0 ? 0 : Double(nanoseconds) / Double(polls) / 1_000_000
     }
@@ -77,8 +91,11 @@ struct Summary: Codable {
     let max: Double
     let mean: Double
     // What the mean is worth as a rate, the operations a second of nothing but this one
-    // would fit.
+    // would fit. A latency turned around, not a throughput anyone measured.
     let perSecond: Double
+    // The mean gap between two reads of the desk while this operation was running. Every
+    // latency above is that much coarse, and biased high by about half of it.
+    let resolution: Double
     let samples: [Double]
 }
 
@@ -94,9 +111,9 @@ struct Record: Codable {
     let cpu: String
     let cores: Int
     let windows: [String]
+    let instances: Int
     let iterations: Int
     let warmup: Int
-    let samplingMs: Double
     let summaries: [Summary]
 
     var json: Data {
@@ -109,7 +126,7 @@ struct Record: Codable {
     }
 
     var markdown: String {
-        let header = ["Operation", "Samples", "min", "median", "p95", "max", "mean", "ops/s"]
+        let header = ["Operation", "Samples", "min", "median", "p95", "max", "mean", "ops/s", "resolution"]
         let rows = summaries.map { summary in
             [
                 summary.operation,
@@ -120,6 +137,7 @@ struct Record: Codable {
                 milliseconds(summary.max),
                 milliseconds(summary.mean),
                 String(format: "%.0f", summary.perSecond),
+                String(format: "%.2f", summary.resolution),
             ]
         }
         let widths = header.indices.map { column in
@@ -139,13 +157,25 @@ struct Record: Codable {
         \(line(widths.map { String(repeating: "-", count: $0) }))
         \(rows.map(line).joined(separator: "\n"))
 
-        Milliseconds from the hotkey to the last window observed in place, on a desk of \
-        \(windows.joined(separator: ", ")). \(iterations) iterations, \(warmup) discarded as warmup, \
-        the frames read every \(milliseconds(samplingMs))ms on average.
+        Milliseconds from the hotkey to the last window observed in place, on \(desk). \
+        \(iterations) iterations, \(warmup) discarded as warmup. \
+        Resolution is the mean gap between two reads of the desk, so each latency is that much \
+        coarse and runs about half of it high. ops/s is the mean turned around, what a second of \
+        nothing but this operation would fit, not a throughput the run measured.
         """
     }
 
     private func milliseconds(_ value: Double) -> String {
         String(format: "%.1f", value)
+    }
+
+    // Naming every window stops saying anything once there is more than one desk of them.
+    private var desk: String {
+        var seen: Set<String> = []
+        let kinds = windows.filter { seen.insert($0).inserted }.joined(separator: ", ")
+
+        guard instances > 1 else { return "a desk of \(kinds)" }
+
+        return "\(windows.count) windows, \(instances) desks of \(kinds)"
     }
 }

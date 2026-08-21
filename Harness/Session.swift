@@ -61,7 +61,41 @@ private struct WindowSource {
     let name: String
     let bundleId: String
     let opens: URL
+    let open: (URL) -> Void
     let titled: (String) -> Bool
+}
+
+private func launching(_ application: String) -> (URL) -> Void {
+    { url in _ = shell("/usr/bin/open", ["-a", application, url.path]) }
+}
+
+// `open -a Safari` hands the page to whatever window is already up when Safari is set to
+// prefer tabs, and a tab that is not the active one is not enumerable through the
+// accessibility API, so the second desk's page is opened and unfindable at once. A
+// document is Safari's own word for a window, and asking for one of those gets a window
+// every time.
+//
+// Scripting Safari needs Automation permission, which a machine that has never been asked
+// refuses outright. The plain open is what that machine falls back to, and it stages one
+// Safari window rather than failing the run, so a single desk still works where a sweep
+// across several would not.
+private func openSafariDocument(_ url: URL) {
+    // Brought to the front as well as opened. `open -a` activates the application it opens
+    // in, and the wait below reads an application's windows only once it is frontmost, so a
+    // scripted open that skipped that would hand back a window nobody was looking at.
+    let script = """
+    tell application "Safari"
+        activate
+        make new document with properties {URL:"\(url.absoluteString)"}
+    end tell
+    """
+    let scripted = shell("/usr/bin/osascript", ["-e", script])
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+
+    guard scripted.isEmpty else { return }
+
+    report("Safari would not be scripted, no Automation permission, opening the plain way")
+    launching("Safari")(url)
 }
 
 // Drives the installed OttoWM.app the way a user does: real hotkeys through the event
@@ -81,7 +115,9 @@ struct Session {
 
     var subjects: [Subject] { others + [movable] }
 
-    static func start() -> Session {
+    // Every instance is a whole desk of its own, so a run at two costs what a run at one
+    // costs twice over, and the difference between them is what a window is worth.
+    static func start(instances: Int = 1) -> Session {
         guard AXIsProcessTrusted() else {
             fail("""
             the harness itself has no Accessibility permission, it cannot post events nor read \
@@ -98,9 +134,19 @@ struct Session {
             fail("another OttoWM is already running, it would race this one for the same hotkeys, quit it first")
         }
 
-        let sources = stageDesk()
+        let sources = stageDesk(instances: instances)
         let ottowm = launchOttoWM()
-        let windows = sources.map { ($0.name, $0.bundleId, openWindow($0)) }
+
+        // Each window is claimed as it is found, because two instances of the same desk put
+        // two windows of the same application on screen and the second must not answer to
+        // the first one's title.
+        var claimed: [AXUIElement] = []
+        let windows = sources.map { source -> (String, String, AXUIElement) in
+            let window = openWindow(source, claimed: claimed)
+            claimed.append(window)
+
+            return (source.name, source.bundleId, window)
+        }
 
         // Everything is up, nothing else is about to move on its own, so what the windows
         // read now is what they are owed back after every switch.
@@ -164,7 +210,7 @@ private let temporaryDirectory = URL(fileURLWithPath: NSTemporaryDirectory())
 
 // Stages the configuration the run is bound to and the documents its windows show, and
 // returns the windows to open, the last one being the one the hotkeys move.
-private func stageDesk() -> [WindowSource] {
+private func stageDesk(instances: Int) -> [WindowSource] {
     let configDirectory = temporaryDirectory.appendingPathComponent("ottowm")
 
     do {
@@ -181,28 +227,45 @@ private func stageDesk() -> [WindowSource] {
 
     cleanups.append { try? FileManager.default.removeItem(at: temporaryDirectory) }
 
-    let page = temporaryDirectory.appendingPathComponent("\(harness).html")
-    let document = temporaryDirectory.appendingPathComponent("\(harness).txt")
-    let title = "OttoWM \(harness)"
+    return (1...instances).flatMap(deskInstance)
+}
+
+// One desk: a file browser, a terminal, a browser and an editor, because a workspace
+// switch costs what the windows standing on it cost. Everything it shows is named after
+// this run and this instance, so every window carries a title no other window on the
+// screen, nor any window of another instance, can answer to.
+private func deskInstance(_ instance: Int) -> [WindowSource] {
+    let stamp = "\(temporaryDirectory.lastPathComponent)-\(instance)"
+    let directory = temporaryDirectory.appendingPathComponent(stamp)
+    let page = temporaryDirectory.appendingPathComponent("\(stamp).html")
+    let document = temporaryDirectory.appendingPathComponent("\(stamp).txt")
+    let title = "OttoWM \(stamp)"
+
+    guard (try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)) != nil
+    else { fail("cannot stage the desk directory \(directory.path)") }
 
     write("<!doctype html><html><head><title>\(title)</title></head><body>\(title)</body></html>", to: page)
     write(title, to: document)
 
-    // The temporary directory is named after this run, so a Finder window showing it and a
-    // shell sitting in it both carry a title no other window on the desk can have.
-    let directoryName = temporaryDirectory.lastPathComponent
-
     return [
-        WindowSource(name: "Finder", bundleId: "com.apple.finder", opens: temporaryDirectory) {
-            $0 == directoryName
+        WindowSource(
+            name: "Finder", bundleId: "com.apple.finder", opens: directory, open: launching("Finder")
+        ) {
+            $0 == stamp
         },
-        WindowSource(name: "Terminal", bundleId: "com.apple.Terminal", opens: temporaryDirectory) {
-            $0.contains(directoryName)
+        WindowSource(
+            name: "Terminal", bundleId: "com.apple.Terminal", opens: directory, open: launching("Terminal")
+        ) {
+            $0.contains(stamp)
         },
-        WindowSource(name: "Safari", bundleId: "com.apple.Safari", opens: page) {
+        WindowSource(
+            name: "Safari", bundleId: "com.apple.Safari", opens: page, open: openSafariDocument
+        ) {
             $0 == title
         },
-        WindowSource(name: "TextEdit", bundleId: "com.apple.TextEdit", opens: document) {
+        WindowSource(
+            name: "TextEdit", bundleId: "com.apple.TextEdit", opens: document, open: launching("TextEdit")
+        ) {
             $0 == document.lastPathComponent
         },
     ]
@@ -266,10 +329,10 @@ private func launchOttoWM() -> Process {
     return ottowm
 }
 
-private func openWindow(_ source: WindowSource) -> AXUIElement {
+private func openWindow(_ source: WindowSource, claimed: [AXUIElement]) -> AXUIElement {
     let wasRunning = !NSRunningApplication.runningApplications(withBundleIdentifier: source.bundleId).isEmpty
 
-    _ = shell("/usr/bin/open", ["-a", source.name, source.opens.path])
+    source.open(source.opens)
 
     var opened: AXUIElement?
 
@@ -295,7 +358,9 @@ private func openWindow(_ source: WindowSource) -> AXUIElement {
         }
 
         opened = windows(ofApplication: application.processIdentifier)
-            .first { source.titled(title(of: $0) ?? "") }
+            .first { window in
+                !claimed.contains { CFEqual($0, window) } && source.titled(title(of: window) ?? "")
+            }
 
         return opened == nil ? "no \(source.name) window titled after \(source.opens.lastPathComponent)" : nil
     }

@@ -8,11 +8,17 @@ let leftShiftBit: UInt64 = 0x2
 
 let keyCodesByWorkspace: [Int: CGKeyCode] = [1: 18, 2: 19, 3: 20, 4: 21]
 
-func post(_ keyCode: CGKeyCode, _ flags: CGEventFlags) {
+// Built once rather than per post: the benchmark reads its clock before the hotkey goes
+// out, so anything built inside post() is charged to the app as latency.
+let eventSource: CGEventSource = {
     guard let source = CGEventSource(stateID: .hidSystemState) else { fail("cannot create an event source") }
 
+    return source
+}()
+
+func post(_ keyCode: CGKeyCode, _ flags: CGEventFlags) {
     for keyDown in [true, false] {
-        guard let event = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: keyDown) else {
+        guard let event = CGEvent(keyboardEventSource: eventSource, virtualKey: keyCode, keyDown: keyDown) else {
             fail("cannot create a key event")
         }
         event.flags = keyDown ? flags : []

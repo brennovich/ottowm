@@ -4,12 +4,22 @@ import AppKit
 // window where the action promised to put it. Same harness the acceptance run drives,
 // same installed bundle, so a number here is a number about the shipped app.
 
-let samplingInterval: useconds_t = 1000
-let settleSeconds: TimeInterval = 0.3
+// A hotkey lands in single digit milliseconds, so a 1ms sleep between reads measured it
+// with a ruler a third as long as the thing. This one reads the desk about every 0.13ms,
+// while still yielding the core: spinning on it instead would starve the very application
+// main threads that answer the reads.
+let samplingInterval: useconds_t = 100
+
+// What it takes to believe the previous operation is over: every window reading the same
+// frame for a stretch. Coarse on purpose, nothing in this wait is being timed.
+let settleInterval: useconds_t = 5000
+let settleQuietReads = 10
+let settleTimeout: TimeInterval = 2
 
 struct Options {
-    var iterations = 30
+    var iterations = 100
     var warmup = 2
+    var instances = 1
     var output = "build/benchmark.json"
     var summary = ProcessInfo.processInfo.environment["GITHUB_STEP_SUMMARY"]
     var budgetP95: Double?
@@ -33,16 +43,18 @@ func parseOptions() -> Options {
         switch argument {
         case "--iterations": options.iterations = Int(number(argument))
         case "--warmup": options.warmup = Int(number(argument))
+        case "--instances": options.instances = Int(number(argument))
         case "--output": options.output = next(argument)
         case "--summary": options.summary = next(argument)
         case "--budget-p95": options.budgetP95 = number(argument)
         default:
-            fail("unknown argument \(argument), usage: benchmark "
-                + "[--iterations N] [--warmup N] [--output PATH] [--summary PATH] [--budget-p95 MS]")
+            fail("unknown argument \(argument), usage: benchmark [--iterations N] [--warmup N] "
+                + "[--instances N] [--output PATH] [--summary PATH] [--budget-p95 MS]")
         }
     }
 
     guard options.iterations > 0 else { fail("--iterations needs at least one iteration") }
+    guard options.instances > 0 else { fail("--instances needs at least one desk") }
 
     return options
 }
@@ -97,18 +109,39 @@ func append(_ text: String, to path: String) {
 }
 
 let options = parseOptions()
-let session = Session.start()
+let session = Session.start(instances: options.instances)
 
-var sampling = Sampling()
+// Waits out whatever the previous operation is still doing, so the hotkey below is timed
+// against a desk that is standing still rather than one that is on its way somewhere. A
+// fixed sleep was a guess at how long that takes: longer than needed on a good day, and
+// no guarantee on a bad one.
+func settleDesk() {
+    var previous: [CGRect?] = []
+    var quiet = 0
+    let deadline = Date().addingTimeInterval(settleTimeout)
+
+    while Date() < deadline {
+        let frames = session.subjects.map { $0.frame() }
+        quiet = frames == previous ? quiet + 1 : 0
+        previous = frames
+
+        if quiet >= settleQuietReads { return }
+        usleep(settleInterval)
+    }
+
+    report("the desk would not go quiet within \(Int(settleTimeout))s, measuring anyway")
+}
 
 // Returns the milliseconds between the hotkey going out and the first read of the desk
-// that shows it settled. The clock is read before that read, so what stands between the
-// number and the truth is how long a read of every window takes.
-func measure(_ description: String, _ trigger: () -> Void, until settled: () -> Bool) -> Double {
-    Thread.sleep(forTimeInterval: settleSeconds)
+// that shows it settled, along with how closely the desk was read while waiting. Each
+// operation keeps its own sampling: they do not poll the same number of windows, so one
+// blended figure would flatter the expensive one and libel the cheap one.
+func measure(_ description: String, _ trigger: () -> Void, until settled: () -> Bool) -> Observation {
+    settleDesk()
 
     guard !settled() else { fail("\(description) already, the hotkey would measure nothing") }
 
+    var sampling = Sampling()
     let start = DispatchTime.now().uptimeNanoseconds
     trigger()
 
@@ -118,7 +151,9 @@ func measure(_ description: String, _ trigger: () -> Void, until settled: () -> 
         sampling.record(now - previous)
         previous = now
 
-        if settled() { return Double(now - start) / 1_000_000 }
+        if settled() {
+            return Observation(milliseconds: Double(now - start) / 1_000_000, sampling: sampling)
+        }
 
         guard Double(now - start) < placementTimeout * 1_000_000_000 else {
             fail("\(description) did not happen within \(Int(placementTimeout))s")
@@ -144,7 +179,8 @@ func deskIsBack() -> Bool {
 var move = Latency("move-window-to-workspace")
 var switchTo = Latency("switch-to-workspace")
 
-report("measuring \(options.iterations) iterations after \(options.warmup) warmup ones")
+report("measuring \(options.iterations) iterations after \(options.warmup) warmup ones, "
+    + "on \(session.subjects.count) windows across \(options.instances) desk instances")
 
 for iteration in 1...(options.warmup + options.iterations) {
     session.movable.focus()
@@ -179,9 +215,9 @@ let record = Record(
     cpu: sysctl("machdep.cpu.brand_string"),
     cores: ProcessInfo.processInfo.activeProcessorCount,
     windows: session.subjects.map { $0.name },
+    instances: options.instances,
     iterations: options.iterations,
     warmup: options.warmup,
-    samplingMs: sampling.meanMs,
     summaries: [move.summary, switchTo.summary]
 )
 
