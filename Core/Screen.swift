@@ -2,9 +2,14 @@ import CoreGraphics
 
 // A consistent read of what the OS is showing.
 //
-// The admission gate asks which windows are on screen several times per
-// operation and the focused window is read more than once, and each ask
-// would otherwise be its own IPC round trip.
+// The focused window comes back through the accessibility API, where an
+// application that has stopped answering charges axMessagingTimeoutSeconds for
+// every round trip its window costs. A single operation reads the focused
+// window more than once and asks the admission gate which windows are on
+// screen several times over, so holding one read for the length of an
+// operation is what keeps a hung application from spending a hotkey's
+// responsiveness again and again. That every decision within an operation then
+// sees the same screen, and that the IPC happens once, come with it.
 final class Screen {
     private let focusedWindow: OperationCache<WindowSnapshot?>
     private let onScreenWindowIds: OperationCache<Set<CGWindowID>>
