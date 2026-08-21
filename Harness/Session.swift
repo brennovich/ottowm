@@ -2,11 +2,9 @@ import AppKit
 
 let appPath = "/Applications/OttoWM.app"
 let bundleId = "com.github.brennovich.ottowm"
+let safariBundleId = "com.apple.Safari"
 
 let readyTimeout: TimeInterval = 30
-// How long a source with a fallback is given before the fallback is tried. Short enough
-// that the fallback still has the rest of readyTimeout to put a window up.
-let scriptedOpenTimeout: TimeInterval = 10
 let terminationTimeout: TimeInterval = 5
 let tapSettleSeconds: TimeInterval = 1
 let windowSettleSeconds: TimeInterval = 2
@@ -65,9 +63,6 @@ private struct WindowSource {
     let bundleId: String
     let opens: URL
     let open: (URL) -> Void
-    // Tried when `open` put no window up. A var only so the sources that have no fallback
-    // can leave it out, a let with a value is not a memberwise parameter at all.
-    var openPlainly: ((URL) -> Void)? = nil
     let titled: (String) -> Bool
 }
 
@@ -75,30 +70,38 @@ private func launching(_ application: String) -> (URL) -> Void {
     { url in _ = shell("/usr/bin/open", ["-a", application, url.path]) }
 }
 
-// `open -a Safari` hands the page to whatever window is already up when Safari is set to
-// prefer tabs, and a tab that is not the active one is not enumerable through the
-// accessibility API, so the second desk's page is opened and unfindable at once. A
-// document is Safari's own word for a window, and asking for one of those gets a window
-// every time.
+// `open -a Safari` hands the page to the window that is already up rather than putting a
+// new one up, and a tab that is not the active one cannot be read through the
+// accessibility API, so the second desk's page opens and is unfindable at once. Safari is
+// asked for the empty window first and handed the page after, because the page goes to
+// whichever window is frontmost.
 //
-// Two things stop it from getting one: a machine that has never been asked for Automation
-// permission refuses the script outright, and a Safari launched cold by this very script
-// comes up on the Start Page with the URL dropped. Neither is legible in what osascript
-// prints, so nothing here reads that. `openWindow` waits for the window the script was
-// supposed to open and falls back to the plain open when it does not arrive, which stages
-// one Safari window rather than failing the run, so a single desk still works where a
-// sweep across several would not.
-private func openSafariDocument(_ url: URL) {
-    // Brought to the front as well as opened. `open -a` activates the application it opens
-    // in, and the wait below reads an application's windows only once it is frontmost, so a
-    // scripted open that skipped that would hand back a window nobody was looking at.
-    let script = """
-    tell application "Safari"
-        activate
-        make new document with properties {URL:"\(url.absoluteString)"}
-    end tell
-    """
-    _ = shell("/usr/bin/osascript", ["-e", script])
+// Asked through the File menu rather than the scriptable way: pressing a menu item needs
+// only the Accessibility permission this run already holds, where `make new document`
+// needs an Automation grant that a machine with nobody at it never gets, and takes the
+// two minute AppleEvent timeout to say so.
+private func openSafariPage(_ url: URL) {
+    if let safari = NSRunningApplication.runningApplications(withBundleIdentifier: safariBundleId).first {
+        openEmptyWindow(of: safari)
+    }
+
+    launching("Safari")(url)
+}
+
+private func openEmptyWindow(of safari: NSRunningApplication) {
+    safari.activate()
+
+    guard let newWindow = menuItem(ofApplication: safari.processIdentifier, menu: "File", named: "New Window")
+    else { fail("Safari offers no File > New Window, its page has no window of its own to open in") }
+
+    let standing = windows(ofApplication: safari.processIdentifier).count
+    AXUIElementPerformAction(newWindow, kAXPressAction as CFString)
+
+    // Waited for rather than pressed and trusted: the page opens in whichever window is
+    // frontmost, and the window this asked for arrives a moment after the press returns.
+    eventually("Safari puts up an empty window", announce: false) {
+        windows(ofApplication: safari.processIdentifier).count > standing ? nil : "still \(standing) windows"
+    }
 }
 
 // Drives the installed OttoWM.app the way a user does: real hotkeys through the event
@@ -261,10 +264,7 @@ private func deskInstance(_ instance: Int) -> [WindowSource] {
         ) {
             $0.contains(stamp)
         },
-        WindowSource(
-            name: "Safari", bundleId: "com.apple.Safari", opens: page, open: openSafariDocument,
-            openPlainly: launching("Safari")
-        ) {
+        WindowSource(name: "Safari", bundleId: safariBundleId, opens: page, open: openSafariPage) {
             $0 == title
         },
         WindowSource(
@@ -367,13 +367,6 @@ private func openWindow(_ source: WindowSource, claimed: [AXUIElement]) -> AXUIE
             }
 
         return opened == nil ? "no \(source.name) window titled after \(source.opens.lastPathComponent)" : nil
-    }
-
-    // The window failing to arrive is the only honest sign that the open did not take, so
-    // the fallback waits on that rather than on anything the open itself had to say.
-    if let openPlainly = source.openPlainly, let observed = waiting(timeout: scriptedOpenTimeout, shows) {
-        report("\(source.name) did not open the scripted way, \(observed), opening the plain way")
-        openPlainly(source.opens)
     }
 
     eventually("\(source.name) shows \(source.opens.lastPathComponent)", timeout: readyTimeout, shows)
