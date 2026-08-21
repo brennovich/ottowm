@@ -89,7 +89,7 @@ final class OffscreenParkingDesktopTests: XCTestCase {
     func testRecoverWritesTheFrameWithAnimationsDisabled() {
         let stuck = addWindow(200, frame: CGRect(x: 1791, y: 100, width: 3000, height: 600))
 
-        desktop.recover(windows: [stuck.snapshot()])
+        _ = desktop.recover(windows: [stuck.snapshot()])
 
         XCTAssertEqual(stuck.positionSetCount + stuck.sizeSetCount, 2)
         XCTAssertEqual(stuck.animatedWriteCount, 0)
@@ -184,7 +184,7 @@ final class OffscreenParkingDesktopTests: XCTestCase {
     func testRecoverUnparksWindowsStuckInHiddenCorner() {
         let stuck = addWindow(200, frame: CGRect(x: 1791, y: 100, width: 800, height: 600))
 
-        desktop.recover(windows: [stuck.snapshot(), win.snapshot()])
+        _ = desktop.recover(windows: [stuck.snapshot(), win.snapshot()])
 
         XCTAssertEqual(stuck.positionSetCount, 1)
         XCTAssertFalse(hiddenEdge.holds(stuck.frame))
@@ -194,7 +194,7 @@ final class OffscreenParkingDesktopTests: XCTestCase {
     func testRecoverShrinksAWindowLargerThanTheVisibleFrame() {
         let stuck = addWindow(200, frame: CGRect(x: 1791, y: 100, width: 3000, height: 600))
 
-        desktop.recover(windows: [stuck.snapshot()])
+        _ = desktop.recover(windows: [stuck.snapshot()])
 
         XCTAssertEqual(stuck.sizeSetCount, 1)
         XCTAssertEqual(stuck.frame.width, StubScreen.standard.visibleFrame.width)
