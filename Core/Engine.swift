@@ -230,7 +230,14 @@ final class Engine {
                 return
             }
 
-            if currentWorkspaceIsClosing() { return }
+            // AX still resolves elements of windows that are already destroyed, so quitting an app,
+            // or closing the last windows of a workspace, emits focus events for dying windows.
+            // Without the guard, those events would be read as manual navigation and send the user
+            // to a workspace whose contents no longer exist.
+            let currentWindowIds = workspaces.windowIds(in: workspaces.currentWorkspace)
+            if !currentWindowIds.isEmpty && currentWindowIds.allSatisfy({ id in
+                screen.snapshot(of: id).map { !screen.shows(id) && !$0.isMinimized } ?? true
+            }) { return }
 
             let target = workspaces.workspace(for: windowId) ?? 1
             Log.engine.info("manual navigation → workspace \(target) window id=\(windowId)")
@@ -240,23 +247,12 @@ final class Engine {
 
     private func transitionToWorkspace(_ workspace: Int) {
         let focusToKeep = screen.focused().flatMap { isValidWindow($0) ? $0.id : nil }
-
         let placements = workspaces.switchTo(workspace, leavingFocusOn: focusToKeep)
         Log.engine.info("switching to \(workspace) toActive=\(placements.toActive) toStorage=\(placements.toStorage)")
-        var gone: [CGWindowID] = []
-        for windowId in placements.toActive {
-            if !desktop.place(windowId, .active) { gone.append(windowId) }
-        }
-        for windowId in placements.toStorage {
-            if !desktop.place(windowId, .storage) { gone.append(windowId) }
-        }
 
-        // A switch is the only moment every managed window is looked at, so it is also
-        // where the ones that died unannounced surface. Left in, they would be placed
-        // on every switch from here on and could take the focus nothing can give them.
-        for windowId in gone {
-            unmanage(windowId, "gone")
-        }
+        (placements.toActive.filter { !desktop.place($0, .active) }
+         + placements.toStorage.filter { !desktop.place($0, .storage) })
+        .forEach({ unmanage($0, "gone")})
     }
 
     // Returns the workspace the window landed in.
@@ -324,17 +320,5 @@ final class Engine {
 
     private func isValidWindow(_ win: WindowSnapshot) -> Bool {
         win.isAdmissible && screen.shows(win.id)
-    }
-
-    // AX still resolves elements of windows that are already gone, so a workspace whose
-    // windows are all mid-destruction still answers focus events. Neither on screen nor
-    // merely minimized means the window is on its way out.
-    private func currentWorkspaceIsClosing() -> Bool {
-        let windowIds = workspaces.windowIds(in: workspaces.currentWorkspace)
-
-        return !windowIds.isEmpty && windowIds.allSatisfy { windowId in
-            guard let win = screen.snapshot(of: windowId) else { return true }
-            return !screen.shows(windowId) && !win.isMinimized
-        }
     }
 }

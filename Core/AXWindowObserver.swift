@@ -25,10 +25,9 @@ final class AXWindowObserver {
     private let ownPid = ProcessInfo.processInfo.processIdentifier
 
     // A freshly launched application can take seconds before its AX interface answers at
-    // all, and a big one takes longer: a cold Safari needs around seven attempts on a 2019
-    // MacBook Pro. Until it answers, its windows are announced to nobody, so the retries
-    // are given a window wide enough for the slowest application rather than a handful of
-    // tries. An application still silent by the end never had an AX interface to offer.
+    // all. Until it answers, its windows are announced to nobody, hence the retries. An
+    // application that fails all retries is ignored, and possibly never had an AX
+    // interface to offer.
     static let subscriptionWindow: TimeInterval = 15
 
     private static let applicationNotifications = [
@@ -57,9 +56,10 @@ final class AXWindowObserver {
         },
         makeWindow: @escaping (AXUIElement, NSRunningApplication) -> AXWindow = AXWindow.init(element:application:),
         focusedWindowOf: @escaping (NSRunningApplication) -> AXWindow? = AXWindow.focused(of:),
-        // Only a reference the application no longer knows answers invalidUIElement: a
-        // window that is merely unreachable for now, or slow, answers something else and
-        // is left alone.
+        // Only an element the application has actually forgotten answers with
+        // invalidUIElement. A window that is merely slow or unreachable for the moment
+        // fails with some other error, so anything but invalidUIElement counts as alive
+        // and is left alone.
         isAlive: @escaping (AXUIElement) -> Bool = { element in
             var value: CFTypeRef?
             return AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &value) != .invalidUIElement
