@@ -9,22 +9,15 @@ final class Screen {
     private let focusedWindow: OperationCache<WindowSnapshot?>
     private let onScreenWindowIds: OperationCache<Set<CGWindowID>>
     private let window: (CGWindowID) -> (any Window)?
-    private let telemetry: Telemetry
 
     init(
         focusedWindow: OperationCache<WindowSnapshot?>,
         onScreenWindowIds: OperationCache<Set<CGWindowID>>,
-        window: @escaping (CGWindowID) -> (any Window)?,
-        telemetry: Telemetry = .shared
+        window: @escaping (CGWindowID) -> (any Window)?
     ) {
         self.focusedWindow = focusedWindow
         self.onScreenWindowIds = onScreenWindowIds
         self.window = window
-        self.telemetry = telemetry
-    }
-
-    func duringOperation<T>(_ name: String, _ body: () -> T) -> T {
-        duringOperation { telemetry.span(name, body) }
     }
 
     func duringOperation<T>(_ body: () -> T) -> T {

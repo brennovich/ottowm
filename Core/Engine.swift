@@ -24,7 +24,7 @@ final class Engine {
 
     @discardableResult
     func start(windows: [WindowSnapshot]) -> Engine {
-        screen.duringOperation("start") {
+        screen.duringOperation {
             for win in desktop.recover(windows: windows) {
                 assignWindowToWorkspace(win, 1)
             }
@@ -75,7 +75,7 @@ final class Engine {
     }
 
     func switchToWorkspace(_ workspace: Int) {
-        screen.duringOperation("switchToWorkspace(\(workspace))") {
+        screen.duringOperation {
             dropFocusedWindowIfFullScreen()
             admitFocusedWindow()
 
@@ -103,7 +103,7 @@ final class Engine {
     }
 
     func moveFocusedWindow(toWorkspace workspace: Int) {
-        screen.duringOperation("moveFocusedWindow(\(workspace))") {
+        screen.duringOperation {
             guard workspace >= 1 else {
                 Log.engine.info("move dropped: invalid workspace \(workspace)")
                 return
@@ -223,7 +223,7 @@ final class Engine {
     // (Cmd-Tab/Dock on the same native Space, or Mission Control from another one),
     // so follow them by switching to that window's workspace.
     private func handleManualNavigation(_ windowId: CGWindowID) {
-        screen.duringOperation("handleManualNavigation") {
+        screen.duringOperation {
             if ignoreNextManualNavigation {
                 ignoreNextManualNavigation = false
                 Log.engine.debug("ignoring manual navigation (one-shot)")
@@ -292,7 +292,7 @@ final class Engine {
 
     @discardableResult
     private func restoreWindowsFocusForWorkspace() -> Bool {
-        screen.duringOperation("restoreWindowsFocus") {
+        screen.duringOperation {
             let currentWorkspace = workspaces.currentWorkspace
 
             if let osFocused = screen.focused(), isValidWindow(osFocused) {

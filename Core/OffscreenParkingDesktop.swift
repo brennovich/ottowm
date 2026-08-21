@@ -62,46 +62,42 @@ final class OffscreenParkingDesktop: Desktop {
     // Returns the windows as they now stand: a recovered one no longer sits where its
     // caller saw it, and the model has to record where it ended up.
     func recover(windows: [WindowSnapshot]) -> [WindowSnapshot] {
-        Telemetry.shared.span("recover") {
-            windows.map { snapshot in
-                guard !snapshot.isMinimized, hiddenEdge.holds(snapshot.frame),
-                      let win = window(snapshot.id)
-                else { return snapshot }
+        windows.map { snapshot in
+            guard !snapshot.isMinimized, hiddenEdge.holds(snapshot.frame),
+                  let win = window(snapshot.id)
+            else { return snapshot }
 
-                Log.desktop.info("recovering \(snapshot.logDescription) stuck at hidden edge")
-                let recovered = hiddenEdge.recovered(from: snapshot.frame)
-                move(win, from: snapshot.frame, to: recovered)
-                return snapshot.moved(to: recovered)
-            }
+            Log.desktop.info("recovering \(snapshot.logDescription) stuck at hidden edge")
+            let recovered = hiddenEdge.recovered(from: snapshot.frame)
+            move(win, from: snapshot.frame, to: recovered)
+            return snapshot.moved(to: recovered)
         }
     }
 
     @discardableResult
     func place(_ windowId: CGWindowID, _ placement: Placement) -> Bool {
-        Telemetry.shared.span("place(\(windowId))") {
-            switch placement {
-            case .storage:
-                if hiddenWindowFrames[windowId] != nil { return reaches(windowId) }
-                guard let (win, currentFrame) = movableWindow(windowId, placement) else {
-                    return reaches(windowId)
-                }
-                let originalFrame = onScreenFrame(windowId, currentFrame)
-                let hidden = hiddenEdge.frame(parking: originalFrame)
-                hiddenWindowFrames[windowId] = originalFrame
-                move(win, from: currentFrame, to: hidden)
-                Log.desktop.debug("hid id=\(windowId) from=\(currentFrame) to=\(hidden)")
-            case .active:
-                guard let (win, currentFrame) = movableWindow(windowId, placement) else {
-                    return reaches(windowId)
-                }
-                let target = onScreenFrame(windowId, hiddenWindowFrames[windowId] ?? currentFrame)
-                hiddenWindowFrames[windowId] = nil
-                guard target != currentFrame else { return true }
-                move(win, from: currentFrame, to: target)
-                Log.desktop.debug("restored id=\(windowId) to=\(target)")
+        switch placement {
+        case .storage:
+            if hiddenWindowFrames[windowId] != nil { return reaches(windowId) }
+            guard let (win, currentFrame) = movableWindow(windowId, placement) else {
+                return reaches(windowId)
             }
-            return true
+            let originalFrame = onScreenFrame(windowId, currentFrame)
+            let hidden = hiddenEdge.frame(parking: originalFrame)
+            hiddenWindowFrames[windowId] = originalFrame
+            move(win, from: currentFrame, to: hidden)
+            Log.desktop.debug("hid id=\(windowId) from=\(currentFrame) to=\(hidden)")
+        case .active:
+            guard let (win, currentFrame) = movableWindow(windowId, placement) else {
+                return reaches(windowId)
+            }
+            let target = onScreenFrame(windowId, hiddenWindowFrames[windowId] ?? currentFrame)
+            hiddenWindowFrames[windowId] = nil
+            guard target != currentFrame else { return true }
+            move(win, from: currentFrame, to: target)
+            Log.desktop.debug("restored id=\(windowId) to=\(target)")
         }
+        return true
     }
 
     func placement(of windowId: CGWindowID) -> Placement {
@@ -109,14 +105,12 @@ final class OffscreenParkingDesktop: Desktop {
     }
 
     func focus(_ windowId: CGWindowID) -> Bool {
-        Telemetry.shared.span("focus(\(windowId))") {
-            guard let win = window(windowId) else {
-                Log.desktop.debug("cannot focus id=\(windowId): window not found")
-                return false
-            }
-            win.focus()
-            return true
+        guard let win = window(windowId) else {
+            Log.desktop.debug("cannot focus id=\(windowId): window not found")
+            return false
         }
+        win.focus()
+        return true
     }
 
     func startWatchingForManualNavigation(_ callback: @escaping (CGWindowID) -> Void) {
