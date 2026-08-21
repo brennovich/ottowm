@@ -7,6 +7,14 @@ XCBEAUTIFY := $(if $(shell command -v xcbeautify),xcbeautify --disable-logging,c
 PROJECT = $(SCHEME).xcodeproj/project.pbxproj
 VERSION := $(shell awk -F' = ' '/MARKETING_VERSION/ {gsub(/;/, "", $$2); print $$2; exit}' $(PROJECT))
 BUILD_NUMBER ?= $(shell git rev-list --count HEAD)
+PART ?= patch
+NEXT_VERSION = $(shell awk -v version=$(VERSION) -v part=$(PART) 'BEGIN { \
+	split(version, v, "."); \
+	if (part == "major") { v[1]++; v[2] = 0; v[3] = 0 } \
+	else if (part == "minor") { v[2]++; v[3] = 0 } \
+	else if (part == "patch") { v[3]++ } \
+	else exit 1; \
+	print v[1] "." v[2] "." v[3] }')
 RESOURCES := $(shell find App/Assets.xcassets -type f) App/AppIcon.icon/icon.json
 SOURCES := $(shell find App Core -name '*.swift') $(RESOURCES) $(SCHEME).entitlements $(PROJECT)
 
@@ -38,10 +46,15 @@ INSTALLED = $(INSTALL_DIR)/$(SCHEME).app
 
 CODE_SIGN_IDENTITY ?= -
 
-.PHONY: build test acceptance benchmark axdump release install clean version
+.PHONY: build test acceptance benchmark axdump release install clean version bump
 
 version:
 	@echo $(VERSION)
+
+bump:
+	@test -n "$(NEXT_VERSION)" || { echo "PART must be major, minor or patch" >&2; exit 1; }
+	@sed -i '' 's/MARKETING_VERSION = $(VERSION);/MARKETING_VERSION = $(NEXT_VERSION);/' $(PROJECT)
+	@echo $(NEXT_VERSION)
 
 build:
 	set -o pipefail; $(XCODEBUILD) build 2>&1 | $(XCBEAUTIFY)

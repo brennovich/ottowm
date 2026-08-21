@@ -5,6 +5,7 @@
 ```sh
 make build      # xcodebuild, code signing disabled
 make test       # runs the OttoWMTests unit-test bundle
+make bump       # bumps MARKETING_VERSION, PART=patch by default
 make release    # generates a signed OttoWM.app
 make install    # copies the signed app to /Applications
 make acceptance # e2e of the installed app
@@ -41,4 +42,4 @@ The run fails when a p95 goes over `BENCHMARK_BUDGET_MS`, 500 by default against
 
 ## Releasing
 
-`MARKETING_VERSION` in `OttoWM.xcodeproj/project.pbxproj` is the version. Bump it, commit, and push to `main`, then CI tags `v<version>`, builds the universal zip and publishes the release. Pushing without bumping just builds an workflow artifact.
+`MARKETING_VERSION` in `OttoWM.xcodeproj/project.pbxproj` is the version. `make bump` rewrites it and prints the new one, `PART=minor` or `PART=major` for the other two digits. Commit the change and push to `main`, then CI tags `v<version>`, builds the universal zip and publishes the release. Pushing without bumping just builds an workflow artifact.
