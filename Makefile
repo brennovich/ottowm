@@ -13,6 +13,9 @@ SOURCES := $(shell find App Core -name '*.swift') $(RESOURCES) $(SCHEME).entitle
 BUILD_DIR = build
 RELEASE_DIR = $(BUILD_DIR)/Release
 APP = $(RELEASE_DIR)/$(SCHEME).app
+# The bundle directory keeps its timestamp when only the binary inside it is rebuilt,
+# so the binary is what the archive is allowed to depend on.
+APP_BINARY = $(APP)/Contents/MacOS/$(SCHEME)
 ZIP = $(BUILD_DIR)/$(SCHEME)-$(VERSION).zip
 
 ACCEPTANCE_SOURCES := $(shell find Acceptance -name '*.swift')
@@ -54,10 +57,10 @@ $(AXDUMP): $(AXDUMP_SOURCES)
 
 release: $(ZIP)
 
-$(ZIP): $(APP)
+$(ZIP): $(APP_BINARY)
 	ditto -c -k --keepParent $(APP) $@
 
-$(APP): $(SOURCES)
+$(APP_BINARY): $(SOURCES)
 	set -o pipefail; xcodebuild -scheme $(SCHEME) -configuration Release \
 		CONFIGURATION_BUILD_DIR=$(CURDIR)/$(RELEASE_DIR) \
 		CODE_SIGNING_ALLOWED=YES \
@@ -70,7 +73,7 @@ $(APP): $(SOURCES)
 		ARCHS="arm64 x86_64" \
 		ONLY_ACTIVE_ARCH=NO \
 		build 2>&1 | $(XCBEAUTIFY)
-	codesign --verify --strict --verbose=2 $@
+	codesign --verify --strict --verbose=2 $(APP)
 
 install: $(INSTALLED)
 
