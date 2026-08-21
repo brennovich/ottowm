@@ -68,6 +68,7 @@ jobs:
         run: make build/acceptance build/benchmark
       - id: grant-permissions
         run: |
+          brew untap aws/tap || true
           brew install tccutil
           sudo tccutil --insert /Applications/OttoWM.app/Contents/MacOS/OttoWM
           sudo tccutil --enable /Applications/OttoWM.app/Contents/MacOS/OttoWM
