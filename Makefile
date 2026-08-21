@@ -18,7 +18,9 @@ APP = $(RELEASE_DIR)/$(SCHEME).app
 APP_BINARY = $(APP)/Contents/MacOS/$(SCHEME)
 ZIP = $(BUILD_DIR)/$(SCHEME)-$(VERSION).zip
 
-ACCEPTANCE_SOURCES := $(shell find Acceptance -name '*.swift')
+HARNESS_SOURCES := $(shell find Harness -name '*.swift')
+
+ACCEPTANCE_SOURCES := $(shell find Acceptance -name '*.swift') $(HARNESS_SOURCES)
 ACCEPTANCE = $(BUILD_DIR)/acceptance
 
 AXDUMP_SOURCES := $(shell find Tools/AXDump -name '*.swift')

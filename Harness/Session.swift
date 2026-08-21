@@ -1,0 +1,313 @@
+import AppKit
+
+let appPath = "/Applications/OttoWM.app"
+let bundleId = "com.github.brennovich.ottowm"
+
+let readyTimeout: TimeInterval = 30
+let terminationTimeout: TimeInterval = 5
+let tapSettleSeconds: TimeInterval = 1
+let windowSettleSeconds: TimeInterval = 2
+
+// Core/OffscreenParkingDesktop.swift parks a window 1px past the right edge, and macOS
+// clamps it back by an unspecified amount. HiddenEdge.holds allows the same 10px.
+let hiddenEdgeMargin: CGFloat = 10
+let restoreTolerance: CGFloat = 2
+
+// A window the run drives, and the frame it is owed whenever it is not parked.
+struct Subject {
+    let name: String
+    let bundleId: String
+    let window: AXUIElement
+    let originalFrame: CGRect
+
+    func frame() -> CGRect? {
+        axFrame(of: window)
+    }
+
+    var isWhereItWas: Bool {
+        guard let frame = frame() else { return false }
+
+        return abs(frame.minX - originalFrame.minX) <= restoreTolerance
+            && abs(frame.minY - originalFrame.minY) <= restoreTolerance
+    }
+
+    // The hotkeys act on the focused window, and a workspace switch hands the focus to
+    // whichever window it pleases, so whoever wants this one moved says so first.
+    func focus() {
+        AXUIElementSetAttributeValue(window, kAXMainAttribute as CFString, kCFBooleanTrue)
+        AXUIElementSetAttributeValue(window, kAXFocusedAttribute as CFString, kCFBooleanTrue)
+        NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first?.activate()
+
+        // Asked for the way OttoWM asks in Core/AXWindow.focused(), the focused window of
+        // the frontmost application, because that is the window a hotkey will act on.
+        eventually("\(name) is focused", announce: false) {
+            guard let frontmost = NSWorkspace.shared.frontmostApplication else { return "nothing is frontmost" }
+            guard frontmost.bundleIdentifier == bundleId else {
+                return "frontmost is \(frontmost.localizedName ?? "an unnamed application")"
+            }
+            guard let focused = attribute(
+                AXUIElementCreateApplication(frontmost.processIdentifier), kAXFocusedWindowAttribute
+            ), CFEqual(focused, window) else {
+                return "\(name) is frontmost with another of its windows focused"
+            }
+            return nil
+        }
+    }
+}
+
+// An application the run opens a window in, and how to tell that window from the ones
+// that were already there.
+private struct WindowSource {
+    let name: String
+    let bundleId: String
+    let opens: URL
+    let titled: (String) -> Bool
+}
+
+// Drives the installed OttoWM.app the way a user does: real hotkeys through the event
+// tap, real windows read back through the accessibility API. Nothing here imports the
+// app's own code on purpose, the bundle under test is the one shipped in the release zip.
+//
+// The desk it sets up is a plausible one, a file browser, a terminal, a browser and an
+// editor, because a workspace switch costs what the windows standing on it cost.
+struct Session {
+    let ottowm: Process
+    // The window the hotkeys move between workspaces.
+    let movable: Subject
+    // The ones that only ever move because the workspace they stand on was left.
+    let others: [Subject]
+
+    private let hiddenEdgeX: CGFloat
+
+    var subjects: [Subject] { others + [movable] }
+
+    static func start() -> Session {
+        guard AXIsProcessTrusted() else {
+            fail("""
+            the harness itself has no Accessibility permission, it cannot post events nor read \
+            window frames. Grant it to the terminal running make, or on CI to the process running \
+            the \(harness) binary.
+            """)
+        }
+
+        guard FileManager.default.fileExists(atPath: appPath) else {
+            fail("no app at \(appPath), run `make install` first")
+        }
+
+        guard NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).isEmpty else {
+            fail("another OttoWM is already running, it would race this one for the same hotkeys, quit it first")
+        }
+
+        let sources = stageDesk()
+        let ottowm = launchOttoWM()
+        let windows = sources.map { ($0.name, $0.bundleId, openWindow($0)) }
+
+        // Everything is up, nothing else is about to move on its own, so what the windows
+        // read now is what they are owed back after every switch.
+        Thread.sleep(forTimeInterval: windowSettleSeconds)
+
+        let hiddenEdgeX = CGDisplayBounds(CGMainDisplayID()).maxX - 1
+        let subjects = windows.map { name, bundleId, window -> Subject in
+            guard let frame = axFrame(of: window) else { fail("cannot read the \(name) window frame") }
+
+            report("\(name) at \(frame)")
+
+            guard frame.minX < hiddenEdgeX - hiddenEdgeMargin else {
+                fail("the \(name) window already sits at the hidden edge, parking it would prove nothing")
+            }
+
+            return Subject(name: name, bundleId: bundleId, window: window, originalFrame: frame)
+        }
+
+        report("hidden edge at x=\(hiddenEdgeX)")
+
+        guard let movable = subjects.last else { fail("no window to drive") }
+
+        let session = Session(
+            ottowm: ottowm,
+            movable: movable,
+            others: subjects.dropLast(),
+            hiddenEdgeX: hiddenEdgeX
+        )
+        session.movable.focus()
+
+        return session
+    }
+
+    func isParked(_ subject: Subject) -> Bool {
+        guard let frame = subject.frame() else { return false }
+
+        return frame.minX >= hiddenEdgeX - hiddenEdgeMargin
+    }
+
+    // Waits for every subject to satisfy the expectation, and says which ones do not and
+    // where they stand when it gives up.
+    func expect(_ description: String, _ subjects: [Subject], _ satisfies: (Subject) -> Bool) {
+        eventually(description) {
+            let pending = subjects.filter { !satisfies($0) }
+            guard !pending.isEmpty else { return nil }
+
+            return pending
+                .map { "\($0.name) at \($0.frame().map { "\($0)" } ?? "nowhere")" }
+                .joined(separator: ", ")
+        }
+    }
+
+    func finish() {
+        for cleanup in cleanups.reversed() { cleanup() }
+        cleanups = []
+    }
+}
+
+private let temporaryDirectory = URL(fileURLWithPath: NSTemporaryDirectory())
+    .appendingPathComponent("ottowm-\(harness)-\(ProcessInfo.processInfo.processIdentifier)")
+
+// Stages the configuration the run is bound to and the documents its windows show, and
+// returns the windows to open, the last one being the one the hotkeys move.
+private func stageDesk() -> [WindowSource] {
+    let configDirectory = temporaryDirectory.appendingPathComponent("ottowm")
+
+    do {
+        try FileManager.default.createDirectory(at: configDirectory, withIntermediateDirectories: true)
+        // The bundled defaults, read through XDG_CONFIG_HOME so whatever sits in the real
+        // ~/.config/ottowm cannot change what this run is bound to.
+        try FileManager.default.copyItem(
+            at: URL(fileURLWithPath: "\(appPath)/Contents/Resources/ottowm"),
+            to: configDirectory.appendingPathComponent("ottowm")
+        )
+    } catch {
+        fail("cannot stage the configuration, \(error.localizedDescription)")
+    }
+
+    cleanups.append { try? FileManager.default.removeItem(at: temporaryDirectory) }
+
+    let page = temporaryDirectory.appendingPathComponent("\(harness).html")
+    let document = temporaryDirectory.appendingPathComponent("\(harness).txt")
+    let title = "OttoWM \(harness)"
+
+    write("<!doctype html><html><head><title>\(title)</title></head><body>\(title)</body></html>", to: page)
+    write(title, to: document)
+
+    // The temporary directory is named after this run, so a Finder window showing it and a
+    // shell sitting in it both carry a title no other window on the desk can have.
+    let directoryName = temporaryDirectory.lastPathComponent
+
+    return [
+        WindowSource(name: "Finder", bundleId: "com.apple.finder", opens: temporaryDirectory) {
+            $0 == directoryName
+        },
+        WindowSource(name: "Terminal", bundleId: "com.apple.Terminal", opens: temporaryDirectory) {
+            $0.contains(directoryName)
+        },
+        WindowSource(name: "Safari", bundleId: "com.apple.Safari", opens: page) {
+            $0 == title
+        },
+        WindowSource(name: "TextEdit", bundleId: "com.apple.TextEdit", opens: document) {
+            $0 == document.lastPathComponent
+        },
+    ]
+}
+
+private func write(_ contents: String, to url: URL) {
+    guard (try? contents.write(to: url, atomically: true, encoding: .utf8)) != nil else {
+        fail("cannot write \(url.path)")
+    }
+}
+
+private func launchOttoWM() -> Process {
+    let ottowm = Process()
+    ottowm.executableURL = URL(fileURLWithPath: "\(appPath)/Contents/MacOS/OttoWM")
+    ottowm.environment = ProcessInfo.processInfo.environment.merging(
+        ["XDG_CONFIG_HOME": temporaryDirectory.path]
+    ) { _, staged in staged }
+
+    guard (try? ottowm.run()) != nil else { fail("cannot launch \(ottowm.executableURL!.path)") }
+
+    // Waited out rather than merely asked to quit, and killed if it will not: the next
+    // harness run refuses to start while an OttoWM is up, and CI runs them back to back.
+    // A SIGTERM landing while the app is still working through the last events it was
+    // sent is one AppKit takes its time with.
+    cleanups.append {
+        guard ottowm.isRunning else { return }
+
+        ottowm.terminate()
+        let deadline = Date().addingTimeInterval(terminationTimeout)
+        while ottowm.isRunning, Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.05)
+        }
+
+        guard ottowm.isRunning else { return }
+
+        report("OttoWM pid=\(ottowm.processIdentifier) ignored SIGTERM for \(Int(terminationTimeout))s, killing it")
+        kill(ottowm.processIdentifier, SIGKILL)
+        ottowm.waitUntilExit()
+    }
+
+    report("launched OttoWM pid=\(ottowm.processIdentifier)")
+
+    eventually("OttoWM is up", timeout: readyTimeout, interval: 0.5) {
+        guard ottowm.isRunning else { fail("OttoWM exited with status \(ottowm.terminationStatus)") }
+
+        let log = ottowmLog(of: ottowm.processIdentifier)
+
+        if log.contains("accessibility permission missing") {
+            fail("OttoWM has no Accessibility permission, grant it to \(appPath)")
+        }
+        if log.contains("event tap creation failed") {
+            fail("OttoWM could not create its event tap, no hotkey will ever reach it")
+        }
+        return log.contains("launched") ? nil : "no launch line logged yet"
+    }
+
+    // The launch line is logged a few statements before the event tap is created, and a
+    // hotkey posted in between is simply lost.
+    Thread.sleep(forTimeInterval: tapSettleSeconds)
+
+    return ottowm
+}
+
+private func openWindow(_ source: WindowSource) -> AXUIElement {
+    let wasRunning = !NSRunningApplication.runningApplications(withBundleIdentifier: source.bundleId).isEmpty
+
+    _ = shell("/usr/bin/open", ["-a", source.name, source.opens.path])
+
+    var opened: AXUIElement?
+
+    // An application that was already there belongs to whoever opened it, only the window
+    // this run added goes away. One it launched itself goes away whole.
+    cleanups.append {
+        guard wasRunning else {
+            NSRunningApplication.runningApplications(withBundleIdentifier: source.bundleId)
+                .forEach { $0.terminate() }
+            return
+        }
+        guard let opened, let closeButton = attribute(opened, kAXCloseButtonAttribute) else { return }
+        AXUIElementPerformAction(closeButton as! AXUIElement, kAXPressAction as CFString)
+    }
+
+    eventually("\(source.name) shows \(source.opens.lastPathComponent)", timeout: readyTimeout) {
+        guard let application = NSRunningApplication
+            .runningApplications(withBundleIdentifier: source.bundleId).first
+        else { return "\(source.name) is not running" }
+
+        guard NSWorkspace.shared.frontmostApplication?.processIdentifier == application.processIdentifier else {
+            return "\(source.name) is not frontmost, its window is not ready to be read"
+        }
+
+        opened = windows(ofApplication: application.processIdentifier)
+            .first { source.titled(title(of: $0) ?? "") }
+
+        return opened == nil ? "no \(source.name) window titled after \(source.opens.lastPathComponent)" : nil
+    }
+
+    guard let opened else { fail("no \(source.name) window to drive") }
+
+    return opened
+}
+
+private func ottowmLog(of pid: pid_t) -> String {
+    shell("/usr/bin/log", [
+        "show", "--style", "compact", "--last", "5m", "--info", "--debug",
+        "--predicate", "subsystem == \"\(bundleId)\" AND processIdentifier == \(pid)",
+    ])
+}
