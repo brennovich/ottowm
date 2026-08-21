@@ -29,22 +29,32 @@ func eventually(
     announce: Bool = true,
     _ probe: () -> String?
 ) {
+    if let observed = waiting(timeout: timeout, interval: interval, probe) {
+        fail("\(description), gave up after \(Int(timeout))s with \(observed)")
+    }
+    if announce { report("ok, \(description)") }
+}
+
+// The same wait, handing back what the probe last saw instead of ending the run, for the
+// caller that has something to try when a probe goes unsatisfied.
+func waiting(
+    timeout: TimeInterval = placementTimeout,
+    interval: TimeInterval = pollInterval,
+    _ probe: () -> String?
+) -> String? {
     let deadline = Date().addingTimeInterval(timeout)
     var observed: String?
 
     repeat {
         observed = probe()
-        if observed == nil {
-            if announce { report("ok, \(description)") }
-            return
-        }
+        if observed == nil { return nil }
         // NSWorkspace tracks the frontmost application through notifications delivered to
         // the main run loop, so a probe that only sleeps reads the same stale value until
         // the deadline. Waiting on the run loop is what lets those arrive.
         RunLoop.current.run(until: Date().addingTimeInterval(interval))
     } while Date() < deadline
 
-    fail("\(description), gave up after \(Int(timeout))s with \(observed ?? "nothing to report")")
+    return observed ?? "nothing to report"
 }
 
 func shell(_ launchPath: String, _ arguments: [String]) -> String {
