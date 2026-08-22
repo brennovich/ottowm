@@ -25,6 +25,8 @@ Two operations, over a workspace 1 → 2 → 1 round trip so every iteration sta
 
 The return leg moves the window back and switches back, untimed: it starts from a different state than the two above and its numbers would only blur theirs. The first `--warmup` iterations are run and discarded.
 
+An operation the desk never gets to within 15s warns, drops that sample and lets the run carry on to the next iteration, because aborting would throw away every sample already taken over one window that would not move. The `Samples` column is what the statistics were drawn from, so a run that missed reports fewer than it was asked for. Only a run that measured nothing at all fails.
+
 Before each hotkey goes out the desk is waited on until every window reads the same frame for ten consecutive reads, so the measurement is taken against a desk standing still rather than one on its way somewhere. A fixed sleep was a guess at how long that takes: longer than needed on a good day, and no guarantee on a bad one. Then the clock is read, the hotkey is posted, and the desk is read about every 0.13ms until it satisfies the operation.
 
 ## Options

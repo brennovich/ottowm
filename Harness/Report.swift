@@ -14,6 +14,13 @@ func report(_ message: String) {
     fflush(stdout)
 }
 
+// Something the run went on without. It goes to stderr next to the failures because it
+// is the same kind of news, and a warning buried in the iteration chatter is one nobody
+// reads.
+func warn(_ message: String) {
+    FileHandle.standardError.write(Data("\(harness): WARNING, \(message)\n".utf8))
+}
+
 func fail(_ message: String) -> Never {
     for cleanup in cleanups.reversed() { cleanup() }
     FileHandle.standardError.write(Data("\(harness): FAILED, \(message)\n".utf8))

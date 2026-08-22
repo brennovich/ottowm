@@ -136,10 +136,17 @@ func settleDesk() {
 // that shows it settled, along with how closely the desk was read while waiting. Each
 // operation keeps its own sampling: they do not poll the same number of windows, so one
 // blended figure would flatter the expensive one and libel the cheap one.
-func measure(_ description: String, _ trigger: () -> Void, until settled: () -> Bool) -> Observation {
+//
+// Returns nothing when the desk never got there. A run that aborted on it would throw
+// away every sample it had already taken over one window that would not move, where a
+// benchmark can say so and go on with the samples it does get.
+func measure(_ description: String, _ trigger: () -> Void, until settled: () -> Bool) -> Observation? {
     settleDesk()
 
-    guard !settled() else { fail("\(description) already, the hotkey would measure nothing") }
+    guard !settled() else {
+        warn("\(description) already, the hotkey would measure nothing, dropping the sample")
+        return nil
+    }
 
     var sampling = Sampling()
     let start = DispatchTime.now().uptimeNanoseconds
@@ -156,7 +163,9 @@ func measure(_ description: String, _ trigger: () -> Void, until settled: () -> 
         }
 
         guard Double(now - start) < placementTimeout * 1_000_000_000 else {
-            fail("\(description) did not happen within \(Int(placementTimeout))s, \(session.standing)")
+            warn("\(description) did not happen within \(Int(placementTimeout))s, \(session.standing), "
+                + "dropping the sample")
+            return nil
         }
         usleep(samplingInterval)
     }
@@ -196,13 +205,20 @@ for iteration in 1...(options.warmup + options.iterations) {
 
     guard iteration > options.warmup else { continue }
 
-    move.record(moved)
-    switchTo.record(switched)
+    if let moved { move.record(moved) }
+    if let switched { switchTo.record(switched) }
 
     report("iteration \(iteration - options.warmup)/\(options.iterations)")
 }
 
 session.finish()
+
+// Dropping a sample keeps the run going, dropping every one of them leaves a record of
+// zeros that would read as a pass.
+let unmeasured = [move, switchTo].filter { $0.samples.isEmpty }.map { $0.operation }
+guard unmeasured.isEmpty else {
+    fail("every iteration missed \(unmeasured.joined(separator: " and ")), there is nothing to report")
+}
 
 let app = installedApp()
 let record = Record(
