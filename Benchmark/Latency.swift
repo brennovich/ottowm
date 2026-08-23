@@ -158,7 +158,7 @@ struct Record: Codable {
         \(rows.map(line).joined(separator: "\n"))
 
         Milliseconds from the hotkey to the last window observed in place, on \(desk). \
-        \(iterations) iterations, \(warmup) discarded as warmup. \
+        \(iterations) iterations, \(warmup) discarded as warmup.
         """
     }
 

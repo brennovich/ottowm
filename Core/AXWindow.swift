@@ -94,7 +94,7 @@ final class AXWindow: Window {
     func focus() {
         let raiseResult = AXUIElementPerformAction(element, kAXRaiseAction as CFString)
         let mainResult = AXUIElementSetAttributeValue(element, kAXMainAttribute as CFString, kCFBooleanTrue)
-        let activated = application.activate()
+        let activated = application.activate(options: AXWindow.activationOptions)
         if raiseResult != .success || mainResult != .success {
             Log.window.error("focus failed \(self.logDescription) raise=\(raiseResult.rawValue) main=\(mainResult.rawValue)")
         } else if !activated {
@@ -121,6 +121,12 @@ final class AXWindow: Window {
             .compactMap(tabGroupTabs)
             .first
             .map { max($0.filter(isRadioButton).count, 1) } ?? 1
+    }
+
+    // Require to activate an app  from a background agent prior macOS 14.
+    private static var activationOptions: NSApplication.ActivationOptions {
+        if #available(macOS 14.0, *) { return [] }
+        return .activateIgnoringOtherApps
     }
 
     private func setEnhancedUserInterface(_ appElement: AXUIElement, _ enabled: Bool) {
