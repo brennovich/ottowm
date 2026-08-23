@@ -1,6 +1,22 @@
 # Architecture
 
-OttoWM is a headless agent (`App/main.swift` → `AppDelegate`) that fakes virtual workspaces on a single native macOS Space. Everything runs on the main run loop; there is no concurrency.
+OttoWM is a headless agent. It shows several workspaces on one native macOS Space. All window work runs on the main run loop. Only the hotkey event tap has a thread of its own, and it hands each action back to the main queue.
+
+## Concepts
+
+| Concept        | Meaning                                                                                                                                            |
+|----------------|----------------------------------------------------------------------------------------------------------------------------------------------------|
+| Native Space   | A macOS space. OttoWM uses only the one it starts on. A window on another Space is out of reach, so OttoWM stops managing it.                      |
+| Desktop        | The native Space OttoWM controls, and the component that moves windows on it.                                                                      |
+| Workspace      | A numbered set of windows. A workspace exists as soon as an action names it. Only the current workspace shows its windows.                         |
+| Managed window | A window that belongs to a workspace.                                                                                                              |
+| Placement      | Where a managed window sits: `active` on screen, or `storage` at the hidden edge.                                                                  |
+| Hidden edge    | A 1 pt sliver at the bottom-right corner of the display. A storage window is parked there. OttoWM keeps its on-screen frame and restores it later. |
+| Screen         | The read side of macOS: which window has the focus, and which window ids are on screen.                                                            |
+| Tab group      | The windows macOS shows as tabs of one window. See [Tabbed windows](#tabbed-windows).                                                              |
+| Window id      | The `CGWindowID` from the private `_AXUIElementGetWindow`. It identifies a window for as long as the window lives.                                 |
+| Frame          | A rect in top-left (AX) coordinates. `MainScreen` flips Cocoa rects into that space.                                                               |
+| Operation      | One unit of engine work. The focused window and the list of on-screen window ids are read at most once in it.                                      |
 
 ## Layers
 
@@ -10,16 +26,17 @@ flowchart TB
         AXWindowObserver
         Hotkeys
         ConfigFile
+        ScreenLock
     end
 
-    subgraph core[Model]
+    subgraph model[Model]
         Engine
         Workspaces
         TabGroups
     end
 
     subgraph os[macOS boundary]
-        Desktop[Desktop<br/>OffscreenParkingDesktop]
+        Desktop["Desktop<br/>(OffscreenParkingDesktop)"]
         Screen
         WindowRegistry
         AXWindow
@@ -29,47 +46,48 @@ flowchart TB
     AXWindowObserver -->|WindowEvent| Engine
     ConfigFile -->|"(keyCode, flags) → Action?"| Hotkeys
     Hotkeys -->|Action| Engine
+    ScreenLock -->|isLocked| Engine
+    ScreenLock -->|unlock → dropDeadWindows| AXWindowObserver
     Engine --> Workspaces
     Workspaces --> TabGroups
-    Engine -->|place / focus / recover| Desktop
-    Engine -->|focused / shows| Screen
+    Engine -->|recover / place / focus| Desktop
+    Engine -->|focused / shows / tabCount| Screen
+    Desktop -->|manual navigation| Engine
     AXWindowObserver -->|register / evict| WindowRegistry
     Desktop --> WindowRegistry
-    Desktop --> AXWindow
     Desktop --> MainScreen
     Screen --> WindowRegistry
     Screen -->|adopt focused| AXWindowObserver
     WindowRegistry --> AXWindow
 ```
 
-| Component | Role |
-|---|---|
-| `Engine` | Orchestrator. Turns events and hotkeys into model updates plus desktop moves. Owns the admission gate (`isValidWindow`), which is `WindowSnapshot.isAdmissible` plus the two things a snapshot cannot answer for itself: whether the window is on screen, and whether the screen answering is OttoWM's own desktop. The window list only ever describes the native Space in front, so a window living on a Space the user created reads as on screen for as long as that Space is the one in front; taken at face value it is managed, parked and restored, and focusing it drags the user back there. Window events are dropped while the screen is locked, where every answer is a blank. |
-| `Workspaces` | Pure model: window → workspace, per-workspace focus history, current workspace. No OS calls. |
-| `TabGroups` | Infers macOS tab siblings by heuristic (app name + identical frame + `tabCount > 1`); a group moves as a unit and stays where it is, so a window joining one lands in the group's workspace rather than dragging the group to its own. |
-| `Desktop` (`OffscreenParkingDesktop`) | The write side. Realizes `Placement` by parking storage windows in a 1px bottom-right sliver and restoring their captured frame; `restoreAll()` hands every one of them back at once, which is what leaving means. Every frame write goes through `Window.withoutAnimations`, since an application that thinks an assistive client is watching animates the move and answers reads with where the window was. |
-| `Screen` | The read side. Consistent, cached view of focused window and on-screen window ids. |
-| `AXWindowObserver` | Per-app `AXObserver`s + `NSWorkspace` notifications → `WindowEvent`. Registers every window it watches in `WindowRegistry` on the way in. An application lists only the active tab of a group in `kAXWindowsAttribute` and sends no notification when tabs switch, so a background tab cannot be enumerated at all: `adoptFocusedWindow()` takes it in at the one moment it is reachable, when it becomes focused. The `AXObserverCreate`/run-loop machinery lives behind `AXAppObserver.make`; every other OS touchpoint is an injected closure, so the translation logic is tested in `AXWindowObserverTests`. `kAXUIElementDestroyedNotification` is not delivered for a window closed by its button while its application is in the background, so `dropDeadWindows()` asks every window it knows whether it still answers at all; it runs when an application comes to front and when the screen unlocks. |
-| `WindowRegistry` | The map of known windows: `AXUIElement ↔ CGWindowID` plus pid → application, kept current by `AXWindowObserver`; resolves ids back to live `AXWindow`s. |
-| `Hotkeys` | Session `CGEventTap` on keyDown. Needed over Carbon hotkeys because only raw device flags distinguish left from right Option. Holds only a matcher `(keyCode, flags) → Action?` (in practice `Config.action`) and hands matched `Action`s to `Engine.handle`. |
-| `Config` | The binding table: `KeyCombo` → `Action`, indexed by key code because the lookup runs in the event tap callback. Nothing else; a pure value. |
-| `ConfigFile` | Where the configuration comes from: `load()` resolves `$OTTOWM_CONFIG` / XDG and falls back to the copy bundled in `Contents/Resources` only when there is no user file at all. A file that is there but does not parse comes back as a `ConfigError`, which `AppDelegate` turns into an exit rather than binding keys the user did not ask for. `parse()` is the pure parser for the line format (`key combo = action`, blank lines skipped, nothing else) and stops at the first problem; a combo bound twice keeps the last line, and two different combos one keystroke could satisfy (`alt-1` and `lalt-1`) are both kept, with the lookup picking between them in no guaranteed order. `KeyCombo` and `Action` are the two halves of a line and live beside it under `Core/Config`; `KeyCombo` owns the `NX_DEVICE*` bits that pin a modifier to one side, and `ConfigError` carries the offending line. |
-| `AccessibilityPermission` | The startup gate. Without the grant nothing can be read or moved, and an `LSUIElement` agent has no Dock icon or menu bar to quit from, so `resolve()` never lets the app run on silently: it offers Settings and a Quit button, taking a regular activation policy so the alert can come to front. The grant landing relaunches the app, off the undocumented `com.apple.accessibility.api` distributed notification — the second alert restarts by hand should it not fire. |
-| `ScreenLock` | Whether the login window is covering the session, off the undocumented `com.apple.screenIsLocked` / `com.apple.screenIsUnlocked` distributed notifications and seeded from the session dictionary, since a launch can happen behind one. Behind the lock screen every window of every application answers as the application itself, with no buttons and no window id: taken at face value that unmanages the lot, and with them go the frames the parked ones are owed. |
-| `OperationCache` | Holds one AX/CG read for the duration of an engine operation; each read is an IPC round trip. |
+| Component                             | Role                                                                                                                                                                                                                                                                                                                                                                                                                       |
+|---------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Engine`                              | Turns window events and actions into model updates and window moves. It admits a window when the snapshot is admissible, the window is on screen, and the desktop is the Space in front. It drops window events while the screen is locked, because every read behind the lock screen is blank.                                                                                                                            |
+| `Workspaces`                          | The pure model: window → workspace, focus history per workspace, current workspace. It makes no OS call.                                                                                                                                                                                                                                                                                                                   |
+| `TabGroups`                           | Infers which windows are tabs of one another.                                                                                                                                                                                                                                                                                                                                                                              |
+| `Desktop` (`OffscreenParkingDesktop`) | The write side. It parks a storage window at the hidden edge and restores the captured frame. `restoreAll()` puts every parked window back. Each frame write goes through `Window.withoutAnimations`, because an application animates the move while an assistive client is attached, and a read taken during the animation returns the old frame.                                                                         |
+| `Screen`                              | The read side. It caches the focused window and the on-screen window ids for the length of an operation.                                                                                                                                                                                                                                                                                                                   |
+| `MainScreen`                          | The geometry of the main display, in top-left coordinates.                                                                                                                                                                                                                                                                                                                                                                 |
+| `AXWindowObserver`                    | Per-application `AXObserver`s and `NSWorkspace` notifications, translated into `WindowEvent`s. It registers each window it watches. `dropDeadWindows()` probes the known windows, because macOS sends no destroyed notification when the close button removes a window of a background application. The `AXObserverCreate` and run-loop code sits behind `AXAppObserver.make`; every other OS call is an injected closure. |
+| `WindowRegistry`                      | The map of known windows: `AXUIElement` ↔ `CGWindowID`, plus pid → application. It resolves an id back to a live `AXWindow`.                                                                                                                                                                                                                                                                                               |
+| `AXWindow`                            | One window behind the accessibility API: snapshot, frame writes, focus, tab count.                                                                                                                                                                                                                                                                                                                                         |
+| `Hotkeys`                             | A session `CGEventTap` on keyDown. Carbon hotkeys are not enough, because only the raw device flags tell the left modifier from the right one. It holds a matcher `(keyCode, flags) → Action?` and sends each match to `Engine.handle`.                                                                                                                                                                                    |
+| `Config`                              | The binding table `KeyCombo → Action`, indexed by key code, because the lookup runs inside the event tap callback.                                                                                                                                                                                                                                                                                                         |
+| `ConfigFile`                          | Reads `$XDG_CONFIG_HOME/ottowm/ottowm`, or `~/.config/ottowm/ottowm`. It falls back to the bundled copy only when the user has no file. A file that does not parse returns a `ConfigError`, and `AppDelegate` exits. `ConfigFileParser` stops at the first bad line.                                                                                                                                                       |
+| `AccessibilityPermission`             | The startup gate. `inquire()` offers Settings and Quit, and relaunches the app when the grant lands. `watchTrust` stops the event tap when the grant is revoked, and starts it again when it returns.                                                                                                                                                                                                                      |
+| `ScreenLock`                          | Reports whether the login window covers the session, from the `com.apple.screenIsLocked` and `com.apple.screenIsUnlocked` notifications.                                                                                                                                                                                                                                                                                   |
+| `OperationCache`                      | Holds one AX or CG read for the length of an operation. Each read is an IPC round trip.                                                                                                                                                                                                                                                                                                                                    |
 
 ## Key types
 
 ```
-WindowEvent  = created | focused | destroyed | minimized | unminimized
+WindowEvent  = created(WindowSnapshot) | focused(WindowSnapshot) | destroyed(id) | minimized(id) | unminimized(WindowSnapshot)
 Action       = switchToWorkspace(n) | moveWindowToWorkspace(n)   // "switch-to-workspace n" in the config
-KeyCombo     = (keyCode, [ModifierKey: Side])                    // "lopt-shift-1"
+KeyCombo     = (keyCode, [ModifierKey: ModifierSide])            // "lopt-shift-1"
 Placement    = active | storage
 WindowSnapshot(id, appName, isStandard, hasCloseButton, hasMinimizeButton, isFullScreen, isMinimized, frame)
 ```
-
-Windows are identified by `CGWindowID`, obtained from the private `_AXUIElementGetWindow`.
-Frames are in top-left (AX) coordinates; `MainScreen` flips Cocoa rects into that space.
 
 ## Flows
 
@@ -78,59 +96,78 @@ Frames are in top-left (AX) coordinates; `MainScreen` flips Cocoa rects into tha
 ```mermaid
 sequenceDiagram
     AppDelegate->>ConfigFile: load()
-    ConfigFile-->>AppDelegate: Config (user file, else bundled) or ConfigError
-    Note right of AppDelegate: read first: a rejected file exits before any window moves
-    AppDelegate->>AccessibilityPermission: resolve()
-    AccessibilityPermission-->>AppDelegate: trusted, carry on (else alert, then quit or relaunch)
+    ConfigFile-->>AppDelegate: Config (user file, else bundled), or ConfigError
+    Note right of AppDelegate: a rejected file exits before any window moves
+    AppDelegate->>AccessibilityPermission: inquire()
+    AccessibilityPermission-->>AppDelegate: granted (else quit, or relaunch after the grant)
     AppDelegate->>AXWindowObserver: start(handler)
-    AXWindowObserver-->>AppDelegate: [WindowSnapshot] discovered while registering
-    AppDelegate->>Engine: start(windows)
-    Engine->>Desktop: recover(windows)
-    Note right of Desktop: un-park windows left at the hidden edge by a previous run
-    Desktop-->>Engine: [WindowSnapshot] at the frames they were recovered to
+    AXWindowObserver-->>AppDelegate: [WindowSnapshot] found while it subscribes
+    AppDelegate->>Engine: start(windows:)
+    Engine->>Desktop: recover(windows:)
+    Note right of Desktop: puts back the windows a previous run left at the hidden edge
+    Desktop-->>Engine: [WindowSnapshot] at their recovered frames
     Engine->>Workspaces: assign every window to workspace 1
     Engine->>Desktop: startWatchingForManualNavigation
     AppDelegate->>Hotkeys: start()
 ```
 
+`AppDelegate` also sets a process-wide AX messaging timeout, because a hung application blocks the main thread for the length of each round trip.
+
 ### Shutdown
 
-An `LSUIElement` agent has no quit action, so a signal is the only way out and `SIGTERM` is taken off its default action, which would end the process with every parked window stranded at the hidden edge. Delivery goes to a `DispatchSourceSignal` on the main queue instead, the one place the accessibility writes are allowed, and `Engine.stop` asks the desktop for `restoreAll()` before the process exits: OttoWM leaving takes the workspaces with it, and nothing else would ever bring those windows back.
+An `LSUIElement` agent has no quit command, so a signal is the only way out. The default action for `SIGTERM` ends the process with every parked window still at the hidden edge. `AppDelegate` ignores the signal and takes it on a `DispatchSourceSignal` on the main queue, the only thread where the accessibility writes are allowed. The handler calls `Engine.stop`, which calls `Desktop.restoreAll()`.
 
 ### Workspace switch
 
 ```mermaid
 sequenceDiagram
     Hotkeys->>Engine: handle(switchToWorkspace(n))
-    Engine->>Screen: showsAny(managed)?
+    Engine->>Screen: focused(), shows(), showsAny()
+    Note over Engine: drops a full screen window, drops the windows that left the desktop, admits the focused window
     Engine->>Workspaces: switchTo(n, leavingFocusOn: focused)
     Workspaces-->>Engine: (toActive, toStorage)
     Engine->>Desktop: place(id, .active) / place(id, .storage)
-    alt desktop was in front
+    alt the desktop is in front
         Engine->>Desktop: focus(nextWindowToFocus)
-    else another native Space was in front
-        Engine->>Desktop: returnToDesktop (focus any managed window)
+    else another native Space is in front
+        Engine->>Desktop: focus any managed window
     end
 ```
 
-The whole operation runs inside `Screen.duringOperation`, so the focused window and the on-screen list are each read at most once.
+The whole switch runs inside `Screen.duringOperation`, so the focused window and the on-screen list are each read once. A window that `Desktop.place` cannot reach is no longer managed.
 
-### Manual navigation (Cmd-Tab / Dock / Mission Control)
+### Manual navigation (Cmd-Tab, Dock, Mission Control)
 
-The user can reach a parked window behind OttoWM's back. Two detectors, one handler:
+The user can reach a parked window without OttoWM. Two detectors report it:
 
-- A `.focused` event for a window whose placement is `.storage` (same native Space).
-- `activeSpaceDidChangeNotification` with a hidden window focused (from another Space).
+- A `.focused` event for a window whose placement is `.storage`, on the same native Space. The event counts only when the OS still reports that window as focused, and when it is not the late answer to a focus OttoWM asked for.
+- `activeSpaceDidChangeNotification` while a parked window has the focus, from another Space.
 
-`handleManualNavigation` then switches the model to that window's workspace, so OttoWM follows the user rather than fighting them. A one-shot `ignoreNextManualNavigation` flag suppresses the echo of a focus OttoWM itself caused.
+`handleManualNavigation` then switches the model to that window's workspace. The one-shot `ignoreNextManualNavigation` flag drops the echo of a focus OttoWM caused itself. A space change also pulls a parked window back on screen when its full screen instance exits, so the desktop parks such a window again.
+
+### Full screen
+
+A full screen window is not admissible, and OttoWM never places it. When a switch finds the focused window in full screen, the engine stops managing it and records the workspace it was in. When the window comes back, the engine switches to that workspace and assigns the window there. A `move-window-to-workspace` on that window clears the record.
 
 ### Window lifecycle
 
 ```mermaid
 flowchart LR
-    created -->|valid| assigned[assigned to current workspace]
-    assigned -->|minimized / fullscreen / destroyed / left the desktop| unmanaged
-    unmanaged -->|unminimized, refocused| assigned
+    new[new or discovered window] -->|valid| managed[in a workspace]
+    managed -->|minimized, full screen, destroyed, or moved to another native Space| unmanaged
+    unmanaged -->|unminimized, or focused again| managed
 ```
 
-A window out of reach cannot be parked, so it stops being managed rather than being flagged. Dragged onto another native Space it is out of reach too, and the desktop showing a parked window is what proves the Space in front is OttoWM's own, so that the ones missing from it are the ones that left.  Anything coming back joins whatever workspace is current, like a brand-new window — unless it is a tab of a group living elsewhere, which wins: the window is assigned there and parked, and a user who reached it by focusing it is followed to that workspace.
+A window out of reach cannot be parked, so OttoWM stops managing it instead of marking it. A parked window on screen proves that the Space in front is OttoWM's own, so the managed windows missing from that Space are the ones that left. A window that comes back joins the current workspace, like a new one. A tab of a group in another workspace is the exception: it joins the group, and the user who focused it is followed there.
+
+## Tabbed windows
+
+macOS reports no tab membership, so OttoWM infers it. A tab group is one window to macOS: its tabs minimize, restore and move together.
+
+- **Discovery.** An application lists only the active tab of a group in `kAXWindowsAttribute`, and sends no notification when the user switches tabs. A background tab is reachable only when it takes the focus. `Screen.focused()` therefore reads through `AXWindowObserver.adoptFocusedWindow()`, which registers the window and subscribes it to the window notifications.
+- **Membership.** `AXWindow.tabCount()` counts the radio buttons of the first `AXTabGroup` child. A window with more than one tab joins the first group whose representative window has the same application name, the same x, the same width and height, and a y within 10 pt. Any other window opens a new group and becomes its representative.
+- **Group id.** A group is keyed by a counter, not by a window id, because macOS reuses window ids and a group outlives its representative.
+- **Placement.** `Workspaces` assigns every member of a group together. A window that joins a group lands in the workspace of the group. The group does not follow the new window.
+- **Follow the user.** When the new tab belongs to a group in another workspace, the engine switches to that workspace.
+- **Minimize.** macOS minimizes the whole group and names one window. The engine stops managing every member, then picks a new window to focus.
+- **Close.** When a tab closes, a sibling keeps the focus, so the engine does not choose another window.
