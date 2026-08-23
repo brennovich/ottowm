@@ -1,24 +1,28 @@
 import AppKit
 import CoreGraphics
 
-// Flips a Cocoa rect (bottom-left origin, y up) into OttoWM's top-left (AX)
-// origin, y down space against the primary display's height.
-func topLeftFrame(fromCocoa cocoaFrame: CGRect, primaryHeight: CGFloat) -> CGRect {
-    CGRect(
-        x: cocoaFrame.origin.x,
-        y: primaryHeight - cocoaFrame.origin.y - cocoaFrame.height,
-        width: cocoaFrame.width,
-        height: cocoaFrame.height
-    )
+extension CGRect {
+    /// The rect in OttoWM's top-left (AX) origin, y down space.
+    ///
+    /// Cocoa rects have a bottom-left origin with y up, measured against the primary
+    /// display's height.
+    func flippedToTopLeft(primaryHeight: CGFloat) -> CGRect {
+        CGRect(
+            x: origin.x,
+            y: primaryHeight - origin.y - height,
+            width: width,
+            height: height
+        )
+    }
 }
 
 struct MainScreen: ScreenGeometry {
     var fullFrame: CGRect {
-        topLeftFrame(fromCocoa: screen.frame, primaryHeight: primaryHeight)
+        screen.frame.flippedToTopLeft(primaryHeight: primaryHeight)
     }
 
     var visibleFrame: CGRect {
-        topLeftFrame(fromCocoa: screen.visibleFrame, primaryHeight: primaryHeight)
+        screen.visibleFrame.flippedToTopLeft(primaryHeight: primaryHeight)
     }
 
     private var screen: NSScreen { NSScreen.main ?? NSScreen.screens[0] }

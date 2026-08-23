@@ -2,7 +2,7 @@ import AppKit
 import ApplicationServices
 import CoreGraphics
 
-// The stable CGWindowID for an AX window.
+/// The stable CGWindowID for an AX window.
 @_silgen_name("_AXUIElementGetWindow")
 @discardableResult
 private func _AXUIElementGetWindow(_ element: AXUIElement, _ id: inout CGWindowID) -> AXError
@@ -35,42 +35,44 @@ final class AXWindow: Window {
     var logDescription: String { "id=\(id) app=\(appName)" }
 
     func snapshot() -> WindowSnapshot {
-        let attributes = axAttributes(element, [
-            kAXSubroleAttribute,
-            kAXCloseButtonAttribute,
-            kAXMinimizeButtonAttribute,
-            FullScreenAttribute,
-            kAXMinimizedAttribute,
-            kAXPositionAttribute,
-            kAXSizeAttribute,
+        let attributes = element.values(of: [
+            .subrole,
+            .closeButton,
+            .minimizeButton,
+            .fullScreen,
+            .minimized,
+            .position,
+            .size,
         ])
 
         return WindowSnapshot(
             id: id,
             appName: appName,
-            isStandard: attributes[kAXSubroleAttribute] as? String == kAXStandardWindowSubrole,
-            hasCloseButton: attributes[kAXCloseButtonAttribute] != nil,
-            hasMinimizeButton: attributes[kAXMinimizeButtonAttribute] != nil,
-            isFullScreen: (attributes[FullScreenAttribute] as? Bool) ?? false,
-            isMinimized: (attributes[kAXMinimizedAttribute] as? Bool) ?? false,
-            frame: frame(position: attributes[kAXPositionAttribute], size: attributes[kAXSizeAttribute]) ?? .zero
+            isStandard: AXRole(attributes[.subrole]) == .standardWindow,
+            hasCloseButton: attributes[.closeButton] != nil,
+            hasMinimizeButton: attributes[.minimizeButton] != nil,
+            isFullScreen: (attributes[.fullScreen] as? Bool) ?? false,
+            isMinimized: (attributes[.minimized] as? Bool) ?? false,
+            frame: frame(position: attributes[.position], size: attributes[.size]) ?? .zero
         )
     }
 
     func movableFrame() -> CGRect? {
-        let attributes = axAttributes(element, [kAXMinimizedAttribute, kAXPositionAttribute, kAXSizeAttribute])
-        guard (attributes[kAXMinimizedAttribute] as? Bool) != true else { return nil }
+        let attributes = element.values(of: [.minimized, .position, .size])
+        guard (attributes[.minimized] as? Bool) != true else { return nil }
 
-        return frame(position: attributes[kAXPositionAttribute], size: attributes[kAXSizeAttribute])
+        return frame(position: attributes[.position], size: attributes[.size])
     }
 
-    // An application animates a frame write while AXEnhancedUserInterface is on, and
-    // macOS turns that attribute on as soon as an assistive client like OttoWM attaches.
-    // The move flickers, and a frame read mid animation returns the old position.
-    // Credited to yabai and Rectangle, via AeroSpace.
+    /// Runs `body` with the application's frame animations turned off.
+    ///
+    /// An application animates a frame write while AXEnhancedUserInterface is on, and
+    /// macOS turns that attribute on as soon as an assistive client like OttoWM attaches.
+    /// The move flickers, and a frame read mid animation returns the old position.
+    /// Credited to yabai and Rectangle, via AeroSpace.
     func withoutAnimations(_ body: () -> Void) {
         let appElement = AXUIElementCreateApplication(application.processIdentifier)
-        let enhanced = axAttribute(appElement, EnhancedUserInterfaceAttribute) as? Bool == true
+        let enhanced = appElement.value(of: .enhancedUserInterface) as? Bool == true
 
         if enhanced { setEnhancedUserInterface(appElement, false) }
         body()
@@ -78,14 +80,14 @@ final class AXWindow: Window {
     }
 
     func setPosition(_ origin: CGPoint) {
-        let result = AXUIElementSetAttributeValue(element, kAXPositionAttribute as CFString, encodeCGPoint(origin))
+        let result = element.setValue(origin, for: .position)
         if result != .success {
             Log.window.error("set position failed \(self.logDescription) err=\(result.rawValue) target=\(origin)")
         }
     }
 
     func setSize(_ size: CGSize) {
-        let result = AXUIElementSetAttributeValue(element, kAXSizeAttribute as CFString, encodeCGSize(size))
+        let result = element.setValue(size, for: .size)
         if result != .success {
             Log.window.error("set size failed \(self.logDescription) err=\(result.rawValue) target=\(size)")
         }
@@ -93,7 +95,7 @@ final class AXWindow: Window {
 
     func focus() {
         let raiseResult = AXUIElementPerformAction(element, kAXRaiseAction as CFString)
-        let mainResult = AXUIElementSetAttributeValue(element, kAXMainAttribute as CFString, kCFBooleanTrue)
+        let mainResult = element.setValue(true, for: .main)
         let activated = application.activate(options: AXWindow.activationOptions)
         if raiseResult != .success || mainResult != .success {
             Log.window.error("focus failed \(self.logDescription) raise=\(raiseResult.rawValue) main=\(mainResult.rawValue)")
@@ -108,12 +110,12 @@ final class AXWindow: Window {
 
     static func focused(of app: NSRunningApplication) -> AXWindow? {
         let appElement = AXUIElementCreateApplication(app.processIdentifier)
-        guard let element = axElement(appElement, kAXFocusedWindowAttribute) else { return nil }
+        guard let element = appElement.elementValue(of: .focusedWindow) else { return nil }
         return AXWindow(element: element, application: app)
     }
 
     func tabCount() -> Int {
-        guard let children = axAttribute(element, kAXChildrenAttribute) as? [AXUIElement] else {
+        guard let children = element.value(of: .children) as? [AXUIElement] else {
             Log.window.debug("tabCount children read failed \(self.logDescription), assuming 1")
             return 1
         }
@@ -123,34 +125,32 @@ final class AXWindow: Window {
             .map { max($0.filter(isRadioButton).count, 1) } ?? 1
     }
 
-    // Require to activate an app  from a background agent prior macOS 14.
+    // Required to activate an app from a background agent prior to macOS 14.
     private static var activationOptions: NSApplication.ActivationOptions {
         if #available(macOS 14.0, *) { return [] }
         return .activateIgnoringOtherApps
     }
 
     private func setEnhancedUserInterface(_ appElement: AXUIElement, _ enabled: Bool) {
-        let result = AXUIElementSetAttributeValue(
-            appElement, EnhancedUserInterfaceAttribute as CFString, enabled ? kCFBooleanTrue : kCFBooleanFalse
-        )
+        let result = appElement.setValue(enabled, for: .enhancedUserInterface)
         if result != .success {
             Log.window.debug("enhanced user interface \(enabled) failed \(self.logDescription) err=\(result.rawValue)")
         }
     }
 
     private func isRadioButton(_ element: AXUIElement) -> Bool {
-        axAttribute(element, kAXRoleAttribute) as? String == RadioButtonRole
+        AXRole(element.value(of: .role)) == .radioButton
     }
 
     private func tabGroupTabs(of child: AXUIElement) -> [AXUIElement]? {
-        let attributes = axAttributes(child, [kAXRoleAttribute, kAXChildrenAttribute])
-        guard attributes[kAXRoleAttribute] as? String == TabGroupRole else { return nil }
-        return attributes[kAXChildrenAttribute] as? [AXUIElement]
+        let attributes = child.values(of: [.role, .children])
+        guard AXRole(attributes[.role]) == .tabGroup else { return nil }
+        return attributes[.children] as? [AXUIElement]
     }
 
     private func frame(position: AnyObject?, size: AnyObject?) -> CGRect? {
-        guard let origin = axValue(position).flatMap(decodeCGPoint),
-              let size = axValue(size).flatMap(decodeCGSize)
+        guard let origin = CGPoint(axValue: position),
+              let size = CGSize(axValue: size)
         else {
             Log.window.error("read frame failed \(self.logDescription)")
             return nil

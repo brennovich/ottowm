@@ -11,35 +11,37 @@ final class AXAttributesTests: XCTestCase {
         let values: [AnyObject] = [
             "AXStandardWindow" as NSString,
             encodeAXError(.attributeUnsupported),
-            encodeCGPoint(CGPoint(x: 10, y: 20)),
+            CGPoint(x: 10, y: 20).axValue,
         ]
 
-        let result = discardingAXErrors(values)
+        let result = values.discardingAXErrors
 
         XCTAssertEqual(result[0] as? String, "AXStandardWindow")
         XCTAssertNil(result[1])
-        XCTAssertEqual(axValue(result[2]).flatMap(decodeCGPoint), CGPoint(x: 10, y: 20))
+        XCTAssertEqual(CGPoint(axValue: result[2]), CGPoint(x: 10, y: 20))
     }
 
     func testReadingAnUnsupportedAttributeYieldsNil() {
         let systemWide = AXUIElementCreateSystemWide()
 
-        XCTAssertNil(axAttribute(systemWide, "AXNotAnAttribute"))
-        XCTAssertNil(axElement(systemWide, "AXNotAnAttribute"))
+        XCTAssertNil(systemWide.value(of: AXAttribute(rawValue: "AXNotAnAttribute")))
+        XCTAssertNil(systemWide.elementValue(of: AXAttribute(rawValue: "AXNotAnAttribute")))
     }
 
     func testReadingUnsupportedAttributesLeavesThemAbsent() {
         let systemWide = AXUIElementCreateSystemWide()
 
-        XCTAssertNil(axAttributes(systemWide, ["AXNotAnAttribute"])["AXNotAnAttribute"])
+        let unknown = AXAttribute(rawValue: "AXNotAnAttribute")
+
+        XCTAssertNil(systemWide.values(of: [unknown])[unknown])
     }
 
     func testKeepsNonErrorValues() {
-        let values: [AnyObject] = [true as NSNumber, encodeCGSize(CGSize(width: 8, height: 6))]
+        let values: [AnyObject] = [true as NSNumber, CGSize(width: 8, height: 6).axValue]
 
-        let result = discardingAXErrors(values)
+        let result = values.discardingAXErrors
 
         XCTAssertEqual(result[0] as? Bool, true)
-        XCTAssertEqual(axValue(result[1]).flatMap(decodeCGSize), CGSize(width: 8, height: 6))
+        XCTAssertEqual(CGSize(axValue: result[1]), CGSize(width: 8, height: 6))
     }
 }

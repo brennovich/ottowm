@@ -30,7 +30,7 @@ final class MainScreenTests: XCTestCase {
         ]
 
         for testCase in cases {
-            let result = topLeftFrame(fromCocoa: testCase.cocoa, primaryHeight: testCase.primaryHeight)
+            let result = testCase.cocoa.flippedToTopLeft(primaryHeight: testCase.primaryHeight)
             XCTAssertEqual(result, testCase.expected, testCase.name)
         }
     }

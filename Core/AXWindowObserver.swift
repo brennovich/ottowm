@@ -51,7 +51,7 @@ final class AXWindowObserver {
         notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
         runningApplications: @escaping () -> [NSRunningApplication] = { NSWorkspace.shared.runningApplications },
         windowElements: @escaping (pid_t) -> [AXUIElement] = {
-            axAttribute(AXUIElementCreateApplication($0), kAXWindowsAttribute) as? [AXUIElement] ?? []
+            AXUIElementCreateApplication($0).value(of: .windows) as? [AXUIElement] ?? []
         },
         makeWindow: @escaping (AXUIElement, NSRunningApplication) -> AXWindow = AXWindow.init(element:application:),
         focusedWindowOf: @escaping (NSRunningApplication) -> AXWindow? = AXWindow.focused(of:),
@@ -60,7 +60,7 @@ final class AXWindowObserver {
         // error, so anything but invalidUIElement counts as alive.
         isAlive: @escaping (AXUIElement) -> Bool = { element in
             var value: CFTypeRef?
-            return AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &value) != .invalidUIElement
+            return AXUIElementCopyAttributeValue(element, AXAttribute.role.rawValue as CFString, &value) != .invalidUIElement
         },
         screenIsLocked: @escaping () -> Bool = { false }
     ) {

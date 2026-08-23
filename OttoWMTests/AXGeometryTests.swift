@@ -10,7 +10,7 @@ final class AXGeometryTests: XCTestCase {
         ]
 
         for point in points {
-            XCTAssertEqual(decodeCGPoint(encodeCGPoint(point)), point)
+            XCTAssertEqual(CGPoint(axValue: point.axValue), point)
         }
     }
 
@@ -23,13 +23,13 @@ final class AXGeometryTests: XCTestCase {
         ]
 
         for size in sizes {
-            XCTAssertEqual(decodeCGSize(encodeCGSize(size)), size)
+            XCTAssertEqual(CGSize(axValue: size.axValue), size)
         }
     }
 
     func testDecodeRejectsMismatchedType() {
-        let size = encodeCGSize(CGSize(width: 10, height: 20))
+        let size = CGSize(width: 10, height: 20).axValue
 
-        XCTAssertNil(decodeCGPoint(size))
+        XCTAssertNil(CGPoint(axValue: size))
     }
 }
