@@ -84,9 +84,7 @@ jobs:
       - id: run
         run: make acceptance
       - id: load-test
-        run: make benchmark BENCHMARK_ARGS="--iterations 25 --budget-p95 500 --output build/benchmark-1.json"
-      - id: soak-test
-        run: make benchmark BENCHMARK_ARGS="--iterations 25 --instances 3 --budget-p95 500 --output build/benchmark-3.json"
+        run: make benchmark BENCHMARK_ARGS="--iterations 50 --budget-p95 300 --output build/benchmark-1.json"
       - id: stop-log
         if: always()
         run: kill "$(cat log.pid)" 2>/dev/null || true

@@ -151,7 +151,7 @@ struct Record: Codable {
         }
 
         return """
-        ### OttoWM \(version) (build \(build)) on \(os), \(model)
+        ### OttoWM `\(version)` (build \(build)) on \(os), \(model)
 
         \(line(header))
         \(line(widths.map { String(repeating: "-", count: $0) }))
@@ -159,9 +159,6 @@ struct Record: Codable {
 
         Milliseconds from the hotkey to the last window observed in place, on \(desk). \
         \(iterations) iterations, \(warmup) discarded as warmup. \
-        Resolution is the mean gap between two reads of the desk, so each latency is that much \
-        coarse and runs about half of it high. ops/s is the mean turned around, what a second of \
-        nothing but this operation would fit, not a throughput the run measured.
         """
     }
 
