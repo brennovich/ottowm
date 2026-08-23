@@ -88,12 +88,10 @@ final class Engine {
     func switchToWorkspace(_ workspace: Int) {
         screen.duringOperation {
             dropFocusedWindowIfFullScreen()
+            dropWindowsThatLeftTheDesktop()
             admitFocusedWindow()
 
-            // The desktop is in front when at least one managed window is on screen:
-            // another native Space (a full screen app) shows none of them.
-            let managed = workspaces.allWindowIds
-            let onDesktop = managed.isEmpty || screen.showsAny(managed)
+            let onDesktop = isOnDesktop
             Log.engine.info("switch requested target=\(workspace) current=\(self.workspaces.currentWorkspace) onDesktop=\(onDesktop)")
 
             if workspace == workspaces.currentWorkspace {
@@ -218,6 +216,18 @@ final class Engine {
         fullscreenWindowOriginalWorkspace[focused.id] = workspace
     }
 
+    // The user can drag a managed window onto another native Space.
+    private func dropWindowsThatLeftTheDesktop() {
+        let parked = workspaces.allWindowIds.filter { desktop.placement(of: $0) == .storage }
+        guard screen.showsAny(parked) else { return }
+
+        for windowId in workspaces.allWindowIds.subtracting(parked) where !screen.shows(windowId) {
+            // Records the workspace a fullscreen app is owed.
+            guard let s = screen.snapshot(of: windowId), !s.isFullScreen else { continue }
+            unmanage(windowId, "left the desktop")
+        }
+    }
+
     private func followWindowBackFromFullScreen(_ win: WindowSnapshot) -> Bool {
         guard let workspaceBeforeFullscreen = fullscreenWindowOriginalWorkspace[win.id] else { return false }
 
@@ -228,10 +238,10 @@ final class Engine {
         return assignWindowToWorkspace(win, workspaceBeforeFullscreen) != nil
     }
 
-    // A window out of reach cannot be parked, and focusing it would strand the user away
-    // from the desktop: minimized ones are off screen, full screen ones own a native
-    // Space, destroyed ones are gone. It stops being managed rather than being flagged,
-    // so one that comes back joins the current workspace like a new window.
+    // Takes a window off OttoWM. As a window out of reach cannot be parked and focusing
+    // it would strand the user away from the desktop, so it stops being managed rather
+    // than being flagged. An app that comes back joins the current workspace like a new
+    // window.
     @discardableResult
     private func unmanage(_ windowId: CGWindowID, _ reason: String) -> Bool {
         let workspace = workspaces.workspace(for: windowId).map { String($0) } ?? "none"
@@ -351,7 +361,21 @@ final class Engine {
         return true
     }
 
+    // The desktop is in front when at least one managed window is on screen: another
+    // native Space, a full screen app or one the user created, shows none of them.
+    private var isOnDesktop: Bool {
+        let managed = workspaces.allWindowIds
+        return managed.isEmpty || screen.showsAny(managed)
+    }
+
+    // A window on another native Space is on screen too while that Space is the one in
+    // front, so being on screen only tells a window apart from a hidden one once the
+    // desktop is known to be the Space answering.
     private func isValidWindow(_ win: WindowSnapshot) -> Bool {
-        win.isAdmissible && screen.shows(win.id)
+        guard isOnDesktop else {
+            Log.engine.debug("\(win.logDescription) ignored: another native Space is in front")
+            return false
+        }
+        return win.isAdmissible && screen.shows(win.id)
     }
 }

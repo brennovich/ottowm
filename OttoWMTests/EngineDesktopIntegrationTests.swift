@@ -168,6 +168,24 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         XCTAssertEqual(win2.frame, frame2)
     }
 
+    func testWindowOnAnotherNativeSpaceIsNeverParked() {
+        let win1 = addWindow(100, frame: frame1)
+        start()
+        moveFocusedWindow(win1, to: 2)
+
+        let foreign = addWindow(200, frame: frame2)
+        focused = nil
+        nativeSpaceWindowIds = [200]
+        engine.handle(.created(foreign.snapshot()))
+
+        nativeSpaceWindowIds = nil
+        engine.switchToWorkspace(2)
+        engine.switchToWorkspace(1)
+
+        XCTAssertNil(workspaces.workspace(for: 200))
+        XCTAssertEqual(foreign.frame, frame2)
+    }
+
     func testWindowMinimizedWhileParkedIsRecoveredWhenItComesBack() {
         _ = addWindow(100, frame: frame1)
         let win2 = addWindow(200, frame: frame2)

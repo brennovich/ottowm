@@ -117,6 +117,29 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(workspaces.allWindowIds, [100])
     }
 
+    func testWindowCreatedOnAnotherNativeSpaceIsIgnored() {
+        create(StubWindow(id: 100))
+        offScreenWindowIds = [100]
+        desktop.clearPlaceCalls()
+
+        create(StubWindow(id: 200))
+
+        XCTAssertEqual(workspaces.allWindowIds, [100])
+        XCTAssertTrue(desktop.placeCalls.isEmpty)
+    }
+
+    func testWindowFocusedOnAnotherNativeSpaceIsNotAdopted() {
+        create(StubWindow(id: 100))
+        offScreenWindowIds = [100]
+        let win = add(StubWindow(id: 200))
+
+        focused = win
+        engine.handle(.focused(win.snapshot()))
+
+        XCTAssertEqual(workspaces.allWindowIds, [100])
+        XCTAssertEqual(workspaces.currentWorkspace, 1)
+    }
+
     func testFocusedWindowIsRememberedPerWorkspaceAcrossSwitches() {
         let win1 = create(StubWindow(id: 100))
         let win2 = create(StubWindow(id: 200))
@@ -191,6 +214,60 @@ final class EngineTests: XCTestCase {
         engine.handle(.focused(windows[187]!.snapshot()))
 
         XCTAssertEqual(workspaces.currentWorkspace, 3)
+    }
+
+    func testSwitchFromAnotherNativeSpaceDoesNotAdoptTheWindowItShows() {
+        let win1 = create(StubWindow(id: 100))
+        offScreenWindowIds = [100]
+        let win2 = add(StubWindow(id: 200))
+
+        focused = win2
+        engine.switchToWorkspace(2)
+
+        XCTAssertEqual(workspaces.allWindowIds, [100])
+        XCTAssertEqual(win1.focusCount, 1)
+        XCTAssertEqual(win2.focusCount, 0)
+    }
+
+    func testWindowThatLeftTheDesktopIsDropped() {
+        create(StubWindow(id: 100))
+        let win2 = create(StubWindow(id: 200))
+        moveFocusedWindow(win2, to: 2)
+
+        focused = nil
+        offScreenWindowIds = [100]
+        engine.switchToWorkspace(2)
+
+        XCTAssertEqual(workspaces.allWindowIds, [200])
+        XCTAssertEqual(desktop.forgottenWindowIds, [100])
+    }
+
+    func testParkedWindowTheScreenStopsShowingIsNotDropped() {
+        create(StubWindow(id: 100))
+        let win2 = create(StubWindow(id: 200))
+        let win3 = create(StubWindow(id: 300))
+        moveFocusedWindow(win2, to: 2)
+        moveFocusedWindow(win3, to: 2)
+
+        focused = nil
+        offScreenWindowIds = [300]
+        engine.switchToWorkspace(3)
+
+        XCTAssertEqual(workspaces.workspace(for: 300), 2)
+        XCTAssertTrue(desktop.forgottenWindowIds.isEmpty)
+    }
+
+    func testWindowsAreNotDroppedWhileAnotherNativeSpaceIsInFront() {
+        create(StubWindow(id: 100))
+        let win2 = create(StubWindow(id: 200))
+        moveFocusedWindow(win2, to: 2)
+
+        focused = nil
+        offScreenWindowIds = [100, 200]
+        engine.switchToWorkspace(2)
+
+        XCTAssertEqual(workspaces.allWindowIds, [100, 200])
+        XCTAssertTrue(desktop.forgottenWindowIds.isEmpty)
     }
 
     func testSwitchingAwayCapturesCurrentFocusBeforeLeaving() {
@@ -528,10 +605,10 @@ final class EngineTests: XCTestCase {
         offScreenWindowIds = [100]
         engine.switchToWorkspace(1)
         engine.switchToWorkspace(2)
+        offScreenWindowIds = []
         create(StubWindow(id: 300))
 
         win2.isFullScreen = false
-        offScreenWindowIds = []
         windows[300] = nil
         engine.handle(.destroyed(300))
 

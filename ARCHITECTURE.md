@@ -44,7 +44,7 @@ flowchart TB
 
 | Component | Role |
 |---|---|
-| `Engine` | Orchestrator. Turns events and hotkeys into model updates plus desktop moves. Owns the admission gate (`isValidWindow`), which is `WindowSnapshot.isAdmissible` plus the one thing a snapshot cannot answer for itself, whether the window is on screen. Window events are dropped while the screen is locked, where every answer is a blank. |
+| `Engine` | Orchestrator. Turns events and hotkeys into model updates plus desktop moves. Owns the admission gate (`isValidWindow`), which is `WindowSnapshot.isAdmissible` plus the two things a snapshot cannot answer for itself: whether the window is on screen, and whether the screen answering is OttoWM's own desktop. The window list only ever describes the native Space in front, so a window living on a Space the user created reads as on screen for as long as that Space is the one in front; taken at face value it is managed, parked and restored, and focusing it drags the user back there. Window events are dropped while the screen is locked, where every answer is a blank. |
 | `Workspaces` | Pure model: window → workspace, per-workspace focus history, current workspace. No OS calls. |
 | `TabGroups` | Infers macOS tab siblings by heuristic (app name + identical frame + `tabCount > 1`); a group moves as a unit and stays where it is, so a window joining one lands in the group's workspace rather than dragging the group to its own. |
 | `Desktop` (`OffscreenParkingDesktop`) | The write side. Realizes `Placement` by parking storage windows in a 1px bottom-right sliver and restoring their captured frame; `restoreAll()` hands every one of them back at once, which is what leaving means. Every frame write goes through `Window.withoutAnimations`, since an application that thinks an assistive client is watching animates the move and answers reads with where the window was. |
@@ -129,8 +129,8 @@ The user can reach a parked window behind OttoWM's back. Two detectors, one hand
 ```mermaid
 flowchart LR
     created -->|valid| assigned[assigned to current workspace]
-    assigned -->|minimized / fullscreen / destroyed| unmanaged
+    assigned -->|minimized / fullscreen / destroyed / left the desktop| unmanaged
     unmanaged -->|unminimized, refocused| assigned
 ```
 
-A window out of reach cannot be parked, so it stops being managed rather than being flagged.  Anything coming back joins whatever workspace is current, like a brand-new window — unless it is a tab of a group living elsewhere, which wins: the window is assigned there and parked, and a user who reached it by focusing it is followed to that workspace.
+A window out of reach cannot be parked, so it stops being managed rather than being flagged. Dragged onto another native Space it is out of reach too, and the desktop showing a parked window is what proves the Space in front is OttoWM's own, so that the ones missing from it are the ones that left.  Anything coming back joins whatever workspace is current, like a brand-new window — unless it is a tab of a group living elsewhere, which wins: the window is assigned there and parked, and a user who reached it by focusing it is followed to that workspace.
