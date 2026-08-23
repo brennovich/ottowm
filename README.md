@@ -83,8 +83,8 @@ log stream --level debug --predicate 'subsystem == "com.github.brennovich.ottowm
 ## Limitations
 
 - No Multi-Single screen support (yet)
-- No Window controls (move, resize)
-- Activating an workspace from a unmanaged native space or fullscreen app is only possible with the workspace has an application to activate, if not some other workspace with an application will be activated instead. As macOS has no public API to switch spaces
+- No Window controls (move, resize) (yet)
+- Activating an workspace from a unmanaged native space or fullscreen app is only possible on workspaces that has applications to activate, if not some other workspace with an application will be activated instead. As macOS has no public API to switch spaces
 
 <hr>
 
