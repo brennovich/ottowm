@@ -12,13 +12,19 @@
 
 <hr>
 
-OttoWM fakes multiple workspaces on a **single native macOS Space**: the active workspace's windows stay where you put them; every other workspace's windows are parked off-screen and restored to their exact frame when you switch back. No native Spaces, no animations, no Mission Control involved.
+OttoWM fakes multiple workspaces on a **single native macOS Space**. No native Spaces, no animations, no Mission Control involved.
 
-- Workspaces on a single native Space
-- Native Tabbed windows (Terminal, Ghostty, Finder, …) support.
-- Compatible with native interaction: if you reach a hidden window via Cmd-Tab, the Dock, or Mission Control, OttoWM switches to that window's workspace
-- Headless agent: no Dock icon, no menu bar item, no UI.
-- Leaves the desk as it found it: quitting the agent (`killall OttoWM`) puts every parked window back at its own frame first.
+Some important features:
+- Native Tabbed windows (Terminal, Ghostty, Finder, …) support
+- Plays nice with macOS features:
+  - You can create native macOS Spaces, OttoWM just ignore them
+  - Compatible with native interaction: if you reach a hidden window via Cmd-Tab, the Dock, or Mission Control, OttoWM autoswitches to that window's workspace
+  - Fullscreen apps are ignored
+
+Some important foundations:
+- Headless agent: no Dock icon, no menu bar item, no UI
+- No dependency on third-party libraries or frameworks
+- Rely on macOS public APIs only
 
 ### Hotkeys
 
@@ -78,6 +84,7 @@ log stream --level debug --predicate 'subsystem == "com.github.brennovich.ottowm
 
 - No Multi-Single screen support (yet)
 - No Window controls (move, resize)
+- Activating an workspace from a unmanaged native space or fullscreen app is only possible with the workspace has an application to activate, if not some other workspace with an application will be activated instead. As macOS has no public API to switch spaces
 
 <hr>
 
