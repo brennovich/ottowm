@@ -13,7 +13,7 @@ final class EngineTests: XCTestCase {
 
     private lazy var engine = Engine(
         desktop: desktop,
-        screen: Screen(
+        windowSystem: WindowSystem(
             focusedWindow: OperationCache { [weak self] in
                 guard let self else { return nil }
                 self.focusedReadCount += 1
@@ -481,7 +481,7 @@ final class EngineTests: XCTestCase {
         let lateTab = add(StubWindow(id: 301, appName: "Terminal", frame: recovered, tabCount: 2))
         engine.handle(.focused(lateTab.snapshot()))
 
-        workspaces.moveWindowToWorkspace(300, 2)
+        workspaces.move(300, to: 2)
         XCTAssertEqual(workspaces.workspace(for: 301), 2)
     }
 

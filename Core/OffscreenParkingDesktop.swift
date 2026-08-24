@@ -1,11 +1,11 @@
 import AppKit
 import CoreGraphics
 
-// Realizes Placement on a single real macOS Space, as Aerospace.app does: storage
-// windows are parked in the bottom-right corner and restored to their captured frame
-// on switch.
+/// Realizes Placement on a single real macOS Space, as Aerospace.app does: storage
+/// windows are parked in the bottom-right corner and restored to their captured frame
+/// on switch.
 final class OffscreenParkingDesktop: Desktop {
-    // The bottom-right sliver a parked window is moved to.
+    /// The bottom-right sliver a parked window is moved to.
     struct HiddenEdge {
         private static let epsilon: CGFloat = 1
         private static let detectionMargin: CGFloat = 10
@@ -59,9 +59,10 @@ final class OffscreenParkingDesktop: Desktop {
         self.notificationCenter = notificationCenter
     }
 
-    // Returns the windows as they now stand: a recovered one has moved, and the model
-    // has to record where it ended up.
-    func recover(windows: [WindowSnapshot]) -> [WindowSnapshot] {
+    /// Moves the windows found parked at the hidden edge back on screen.
+    /// - Returns: the windows as they now stand: a recovered one has moved, and the model
+    ///   has to record where it ended up.
+    func recover(_ windows: [WindowSnapshot]) -> [WindowSnapshot] {
         windows.map { snapshot in
             guard !snapshot.isMinimized, hiddenEdge.holds(snapshot.frame),
                   let win = window(snapshot.id)
@@ -75,23 +76,23 @@ final class OffscreenParkingDesktop: Desktop {
     }
 
     @discardableResult
-    func place(_ windowId: CGWindowID, _ placement: Placement) -> Bool {
+    func place(_ windowId: CGWindowID, at placement: Placement) -> Bool {
         // An already parked window is left where it is rather than read at all.
-        if placement == .storage, hiddenWindowFrames[windowId] != nil { return reaches(windowId) }
+        if placement == .storage, hiddenWindowFrames[windowId] != nil { return canReach(windowId) }
 
-        guard let (win, currentFrame) = movableWindow(windowId, placement) else {
-            return reaches(windowId)
+        guard let (win, currentFrame) = movableWindow(windowId, for: placement) else {
+            return canReach(windowId)
         }
 
         switch placement {
         case .storage:
-            let originalFrame = onScreenFrame(windowId, currentFrame)
+            let originalFrame = onScreenFrame(for: windowId, replacing: currentFrame)
             let hidden = hiddenEdge.frame(parking: originalFrame)
             hiddenWindowFrames[windowId] = originalFrame
             move(win, from: currentFrame, to: hidden)
             Log.desktop.debug("hid id=\(windowId) from=\(currentFrame) to=\(hidden)")
         case .active:
-            let target = onScreenFrame(windowId, hiddenWindowFrames[windowId] ?? currentFrame)
+            let target = onScreenFrame(for: windowId, replacing: hiddenWindowFrames[windowId] ?? currentFrame)
             hiddenWindowFrames[windowId] = nil
             guard target != currentFrame else { return true }
             move(win, from: currentFrame, to: target)
@@ -103,7 +104,7 @@ final class OffscreenParkingDesktop: Desktop {
     func restoreAll() {
         Log.desktop.info("restoring \(self.hiddenWindowFrames.count) parked windows")
         for windowId in hiddenWindowFrames.keys.sorted() {
-            place(windowId, .active)
+            place(windowId, at: .active)
         }
     }
 
@@ -120,8 +121,8 @@ final class OffscreenParkingDesktop: Desktop {
         return true
     }
 
-    func startWatchingForManualNavigation(_ callback: @escaping (CGWindowID) -> Void) {
-        stopWatchingForManualNavigation()
+    func startWatching(manualNavigation callback: @escaping (CGWindowID) -> Void) {
+        stopWatching()
         manualNavigationObserver = notificationCenter.addObserver(
             forName: NSWorkspace.activeSpaceDidChangeNotification,
             object: nil,
@@ -135,10 +136,10 @@ final class OffscreenParkingDesktop: Desktop {
         hiddenWindowFrames[windowId] = nil
     }
 
-    // The corner is never a frame a window belongs to, so one sitting there is replaced
-    // by an on-screen frame. No window is parked in the corner it already occupies, nor
-    // restored to it.
-    private func onScreenFrame(_ windowId: CGWindowID, _ frame: CGRect) -> CGRect {
+    /// The corner is never a frame a window belongs to, so one sitting there is replaced
+    /// by an on-screen frame. No window is parked in the corner it already occupies, nor
+    /// restored to it.
+    private func onScreenFrame(for windowId: CGWindowID, replacing frame: CGRect) -> CGRect {
         guard hiddenEdge.holds(frame) else { return frame }
 
         let recovered = hiddenEdge.recovered(from: frame)
@@ -153,14 +154,15 @@ final class OffscreenParkingDesktop: Desktop {
         }
     }
 
-    // Whether the window still exists at all. A quitting application drops its windows
-    // without a destroyed notification for each, and the model would otherwise keep
-    // placing them on every switch.
-    private func reaches(_ windowId: CGWindowID) -> Bool {
+    /// Reports whether the window still exists at all.
+    ///
+    /// A quitting application drops its windows without a destroyed notification for
+    /// each, and the model would otherwise keep placing them on every switch.
+    private func canReach(_ windowId: CGWindowID) -> Bool {
         window(windowId) != nil
     }
 
-    private func movableWindow(_ windowId: CGWindowID, _ placement: Placement) -> (window: any Window, frame: CGRect)? {
+    private func movableWindow(_ windowId: CGWindowID, for placement: Placement) -> (window: any Window, frame: CGRect)? {
         guard let win = window(windowId), let frame = win.movableFrame() else {
             Log.desktop.info("cannot move id=\(windowId) to \(placement): window not found or not movable")
             return nil
@@ -189,7 +191,7 @@ final class OffscreenParkingDesktop: Desktop {
         callback(focusedId)
     }
 
-    private func stopWatchingForManualNavigation() {
+    private func stopWatching() {
         if let manualNavigationObserver {
             notificationCenter.removeObserver(manualNavigationObserver)
             self.manualNavigationObserver = nil
@@ -197,6 +199,6 @@ final class OffscreenParkingDesktop: Desktop {
     }
 
     deinit {
-        stopWatchingForManualNavigation()
+        stopWatching()
     }
 }

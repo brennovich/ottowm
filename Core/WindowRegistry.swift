@@ -2,7 +2,7 @@ import AppKit
 import ApplicationServices
 import CoreGraphics
 
-// The map of known windows: AXUIElement <-> CGWindowID plus pid -> application.
+/// The map of known windows: AXUIElement <-> CGWindowID plus pid -> application.
 final class WindowRegistry {
     private struct WindowRef {
         let pid: pid_t
@@ -13,7 +13,7 @@ final class WindowRegistry {
     private var elementsById: [CGWindowID: AXUIElement] = [:]
     private var applications: [pid_t: NSRunningApplication] = [:]
 
-    func window(byId id: CGWindowID) -> AXWindow? {
+    func window(for id: CGWindowID) -> AXWindow? {
         guard let (element, pid) = element(for: id),
               let app = applications[pid]
         else { return nil }
@@ -50,7 +50,9 @@ final class WindowRegistry {
         refs[element] != nil
     }
 
-    func knownWindows() -> [(element: AXUIElement, id: CGWindowID)] {
+    /// Every registered window, as an element paired with its id.
+    /// - Complexity: O(*n*) in the number of registered windows.
+    var knownWindows: [(element: AXUIElement, id: CGWindowID)] {
         refs.map { (element: $0.key, id: $0.value.id) }
     }
 

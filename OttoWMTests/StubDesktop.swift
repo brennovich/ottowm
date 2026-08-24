@@ -16,7 +16,7 @@ final class StubDesktop: Desktop {
         self.window = window
     }
 
-    func recover(windows: [WindowSnapshot]) -> [WindowSnapshot] {
+    func recover(_ windows: [WindowSnapshot]) -> [WindowSnapshot] {
         recoverCount += 1
         recoveredWindowIds = windows.map(\.id)
         return windows.map { win in
@@ -25,7 +25,7 @@ final class StubDesktop: Desktop {
     }
 
     @discardableResult
-    func place(_ windowId: CGWindowID, _ placement: Placement) -> Bool {
+    func place(_ windowId: CGWindowID, at placement: Placement) -> Bool {
         placeCalls.append((windowId: windowId, placement: placement))
         placements[windowId] = placement
         return true
@@ -37,7 +37,7 @@ final class StubDesktop: Desktop {
 
     func restoreAll() {
         for (windowId, placement) in placements where placement == .storage {
-            place(windowId, .active)
+            place(windowId, at: .active)
         }
     }
 
@@ -51,7 +51,7 @@ final class StubDesktop: Desktop {
         return true
     }
 
-    func startWatchingForManualNavigation(_ callback: @escaping (CGWindowID) -> Void) {
+    func startWatching(manualNavigation callback: @escaping (CGWindowID) -> Void) {
         manualNavigationCallback = callback
     }
 

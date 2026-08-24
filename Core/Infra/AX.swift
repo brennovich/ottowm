@@ -146,8 +146,8 @@ extension CGSize {
     }
 }
 
-// Swift cannot dynamically cast to a CoreFoundation type (`as? AXValue` always succeeds)
-// so the type has to be checked by its CFTypeID.
+/// Swift cannot dynamically cast to a CoreFoundation type (`as? AXValue` always succeeds)
+/// so the type has to be checked by its CFTypeID.
 private func checkedAXValue(_ value: AnyObject?) -> AXValue? {
     guard let value, CFGetTypeID(value) == AXValueGetTypeID() else { return nil }
     return (value as! AXValue)

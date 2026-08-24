@@ -125,7 +125,7 @@ final class AXWindow: Window {
             .map { max($0.filter(isRadioButton).count, 1) } ?? 1
     }
 
-    // Required to activate an app from a background agent prior to macOS 14.
+    /// Required to activate an app from a background agent prior to macOS 14.
     private static var activationOptions: NSApplication.ActivationOptions {
         if #available(macOS 14.0, *) { return [] }
         return .activateIgnoringOtherApps

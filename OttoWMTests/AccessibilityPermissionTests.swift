@@ -22,7 +22,7 @@ final class AccessibilityPermissionTests: XCTestCase {
                 return self.responses.removeFirst()
             },
             openSettings: { self.openedSettings = true },
-            watchForChange: { self.notifyChange = $0 },
+            observeTrustChanges: { self.notifyChange = $0 },
             relaunch: { self.relaunches += 1 }
         )
     }
@@ -84,7 +84,7 @@ final class AccessibilityPermissionTests: XCTestCase {
             openedSettings = false
             relaunches = 0
 
-            XCTAssertEqual(makePermission().inquire(), testCase.outcome, testCase.name)
+            XCTAssertEqual(makePermission().request(), testCase.outcome, testCase.name)
             XCTAssertEqual(requests, testCase.requests, testCase.name)
             XCTAssertEqual(openedSettings, testCase.openedSettings, testCase.name)
             XCTAssertEqual(relaunches, testCase.relaunches, testCase.name)
@@ -93,7 +93,7 @@ final class AccessibilityPermissionTests: XCTestCase {
 
     func testAGrantArrivingWhileWaitingRelaunchesOnce() throws {
         responses = [.confirm, .quit]
-        _ = makePermission().inquire()
+        _ = makePermission().request()
         let changed = try XCTUnwrap(notifyChange)
 
         trusted = true
@@ -110,13 +110,13 @@ final class AccessibilityPermissionTests: XCTestCase {
             self.notifyChange?()
         }
 
-        XCTAssertEqual(makePermission().inquire(), .relaunching)
+        XCTAssertEqual(makePermission().request(), .relaunching)
         XCTAssertEqual(relaunches, 1)
     }
 
     func testAChangeThatIsNotOurGrantKeepsWaiting() throws {
         responses = [.confirm, .quit]
-        _ = makePermission().inquire()
+        _ = makePermission().request()
 
         try XCTUnwrap(notifyChange)()
 
@@ -126,14 +126,14 @@ final class AccessibilityPermissionTests: XCTestCase {
     func testTheGrantIsWatchedForBeforeAnyAlertIsShown() {
         responses = [.confirm, .quit]
 
-        _ = makePermission().inquire()
+        _ = makePermission().request()
 
         XCTAssertEqual(watchingWhenAsked, [true, true])
     }
 
     func testARevocationWhileRunningReleasesTheTapOnce() throws {
         trusted = true
-        watchTrust()
+        startWatchingTrust()
         let changed = try XCTUnwrap(notifyChange)
 
         trusted = false
@@ -146,7 +146,7 @@ final class AccessibilityPermissionTests: XCTestCase {
 
     func testAChangeThatLeavesTheTrustInPlaceReleasesNothing() throws {
         trusted = true
-        watchTrust()
+        startWatchingTrust()
 
         try XCTUnwrap(notifyChange)()
 
@@ -159,7 +159,7 @@ final class AccessibilityPermissionTests: XCTestCase {
     // every window into workspace 1 and lose the frame each parked one is owed.
     func testTrustComingBackAfterARevocationRestartsInPlace() throws {
         trusted = true
-        watchTrust()
+        startWatchingTrust()
         let changed = try XCTUnwrap(notifyChange)
 
         trusted = false
@@ -173,8 +173,8 @@ final class AccessibilityPermissionTests: XCTestCase {
         XCTAssertEqual(relaunches, 0)
     }
 
-    private func watchTrust() {
-        makePermission().watchTrust(
+    private func startWatchingTrust() {
+        makePermission().startWatchingTrust(
             lost: { self.releases += 1 },
             regained: { self.restarts += 1 }
         )

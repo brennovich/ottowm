@@ -21,15 +21,15 @@ struct AccessibilityPermission {
     let isTrusted: () -> Bool
     let ask: (Request) -> Response
     let openSettings: () -> Void
-    let watchForChange: (@escaping () -> Void) -> Void
+    let observeTrustChanges: (@escaping () -> Void) -> Void
     let relaunch: () -> Void
 
-    func inquire() -> Outcome {
+    func request() -> Outcome {
         if isTrusted() { return .granted }
         Log.app.notice("accessibility permission missing")
 
         var relaunching = false
-        watchForChange {
+        observeTrustChanges {
             guard !relaunching, self.isTrusted() else { return }
             relaunching = true
             Log.app.notice("accessibility permission granted, relaunching")
@@ -48,9 +48,9 @@ struct AccessibilityPermission {
         return .relaunching
     }
 
-    func watchTrust(lost: @escaping () -> Void, regained: @escaping () -> Void) {
+    func startWatchingTrust(lost: @escaping () -> Void, regained: @escaping () -> Void) {
         var trusted = true
-        watchForChange {
+        observeTrustChanges {
             guard trusted else {
                 guard self.isTrusted() else { return }
                 trusted = true
@@ -81,7 +81,7 @@ extension AccessibilityPermission {
                     completionHandler: nil
                 )
             },
-            watchForChange: { changed in
+            observeTrustChanges: { changed in
                 DistributedNotificationCenter.default().addObserver(
                     forName: Notification.Name("com.apple.accessibility.api"),
                     object: nil,
@@ -119,7 +119,7 @@ private func alertResponse(to request: AccessibilityPermission.Request) -> Acces
     alert.addButton(withTitle: "Quit")
     alert.layout()
 
-    // Ensute the alert is visible even if the app is not in the foreground or in full screen.
+    // Ensure the alert is visible even if the app is not in the foreground or in full screen.
     alert.window.level = .floating
     alert.window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
 

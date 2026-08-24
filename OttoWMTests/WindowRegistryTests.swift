@@ -38,8 +38,8 @@ final class WindowRegistryTests: XCTestCase {
         registry.register(elementB, pid: 2, id: 200)
         _ = registry.removeWindow(for: elementA)
 
-        XCTAssertEqual(registry.knownWindows().map(\.id), [200])
-        XCTAssertEqual(registry.knownWindows().map(\.element), [elementB])
+        XCTAssertEqual(registry.knownWindows.map(\.id), [200])
+        XCTAssertEqual(registry.knownWindows.map(\.element), [elementB])
     }
 
     func testEvictRemovesOnlyThatPidsElements() {
@@ -128,7 +128,7 @@ final class WindowRegistryTests: XCTestCase {
     func testWindowByUnknownIdReturnsNil() {
         let registry = WindowRegistry()
 
-        XCTAssertNil(registry.window(byId: 100))
+        XCTAssertNil(registry.window(for: 100))
     }
 
     func testWindowByIdReturnsRegisteredWindow() {
@@ -136,7 +136,7 @@ final class WindowRegistryTests: XCTestCase {
         registry.add(app)
         registry.register(element, pid: pid, id: 100)
 
-        let window = registry.window(byId: 100)
+        let window = registry.window(for: 100)
 
         XCTAssertEqual(window?.id, 100)
         XCTAssertEqual(window?.element, element)
@@ -147,7 +147,7 @@ final class WindowRegistryTests: XCTestCase {
         let registry = WindowRegistry()
         registry.register(element, pid: pid, id: 100)
 
-        XCTAssertNil(registry.window(byId: 100))
+        XCTAssertNil(registry.window(for: 100))
     }
 
     func testWindowByIdAfterEvictReturnsNil() {
@@ -156,6 +156,6 @@ final class WindowRegistryTests: XCTestCase {
         registry.register(element, pid: pid, id: 100)
         registry.evict(pid: pid)
 
-        XCTAssertNil(registry.window(byId: 100))
+        XCTAssertNil(registry.window(for: 100))
     }
 }

@@ -5,8 +5,8 @@ import CoreGraphics
 private let subscriptionRetryDelay: TimeInterval = 0.1
 private let lockScreenBundleId = "com.apple.loginwindow"
 
-// Per-app AXObservers plus NSWorkspace launch/terminate surface the window
-// lifecycle events: created, focused, destroyed and (de)minimized.
+/// Per-app AXObservers plus NSWorkspace launch/terminate surface the window
+/// lifecycle events: created, focused, destroyed and (de)minimized.
 final class AXWindowObserver {
     private let registry: WindowRegistry
     private let focusedWindow: () -> AXWindow?
@@ -24,10 +24,10 @@ final class AXWindowObserver {
     private var observers: [pid_t: AppObserver] = [:]
     private let ownPid = ProcessInfo.processInfo.processIdentifier
 
-    // A freshly launched application can take seconds before its AX interface responds,
-    // and until then its windows are never announced, hence the retries. One that fails
-    // every retry is ignored; it may have no AX interface at all.
-    static let subscriptionWindow: TimeInterval = 15
+    /// A freshly launched application can take seconds before its AX interface responds,
+    /// and until then its windows are never announced, hence the retries. One that fails
+    /// every retry is ignored; it may have no AX interface at all.
+    static let subscriptionGracePeriod: TimeInterval = 15
 
     private static let applicationNotifications = [
         kAXWindowCreatedNotification,
@@ -78,36 +78,37 @@ final class AXWindowObserver {
         self.screenIsLocked = screenIsLocked
     }
 
-    // kAXUIElementDestroyedNotification is not delivered for every window that dies: the
-    // close button of a window whose application is not in front removes it silently.
-    // Probing every known window catches those, and is done when a stale entry is about
-    // to matter: an application coming to front, the screen unlocking.
+    /// kAXUIElementDestroyedNotification is not delivered for every window that dies: the
+    /// close button of a window whose application is not in front removes it silently.
+    /// Probing every known window catches those, and is done when a stale entry is about
+    /// to matter: an application coming to front, the screen unlocking.
     func dropDeadWindows() {
         guard !screenIsLocked() else { return }
 
-        for (element, id) in registry.knownWindows() where !isAlive(element) {
+        for (element, id) in registry.knownWindows where !isAlive(element) {
             _ = registry.removeWindow(for: element)
             Log.observer.info("window died unannounced id=\(id)")
             handler?(.destroyed(id))
         }
     }
 
-    // A window that is not the active tab of its group is absent from the application's
-    // window list, so becoming focused is the only moment it can be discovered. Adopting
-    // it makes it placeable and subscribes it to the lifecycle notifications.
+    /// A window that is not the active tab of its group is absent from the application's
+    /// window list, so becoming focused is the only moment it can be discovered. Adopting
+    /// it makes it placeable and subscribes it to the lifecycle notifications.
     func adoptFocusedWindow() -> AXWindow? {
         guard let window = focusedWindow() else { return nil }
         adopt(window)
         return window
     }
 
-    // Returns the windows discovered while registering the observers, so the caller
-    // can seed the model with them instead of sweeping every application again.
+    /// Subscribes to every observable application and to launch and terminate notifications.
+    /// - Returns: the windows discovered while registering the observers, so the caller
+    ///   can seed the model with them instead of sweeping every application again.
     func start(_ handler: @escaping (WindowEvent) -> Void) -> [WindowSnapshot] {
         self.handler = handler
 
         let windows = runningApplications()
-            .filter(observable)
+            .filter(canObserve)
             .flatMap { observe($0) }
 
         notificationCenter.addObserver(self, selector: #selector(applicationLaunched(_:)),
@@ -161,9 +162,9 @@ final class AXWindowObserver {
         }
     }
 
-    // The login window comes and goes with the lock screen and covers the whole display.
-    // Managed, it would be parked in the corner the moment the user came back.
-    private func observable(_ app: NSRunningApplication) -> Bool {
+    /// The login window comes and goes with the lock screen and covers the whole display.
+    /// Managed, it would be parked in the corner the moment the user came back.
+    private func canObserve(_ app: NSRunningApplication) -> Bool {
         app.activationPolicy == .regular && app.processIdentifier != ownPid
             && app.bundleIdentifier != lockScreenBundleId
     }
@@ -181,13 +182,13 @@ final class AXWindowObserver {
         registry.add(app)
         observers[pid] = observer
 
-        return subscribe(to: app, observer: observer, deadline: now().addingTimeInterval(Self.subscriptionWindow))
+        return subscribe(to: app, observer: observer, deadline: now().addingTimeInterval(Self.subscriptionGracePeriod))
     }
 
-    // A just launched application has no AX interface yet: the subscriptions fail and its
-    // window list comes back empty. Nothing else retries the application level
-    // notifications, so without this it stays silent for the rest of its life and the
-    // window it opens on launch is never announced.
+    /// A just launched application has no AX interface yet: the subscriptions fail and its
+    /// window list comes back empty. Nothing else retries the application level
+    /// notifications, so without this it stays silent for the rest of its life and the
+    /// window it opens on launch is never announced.
     private func subscribe(to app: NSRunningApplication, observer: AppObserver, deadline: Date) -> [WindowSnapshot] {
         let pid = app.processIdentifier
         let appElement = AXUIElementCreateApplication(pid)
@@ -209,7 +210,7 @@ final class AXWindowObserver {
         guard now() < deadline else {
             Log.observer.error(
                 "giving up on pid=\(app.processIdentifier) app=\(app.localizedName ?? ""): "
-                    + "unreachable for \(Int(Self.subscriptionWindow))s"
+                    + "unreachable for \(Int(Self.subscriptionGracePeriod))s"
             )
             return
         }
@@ -250,7 +251,7 @@ final class AXWindowObserver {
     }
 
     @objc private func applicationLaunched(_ notification: Notification) {
-        guard let app = app(from: notification), observable(app) else { return }
+        guard let app = app(from: notification), canObserve(app) else { return }
         for snapshot in observe(app) {
             handler?(.created(snapshot))
         }
@@ -266,7 +267,7 @@ final class AXWindowObserver {
     }
 
     @objc private func applicationActivated(_ notification: Notification) {
-        guard let app = app(from: notification), observable(app),
+        guard let app = app(from: notification), canObserve(app),
               let observer = observers[app.processIdentifier]
         else { return }
 

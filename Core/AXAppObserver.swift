@@ -1,9 +1,10 @@
 import ApplicationServices
 
-// One observed application's AX subscription surface: what to watch and how to let go.
+/// One observed application's AX subscription surface: what to watch and how to let go.
 struct AppObserver {
-    // Reports whether the subscription is in place, so a caller depending on the
-    // notification can retry instead of never hearing from the application again.
+    /// Subscribes to one notification of the application.
+    /// - Returns: `false` if the subscription is not in place, so a caller depending on
+    ///   the notification can retry instead of never hearing from the application again.
     let watch: (AXUIElement, String) -> Bool
     let invalidate: () -> Void
 }
@@ -16,7 +17,7 @@ private final class CallbackBox {
     }
 }
 
-// The C-convention AXObserver callback: trampolines to the Swift closure carried in refcon.
+/// The C-convention AXObserver callback: trampolines to the Swift closure carried in refcon.
 private func axObserverCallback(
     _ observer: AXObserver, _ element: AXUIElement, _ notification: CFString, _ refcon: UnsafeMutableRawPointer?)
 {
@@ -26,8 +27,8 @@ private func axObserverCallback(
     box.callback(element, notification as String)
 }
 
-// The AXObserver machinery behind AppObserver: creation, the refcon trampoline
-// from the C callback to a Swift closure, and the main run loop source.
+/// The AXObserver machinery behind AppObserver: creation, the refcon trampoline
+/// from the C callback to a Swift closure, and the main run loop source.
 enum AXAppObserver {
     static func make(pid: pid_t, callback: @escaping (AXUIElement, String) -> Void) -> AppObserver? {
         var observer: AXObserver?

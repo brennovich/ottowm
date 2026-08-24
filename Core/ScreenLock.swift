@@ -1,10 +1,10 @@
 import CoreGraphics
 import Foundation
 
-// Whether the login window is covering the session.
-//
-// Behind it every accessibility attribute reads blank and window ids come back nil, so
-// each application looks like it closed all of its windows at once.
+/// Whether the login window is covering the session.
+///
+/// Behind it every accessibility attribute reads blank and window ids come back nil, so
+/// each application looks like it closed all of its windows at once.
 final class ScreenLock {
     private let notificationCenter: NotificationCenter
 

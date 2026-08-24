@@ -162,8 +162,8 @@ final class AXWindowObserverTests: XCTestCase {
         let snapshots = harness.start()
 
         XCTAssertEqual(snapshots.map(\.id), [200])
-        XCTAssertNil(harness.registry.window(byId: 100))
-        XCTAssertNotNil(harness.registry.window(byId: 200))
+        XCTAssertNil(harness.registry.window(for: 100))
+        XCTAssertNotNil(harness.registry.window(for: 200))
     }
 
     func testStartSkipsTheLockScreen() {
@@ -359,8 +359,8 @@ final class AXWindowObserverTests: XCTestCase {
         }
 
         let spent = harness.clock.timeIntervalSince(started)
-        XCTAssertGreaterThanOrEqual(spent, AXWindowObserver.subscriptionWindow)
-        XCTAssertLessThan(spent, AXWindowObserver.subscriptionWindow + harness.retryStep * 2)
+        XCTAssertGreaterThanOrEqual(spent, AXWindowObserver.subscriptionGracePeriod)
+        XCTAssertLessThan(spent, AXWindowObserver.subscriptionGracePeriod + harness.retryStep * 2)
     }
 
     func testRetryDoesNotReAnnounceKnownWindows() {
@@ -398,7 +398,7 @@ final class AXWindowObserverTests: XCTestCase {
         harness.post(NSWorkspace.didTerminateApplicationNotification, app)
 
         XCTAssertEqual(harness.invalidatedPids, [901])
-        XCTAssertNil(harness.registry.window(byId: 100))
+        XCTAssertNil(harness.registry.window(for: 100))
         XCTAssertFalse(harness.registry.knows(window))
     }
 

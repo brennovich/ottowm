@@ -2,15 +2,15 @@ import CoreGraphics
 import Dispatch
 import Foundation
 
-// Global hotkeys via a session CGEventTap for more refined control of key events,
-// such as left/right modifiers positions. The tap gets a thread of its own.
+/// Global hotkeys via a session CGEventTap for more refined control of key events,
+/// such as left/right modifiers positions. The tap gets a thread of its own.
 final class Hotkeys {
     private let keyCodeMatcher: (Int64, CGEventFlags) -> Action?
     private let dispatch: (@escaping () -> Void) -> Void
     private let handler: (Action) -> Void
 
-    // Every mutable field below belongs to the tap thread once start() has handed it
-    // over, so stop() asks that thread to release rather than doing it itself.
+    /// Every mutable field below belongs to the tap thread once start() has handed it
+    /// over, so stop() asks that thread to release rather than doing it itself.
     private var tap: CFMachPort?
     private var runLoop: CFRunLoop?
     private var released = false
@@ -63,9 +63,9 @@ final class Hotkeys {
         return true
     }
 
-    // Leaves the session's event stream for good: every application's keystrokes flow
-    // through this tap, so it must not stay in the way once it can no longer serve the
-    // hotkeys it exists for.
+    /// Leaves the session's event stream for good: every application's keystrokes flow
+    /// through this tap, so it must not stay in the way once it can no longer serve the
+    /// hotkeys it exists for.
     func stop() {
         guard let runLoop else {
             release()
@@ -113,8 +113,8 @@ final class Hotkeys {
         self.tap = nil
     }
 
-    // Released here and not through the tap thread: the block stop() hands over would
-    // outlive the deallocation it cleans up after.
+    /// Released here and not through the tap thread: the block stop() hands over would
+    /// outlive the deallocation it cleans up after.
     deinit {
         let runLoop = self.runLoop
         release()

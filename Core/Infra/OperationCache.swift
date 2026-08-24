@@ -1,7 +1,7 @@
-// Each read behind this cache is an IPC round trip (the focused window, the
-// on-screen window list), and a single engine operation asks for it several
-// times. Holds one read for the duration of an operation and drops it when the
-// outermost one ends.
+/// Each read behind this cache is an IPC round trip (the focused window, the
+/// on-screen window list), and a single engine operation asks for it several
+/// times. Holds one read for the duration of an operation and drops it when the
+/// outermost one ends.
 final class OperationCache<Value> {
     private let read: () -> Value
     private var cached: Value?

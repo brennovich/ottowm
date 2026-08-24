@@ -18,7 +18,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let permission = AccessibilityPermission.system()
-        switch permission.inquire() {
+        switch permission.request() {
         case .granted:
             break
         case .relaunching:
@@ -38,7 +38,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Log.app.notice("OttoWM (\(AppInfo.version())) launched")
 
         let windowById: (CGWindowID) -> AXWindow? = { [registry] id in
-            registry.window(byId: id)
+            registry.window(for: id)
         }
         let adoptFocusedWindow: () -> AXWindow? = { [windowObserver] in
             windowObserver.adoptFocusedWindow()
@@ -50,7 +50,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 window: windowById,
                 focusedWindowId: { AXWindow.focused()?.id }
             ),
-            screen: Screen(
+            windowSystem: WindowSystem(
                 focusedWindow: OperationCache { adoptFocusedWindow()?.snapshot() },
                 onScreenWindowIds: OperationCache {
                     Set((CGWindowListCopyWindowInfo(
@@ -70,17 +70,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         startHotkeys()
         watchForTermination()
 
-        permission.watchTrust(
+        permission.startWatchingTrust(
             lost: { [weak self] in self?.hotkeys?.stop() },
             regained: { [weak self] in self?.startHotkeys() }
         )
     }
 
-    // An LSUIElement agent has no way to be quit but a signal, and the default action for
-    // SIGTERM ends the process where it stands, with every parked window left at the
-    // hidden edge. Ignoring the signal hands its delivery to the dispatch source, whose
-    // handler runs on the main queue, the only place the accessibility calls that put the
-    // windows back are allowed to be made.
+    /// An LSUIElement agent has no way to be quit but a signal, and the default action for
+    /// SIGTERM ends the process where it stands, with every parked window left at the
+    /// hidden edge. Ignoring the signal hands its delivery to the dispatch source, whose
+    /// handler runs on the main queue, the only place the accessibility calls that put the
+    /// windows back are allowed to be made.
     private func watchForTermination() {
         signal(SIGTERM, SIG_IGN)
         let termination = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)

@@ -1,12 +1,12 @@
 import CoreGraphics
 
-// A consistent read of what the OS is showing.
-//
-// A hung application costs axMessagingTimeoutSeconds per AX round trip, and a
-// single engine operation reads the focused window and the on-screen list
-// several times over. Caching one read for the length of an operation bounds
-// that cost, and every decision in the operation sees the same screen.
-final class Screen {
+/// A consistent read of what the OS is showing.
+///
+/// A hung application costs axMessagingTimeoutSeconds per AX round trip, and a
+/// single engine operation reads the focused window and the on-screen list
+/// several times over. Caching one read for the length of an operation bounds
+/// that cost, and every decision in the operation sees the same screen.
+final class WindowSystem {
     private let focusedWindow: OperationCache<WindowSnapshot?>
     private let onScreenWindowIds: OperationCache<Set<CGWindowID>>
     private let window: (CGWindowID) -> (any Window)?

@@ -1,7 +1,7 @@
 import CoreGraphics
 
-// The windows macOS shows as tabs of one another. Membership is never exposed by
-// the OS, so a group is inferred from the window it was opened around.
+/// The windows macOS shows as tabs of one another. Membership is never exposed by
+/// the OS, so a group is inferred from the window it was opened around.
 struct TabGroups {
     private static let yTolerance: CGFloat = 10
 
@@ -13,16 +13,16 @@ struct TabGroups {
     private var groups: [Int: Group] = [:]
     private var windowToGroup: [CGWindowID: Int] = [:]
 
-    // Groups outlive their representative window and macOS recycles window ids, so a
-    // group keyed by that id could be taken over by an unrelated new window.
+    /// Groups outlive their representative window and macOS recycles window ids, so a
+    /// group keyed by that id could be taken over by an unrelated new window.
     private var nextGroupId = 1
 
-    // Joins the group whose representative this window is a tab of, or opens a new
-    // one around it.
+    /// Joins the group whose representative this window is a tab of, or opens a new
+    /// one around it.
     mutating func add(_ window: WindowSnapshot, tabCount: Int) {
         guard windowToGroup[window.id] == nil else { return }
 
-        let groupId = groupRepresenting(window, tabCount) ?? openGroup(around: window)
+        let groupId = group(representing: window, tabCount: tabCount) ?? openGroup(around: window)
         groups[groupId]?.windowIds.append(window.id)
         windowToGroup[window.id] = groupId
     }
@@ -51,14 +51,14 @@ struct TabGroups {
         groups[groupId] = group.windowIds.isEmpty ? nil : group
     }
 
-    private func groupRepresenting(_ window: WindowSnapshot, _ tabCount: Int) -> Int? {
+    private func group(representing window: WindowSnapshot, tabCount: Int) -> Int? {
         guard tabCount > 1 else { return nil }
 
         return groups.first { isTab(window, of: $0.value.representative) }?.key
     }
 
-    // macOS does not report tab membership, so it is inferred from two windows sharing
-    // an application and a frame, within a tolerance on y.
+    /// macOS does not report tab membership, so it is inferred from two windows sharing
+    /// an application and a frame, within a tolerance on y.
     private func isTab(_ window: WindowSnapshot, of representative: WindowSnapshot) -> Bool {
         return window.appName == representative.appName
             && window.frame.origin.x == representative.frame.origin.x

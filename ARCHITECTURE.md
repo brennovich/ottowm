@@ -12,7 +12,7 @@ OttoWM is a headless agent. It offers several workspaces on one native macOS Spa
 | Managed window | A window that belongs to a workspace.                                                                                                              |
 | Placement      | Where a managed window sits: `active` on screen, or `storage` at the hidden edge.                                                                  |
 | Hidden edge    | A 1 pt sliver at the bottom-right corner of the display. A storage window is parked there. OttoWM keeps its on-screen frame and restores it later. |
-| Screen         | The read side of macOS: which window has the focus, and which window ids are on screen.                                                            |
+| WindowSystem   | The read side of macOS: which window has the focus, and which window ids are on screen.                                                            |
 | Tab group      | The windows macOS shows as tabs of one window. See [Tabbed windows](#tabbed-windows).                                                              |
 | Window id      | The `CGWindowID` from the private `_AXUIElementGetWindow`. It identifies a window for as long as the window lives.                                 |
 | Frame          | A rect in top-left (AX) coordinates. `MainScreen` flips Cocoa rects into that space.                                                               |
@@ -37,7 +37,7 @@ flowchart TB
 
     subgraph os[macOS boundary]
         Desktop["Desktop<br/>(OffscreenParkingDesktop)"]
-        Screen
+        WindowSystem
         WindowRegistry
         AXWindow
         MainScreen
@@ -51,13 +51,13 @@ flowchart TB
     Engine --> Workspaces
     Workspaces --> TabGroups
     Engine -->|recover / place / focus| Desktop
-    Engine -->|focused / shows / tabCount| Screen
+    Engine -->|focused / shows / tabCount| WindowSystem
     Desktop -->|manual navigation| Engine
     AXWindowObserver -->|register / evict| WindowRegistry
     Desktop --> WindowRegistry
     Desktop --> MainScreen
-    Screen --> WindowRegistry
-    Screen -->|adopt focused| AXWindowObserver
+    WindowSystem --> WindowRegistry
+    WindowSystem -->|adopt focused| AXWindowObserver
     WindowRegistry --> AXWindow
 ```
 
@@ -67,7 +67,7 @@ flowchart TB
 | `Workspaces`                          | The pure model: window → workspace, focus history per workspace, current workspace. It makes no OS call.                                                                                                                                                                                                                                                                                                                   |
 | `TabGroups`                           | Infers which windows are tabs of one another.                                                                                                                                                                                                                                                                                                                                                                              |
 | `Desktop` (`OffscreenParkingDesktop`) | It parks a storage window at the hidden edge and restores the captured frame. `restoreAll()` puts every parked window back.                                                                         |
-| `Screen`                              | It caches the focused window and the on-screen window ids for the length of an operation.                                                                                                                                                                                                                                                                                                                   |
+| `WindowSystem`                        | It caches the focused window and the on-screen window ids for the length of an operation.                                                                                                                                                                                                                                                                                                                   |
 | `MainScreen`                          | The geometry of the main display, in top-left coordinates.                                                                                                                                                                                                                                                                                                                                                                 |
 | `AXWindowObserver`                    | Per-application `AXObserver`s and `NSWorkspace` notifications, translated into `WindowEvent`s. It registers each window it watches. `dropDeadWindows()` probes the known windows, because macOS sends no destroyed notification when the close button removes a window of a background application. The `AXObserverCreate` and run-loop code sits behind `AXAppObserver.make`; every other OS call is an injected closure. |
 | `WindowRegistry`                      | The map of known windows: `AXUIElement` ↔ `CGWindowID`, plus pid → application. It resolves an id back to a live `AXWindow`.                                                                                                                                                                                                                                                                                               |
@@ -75,7 +75,7 @@ flowchart TB
 | `Hotkeys`                             | A session `CGEventTap` on keyDown. Carbon hotkeys are not enough, because only the raw device flags tell the left modifier from the right one. It holds a matcher `(keyCode, flags) → Action?` and sends each match to `Engine.handle`.                                                                                                                                                                                    |
 | `Config`                              | The binding table `KeyCombo → Action`, indexed by key code, because the lookup runs inside the event tap callback.                                                                                                                                                                                                                                                                                                         |
 | `ConfigFile`                          | Reads `$XDG_CONFIG_HOME/ottowm/ottowm`, or `~/.config/ottowm/ottowm`. It falls back to the bundled copy only when the user has no file. A file that does not parse returns a `ConfigError`, and `AppDelegate` exits. `ConfigFileParser` stops at the first bad line.                                                                                                                                                       |
-| `AccessibilityPermission`             | The startup gate. `inquire()` offers Settings and Quit, and relaunches the app when the grant lands. `watchTrust` stops the event tap when the grant is revoked, and starts it again when it returns.                                                                                                                                                                                                                      |
+| `AccessibilityPermission`             | The startup gate. `request()` offers Settings and Quit, and relaunches the app when the grant lands. `startWatchingTrust` stops the event tap when the grant is revoked, and starts it again when it returns.                                                                                                                                                                                                              |
 | `ScreenLock`                          | Reports whether the login window covers the session, from the `com.apple.screenIsLocked` and `com.apple.screenIsUnlocked` notifications.                                                                                                                                                                                                                                                                                   |
 | `OperationCache`                      | Holds one AX or CG read for the length of an operation. Each read is an IPC round trip.                                                                                                                                                                                                                                                                                                                                    |
 
@@ -98,16 +98,16 @@ sequenceDiagram
     AppDelegate->>ConfigFile: load()
     ConfigFile-->>AppDelegate: Config (user file, else bundled), or ConfigError
     Note right of AppDelegate: a rejected file exits before any window moves
-    AppDelegate->>AccessibilityPermission: inquire()
+    AppDelegate->>AccessibilityPermission: request()
     AccessibilityPermission-->>AppDelegate: granted (else quit, or relaunch after the grant)
     AppDelegate->>AXWindowObserver: start(handler)
     AXWindowObserver-->>AppDelegate: [WindowSnapshot] found while it subscribes
     AppDelegate->>Engine: start(windows:)
-    Engine->>Desktop: recover(windows:)
+    Engine->>Desktop: recover(_:)
     Note right of Desktop: puts back the windows a previous run left at the hidden edge
     Desktop-->>Engine: [WindowSnapshot] at their recovered frames
     Engine->>Workspaces: assign every window to workspace 1
-    Engine->>Desktop: startWatchingForManualNavigation
+    Engine->>Desktop: startWatching(manualNavigation:)
     AppDelegate->>Hotkeys: start()
 ```
 
@@ -122,11 +122,11 @@ An `LSUIElement` agent has no quit command, so a signal is the only way out. The
 ```mermaid
 sequenceDiagram
     Hotkeys->>Engine: handle(switchToWorkspace(n))
-    Engine->>Screen: focused(), shows(), showsAny()
+    Engine->>WindowSystem: focused(), shows(), showsAny()
     Note over Engine: drops a full screen window, drops the windows that left the desktop, admits the focused window
     Engine->>Workspaces: switchTo(n, leavingFocusOn: focused)
     Workspaces-->>Engine: (toActive, toStorage)
-    Engine->>Desktop: place(id, .active) / place(id, .storage)
+    Engine->>Desktop: place(id, at: .active) / place(id, at: .storage)
     alt the desktop is in front
         Engine->>Desktop: focus(nextWindowToFocus)
     else another native Space is in front
@@ -134,7 +134,7 @@ sequenceDiagram
     end
 ```
 
-The whole switch runs inside `Screen.duringOperation`, so the focused window and the on-screen list are each read once. A window that `Desktop.place` cannot reach is no longer managed.
+The whole switch runs inside `WindowSystem.duringOperation`, so the focused window and the on-screen list are each read once. A window that `Desktop.place` cannot reach is no longer managed.
 
 ### Manual navigation (Cmd-Tab, Dock, Mission Control)
 
@@ -164,7 +164,7 @@ A window out of reach cannot be parked, so OttoWM stops managing it instead of m
 
 macOS reports no tab membership, so OttoWM infers it. A tab group is one window to macOS: its tabs minimize, restore and move together.
 
-- **Discovery.** An application lists only the active tab of a group in `kAXWindowsAttribute`, and sends no notification when the user switches tabs. A background tab is reachable only when it takes the focus. `Screen.focused()` therefore reads through `AXWindowObserver.adoptFocusedWindow()`, which registers the window and subscribes it to the window notifications.
+- **Discovery.** An application lists only the active tab of a group in `kAXWindowsAttribute`, and sends no notification when the user switches tabs. A background tab is reachable only when it takes the focus. `WindowSystem.focused()` therefore reads through `AXWindowObserver.adoptFocusedWindow()`, which registers the window and subscribes it to the window notifications.
 - **Membership.** `AXWindow.tabCount()` counts the radio buttons of the first `AXTabGroup` child. A window with more than one tab joins the first group whose representative window has the same application name, the same x, the same width and height, and a y within 10 pt. Any other window opens a new group and becomes its representative.
 - **Group id.** A group is keyed by a counter, not by a window id, because macOS reuses window ids and a group outlives its representative.
 - **Placement.** `Workspaces` assigns every member of a group together. A window that joins a group lands in the workspace of the group. The group does not follow the new window.

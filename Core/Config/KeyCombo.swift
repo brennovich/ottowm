@@ -16,8 +16,8 @@ enum ModifierKey: CaseIterable {
         }
     }
 
-    // The device-dependent NX_DEVICE* bits macOS sets next to the mask: the only public
-    // way to tell the left key from the right one.
+    /// The device-dependent NX_DEVICE* bits macOS sets next to the mask: the only public
+    /// way to tell the left key from the right one.
     private var deviceBits: (left: UInt64, right: UInt64) {
         switch self {
         case .command: return (left: 0x8, right: 0x10)
@@ -38,8 +38,8 @@ enum ModifierKey: CaseIterable {
     }
 }
 
-// A key plus the modifiers that must accompany it, as written in the config file:
-// `modifier ("-" modifier)* "-" key`, e.g. "lalt-shift-1".
+/// A key plus the modifiers that must accompany it, as written in the config file:
+/// `modifier ("-" modifier)* "-" key`, e.g. "lalt-shift-1".
 struct KeyCombo: Hashable {
     let keyCode: Int64
     let modifiers: [ModifierKey: ModifierSide]

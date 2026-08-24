@@ -1,6 +1,6 @@
 import CoreGraphics
 
-// A window's state at a point in time, read in one batched round trip to reduce IPC calls.
+/// A window's state at a point in time, read in one batched round trip to reduce IPC calls.
 struct WindowSnapshot: Sendable, Equatable {
     let id: CGWindowID
     let appName: String
@@ -13,10 +13,10 @@ struct WindowSnapshot: Sendable, Equatable {
 }
 
 extension WindowSnapshot {
-    // A standard subrole is not the only real window: an application drawing its own
-    // decorations reports AXDialog, as does a hidden application's, and Quick Look or an
-    // image viewer reports AXFloatingWindow. The title bar buttons are what separate the
-    // real windows from the popups.
+    /// A standard subrole is not the only real window: an application drawing its own
+    /// decorations reports AXDialog, as does a hidden application's, and Quick Look or an
+    /// image viewer reports AXFloatingWindow. The title bar buttons are what separate the
+    /// real windows from the popups.
     var isAdmissible: Bool {
         id != 0 && !isFullScreen && !isMinimized && (isStandard || (hasCloseButton && hasMinimizeButton))
     }
