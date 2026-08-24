@@ -40,6 +40,12 @@ final class AXWindowObserver {
         kAXWindowDeminiaturizedNotification,
     ]
 
+    private static let workspaceNotifications: [(name: NSNotification.Name, selector: Selector)] = [
+        (NSWorkspace.didLaunchApplicationNotification, #selector(applicationLaunched(_:))),
+        (NSWorkspace.didTerminateApplicationNotification, #selector(applicationTerminated(_:))),
+        (NSWorkspace.didActivateApplicationNotification, #selector(applicationActivated(_:))),
+    ]
+
     init(
         registry: WindowRegistry,
         focusedWindow: @escaping () -> AXWindow? = AXWindow.focused,
@@ -80,8 +86,8 @@ final class AXWindowObserver {
 
     /// kAXUIElementDestroyedNotification is not delivered for every window that dies: the
     /// close button of a window whose application is not in front removes it silently.
-    /// Probing every known window catches those, and is done when a stale entry is about
-    /// to matter: an application coming to front, the screen unlocking.
+    /// Probing every known window catches those, and is done when a stale entry is
+    /// relevant: an application coming to front or the screen unlocking.
     func dropDeadWindows() {
         guard !screenIsLocked() else { return }
 
@@ -111,12 +117,9 @@ final class AXWindowObserver {
             .filter(canObserve)
             .flatMap { observe($0) }
 
-        notificationCenter.addObserver(self, selector: #selector(applicationLaunched(_:)),
-                                       name: NSWorkspace.didLaunchApplicationNotification, object: nil)
-        notificationCenter.addObserver(self, selector: #selector(applicationTerminated(_:)),
-                                       name: NSWorkspace.didTerminateApplicationNotification, object: nil)
-        notificationCenter.addObserver(self, selector: #selector(applicationActivated(_:)),
-                                       name: NSWorkspace.didActivateApplicationNotification, object: nil)
+        for n in Self.workspaceNotifications {
+            notificationCenter.addObserver(self, selector: n.selector, name: n.name, object: nil)
+        }
 
         return windows
     }
@@ -128,14 +131,6 @@ final class AXWindowObserver {
 
         Log.observer.info("adopting \(window.logDescription)")
         watchWindow(window, observer: observer)
-    }
-
-    private func handle(element: AXUIElement, notification: String, app: NSRunningApplication) {
-        guard let event = event(for: element, notification: notification, app: app) else {
-            Log.observer.debug("dropped \(notification)")
-            return
-        }
-        handler?(event)
     }
 
     private func event(for element: AXUIElement, notification: String, app: NSRunningApplication) -> WindowEvent? {
@@ -162,8 +157,7 @@ final class AXWindowObserver {
         }
     }
 
-    /// The login window comes and goes with the lock screen and covers the whole display.
-    /// Managed, it would be parked in the corner the moment the user came back.
+    /// The login window must not be managed.
     private func canObserve(_ app: NSRunningApplication) -> Bool {
         app.activationPolicy == .regular && app.processIdentifier != ownPid
             && app.bundleIdentifier != lockScreenBundleId
@@ -173,7 +167,12 @@ final class AXWindowObserver {
         let pid = app.processIdentifier
         guard observers[pid] == nil else { return [] }
         guard let observer = makeObserver(pid, { [weak self] element, notification in
-            self?.handle(element: element, notification: notification, app: app)
+            guard let self else { return }
+            guard let event = event(for: element, notification: notification, app: app) else {
+                Log.observer.debug("dropped \(notification)")
+                return
+            }
+            handler?(event)
         }) else {
             Log.observer.error("cannot observe pid=\(pid) app=\(app.localizedName ?? "")")
             return []
@@ -185,10 +184,11 @@ final class AXWindowObserver {
         return subscribe(to: app, observer: observer, deadline: now().addingTimeInterval(Self.subscriptionGracePeriod))
     }
 
-    /// A just launched application has no AX interface yet: the subscriptions fail and its
-    /// window list comes back empty. Nothing else retries the application level
-    /// notifications, so without this it stays silent for the rest of its life and the
-    /// window it opens on launch is never announced.
+    /// Subscribes to the application level notifications.
+    ///
+    /// Retrying is necessary because the AX interface of a just launched application may not
+    /// be up yet. If the subscriptions fail nothing else re-subscribes.
+    /// - Returns: the windows the application already has.
     private func subscribe(to app: NSRunningApplication, observer: AppObserver, deadline: Date) -> [WindowSnapshot] {
         let pid = app.processIdentifier
         let appElement = AXUIElementCreateApplication(pid)

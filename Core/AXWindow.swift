@@ -69,6 +69,7 @@ final class AXWindow: Window {
     /// An application animates a frame write while AXEnhancedUserInterface is on, and
     /// macOS turns that attribute on as soon as an assistive client like OttoWM attaches.
     /// The move flickers, and a frame read mid animation returns the old position.
+    ///
     /// Credited to yabai and Rectangle, via AeroSpace.
     func withoutAnimations(_ body: () -> Void) {
         let appElement = AXUIElementCreateApplication(application.processIdentifier)

@@ -1,7 +1,8 @@
 import CoreGraphics
 
-/// The physical counterpart to the pure Workspaces model: where windows actually
-/// sit on screen, and the handle to the single native Space everything happens on.
+/// Applies the `Workspaces` model to the screen: `Workspaces` records which workspace a
+/// window belongs to, `Desktop` moves and focuses the windows to match. All workspaces
+/// share one native macOS Space.
 protocol Desktop {
     func recover(_ windows: [WindowSnapshot]) -> [WindowSnapshot]
     /// Places the window at `placement`.
