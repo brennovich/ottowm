@@ -83,7 +83,7 @@ flowchart TB
 
 ```
 WindowEvent  = created(WindowSnapshot) | focused(WindowSnapshot) | destroyed(id) | minimized(id) | unminimized(WindowSnapshot)
-Action       = switchToWorkspace(n) | moveWindowToWorkspace(n)   // "switch-to-workspace n" in the config
+Action       = switchToWorkspace(n) | moveWindowToWorkspace(n) | quit   // "switch-to-workspace n" in the config
 KeyCombo     = (keyCode, [ModifierKey: ModifierSide])            // "lopt-shift-1"
 Placement    = active | storage
 WindowSnapshot(id, appName, isStandard, hasCloseButton, hasMinimizeButton, isFullScreen, isMinimized, frame)
@@ -115,7 +115,9 @@ sequenceDiagram
 
 ### Shutdown
 
-An `LSUIElement` agent has no quit command, so a signal is the only way out. The default action for `SIGTERM` ends the process with every parked window still at the hidden edge. `AppDelegate` ignores the signal and takes it on a `DispatchSourceSignal` on the main queue, the only thread where the accessibility writes are allowed. The handler calls `Engine.stop`, which calls `Desktop.restoreAll()`.
+An `LSUIElement` agent has no quit command, so the ways out are a bound `quit` action and a signal. `Engine.handle(.quit)` calls `Engine.stop` and then the `quit` closure `AppDelegate` injected, which ends the process. The hotkey handler already runs on the main queue, the only thread where the accessibility writes are allowed.
+
+The default action for `SIGTERM` ends the process with every parked window still at the hidden edge. `AppDelegate` ignores the signal and takes it on a `DispatchSourceSignal` on the main queue. The handler calls `Engine.stop`, which calls `Desktop.restoreAll()`.
 
 ### Workspace switch
 

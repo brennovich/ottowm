@@ -13,3 +13,6 @@ lopt-shift-1 = move-window-to-workspace 1
 lopt-shift-2 = move-window-to-workspace 2
 lopt-shift-3 = move-window-to-workspace 3
 lopt-shift-4 = move-window-to-workspace 4
+
+# Quit OttoWM, putting every parked window back where it was
+hyper-q = quit

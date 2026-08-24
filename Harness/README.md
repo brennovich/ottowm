@@ -17,7 +17,7 @@ There is no target of its own to build. Each run compiles the harness into its o
 
 Whatever runs the harness needs Accessibility permission, the terminal running `make` locally, the process running the binary on CI. Posting events and reading frames both depend on it, and the harness says so and stops rather than measuring a desk it cannot see. The app needs its own grant.
 
-The app is launched with `XDG_CONFIG_HOME` pointing at a staged copy of the bundled defaults, so whatever sits in the real `~/.config/ottowm` cannot change what the run is bound to. `Hotkeys.swift` posts the combos those defaults bind, left Option and left Option + Shift, with the device-dependent flag bits set by hand: only the raw event flags tell the left Option key from the right one, and System Events cannot produce them.
+The app is launched with `XDG_CONFIG_HOME` pointing at a staged copy of the bundled defaults, so whatever sits in the real `~/.config/ottowm` cannot change what the run is bound to. `Hotkeys.swift` posts the combos those defaults bind: left Option and left Option + Shift, with the device-dependent flag bits set by hand, since only the raw event flags tell the left Option key from the right one and System Events cannot produce them; and hyper + Q for the quit action, which needs no such bits because `hyper` takes either side of every modifier.
 
 ## The desk
 
@@ -36,7 +36,7 @@ The last window staged, the TextEdit document, is the one the hotkeys move betwe
 
 Safari is the exception to how the windows are opened. `open -a Safari` hands the page to whichever window is already up rather than putting a new one up, and a tab that is not the active one cannot be read through the accessibility API, so the second desk's page opens and is unfindable at the same time. Safari is asked for an empty window first and handed the page after, because the page goes to whichever window is frontmost. The ask goes through `File > New Window` in its menu bar, which the Accessibility permission the run already holds is enough to press. Asking for a new document the scriptable way, which is Safari's own word for a window, would want an Automation grant instead, and a machine with nobody at it never gets one: `osascript` sits on the request for the two minute AppleEvent timeout and says nothing legible about why.
 
-Windows the run opened are closed on the way out and applications it launched are quit, an application that was already there keeps the windows that were already its own. The staged files go with them. OttoWM is waited out rather than merely asked to quit, and killed if it will not, because the next run refuses to start while one is up and CI runs them back to back. All of it happens on a failure too, `fail` unwinds the same stack before it exits.
+Windows the run opened are closed on the way out and applications it launched are quit, an application that was already there keeps the windows that were already its own. The staged files go with them. The acceptance run ends OttoWM with the quit hotkey and waits it out; the cleanup still signals whatever is left running, and kills it if it will not go, because the next run refuses to start while one is up and CI runs them back to back. All of it happens on a failure too, `fail` unwinds the same stack before it exits.
 
 ## What a run gets
 

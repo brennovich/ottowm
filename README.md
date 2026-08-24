@@ -34,8 +34,9 @@ Out of the box (bundled config):
 |---|---|
 | left&nbsp;Option + 1–4 | Switch to workspace |
 | left&nbsp;Option + Shift + 1–4 | Move focused window to workspace |
+| Cmd + Ctrl + Option + Shift + Q | Quit OttoWM |
 
-> Only the **left** Option key triggers the default bindings; the right one is left free for typing special characters™.
+> Only the **left** Option key triggers the default workspace bindings; the right one is left free for typing special characters™.
 
 ## Install
 
@@ -67,12 +68,13 @@ lopt-shift-1 = move-window-to-workspace 1
 hyper-5 = switch-to-workspace 5
 ```
 
-Actions take a workspace number, and workspaces are created on demand:
+Workspaces are created on demand:
 
-| Action                       | Effect                                 |
-|------------------------------|----------------------------------------|
-| `switch-to-workspace N`      | Switch to workspace N                  |
-| `move-window-to-workspace N` | Move the focused window to workspace N |
+| Action                       | Effect                                        |
+|------------------------------|-----------------------------------------------|
+| `switch-to-workspace N`      | Switch to workspace N                         |
+| `move-window-to-workspace N` | Move the focused window to workspace N        |
+| `quit`                       | Quit OttoWM, putting every parked window back |
 
 Config is read once at launch; restart the agent to pick up edits. Errors show up in the log:
 

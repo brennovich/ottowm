@@ -11,6 +11,7 @@ final class ConfigFileParserTests: XCTestCase {
 
         lalt-shift-1 = move-window-to-workspace 1
           hyper-f18   =   switch-to-workspace 12
+        lopt-q = quit
         """
 
         XCTAssertEqual(
@@ -19,6 +20,7 @@ final class ConfigFileParserTests: XCTestCase {
                 "lalt-1": .switchToWorkspace(1),
                 "lalt-shift-1": .moveWindowToWorkspace(1),
                 "hyper-f18": .switchToWorkspace(12),
+                "lopt-q": .quit,
             ]))
         )
     }
@@ -50,6 +52,21 @@ final class ConfigFileParserTests: XCTestCase {
                 "an action that does not parse",
                 "lalt-1 = warp-to-workspace 1",
                 ConfigError(line: 1, reason: .unknownAction("warp-to-workspace"))
+            ),
+            (
+                "an unknown action without an argument",
+                "lalt-1 = warp",
+                ConfigError(line: 1, reason: .unknownAction("warp"))
+            ),
+            (
+                "an action that takes no argument, given one",
+                "lalt-1 = quit 1",
+                ConfigError(line: 1, reason: .malformedAction("quit 1"))
+            ),
+            (
+                "an action that takes a workspace, given none",
+                "lalt-1 = switch-to-workspace",
+                ConfigError(line: 1, reason: .malformedAction("switch-to-workspace"))
             ),
             (
                 "assignment without an action",

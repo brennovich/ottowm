@@ -22,7 +22,7 @@ struct ConfigError: Error, Equatable, CustomStringConvertible {
             case let .missingKey(combo): return "\(combo) names no key"
             case let .unknownKey(name): return "unknown key \(name)"
             case let .unknownAction(name): return "unknown action \(name)"
-            case let .malformedAction(action): return "expected `<action> <workspace>`, got \(action)"
+            case let .malformedAction(action): return "expected `<action>` or `<action> <workspace>`, got \(action)"
             case let .invalidWorkspace(value): return "workspace must be a number from 1, got \(value)"
             }
         }
