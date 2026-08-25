@@ -16,3 +16,6 @@ lopt-shift-4 = move-window-to-workspace 4
 
 # Quit OttoWM, putting every parked window back where it was
 hyper-q = quit
+
+# Reload the config file and the bindings it names
+hyper-r = restart

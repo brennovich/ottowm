@@ -65,14 +65,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             quit: {
                 Log.app.notice("quit action received, window frames restored")
                 exit(EXIT_SUCCESS)
-            }
+            },
+            restart: { [weak self] in self?.reloadConfig() }
         )
         self.engine = engine.start(windows: windowObserver.start { engine.handle($0) })
         self.hotkeys = Hotkeys(keyCodeMatcher: config.action, handler: engine.handle)
 
         screenLock.startWatching { [windowObserver] in windowObserver.dropDeadWindows() }
         startHotkeys()
-        watchForTermination()
+        startWatchingSIGTERM()
 
         permission.startWatchingTrust(
             lost: { [weak self] in self?.hotkeys?.stop() },
@@ -80,12 +81,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
-    /// A bound `quit` action is one way out, a signal is the other, and the default action
-    /// for SIGTERM ends the process where it stands, with every parked window left at the
-    /// hidden edge. Ignoring the signal hands its delivery to the dispatch source, whose
-    /// handler runs on the main queue, the only place the accessibility calls that put the
-    /// windows back are allowed to be made.
-    private func watchForTermination() {
+    private func startWatchingSIGTERM() {
         signal(SIGTERM, SIG_IGN)
         let termination = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
         termination.setEventHandler { [weak self] in
@@ -95,6 +91,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         termination.resume()
         self.termination = termination
+    }
+
+    private func reloadConfig() {
+        guard let engine else { return }
+        guard case let .success(config) = ConfigFile.load() else {
+            Log.app.error("unable to load a valid config, keeping the bindings already up")
+            return
+        }
+
+        hotkeys?.stop()
+        hotkeys = Hotkeys(keyCodeMatcher: config.action, handler: engine.handle)
+        startHotkeys()
+        Log.app.notice("config reloaded")
     }
 
     private func startHotkeys() {

@@ -8,6 +8,7 @@ final class Engine {
     private let workspaces: Workspaces
     private let screenIsLocked: () -> Bool
     private let quit: () -> Void
+    private let restart: () -> Void
     private var ignoreNextManualNavigation = false
     private var fullscreenWindowOriginalWorkspace: [CGWindowID: Int] = [:]
     /// The window OttoWM last asked for the focus, and the ones it asked for earlier and
@@ -22,13 +23,15 @@ final class Engine {
         windowSystem: WindowSystem,
         workspaces: Workspaces = Workspaces(),
         screenIsLocked: @escaping () -> Bool = { false },
-        quit: @escaping () -> Void = {}
+        quit: @escaping () -> Void = {},
+        restart: @escaping () -> Void = {}
     ) {
         self.desktop = desktop
         self.windowSystem = windowSystem
         self.workspaces = workspaces
         self.screenIsLocked = screenIsLocked
         self.quit = quit
+        self.restart = restart
     }
 
     @discardableResult
@@ -86,6 +89,7 @@ final class Engine {
         case let .switchToWorkspace(workspace): switchToWorkspace(workspace)
         case let .moveWindowToWorkspace(workspace): moveFocusedWindow(toWorkspace: workspace)
         case .quit: stop(); quit()
+        case .restart: restart()
         }
     }
 

@@ -2,6 +2,7 @@ enum Action: Equatable {
     case switchToWorkspace(Int)
     case moveWindowToWorkspace(Int)
     case quit
+    case restart
 
     static func parse(_ text: String) -> Result<Action, ConfigError.Reason> {
         let parts = text.split(separator: " ").map(String.init)
@@ -24,6 +25,7 @@ enum Action: Equatable {
 
     private static let actionsByVerb: [String: Action] = [
         "quit": .quit,
+        "restart": .restart,
     ]
 
     private static let workspaceActionsByVerb: [String: (Int) -> Action] = [

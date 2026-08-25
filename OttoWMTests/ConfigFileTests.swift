@@ -62,6 +62,10 @@ final class ConfigFileTests: XCTestCase {
             config.action(keyCode: 12, flags: [.leftCommand, .leftControl, .leftOption, .leftShift]),
             .quit
         )
+        XCTAssertEqual(
+            config.action(keyCode: 15, flags: [.leftCommand, .leftControl, .leftOption, .leftShift]),
+            .restart
+        )
     }
 
     func testRejectsAnUnparseableUserConfig() {

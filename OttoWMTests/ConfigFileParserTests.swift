@@ -12,6 +12,7 @@ final class ConfigFileParserTests: XCTestCase {
         lalt-shift-1 = move-window-to-workspace 1
           hyper-f18   =   switch-to-workspace 12
         lopt-q = quit
+        lopt-r = restart
         """
 
         XCTAssertEqual(
@@ -21,6 +22,7 @@ final class ConfigFileParserTests: XCTestCase {
                 "lalt-shift-1": .moveWindowToWorkspace(1),
                 "hyper-f18": .switchToWorkspace(12),
                 "lopt-q": .quit,
+                "lopt-r": .restart,
             ]))
         )
     }

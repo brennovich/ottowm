@@ -8,6 +8,7 @@ final class EngineTests: XCTestCase {
     private var offScreenWindowIds: Set<CGWindowID> = []
     private var screenIsLocked = false
     private var quitCount = 0
+    private var restartCount = 0
     private let workspaces = Workspaces()
 
     private lazy var desktop = StubDesktop(window: { [weak self] id in self?.windows[id] })
@@ -28,7 +29,8 @@ final class EngineTests: XCTestCase {
         ),
         workspaces: workspaces,
         screenIsLocked: { [weak self] in self?.screenIsLocked ?? false },
-        quit: { [weak self] in self?.quitCount += 1 }
+        quit: { [weak self] in self?.quitCount += 1 },
+        restart: { [weak self] in self?.restartCount += 1 }
     )
 
     @discardableResult
@@ -84,6 +86,18 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(desktop.placement(of: 100), .active)
         XCTAssertEqual(desktop.placement(of: 200), .active)
         XCTAssertEqual(quitCount, 1)
+    }
+
+    func testRestartLeavesTheDeskWhereItStands() {
+        let win1 = create(StubWindow(id: 100))
+        create(StubWindow(id: 200))
+        moveFocusedWindow(win1, to: 2)
+
+        engine.handle(.restart)
+
+        XCTAssertEqual(desktop.placement(of: 100), .storage)
+        XCTAssertEqual(desktop.placement(of: 200), .active)
+        XCTAssertEqual(restartCount, 1)
     }
 
     func testInvalidWindowsAreNeverAdmitted() {

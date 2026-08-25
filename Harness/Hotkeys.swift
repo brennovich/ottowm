@@ -3,13 +3,14 @@ import AppKit
 // Only the raw event flags tell the left Option key from the right one, and the bundled
 // workspace bindings are all left Option, so the device dependent bits of
 // Core/Config/KeyCombo.swift have to be set by hand. System Events cannot produce them.
-// The bundled quit binding is hyper, which takes either side of every modifier, so the
-// masks alone match it.
+// The bundled quit and restart bindings are hyper, which takes either side of every
+// modifier, so the masks alone match them.
 let leftOptionBit: UInt64 = 0x20
 let leftShiftBit: UInt64 = 0x2
 
-let keyCodesByWorkspace: [Int: CGKeyCode] = [1: 18, 2: 19, 3: 20, 4: 21]
+let keyCodesByWorkspace: [Int: CGKeyCode] = [1: 18, 2: 19, 3: 20, 4: 21, 5: 23]
 let quitKeyCode: CGKeyCode = 12
+let restartKeyCode: CGKeyCode = 15
 
 // Built once rather than per post: the benchmark reads its clock before the hotkey goes
 // out, so anything built inside post() is charged to the app as latency.
@@ -50,4 +51,8 @@ func moveWindowToWorkspace(_ workspace: Int) {
 
 func quit() {
     post(quitKeyCode, [.maskCommand, .maskControl, .maskAlternate, .maskShift])
+}
+
+func restart() {
+    post(restartKeyCode, [.maskCommand, .maskControl, .maskAlternate, .maskShift])
 }

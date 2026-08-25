@@ -17,7 +17,7 @@ There is no target of its own to build. Each run compiles the harness into its o
 
 Whatever runs the harness needs Accessibility permission, the terminal running `make` locally, the process running the binary on CI. Posting events and reading frames both depend on it, and the harness says so and stops rather than measuring a desk it cannot see. The app needs its own grant.
 
-The app is launched with `XDG_CONFIG_HOME` pointing at a staged copy of the bundled defaults, so whatever sits in the real `~/.config/ottowm` cannot change what the run is bound to. `Hotkeys.swift` posts the combos those defaults bind: left Option and left Option + Shift, with the device-dependent flag bits set by hand, since only the raw event flags tell the left Option key from the right one and System Events cannot produce them; and hyper + Q for the quit action, which needs no such bits because `hyper` takes either side of every modifier.
+The app is launched with `XDG_CONFIG_HOME` pointing at a staged copy of the bundled defaults, so whatever sits in the real `~/.config/ottowm` cannot change what the run is bound to. `Hotkeys.swift` posts the combos those defaults bind: left Option and left Option + Shift, with the device-dependent flag bits set by hand, since only the raw event flags tell the left Option key from the right one and System Events cannot produce them; and hyper + Q and hyper + R for the quit and restart actions, which need no such bits because `hyper` takes either side of every modifier. `Session.rebind` appends a line to that staged copy, for a run that then posts hyper + R and drives the rest of itself through a key nothing was bound to when the app launched.
 
 ## The desk
 

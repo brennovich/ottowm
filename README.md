@@ -35,6 +35,7 @@ Out of the box (bundled config):
 | left&nbsp;Option + 1–4 | Switch to workspace |
 | left&nbsp;Option + Shift + 1–4 | Move focused window to workspace |
 | Cmd + Ctrl + Option + Shift + Q | Quit OttoWM |
+| Cmd + Ctrl + Option + Shift + R | Reload the config |
 
 > Only the **left** Option key triggers the default workspace bindings; the right one is left free for typing special characters™.
 
@@ -70,13 +71,14 @@ hyper-5 = switch-to-workspace 5
 
 Workspaces are created on demand:
 
-| Action                       | Effect                                        |
-|------------------------------|-----------------------------------------------|
-| `switch-to-workspace N`      | Switch to workspace N                         |
-| `move-window-to-workspace N` | Move the focused window to workspace N        |
-| `quit`                       | Quit OttoWM, putting every parked window back |
+| Action                       | Effect                                         |
+|------------------------------|------------------------------------------------|
+| `switch-to-workspace N`      | Switch to workspace N                          |
+| `move-window-to-workspace N` | Move the focused window to workspace N         |
+| `quit`                       | Quit OttoWM, putting every parked window back  |
+| `restart`                    | Read the config file again and rebind the keys |
 
-Config is read once at launch; restart the agent to pick up edits. Errors show up in the log:
+The `restart` action reload config without a relaunch: the windows stay where they are,. A file that does not parse leaves the bindings already up in place. Errors show up in the log:
 
 ```sh
 log stream --level debug --predicate 'subsystem == "com.github.brennovich.ottowm" && category == "config"'

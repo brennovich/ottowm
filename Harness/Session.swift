@@ -212,6 +212,28 @@ struct Session {
         }
     }
 
+    // Adds a binding to the staged configuration, for a run that asks OttoWM to reload it
+    // and then posts the key it names. Appended rather than written over: the run still
+    // needs the quit and restart bindings the staged defaults carry.
+    func rebind(_ line: String) {
+        guard let staged = try? String(contentsOf: stagedConfig, encoding: .utf8) else {
+            fail("cannot read the staged configuration at \(stagedConfig.path)")
+        }
+
+        write(staged + "\n\(line)\n", to: stagedConfig)
+    }
+
+    // A reload builds a new event tap, and a hotkey posted before it is up is lost.
+    func waitForReload() {
+        eventually("OttoWM reloaded its config") { [ottowm] in
+            ottowmLog(of: ottowm.processIdentifier).contains("config reloaded")
+                ? nil
+                : "no reload line logged yet"
+        }
+
+        Thread.sleep(forTimeInterval: tapSettleSeconds)
+    }
+
     // The desk OttoWM took over is owed back whole when it goes.
     func waitForExit() {
         eventually("OttoWM exited") { [ottowm] in
@@ -227,19 +249,20 @@ struct Session {
 
 private let temporaryDirectory = URL(fileURLWithPath: NSTemporaryDirectory())
     .appendingPathComponent("ottowm-\(harness)-\(ProcessInfo.processInfo.processIdentifier)")
+private let stagedConfig = temporaryDirectory.appendingPathComponent("ottowm/ottowm")
 
 // Stages the configuration the run is bound to and the documents its windows show, and
 // returns the windows to open, the last one being the one the hotkeys move.
 private func stageDesk(instances: Int) -> [WindowSource] {
-    let configDirectory = temporaryDirectory.appendingPathComponent("ottowm")
-
     do {
-        try FileManager.default.createDirectory(at: configDirectory, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(
+            at: stagedConfig.deletingLastPathComponent(), withIntermediateDirectories: true
+        )
         // The bundled defaults, read through XDG_CONFIG_HOME so whatever sits in the real
         // ~/.config/ottowm cannot change what this run is bound to.
         try FileManager.default.copyItem(
             at: URL(fileURLWithPath: "\(appPath)/Contents/Resources/ottowm"),
-            to: configDirectory.appendingPathComponent("ottowm")
+            to: stagedConfig
         )
     } catch {
         fail("cannot stage the configuration, \(error.localizedDescription)")
