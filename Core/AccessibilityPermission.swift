@@ -18,9 +18,14 @@ struct AccessibilityPermission {
         case quit
     }
 
+    // System Settings takes a moment to come up, and an alert raised before it is on
+    // screen lands on top of the pane the user is being sent to.
+    static let settingsCooldownSeconds: TimeInterval = 3
+
     let isTrusted: () -> Bool
     let ask: (Request) -> Response
     let openSettings: () -> Void
+    let wait: (TimeInterval) -> Void
     let observeTrustChanges: (@escaping () -> Void) -> Void
     let relaunch: () -> Void
 
@@ -40,6 +45,7 @@ struct AccessibilityPermission {
         // answer the user gives afterwards cannot cancel it.
         if ask(.openSettings) == .quit { return relaunching ? .relaunching : .quit }
         openSettings()
+        wait(Self.settingsCooldownSeconds)
         if ask(.restart) == .quit { return relaunching ? .relaunching : .quit }
 
         relaunching = true
@@ -80,6 +86,11 @@ extension AccessibilityPermission {
                     configuration: configuration,
                     completionHandler: nil
                 )
+            },
+            wait: { seconds in
+                // The gate runs before any window exists, so the run loop only has the
+                // modal alerts to serve and blocking it holds nothing else up.
+                Thread.sleep(forTimeInterval: seconds)
             },
             observeTrustChanges: { changed in
                 DistributedNotificationCenter.default().addObserver(

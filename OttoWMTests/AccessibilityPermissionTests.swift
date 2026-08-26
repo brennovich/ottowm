@@ -5,6 +5,8 @@ final class AccessibilityPermissionTests: XCTestCase {
     private var requests: [AccessibilityPermission.Request] = []
     private var responses: [AccessibilityPermission.Response] = []
     private var watchingWhenAsked: [Bool] = []
+    private var waits: [TimeInterval] = []
+    private var waitsWhenAsked: [Int] = []
     private var openedSettings = false
     private var relaunches = 0
     private var releases = 0
@@ -18,10 +20,12 @@ final class AccessibilityPermissionTests: XCTestCase {
             ask: { request in
                 self.requests.append(request)
                 self.watchingWhenAsked.append(self.notifyChange != nil)
+                self.waitsWhenAsked.append(self.waits.count)
                 self.whileAsking?()
                 return self.responses.removeFirst()
             },
             openSettings: { self.openedSettings = true },
+            wait: { self.waits.append($0) },
             observeTrustChanges: { self.notifyChange = $0 },
             relaunch: { self.relaunches += 1 }
         )
@@ -81,6 +85,7 @@ final class AccessibilityPermissionTests: XCTestCase {
             trusted = testCase.trusted
             responses = testCase.responses
             requests = []
+            waits = []
             openedSettings = false
             relaunches = 0
 
@@ -89,6 +94,15 @@ final class AccessibilityPermissionTests: XCTestCase {
             XCTAssertEqual(openedSettings, testCase.openedSettings, testCase.name)
             XCTAssertEqual(relaunches, testCase.relaunches, testCase.name)
         }
+    }
+
+    func testTheRestartAlertWaitsForSettingsToAppear() {
+        responses = [.confirm, .quit]
+
+        _ = makePermission().request()
+
+        XCTAssertEqual(waits, [AccessibilityPermission.settingsCooldownSeconds])
+        XCTAssertEqual(waitsWhenAsked, [0, 1])
     }
 
     func testAGrantArrivingWhileWaitingRelaunchesOnce() throws {
