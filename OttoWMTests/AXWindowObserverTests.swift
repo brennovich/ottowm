@@ -228,6 +228,22 @@ final class AXWindowObserverTests: XCTestCase {
         XCTAssertTrue(harness.scheduledRetries.isEmpty)
     }
 
+    func testApplicationLaunchWithNoWindowYetIsRetriedUntilOneShowsUp() {
+        let harness = Harness()
+        let app = StubRunningApplication(pid: 901)
+        _ = harness.start()
+
+        harness.post(NSWorkspace.didLaunchApplicationNotification, app)
+
+        XCTAssertEqual(harness.events, [])
+
+        harness.addWindow(pid: 901, id: 100)
+        harness.runScheduledRetries()
+
+        XCTAssertEqual(harness.eventDescriptions, ["created(100)"])
+        XCTAssertTrue(harness.scheduledRetries.isEmpty)
+    }
+
     func testSuccessfulSubscriptionIsNotRetried() {
         let harness = Harness()
         harness.apps = [StubRunningApplication(pid: 901)]
@@ -258,6 +274,21 @@ final class AXWindowObserverTests: XCTestCase {
         let harness = Harness()
         harness.apps = [StubRunningApplication(pid: 901)]
         harness.unreadyPids = [901]
+        _ = harness.start()
+        let started = harness.clock
+
+        while !harness.scheduledRetries.isEmpty {
+            harness.runScheduledRetries()
+        }
+
+        let spent = harness.clock.timeIntervalSince(started)
+        XCTAssertGreaterThanOrEqual(spent, AXWindowObserver.subscriptionGracePeriod)
+        XCTAssertLessThan(spent, AXWindowObserver.subscriptionGracePeriod + harness.retryStep * 2)
+    }
+
+    func testScanningIsGivenUpForAnApplicationThatNeverListsAWindow() {
+        let harness = Harness()
+        harness.apps = [StubRunningApplication(pid: 901)]
         _ = harness.start()
         let started = harness.clock
 

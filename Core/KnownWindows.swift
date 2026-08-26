@@ -85,7 +85,11 @@ final class KnownWindows {
         add(app)
         observers[pid] = observer
 
-        return subscribe(to: app, observer: observer)
+        let observed = subscribe(to: app, observer: observer)
+        Log.observer.info("observing pid=\(pid) app=\(app.localizedName ?? "") "
+            + "windows=\(observed.windows.count) subscribed=\(observed.subscribed)")
+
+        return observed
     }
 
     /// Subscribes again to an application that did not answer the first time.
@@ -206,6 +210,10 @@ final class KnownWindows {
         refs[element] != nil
     }
 
+    func hasWindows(of app: NSRunningApplication) -> Bool {
+        refs.values.contains { $0.pid == app.processIdentifier }
+    }
+
     /// Every registered window, as an element paired with its id.
     /// - Complexity: O(*n*) in the number of registered windows.
     var registered: [(element: AXUIElement, id: CGWindowID)] {
@@ -239,7 +247,6 @@ final class KnownWindows {
             .allSatisfy { $0 }
 
         let elements = unregistered(of: windowElements(pid))
-        Log.observer.info("observing pid=\(pid) app=\(app.localizedName ?? "") windows=\(elements.count) subscribed=\(subscribed)")
 
         return (watchWindows(of: elements, app: app, observer: observer), subscribed)
     }

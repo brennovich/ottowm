@@ -9,6 +9,8 @@ private let lockScreenBundleId = "com.apple.loginwindow"
 /// created, focused, destroyed, minimized and unminimized. `KnownWindows` holds the
 /// windows and their subscriptions; every event OttoWM sees is emitted here.
 final class AXWindowObserver {
+    private typealias Observed = (windows: [WindowSnapshot], subscribed: Bool)
+
     private let knownWindows: KnownWindows
     private let scheduleRetry: (@escaping () -> Void) -> Void
     private let now: () -> Date
@@ -106,19 +108,29 @@ final class AXWindowObserver {
             handler?(event)
         }) else { return [] }
 
-        if !observed.subscribed {
-            retrySubscription(to: app, deadline: now().addingTimeInterval(Self.subscriptionGracePeriod))
-        }
+        retry(app, observed, until: now().addingTimeInterval(Self.subscriptionGracePeriod))
 
         return observed.windows
     }
 
-    private func retrySubscription(to app: NSRunningApplication, deadline: Date) {
+    /// Asks the application again until its subscriptions are in place and it lists a
+    /// window.
+    ///
+    /// A just launched application can report the subscriptions in place and list no
+    /// window, and then open one without sending kAXWindowCreated. Nothing else would
+    /// find that window until the user focuses the application again.
+    private func retry(_ app: NSRunningApplication, _ observed: Observed, until deadline: Date) {
+        guard !observed.subscribed || !knownWindows.hasWindows(of: app) else { return }
+
         guard now() < deadline else {
-            Log.observer.error(
-                "giving up on pid=\(app.processIdentifier) app=\(app.localizedName ?? ""): "
-                    + "unreachable for \(Int(Self.subscriptionGracePeriod))s"
-            )
+            let waited = Int(Self.subscriptionGracePeriod)
+            let pid = app.processIdentifier
+            let name = app.localizedName ?? ""
+            if observed.subscribed {
+                Log.observer.info("pid=\(pid) app=\(name) listed no window in \(waited)s, waiting for its notifications")
+            } else {
+                Log.observer.error("giving up on pid=\(pid) app=\(name): unreachable for \(waited)s")
+            }
             return
         }
 
@@ -130,9 +142,7 @@ final class AXWindowObserver {
                 handler?(.created(snapshot))
             }
 
-            if !observed.subscribed {
-                retrySubscription(to: app, deadline: deadline)
-            }
+            retry(app, observed, until: deadline)
         }
     }
 
