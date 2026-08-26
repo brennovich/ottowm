@@ -36,6 +36,9 @@ BENCHMARK_ARGS ?= --budget-p95 500
 
 LINT_REPORT = $(BUILD_DIR)/swiftlint.sarif
 
+TEST_SOURCES := $(shell find OttoWMTests -name '*.swift')
+COVERAGE = $(BUILD_DIR)/Coverage.xcresult
+
 AXDUMP_SOURCES := $(shell find Tools/AXDump -name '*.swift')
 AXDUMP = $(BUILD_DIR)/axdump
 AXDUMP_DIR = OttoWMTests/Fixtures/axDumps
@@ -45,7 +48,7 @@ INSTALLED = $(INSTALL_DIR)/$(SCHEME).app
 
 CODE_SIGN_IDENTITY ?= -
 
-.PHONY: build test lint lint/report lint/summary acceptance benchmark axdump release install clean version bump
+.PHONY: build test lint lint/report lint/summary coverage coverage/summary coverage/files acceptance benchmark axdump release install clean version bump
 
 version:
 	@echo $(VERSION)
@@ -73,6 +76,20 @@ lint/report:
 
 lint/summary:
 	@Tools/lint-summary.sh $(LINT_REPORT)
+
+coverage: $(COVERAGE)
+	xcrun xccov view --report --only-targets $(COVERAGE)
+
+coverage/summary:
+	@Tools/coverage-summary.sh $(COVERAGE) $(SCHEME).app
+
+coverage/files: $(COVERAGE)
+	xcrun xccov view --report --files-for-target $(SCHEME).app $(COVERAGE)
+
+$(COVERAGE): $(SOURCES) $(TEST_SOURCES)
+	@mkdir -p $(BUILD_DIR)
+	rm -rf $@
+	set -o pipefail; $(XCODEBUILD) test -enableCodeCoverage YES -resultBundlePath $@ 2>&1 | $(XCBEAUTIFY)
 
 acceptance: $(ACCEPTANCE)
 	$(ACCEPTANCE)

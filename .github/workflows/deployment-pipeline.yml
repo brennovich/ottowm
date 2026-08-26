@@ -58,7 +58,10 @@ jobs:
       - id: build
         run: make build
       - id: test
-        run: make test
+        run: make coverage
+      - id: coverage-summary
+        if: always()
+        run: make coverage/summary >> "$GITHUB_STEP_SUMMARY"
       - id: release
         env:
           BUILD_NUMBER: ${{ needs.version.outputs.build }}
