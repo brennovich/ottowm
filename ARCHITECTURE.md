@@ -71,7 +71,7 @@ flowchart LR
 | `WorkspaceBeforeFullScreen` | Model     | The workspace each full screen window returns to.                                      |
 | `Desktop`                   | macOS     | Parks a window at the hidden edge and restores its captured frame.                     |
 | `WindowSystem`              | macOS     | The focused window, the on-screen window ids, and the tab count of a window.           |
-| `AXWindowObserver`          | macOS     | Per-application observers and `NSWorkspace` notifications, turned into `WindowEvent`s. |
+| `AXWindowObserver`          | macOS     | The AX and `NSWorkspace` notifications, turned into `WindowEvent`s.                    |
 | `KnownWindows`              | macOS     | The windows OttoWM knows: `AXUIElement` ↔ `CGWindowID`, and their AX subscriptions.    |
 | `AXWindow`                  | macOS     | One window: snapshot, frame writes, focus, tab count.                                  |
 | `MainScreen`                | macOS     | The geometry of the main display, in top-left coordinates.                             |
@@ -133,6 +133,7 @@ flowchart LR
     AppDelegate --> Bindings
     AccessibilityPermission -->|trust lost, regained| Bindings
     ScreenLock -->|isLocked| Engine
+    ScreenLock -->|isLocked| KnownWindows
     ScreenLock -->|unlock| AXWindowObserver
     Shutdown -->|stop| Engine
 ```
@@ -291,7 +292,7 @@ sequenceDiagram
     participant TabGroups
 
     Application->>AXWindowObserver: the focused window changed
-    Note over AXWindowObserver: registers the window and subscribes it
+    Note over AXWindowObserver: KnownWindows registers the window and subscribes it
     AXWindowObserver->>Engine: focused(window)
     Note over Engine: reads how many tabs the window shows
     Engine->>Workspaces: assign(window, tabCount:)

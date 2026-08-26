@@ -1,4 +1,4 @@
-import AppKit
+import CoreGraphics
 
 // Only the raw event flags tell the left Option key from the right one, and the bundled
 // workspace bindings are all left Option, so the device dependent bits of

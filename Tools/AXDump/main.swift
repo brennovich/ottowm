@@ -48,8 +48,6 @@ struct Dump: Encodable {
     let subrole: String
     let hasCloseButton: Bool
     let hasMinimizeButton: Bool
-    let hasZoomButton: Bool
-    let hasFullScreenButton: Bool
     let isFullScreen: Bool
     let isMinimized: Bool
     let id: UInt32
@@ -73,9 +71,7 @@ func windowId(of element: AXUIElement) -> CGWindowID {
 }
 
 func slug(_ text: String) -> String {
-    let slug = text.lowercased()
-        .map { $0.isLetter || $0.isNumber ? String($0) : "-" }
-        .joined()
+    let slug = String(text.lowercased().map { $0.isLetter || $0.isNumber ? $0 : "-" })
         .split(separator: "-")
         .joined(separator: "-")
     return slug.isEmpty ? "untitled" : String(slug.prefix(40))
@@ -93,8 +89,6 @@ func dump(_ element: AXUIElement, of app: NSRunningApplication) -> (dump: Dump, 
         subrole: subrole,
         hasCloseButton: hasCloseButton,
         hasMinimizeButton: hasMinimizeButton,
-        hasZoomButton: attribute(element, kAXZoomButtonAttribute) != nil,
-        hasFullScreenButton: attribute(element, kAXFullScreenButtonAttribute) != nil,
         isFullScreen: attribute(element, "AXFullScreen") as? Bool ?? false,
         isMinimized: attribute(element, kAXMinimizedAttribute) as? Bool ?? false,
         id: windowId(of: element),

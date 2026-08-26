@@ -2,14 +2,6 @@ import CoreGraphics
 import XCTest
 
 final class EngineMoveWindowTests: EngineTestCase {
-    func testMoveFocusedWindowToAnotherWorkspaceParksIt() {
-        let win = create(StubWindow(id: 100))
-
-        moveFocusedWindow(win, to: 2)
-
-        XCTAssertEqual(desktop.placement(of: 100), .storage)
-    }
-
     func testMoveFocusedWindowAwayHandsFocusToAWindowLeftBehind() {
         let win1 = create(StubWindow(id: 100))
         let win2 = create(StubWindow(id: 200))

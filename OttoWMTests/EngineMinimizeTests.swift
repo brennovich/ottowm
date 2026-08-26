@@ -15,12 +15,7 @@ final class EngineMinimizeTests: EngineTestCase {
     }
 
     func testMinimizedTabGroupHandsFocusToAWindowStillOnScreen() {
-        let tabFrame = CGRect(x: 400, y: 0, width: 800, height: 600)
-        let tab1 = create(StubWindow(id: 300, appName: "Terminal", frame: tabFrame))
-        engine.handle(.focused(tab1.snapshot()))
-        let tab2 = create(StubWindow(id: 301, appName: "Terminal", frame: tabFrame, tabCount: 2))
-        engine.handle(.focused(tab2.snapshot()))
-        let other = create(StubWindow(id: 100))
+        let (tab1, tab2, other) = createFocusedTabPair()
 
         tab1.isMinimized = true
         tab2.isMinimized = true

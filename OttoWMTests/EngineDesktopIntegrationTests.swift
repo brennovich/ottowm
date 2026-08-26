@@ -1,4 +1,4 @@
-import AppKit
+import CoreGraphics
 import XCTest
 
 final class EngineDesktopIntegrationTests: XCTestCase {
@@ -48,6 +48,12 @@ final class EngineDesktopIntegrationTests: XCTestCase {
     private func moveFocusedWindow(_ window: StubWindow, to workspace: Int) {
         focused = window
         engine.moveFocusedWindow(toWorkspace: workspace)
+    }
+
+    private func minimizeAndRestore(_ window: StubWindow) {
+        window.isMinimized = true
+        engine.handle(.minimized(window.id))
+        window.isMinimized = false
     }
 
     func testSwitchRoundTripRestoresExactFrames() {
@@ -192,10 +198,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         start()
         moveFocusedWindow(win2, to: 2)
 
-        win2.isMinimized = true
-        engine.handle(.minimized(200))
-
-        win2.isMinimized = false
+        minimizeAndRestore(win2)
         engine.handle(.unminimized(win2.snapshot()))
 
         XCTAssertFalse(hiddenEdge.holds(win2.frame))
@@ -209,9 +212,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         start()
         moveFocusedWindow(win2, to: 2)
 
-        win2.isMinimized = true
-        engine.handle(.minimized(200))
-        win2.isMinimized = false
+        minimizeAndRestore(win2)
 
         focused = win2
         engine.handle(.focused(win2.snapshot()))
@@ -227,9 +228,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         start()
         moveFocusedWindow(win2, to: 2)
 
-        win2.isMinimized = true
-        engine.handle(.minimized(200))
-        win2.isMinimized = false
+        minimizeAndRestore(win2)
         focused = win2
         engine.handle(.focused(win2.snapshot()))
         let recovered = win2.frame

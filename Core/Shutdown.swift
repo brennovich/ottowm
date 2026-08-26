@@ -19,10 +19,10 @@ final class Shutdown {
         self.observeSIGTERM = observeSIGTERM
     }
 
-    /// The `quit` action. Restores nothing: `Engine.handle(.quit)` calls `Engine.stop`
-    /// first.
+    /// The `quit` action.
     func quit() {
-        Log.app.notice("quit action received, window frames restored")
+        Log.app.notice("quit action received, restoring window frames")
+        stop()
         exit(EXIT_SUCCESS)
     }
 

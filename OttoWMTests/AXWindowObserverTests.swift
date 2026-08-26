@@ -7,7 +7,6 @@ private final class Harness {
     let windows = KnownWindowsHarness()
     let center = NotificationCenter()
     var apps: [NSRunningApplication] = []
-    var focusedElements: [pid_t: AXUIElement] = [:]
     // What one attempt against an application that is not answering costs, so a test
     // that runs the retries also spends the time they would really take.
     let retryStep: TimeInterval = 0.4
@@ -21,16 +20,15 @@ private final class Harness {
         scheduleRetry: { self.scheduledRetries.append($0) },
         now: { self.clock },
         notificationCenter: center,
-        runningApplications: { self.apps },
-        focusedWindowOf: { app in
-            self.focusedElements[app.processIdentifier].map {
-                AXWindow(element: $0, application: app, id: self.windows.windowIds[$0] ?? 0)
-            }
-        }
+        runningApplications: { self.apps }
     )
 
     var knownWindows: KnownWindows { windows.knownWindows }
     var callbacks: [pid_t: (AXUIElement, String) -> Void] { windows.callbacks }
+    var focusedElements: [pid_t: AXUIElement] {
+        get { windows.focusedElements }
+        set { windows.focusedElements = newValue }
+    }
     var invalidatedPids: [pid_t] { windows.invalidatedPids }
     var unreadyPids: Set<pid_t> {
         get { windows.unreadyPids }
@@ -144,6 +142,18 @@ final class AXWindowObserverTests: XCTestCase {
         }
     }
 
+    func testRepeatedWindowCreatedNotificationIsDropped() {
+        let harness = Harness()
+        harness.apps = [StubRunningApplication(pid: 901)]
+        _ = harness.start()
+        let element = harness.makeElement(id: 42)
+
+        harness.callbacks[901]?(element, kAXWindowCreatedNotification)
+        harness.callbacks[901]?(element, kAXWindowCreatedNotification)
+
+        XCTAssertEqual(harness.eventDescriptions, ["created(42)"])
+    }
+
     func testNotificationsForWindowsWithoutIdAreDropped() {
         let notifications = [
             kAXWindowCreatedNotification,
@@ -173,7 +183,7 @@ final class AXWindowObserverTests: XCTestCase {
         harness.callbacks[901]?(window, kAXUIElementDestroyedNotification)
 
         XCTAssertEqual(harness.eventDescriptions, ["destroyed(100)"])
-        XCTAssertFalse(harness.knownWindows.knows(window))
+        XCTAssertNil(harness.knownWindows.window(for: 100))
     }
 
     func testDestroyedNotificationForUnknownElementIsDropped() {
@@ -358,6 +368,22 @@ final class AXWindowObserverTests: XCTestCase {
         harness.post(NSWorkspace.didActivateApplicationNotification, app)
 
         XCTAssertEqual(harness.eventDescriptions, ["created(200)", "focused(200)"])
+    }
+
+    // A window that is not the active tab of its group is absent from the window list, so
+    // the rescan misses it: adopting the focused window is what registers it.
+    func testApplicationActivationAdoptsAFocusedWindowAbsentFromTheWindowList() {
+        let harness = Harness()
+        let app = StubRunningApplication(pid: 901)
+        harness.apps = [app]
+        _ = harness.start()
+        let tab = harness.makeElement(id: 300)
+        harness.focusedElements[901] = tab
+
+        harness.post(NSWorkspace.didActivateApplicationNotification, app)
+
+        XCTAssertEqual(harness.eventDescriptions, ["focused(300)"])
+        XCTAssertEqual(harness.knownWindows.window(for: 300)?.element, tab)
     }
 
     func testApplicationActivationWithoutFocusedWindowEmitsOnlyRescans() {

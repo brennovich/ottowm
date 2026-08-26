@@ -34,6 +34,7 @@ final class KnownWindows {
     private let windowElements: (pid_t) -> [AXUIElement]
     private let makeWindow: (AXUIElement, NSRunningApplication) -> AXWindow
     private let focusedWindow: () -> AXWindow?
+    private let focusedWindowOf: (NSRunningApplication) -> AXWindow?
     private let isAlive: (AXUIElement) -> Bool
     private let screenIsLocked: () -> Bool
 
@@ -44,6 +45,7 @@ final class KnownWindows {
         },
         makeWindow: @escaping (AXUIElement, NSRunningApplication) -> AXWindow = AXWindow.init(element:application:),
         focusedWindow: @escaping () -> AXWindow? = AXWindow.focused,
+        focusedWindowOf: @escaping (NSRunningApplication) -> AXWindow? = AXWindow.focused(of:),
         // Only an element the application has released returns invalidUIElement. A slow
         // or briefly unreachable window fails with another error, so anything but
         // invalidUIElement counts as alive.
@@ -57,6 +59,7 @@ final class KnownWindows {
         self.windowElements = windowElements
         self.makeWindow = makeWindow
         self.focusedWindow = focusedWindow
+        self.focusedWindowOf = focusedWindowOf
         self.isAlive = isAlive
         self.screenIsLocked = screenIsLocked
     }
@@ -78,7 +81,7 @@ final class KnownWindows {
         let pid = app.processIdentifier
         guard observers[pid] == nil else { return nil }
         guard let observer = makeObserver(pid, notify) else {
-            Log.observer.error("cannot observe pid=\(pid) app=\(app.localizedName ?? "")")
+            Log.windows.error("cannot observe pid=\(pid) app=\(app.localizedName ?? "")")
             return nil
         }
 
@@ -86,7 +89,7 @@ final class KnownWindows {
         observers[pid] = observer
 
         let observed = subscribe(to: app, observer: observer)
-        Log.observer.info("observing pid=\(pid) app=\(app.localizedName ?? "") "
+        Log.windows.info("observing pid=\(pid) app=\(app.localizedName ?? "") "
             + "windows=\(observed.windows.count) subscribed=\(observed.subscribed)")
 
         return observed
@@ -125,10 +128,11 @@ final class KnownWindows {
     }
 
     /// Registers the window and subscribes it to the window notifications.
-    /// - Returns: `nil` when the element has no window id, or its application is not
-    ///   observed.
+    /// - Returns: `nil` when the element has no window id, is already known, or its
+    ///   application is not observed.
     func watch(_ element: AXUIElement, of app: NSRunningApplication) -> AXWindow? {
-        guard let observer = observers[app.processIdentifier],
+        guard !knows(element),
+              let observer = observers[app.processIdentifier],
               let window = window(of: element, in: app)
         else { return nil }
 
@@ -155,6 +159,15 @@ final class KnownWindows {
         return window
     }
 
+    /// Registers the focused window of the application if it is not known yet.
+    /// - Returns: `nil` when the application reports no focused window.
+    func adoptFocused(of app: NSRunningApplication) -> AXWindow? {
+        guard let window = focusedWindowOf(app) else { return nil }
+
+        adopt(window)
+        return window
+    }
+
     /// macOS does not send kAXUIElementDestroyedNotification for every window that dies:
     /// closing a background application's window sends nothing. Probing every known window
     /// finds those.
@@ -166,30 +179,18 @@ final class KnownWindows {
             guard !isAlive(element) else { return nil }
 
             _ = removeWindow(for: element)
-            Log.observer.info("window died unannounced id=\(id)")
+            Log.windows.info("window died unannounced id=\(id)")
             return id
         }
     }
 
-    // MARK: - The map
+    // MARK: - Looking up windows
 
     func window(for id: CGWindowID) -> AXWindow? {
-        guard let (element, pid) = element(for: id),
-              let app = applications[pid]
+        guard let element = elementsById[id], let ref = refs[element],
+              let app = applications[ref.pid]
         else { return nil }
         return AXWindow(element: element, application: app, id: id)
-    }
-
-    func add(_ app: NSRunningApplication) {
-        applications[app.processIdentifier] = app
-    }
-
-    func register(_ element: AXUIElement, pid: pid_t, id: CGWindowID) {
-        if let previous = refs[element] {
-            removeReverse(previous.id, element)
-        }
-        refs[element] = WindowRef(pid: pid, id: id)
-        elementsById[id] = element
     }
 
     func removeWindow(for element: AXUIElement) -> CGWindowID? {
@@ -198,7 +199,24 @@ final class KnownWindows {
         return ref.id
     }
 
-    func evict(pid: pid_t) {
+    func hasWindows(of app: NSRunningApplication) -> Bool {
+        refs.values.contains { $0.pid == app.processIdentifier }
+    }
+
+    // MARK: - Private
+
+    private func add(_ app: NSRunningApplication) {
+        applications[app.processIdentifier] = app
+    }
+
+    /// Every caller filters out the elements already known, so an element is never
+    /// registered twice.
+    private func register(_ element: AXUIElement, pid: pid_t, id: CGWindowID) {
+        refs[element] = WindowRef(pid: pid, id: id)
+        elementsById[id] = element
+    }
+
+    private func evict(pid: pid_t) {
         applications[pid] = nil
         for (element, ref) in refs where ref.pid == pid {
             refs[element] = nil
@@ -206,30 +224,19 @@ final class KnownWindows {
         }
     }
 
-    func knows(_ element: AXUIElement) -> Bool {
+    private func knows(_ element: AXUIElement) -> Bool {
         refs[element] != nil
-    }
-
-    func hasWindows(of app: NSRunningApplication) -> Bool {
-        refs.values.contains { $0.pid == app.processIdentifier }
     }
 
     /// Every registered window, as an element paired with its id.
     /// - Complexity: O(*n*) in the number of registered windows.
-    var registered: [(element: AXUIElement, id: CGWindowID)] {
+    private var registered: [(element: AXUIElement, id: CGWindowID)] {
         refs.map { (element: $0.key, id: $0.value.id) }
     }
 
-    func unregistered(of elements: [AXUIElement]) -> [AXUIElement] {
+    private func unregistered(of elements: [AXUIElement]) -> [AXUIElement] {
         elements.filter { !knows($0) }
     }
-
-    func element(for id: CGWindowID) -> (element: AXUIElement, pid: pid_t)? {
-        guard let element = elementsById[id], let ref = refs[element] else { return nil }
-        return (element, ref.pid)
-    }
-
-    // MARK: - Private
 
     /// Subscribes to the application level notifications and registers the windows it
     /// lists that are not known yet.
@@ -256,7 +263,7 @@ final class KnownWindows {
               let observer = observers[window.application.processIdentifier]
         else { return }
 
-        Log.observer.info("adopting \(window.logDescription)")
+        Log.windows.info("adopting \(window.logDescription)")
         watchWindow(window, observer: observer)
     }
 

@@ -12,10 +12,10 @@ final class ShutdownTests: XCTestCase {
         )
     }
 
-    func testQuitLeavesTheRestoreToTheEngine() {
+    func testQuitRestoresTheWindowsBeforeItExits() {
         makeShutdown().quit()
 
-        XCTAssertEqual(events, ["exit 0"])
+        XCTAssertEqual(events, ["stop", "exit 0"])
     }
 
     func testSIGTERMRestoresTheWindowsBeforeItExits() throws {

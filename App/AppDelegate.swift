@@ -37,9 +37,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let windowById: (CGWindowID) -> AXWindow? = { [knownWindows] id in
             knownWindows.window(for: id)
         }
-        let adoptFocusedWindow: () -> AXWindow? = { [knownWindows] in
-            knownWindows.adoptFocused()
-        }
 
         let engine = Engine(
             desktop: OffscreenParkingDesktop(
@@ -48,7 +45,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 focusedWindowId: { AXWindow.focused()?.id }
             ),
             windowSystem: WindowSystem(
-                focusedWindow: OperationCache { adoptFocusedWindow()?.snapshot() },
+                focusedWindow: OperationCache { [knownWindows] in knownWindows.adoptFocused()?.snapshot() },
                 onScreenWindowIds: OperationCache {
                     Set((CGWindowListCopyWindowInfo(
                         [.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
@@ -62,7 +59,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             quit: shutdown.quit,
             restart: { [weak self] in self?.bindings?.reload() }
         )
-        self.engine = engine.start(windows: windowObserver.start { engine.handle($0) })
+        engine.start(windows: windowObserver.start { engine.handle($0) })
+        self.engine = engine
 
         let bindings = Bindings.system(config: config, handler: engine.handle)
         self.bindings = bindings

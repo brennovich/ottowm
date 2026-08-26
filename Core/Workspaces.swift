@@ -6,12 +6,11 @@ final class Workspaces {
     private(set) var current = 1
 
     private var workspaces: [Int: Workspace] = [:]
-    private var windowWorkspaceMap: [CGWindowID: Int] = [:]
 
     private var tabGroups = TabGroups()
 
     var allWindowIds: Set<CGWindowID> {
-        Set(windowWorkspaceMap.keys)
+        Set(workspaces.values.flatMap(\.windowIds))
     }
 
     func recordFocus(on windowId: CGWindowID, in workspace: Int) {
@@ -19,7 +18,7 @@ final class Workspaces {
     }
 
     func workspace(for windowId: CGWindowID) -> Int? {
-        windowWorkspaceMap[windowId]
+        workspaces.first { $0.value.windowIds.contains(windowId) }?.key
     }
 
     func windowIds(in workspace: Int) -> [CGWindowID] {
@@ -34,7 +33,7 @@ final class Workspaces {
     @discardableResult
     func assign(_ window: WindowSnapshot, to workspace: Int, tabCount: Int = 1) -> Int {
         tabGroups.add(window, tabCount: tabCount)
-        let target = tabGroups.siblings(of: window.id).lazy.compactMap { self.windowWorkspaceMap[$0] }.first ?? workspace
+        let target = tabGroups.siblings(of: window.id).lazy.compactMap { self.workspace(for: $0) }.first ?? workspace
         assignTabGroup(of: window.id, to: target)
         recordFocus(on: window.id, in: target)
         return target
@@ -58,13 +57,13 @@ final class Workspaces {
     func remove(_ windowId: CGWindowID) -> Bool {
         var focusSettled = false
         if let firstTabSibling = tabGroups.siblings(of: windowId).first,
-           let siblingWorkspace = windowWorkspaceMap[firstTabSibling] {
+           let siblingWorkspace = workspace(for: firstTabSibling) {
             recordFocus(on: firstTabSibling, in: siblingWorkspace)
             focusSettled = true
         }
         tabGroups.remove(windowId)
 
-        if let workspace = windowWorkspaceMap.removeValue(forKey: windowId) {
+        if let workspace = workspace(for: windowId) {
             workspaces[workspace]?.remove(windowId)
         }
         return focusSettled
@@ -79,11 +78,11 @@ final class Workspaces {
         }
         current = targetWorkspace
 
-        return windowWorkspaceMap.reduce(into: placement) { p, e in
-            if e.value == targetWorkspace {
-                p.toActive.append(e.key)
+        return workspaces.reduce(into: placement) { p, e in
+            if e.key == targetWorkspace {
+                p.toActive.append(contentsOf: e.value.windowIds)
             } else {
-                p.toStorage.append(e.key)
+                p.toStorage.append(contentsOf: e.value.windowIds)
             }
         }
     }
@@ -95,13 +94,12 @@ final class Workspaces {
 
     private func assignTabGroup(of windowId: CGWindowID, to workspace: Int) {
         for memberId in tabGroups.members(of: windowId) {
-            if let previousWorkspace = windowWorkspaceMap[memberId] {
+            if let previousWorkspace = self.workspace(for: memberId) {
                 guard previousWorkspace != workspace else { continue }
                 workspaces[previousWorkspace]?.remove(memberId)
             }
 
             workspaces[workspace, default: Workspace()].add(memberId)
-            windowWorkspaceMap[memberId] = workspace
         }
     }
 }

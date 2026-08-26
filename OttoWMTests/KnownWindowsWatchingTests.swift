@@ -21,8 +21,8 @@ final class KnownWindowsWatchingTests: XCTestCase {
 
         XCTAssertEqual(result?.windows.map(\.id), [100, 200])
         XCTAssertEqual(result?.subscribed, true)
-        XCTAssertTrue(known.knows(first))
-        XCTAssertTrue(known.knows(second))
+        XCTAssertEqual(known.window(for: 100)?.element, first)
+        XCTAssertEqual(known.window(for: 200)?.element, second)
     }
 
     func testObserveSubscribesToTheApplicationAndWindowNotifications() {
@@ -72,7 +72,7 @@ final class KnownWindowsWatchingTests: XCTestCase {
 
         XCTAssertEqual(result?.windows.map(\.id), [100])
         XCTAssertEqual(result?.subscribed, true)
-        XCTAssertTrue(known.knows(window))
+        XCTAssertEqual(known.window(for: 100)?.element, window)
         XCTAssertEqual(harness.appNotificationCount(pid: 901), 2)
     }
 
@@ -95,7 +95,7 @@ final class KnownWindowsWatchingTests: XCTestCase {
         let discovered = harness.addWindow(pid: 901, id: 200)
 
         XCTAssertEqual(known.rescan(app).map(\.id), [200])
-        XCTAssertTrue(known.knows(discovered))
+        XCTAssertEqual(known.window(for: 200)?.element, discovered)
         XCTAssertEqual(harness.watched[901]?.suffix(3).map(\.notification), windowNotifications)
     }
 
@@ -110,8 +110,17 @@ final class KnownWindowsWatchingTests: XCTestCase {
         let element = harness.makeElement(id: 42)
 
         XCTAssertEqual(known.watch(element, of: app)?.id, 42)
-        XCTAssertTrue(known.knows(element))
+        XCTAssertEqual(known.window(for: 42)?.element, element)
         XCTAssertEqual(harness.watched[901]?.suffix(3).map(\.notification), windowNotifications)
+    }
+
+    func testWatchReturnsNilForAKnownWindowWithoutSubscribingItAgain() {
+        let element = harness.addWindow(pid: 901, id: 100)
+        observe(app)
+        let watchCount = harness.watched[901]?.count
+
+        XCTAssertNil(known.watch(element, of: app))
+        XCTAssertEqual(harness.watched[901]?.count, watchCount)
     }
 
     func testWatchReturnsNilForAWindowWithoutAnId() {
@@ -124,7 +133,7 @@ final class KnownWindowsWatchingTests: XCTestCase {
         let element = harness.makeElement(id: 42)
 
         XCTAssertNil(known.watch(element, of: app))
-        XCTAssertFalse(known.knows(element))
+        XCTAssertNil(known.window(for: 42))
     }
 
     func testAdoptRegistersAndSubscribesAnUnknownWindow() {
@@ -132,7 +141,7 @@ final class KnownWindowsWatchingTests: XCTestCase {
         let element = harness.makeElement(id: 42)
 
         XCTAssertEqual(known.adopt(element, of: app)?.id, 42)
-        XCTAssertTrue(known.knows(element))
+        XCTAssertEqual(known.window(for: 42)?.element, element)
         XCTAssertEqual(harness.watched[901]?.suffix(3).map(\.notification), windowNotifications)
     }
 
@@ -159,7 +168,7 @@ final class KnownWindowsWatchingTests: XCTestCase {
         let window = known.adoptFocused()
 
         XCTAssertTrue(window === harness.systemFocusedWindow)
-        XCTAssertTrue(known.knows(element))
+        XCTAssertEqual(known.window(for: 42)?.element, element)
         XCTAssertEqual(harness.watched[901]?.suffix(3).map(\.notification), windowNotifications)
     }
 
@@ -181,6 +190,34 @@ final class KnownWindowsWatchingTests: XCTestCase {
         XCTAssertEqual(harness.watched[901]?.count, watchCount)
     }
 
+    func testAdoptFocusedOfApplicationRegistersAndSubscribesItsFocusedWindow() {
+        observe(app)
+        let element = harness.makeElement(id: 42)
+        harness.focusedElements[901] = element
+
+        let window = known.adoptFocused(of: app)
+
+        XCTAssertEqual(window?.id, 42)
+        XCTAssertEqual(known.window(for: 42)?.element, element)
+        XCTAssertEqual(harness.watched[901]?.suffix(3).map(\.notification), windowNotifications)
+    }
+
+    func testAdoptFocusedOfApplicationWithoutFocusReturnsNil() {
+        observe(app)
+
+        XCTAssertNil(known.adoptFocused(of: app))
+    }
+
+    func testAdoptFocusedOfApplicationKnownWindowReturnsItWithoutSubscribingItAgain() {
+        let element = harness.addWindow(pid: 901, id: 100)
+        observe(app)
+        let watchCount = harness.watched[901]?.count
+        harness.focusedElements[901] = element
+
+        XCTAssertEqual(known.adoptFocused(of: app)?.id, 100)
+        XCTAssertEqual(harness.watched[901]?.count, watchCount)
+    }
+
     func testDropDeadForgetsAndReportsTheWindowsThatNoLongerAnswer() {
         let alive = harness.addWindow(pid: 901, id: 100)
         let dead = harness.addWindow(pid: 901, id: 200)
@@ -188,8 +225,8 @@ final class KnownWindowsWatchingTests: XCTestCase {
         harness.deadElements = [dead]
 
         XCTAssertEqual(known.dropDead(), [200])
-        XCTAssertFalse(known.knows(dead))
-        XCTAssertTrue(known.knows(alive))
+        XCTAssertNil(known.window(for: 200))
+        XCTAssertEqual(known.window(for: 100)?.element, alive)
     }
 
     func testDropDeadKeepsEveryWindowThatStillAnswers() {
@@ -206,7 +243,7 @@ final class KnownWindowsWatchingTests: XCTestCase {
         harness.screenIsLocked = true
 
         XCTAssertEqual(known.dropDead(), [])
-        XCTAssertTrue(known.knows(window))
+        XCTAssertNotNil(known.window(for: 100))
     }
 
     func testStopObservingInvalidatesTheObserverAndForgetsTheWindows() {
@@ -216,7 +253,6 @@ final class KnownWindowsWatchingTests: XCTestCase {
         known.stopObserving(app)
 
         XCTAssertEqual(harness.invalidatedPids, [901])
-        XCTAssertFalse(known.knows(window))
         XCTAssertNil(known.window(for: 100))
     }
 

@@ -35,9 +35,7 @@ private func axObserverCallback(
 enum AXAppObserver {
     static func make(pid: pid_t, callback: @escaping (AXUIElement, String) -> Void) -> AppObserver? {
         var observer: AXObserver?
-        let createResult = AXObserverCreate(pid, axObserverCallback, &observer)
-        guard createResult == .success, let observer else {
-            Log.observer.error("cannot observe pid=\(pid) err=\(createResult.rawValue)")
+        guard AXObserverCreate(pid, axObserverCallback, &observer) == .success, let observer else {
             return nil
         }
 

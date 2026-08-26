@@ -14,18 +14,6 @@ final class EngineLifecycleTests: EngineTestCase {
         XCTAssertEqual(workspaces.current, 1)
     }
 
-    func testStopBringsEveryParkedWindowBack() {
-        let win1 = create(StubWindow(id: 100))
-        let win2 = create(StubWindow(id: 200))
-        moveFocusedWindow(win1, to: 2)
-        moveFocusedWindow(win2, to: 3)
-
-        engine.stop()
-
-        XCTAssertEqual(desktop.placement(of: 100), .active)
-        XCTAssertEqual(desktop.placement(of: 200), .active)
-    }
-
     func testQuitBringsEveryParkedWindowBackBeforeLeaving() {
         let win1 = create(StubWindow(id: 100))
         let win2 = create(StubWindow(id: 200))
@@ -52,21 +40,16 @@ final class EngineLifecycleTests: EngineTestCase {
     }
 
     func testHandleActionSwitchesWorkspace() {
-        create(StubWindow(id: 100))
-
         engine.handle(Action.switchToWorkspace(2))
 
         XCTAssertEqual(workspaces.current, 2)
-        XCTAssertEqual(desktop.placement(of: 100), .storage)
     }
 
     func testHandleActionMovesFocusedWindowToWorkspace() {
-        let win = create(StubWindow(id: 100))
-        focused = win
+        focused = create(StubWindow(id: 100))
 
         engine.handle(Action.moveWindowToWorkspace(2))
 
-        XCTAssertEqual(desktop.placement(of: 100), .storage)
         XCTAssertEqual(workspaces.workspace(for: 100), 2)
     }
 

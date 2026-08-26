@@ -1,13 +1,13 @@
 import AppKit
 import ApplicationServices
-import CoreGraphics
 
 private let subscriptionRetryDelay: TimeInterval = 0.1
 private let lockScreenBundleId = "com.apple.loginwindow"
 
-/// Turns per-application `AXObserver`s and `NSWorkspace` notifications into `WindowEvent`s:
-/// created, focused, destroyed, minimized and unminimized. `KnownWindows` holds the
-/// windows and their subscriptions; every event OttoWM sees is emitted here.
+/// Turns the AX notifications `KnownWindows` delivers and the `NSWorkspace` notifications
+/// into `WindowEvent`s: created, focused, destroyed, minimized and unminimized.
+/// `KnownWindows` holds the windows and their subscriptions; every event OttoWM sees is
+/// emitted here.
 final class AXWindowObserver {
     private typealias Observed = (windows: [WindowSnapshot], subscribed: Bool)
 
@@ -16,7 +16,6 @@ final class AXWindowObserver {
     private let now: () -> Date
     private let notificationCenter: NotificationCenter
     private let runningApplications: () -> [NSRunningApplication]
-    private let focusedWindowOf: (NSRunningApplication) -> AXWindow?
     private var handler: ((WindowEvent) -> Void)?
     private let ownPid = ProcessInfo.processInfo.processIdentifier
 
@@ -38,15 +37,13 @@ final class AXWindowObserver {
         },
         now: @escaping () -> Date = Date.init,
         notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
-        runningApplications: @escaping () -> [NSRunningApplication] = { NSWorkspace.shared.runningApplications },
-        focusedWindowOf: @escaping (NSRunningApplication) -> AXWindow? = AXWindow.focused(of:)
+        runningApplications: @escaping () -> [NSRunningApplication] = { NSWorkspace.shared.runningApplications }
     ) {
         self.knownWindows = knownWindows
         self.scheduleRetry = scheduleRetry
         self.now = now
         self.notificationCenter = notificationCenter
         self.runningApplications = runningApplications
-        self.focusedWindowOf = focusedWindowOf
     }
 
     /// Announces the windows that died without a notification. Called when an application
@@ -172,7 +169,7 @@ final class AXWindowObserver {
             Log.observer.info("rescan found window \(snapshot.logDescription)")
             handler?(.created(snapshot))
         }
-        guard let window = focusedWindowOf(app) else { return }
+        guard let window = knownWindows.adoptFocused(of: app) else { return }
         handler?(.focused(window.snapshot()))
     }
 

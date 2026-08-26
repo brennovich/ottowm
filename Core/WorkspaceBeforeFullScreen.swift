@@ -13,11 +13,8 @@ struct WorkspaceBeforeFullScreen {
     }
 
     /// Reads the workspace and drops the record, so the window returns to it once.
+    @discardableResult
     mutating func take(_ windowId: CGWindowID) -> Int? {
         workspaces.removeValue(forKey: windowId)
-    }
-
-    mutating func forget(_ windowId: CGWindowID) {
-        _ = take(windowId)
     }
 }

@@ -17,7 +17,6 @@ final class EngineTabGroupTests: EngineTestCase {
     }
 
     func testTabDiscoveredDuringASwitchStaysInItsGroupsWorkspace() {
-        let tabFrame = CGRect(x: 400, y: 0, width: 800, height: 600)
         create(StubWindow(id: 300, appName: "Terminal", frame: tabFrame, tabCount: 2))
         let lateTab = add(StubWindow(id: 301, appName: "Terminal", frame: tabFrame, tabCount: 2))
         focused = lateTab
@@ -29,7 +28,6 @@ final class EngineTabGroupTests: EngineTestCase {
     }
 
     func testFocusingATabOfAGroupParkedElsewhereFollowsTheUserToIt() {
-        let tabFrame = CGRect(x: 400, y: 0, width: 800, height: 600)
         create(StubWindow(id: 300, appName: "Terminal", frame: tabFrame, tabCount: 2))
         engine.switchToWorkspace(2)
 
@@ -42,12 +40,7 @@ final class EngineTabGroupTests: EngineTestCase {
     }
 
     func testDestroyedTabbedWindowDoesNotStealFocus() {
-        let tabFrame = CGRect(x: 400, y: 0, width: 800, height: 600)
-        let tab1 = create(StubWindow(id: 300, appName: "Terminal", frame: tabFrame))
-        engine.handle(.focused(tab1.snapshot()))
-        let tab2 = create(StubWindow(id: 301, appName: "Terminal", frame: tabFrame, tabCount: 2))
-        engine.handle(.focused(tab2.snapshot()))
-        let other = create(StubWindow(id: 100))
+        let (tab1, _, other) = createFocusedTabPair()
 
         windows[301] = nil
         engine.handle(.destroyed(301))
@@ -57,7 +50,6 @@ final class EngineTabGroupTests: EngineTestCase {
     }
 
     func testTabSiblingKeepsFocusWhenSeparateWindowCloses() {
-        let tabFrame = CGRect(x: 400, y: 0, width: 800, height: 600)
         let tab1 = create(StubWindow(id: 300, appName: "Terminal", frame: tabFrame))
         let tab2 = create(StubWindow(id: 301, appName: "Terminal", frame: tabFrame, tabCount: 2))
         engine.handle(.focused(tab1.snapshot()))

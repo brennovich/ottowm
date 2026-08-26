@@ -1,7 +1,8 @@
-import AppKit
+import CoreGraphics
 import XCTest
 
 private let originalFrame = CGRect(x: 100, y: 100, width: 800, height: 600)
+private let pulledBackFrame = CGRect(x: 200, y: 300, width: 800, height: 600)
 
 final class OffscreenParkingDesktopTests: XCTestCase {
     private let win = StubWindow(id: 100, frame: originalFrame)
@@ -67,7 +68,7 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(win.sizeSetCount, 0)
     }
 
-    func testPlaceRestoresTheSizeOfAWindowResizedWhileParked() {
+    func testPlaceRestoresAWindowResizedWhileParkedWithAnimationsDisabled() {
         desktop.place(100, at: .storage)
         win.moveTo(nubFrame(size: CGSize(width: 400, height: 300)))
 
@@ -75,14 +76,6 @@ final class OffscreenParkingDesktopTests: XCTestCase {
 
         XCTAssertEqual(win.sizeSetCount, 1)
         XCTAssertEqual(win.frame, originalFrame)
-    }
-
-    func testPlaceWritesTheFrameWithAnimationsDisabled() {
-        desktop.place(100, at: .storage)
-        win.moveTo(nubFrame(size: CGSize(width: 400, height: 300)))
-        desktop.place(100, at: .active)
-
-        XCTAssertEqual(win.positionSetCount + win.sizeSetCount, 3)
         XCTAssertEqual(win.animatedWriteCount, 0)
     }
 
@@ -93,15 +86,6 @@ final class OffscreenParkingDesktopTests: XCTestCase {
 
         XCTAssertEqual(stuck.positionSetCount + stuck.sizeSetCount, 2)
         XCTAssertEqual(stuck.animatedWriteCount, 0)
-    }
-
-    func testNativeSpaceChangeReHidesWithAnimationsDisabled() {
-        desktop.startWatching { _ in }
-        desktop.place(100, at: .storage)
-        win.moveTo(CGRect(x: 200, y: 300, width: 800, height: 600))
-        center.postNativeSpaceChange()
-
-        XCTAssertEqual(win.animatedWriteCount, 0)
     }
 
     func testPlaceNeverRecordsAHiddenEdgeFrameAsTheFrameOwed() {
@@ -122,9 +106,8 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(desktop.placement(of: 200), .active)
     }
 
-    func testPlaceLeavesAnUnparkedWindowOnScreenAlone() {
-        desktop.place(100, at: .active)
-
+    func testPlaceLeavesAnUnparkedWindowOnScreenAloneAndReportsItAsStillThere() {
+        XCTAssertTrue(desktop.place(100, at: .active))
         XCTAssertEqual(win.positionSetCount, 0)
         XCTAssertEqual(win.frame, originalFrame)
     }
@@ -138,25 +121,16 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(desktop.placement(of: 100), .active)
     }
 
-    func testPlaceHandlesMissingWindow() {
-        desktop.place(999, at: .storage)
-
-        XCTAssertEqual(desktop.placement(of: 999), .active)
-    }
-
-    func testPlaceReportsAWindowItCannotReach() {
+    func testPlaceReportsAMissingWindowAndLeavesItActive() {
         XCTAssertFalse(desktop.place(999, at: .storage))
         XCTAssertFalse(desktop.place(999, at: .active))
+        XCTAssertEqual(desktop.placement(of: 999), .active)
     }
 
     func testPlaceReportsAnOutOfReachWindowAsStillThere() {
         win.isMinimized = true
 
         XCTAssertTrue(desktop.place(100, at: .storage))
-    }
-
-    func testPlaceReportsAnUnparkedWindowAsStillThere() {
-        XCTAssertTrue(desktop.place(100, at: .active))
     }
 
     func testPlaceReportsAParkedWindowThatVanished() {
@@ -236,13 +210,14 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(received, [])
     }
 
-    func testNativeSpaceChangeParksStoredWindowsPulledBackOnScreen() {
+    func testNativeSpaceChangeParksStoredWindowsPulledBackOnScreenWithoutAnimations() {
         desktop.startWatching { _ in }
         desktop.place(100, at: .storage)
-        win.moveTo(CGRect(x: 200, y: 300, width: 800, height: 600))
+        win.moveTo(pulledBackFrame)
         center.postNativeSpaceChange()
 
         XCTAssertEqual(win.frame, nubFrame(size: originalFrame.size))
+        XCTAssertEqual(win.animatedWriteCount, 0)
 
         desktop.place(100, at: .active)
 
@@ -262,10 +237,10 @@ final class OffscreenParkingDesktopTests: XCTestCase {
 
         desktop.startWatching { _ in }
         desktop.place(100, at: .storage)
-        win.moveTo(CGRect(x: 200, y: 300, width: 800, height: 600))
+        win.moveTo(pulledBackFrame)
         center.postNativeSpaceChange()
 
-        XCTAssertEqual(win.frame, CGRect(x: 200, y: 300, width: 800, height: 600))
+        XCTAssertEqual(win.frame, pulledBackFrame)
     }
 
     func testStartWatchingForManualNavigationReplacesPreviousSubscription() {

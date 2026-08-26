@@ -6,6 +6,7 @@ final class KnownWindowsHarness {
     var elements: [pid_t: [AXUIElement]] = [:]
     var windowIds: [AXUIElement: CGWindowID] = [:]
     var systemFocusedWindow: AXWindow?
+    var focusedElements: [pid_t: AXUIElement] = [:]
     var failingObserverPids: Set<pid_t> = []
     var unreadyPids: Set<pid_t> = []
     var deadElements: Set<AXUIElement> = []
@@ -32,6 +33,11 @@ final class KnownWindowsHarness {
         windowElements: { self.elements[$0] ?? [] },
         makeWindow: { AXWindow(element: $0, application: $1, id: self.windowIds[$0] ?? 0) },
         focusedWindow: { self.systemFocusedWindow },
+        focusedWindowOf: { app in
+            self.focusedElements[app.processIdentifier].map {
+                AXWindow(element: $0, application: app, id: self.windowIds[$0] ?? 0)
+            }
+        },
         isAlive: { !self.deadElements.contains($0) },
         screenIsLocked: { self.screenIsLocked }
     )

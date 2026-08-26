@@ -12,6 +12,7 @@ class EngineTestCase: XCTestCase {
     var quitCount = 0
     var restartCount = 0
     let workspaces = Workspaces()
+    let tabFrame = CGRect(x: 400, y: 0, width: 800, height: 600)
 
     lazy var desktop = StubDesktop(window: { [weak self] id in self?.windows[id] })
 
@@ -31,7 +32,7 @@ class EngineTestCase: XCTestCase {
         ),
         workspaces: workspaces,
         screenIsLocked: { [weak self] in self?.screenIsLocked ?? false },
-        quit: { [weak self] in self?.quitCount += 1 },
+        quit: { [weak self] in self?.quit() },
         restart: { [weak self] in self?.restartCount += 1 }
     )
 
@@ -51,5 +52,21 @@ class EngineTestCase: XCTestCase {
     func moveFocusedWindow(_ window: StubWindow, to workspace: Int) {
         focused = window
         engine.moveFocusedWindow(toWorkspace: workspace)
+    }
+
+    func createFocusedTabPair() -> (tab1: StubWindow, tab2: StubWindow, other: StubWindow) {
+        let tab1 = create(StubWindow(id: 300, appName: "Terminal", frame: tabFrame))
+        engine.handle(.focused(tab1.snapshot()))
+        let tab2 = create(StubWindow(id: 301, appName: "Terminal", frame: tabFrame, tabCount: 2))
+        engine.handle(.focused(tab2.snapshot()))
+        let other = create(StubWindow(id: 100))
+        return (tab1, tab2, other)
+    }
+
+    /// Mirrors the production wiring, where Shutdown.quit stops the engine before it
+    /// exits.
+    private func quit() {
+        engine.stop()
+        quitCount += 1
     }
 }

@@ -7,7 +7,7 @@ import CoreGraphics
 @discardableResult
 private func _AXUIElementGetWindow(_ element: AXUIElement, _ id: inout CGWindowID) -> AXError
 
-final class AXWindow: Window {
+final class AXWindow: Window, WindowLogDescribing {
     let element: AXUIElement
     let application: NSRunningApplication
 
@@ -31,8 +31,6 @@ final class AXWindow: Window {
     }()
 
     var appName: String { application.localizedName ?? "" }
-
-    var logDescription: String { "id=\(id) app=\(appName)" }
 
     func snapshot() -> WindowSnapshot {
         let attributes = element.values(of: [

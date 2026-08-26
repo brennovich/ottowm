@@ -18,13 +18,7 @@ final class EngineFullScreenTests: EngineTestCase {
     }
 
     func testWindowBackFromFullScreenReturnsToTheWorkspaceItLeftAndTakesTheDesktopThere() {
-        create(StubWindow(id: 100))
-        let win2 = create(StubWindow(id: 200))
-        win2.isFullScreen = true
-        focused = win2
-        offScreenWindowIds = [100]
-        engine.switchToWorkspace(1)
-        engine.switchToWorkspace(2)
+        let win2 = sendWindowFullScreenAndLeave()
 
         win2.isFullScreen = false
         offScreenWindowIds = []
@@ -36,13 +30,7 @@ final class EngineFullScreenTests: EngineTestCase {
     }
 
     func testWindowFoundBackFromFullScreenWhileRestoringFocusReturnsToTheWorkspaceItLeft() {
-        create(StubWindow(id: 100))
-        let win2 = create(StubWindow(id: 200))
-        win2.isFullScreen = true
-        focused = win2
-        offScreenWindowIds = [100]
-        engine.switchToWorkspace(1)
-        engine.switchToWorkspace(2)
+        let win2 = sendWindowFullScreenAndLeave()
         offScreenWindowIds = []
         create(StubWindow(id: 300))
 
@@ -57,13 +45,7 @@ final class EngineFullScreenTests: EngineTestCase {
     }
 
     func testMovingAWindowBackFromFullScreenOverridesTheWorkspaceItLeft() {
-        create(StubWindow(id: 100))
-        let win2 = create(StubWindow(id: 200))
-        win2.isFullScreen = true
-        focused = win2
-        offScreenWindowIds = [100]
-        engine.switchToWorkspace(1)
-        engine.switchToWorkspace(2)
+        let win2 = sendWindowFullScreenAndLeave()
 
         win2.isFullScreen = false
         offScreenWindowIds = []
@@ -85,5 +67,16 @@ final class EngineFullScreenTests: EngineTestCase {
 
         XCTAssertEqual(workspaces.workspace(for: 200), 2)
         XCTAssertEqual(workspaces.current, 2)
+    }
+
+    private func sendWindowFullScreenAndLeave() -> StubWindow {
+        create(StubWindow(id: 100))
+        let win2 = create(StubWindow(id: 200))
+        win2.isFullScreen = true
+        focused = win2
+        offScreenWindowIds = [100]
+        engine.switchToWorkspace(1)
+        engine.switchToWorkspace(2)
+        return win2
     }
 }

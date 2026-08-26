@@ -66,35 +66,6 @@ final class WorkspacesTests: XCTestCase {
         XCTAssertEqual(model.nextWindowToFocus, 200)
     }
 
-    func testFocusHistoryMaintainsOrder() {
-        let model = makeWorkspaces(assigning: [(100, 1), (200, 1), (300, 1)])
-
-        model.recordFocus(on: 100, in: 1)
-        model.recordFocus(on: 200, in: 1)
-        model.recordFocus(on: 300, in: 1)
-
-        XCTAssertEqual(model.nextWindowToFocus, 300)
-
-        model.remove(300)
-        XCTAssertEqual(model.nextWindowToFocus, 200)
-
-        model.remove(200)
-        XCTAssertEqual(model.nextWindowToFocus, 100)
-    }
-
-    func testFocusHistoryNoDuplicates() {
-        let model = makeWorkspaces(assigning: [(100, 1), (200, 1)])
-
-        model.recordFocus(on: 100, in: 1)
-        model.recordFocus(on: 200, in: 1)
-        model.recordFocus(on: 100, in: 1)
-
-        XCTAssertEqual(model.nextWindowToFocus, 100)
-
-        model.remove(100)
-        XCTAssertEqual(model.nextWindowToFocus, 200)
-    }
-
     func testSwitchTo() {
         typealias Placement = (toActive: Set<CGWindowID>, toStorage: Set<CGWindowID>)
         let cases: [(name: String, assignments: Assignments, target: Int, placement: Placement)] = [

@@ -31,7 +31,7 @@ final class ConfigFileTests: XCTestCase {
             ),
             (
                 "empty variables are ignored",
-                ["HOME": "/Users/otto", "XDG_CONFIG_HOME": "", "OTTOWM_CONFIG": ""],
+                ["HOME": "/Users/otto", "XDG_CONFIG_HOME": ""],
                 "/Users/otto/.config/ottowm/ottowm"
             ),
         ]

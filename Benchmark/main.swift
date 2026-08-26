@@ -1,4 +1,5 @@
-import AppKit
+import CoreGraphics
+import Foundation
 
 // Measures what a hotkey costs the user: the wall time from posting it to seeing the
 // window where the action promised to put it. Same harness the acceptance run drives,

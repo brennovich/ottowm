@@ -29,8 +29,7 @@ final class Engine {
         self.restart = restart
     }
 
-    @discardableResult
-    func start(windows: [WindowSnapshot]) -> Engine {
+    func start(windows: [WindowSnapshot]) {
         windowSystem.duringOperation {
             for win in desktop.recover(windows) {
                 assign(win, to: 1)
@@ -40,8 +39,6 @@ final class Engine {
                 self?.handleManualNavigation(windowId)
             }
         }
-
-        return self
     }
 
     /// Prevents lost windows when OttoWM quit or crash.
@@ -82,7 +79,7 @@ final class Engine {
         switch action {
         case let .switchToWorkspace(workspace): switchToWorkspace(workspace)
         case let .moveWindowToWorkspace(workspace): moveFocusedWindow(toWorkspace: workspace)
-        case .quit: stop(); quit()
+        case .quit: quit()
         case .restart: restart()
         }
     }
@@ -130,7 +127,7 @@ final class Engine {
             workspaces.move(win.id, to: workspace)
             // An explicit move overrides the workspace a full screen window would
             // otherwise return to.
-            workspaceBeforeFullScreen.forget(win.id)
+            workspaceBeforeFullScreen.take(win.id)
 
             restoreFocus()
         }
@@ -246,7 +243,7 @@ final class Engine {
 
         let focusSettled = workspaces.remove(windowId)
         desktop.forget(windowId)
-        workspaceBeforeFullScreen.forget(windowId)
+        workspaceBeforeFullScreen.take(windowId)
         awaitedFocus.forget(windowId)
         return focusSettled
     }
@@ -292,7 +289,7 @@ final class Engine {
 
         (placements.toActive.filter { !desktop.place($0, at: .active) }
          + placements.toStorage.filter { !desktop.place($0, at: .storage) })
-        .forEach({ unmanage($0, reason: "gone")})
+            .forEach { unmanage($0, reason: "gone") }
     }
 
     /// Takes the window under management and places it.
