@@ -1,7 +1,8 @@
 import CoreGraphics
 
-/// The windows macOS shows as tabs of one another. Membership is never exposed by
-/// the OS, so a group is inferred from the window it was opened around.
+/// macOS reports each tab as a standalone window, with no relation between
+/// them, so a group is inferred from the window it was opened around and tracked
+/// from there as tabs open and close.
 struct TabGroups {
     private static let yTolerance: CGFloat = 10
 
@@ -13,8 +14,8 @@ struct TabGroups {
     private var groups: [Int: Group] = [:]
     private var windowToGroup: [CGWindowID: Int] = [:]
 
-    /// Groups outlive their representative window and macOS recycles window ids, so a
-    /// group keyed by that id could be taken over by an unrelated new window.
+    /// A group outlives its representative window, and macOS reuses window ids, so a group
+    /// keyed by that id could be taken over by an unrelated window.
     private var nextGroupId = 1
 
     /// Joins the group whose representative this window is a tab of, or opens a new
@@ -57,8 +58,8 @@ struct TabGroups {
         return groups.first { isTab(window, of: $0.value.representative) }?.key
     }
 
-    /// macOS does not report tab membership, so it is inferred from two windows sharing
-    /// an application and a frame, within a tolerance on y.
+    /// Membership is inferred from two windows sharing an application and a frame, with a
+    /// tolerance on y.
     private func isTab(_ window: WindowSnapshot, of representative: WindowSnapshot) -> Bool {
         return window.appName == representative.appName
             && window.frame.origin.x == representative.frame.origin.x

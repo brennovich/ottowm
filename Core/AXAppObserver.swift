@@ -1,10 +1,10 @@
 import ApplicationServices
 
-/// One observed application's AX subscription surface: what to watch and how to let go.
+/// The AX subscriptions of one application: what to watch, and how to release them.
 struct AppObserver {
     /// Subscribes to one notification of the application.
-    /// - Returns: `false` if the subscription is not in place, so a caller depending on
-    ///   the notification can retry instead of never hearing from the application again.
+    /// - Returns: `false` if the subscription is not in place, so a caller that depends on
+    ///   the notification can retry rather than never hear from the application.
     let watch: (AXUIElement, String) -> Bool
     let invalidate: () -> Void
 }

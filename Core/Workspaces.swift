@@ -1,6 +1,7 @@
 import CoreGraphics
 
-/// Tracks windows in their respective workspace.
+/// Model that maps windows to their respective workspace, keeping focus history
+/// of each workspace and the active workspace.
 final class Workspaces {
     private(set) var currentWorkspace = 1
 
@@ -28,8 +29,8 @@ final class Workspaces {
 
     /// Assigns the window to `workspace`, or to the workspace its tab group already sits in.
     ///
-    /// A tab group is one unit, so a window joining one lands where the group is rather
-    /// than dragging the group to the workspace it was discovered from.
+    /// A tab group moves as one unit. A window joining a group lands where the group is;
+    /// the group does not follow the window.
     /// - Returns: the workspace the window landed in.
     @discardableResult
     func assign(_ window: WindowSnapshot, to workspace: Int, tabCount: Int = 1) -> Int {
@@ -45,15 +46,15 @@ final class Workspaces {
         recordFocus(on: windowId, in: workspace)
     }
 
-    /// The windows macOS takes out of reach together with this one: a tab group is a single
-    /// window to it, so its tabs are minimized, restored and moved as one.
+    /// The windows macOS minimizes, restores and moves together with this one. A tab group
+    /// is one window to macOS.
     func tabGroupMembers(of windowId: CGWindowID) -> [CGWindowID] {
         tabGroups.members(of: windowId)
     }
 
     /// Drops the window from its workspace and from the focus history.
-    /// - Returns: `true` if a surviving tab sibling took over the focus, so there is
-    ///   nothing left to restore.
+    /// - Returns: `true` if a surviving tab sibling took the focus, so no other window
+    ///   needs it.
     @discardableResult
     func remove(_ windowId: CGWindowID) -> Bool {
         var focusSettled = false
@@ -89,8 +90,8 @@ final class Workspaces {
         }
     }
 
-    /// The window the current workspace should focus: the most recently focused one
-    /// still in it, or any window it holds.
+    /// The window to focus in the current workspace: the most recently focused one still
+    /// in it, or any window it holds.
     /// - Complexity: O(*n*) in the number of windows of the current workspace.
     var nextWindowToFocus: CGWindowID? {
         focusedWindows[currentWorkspace]?.first { windowWorkspaceMap[$0] == currentWorkspace }

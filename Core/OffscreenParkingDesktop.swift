@@ -1,9 +1,8 @@
 import AppKit
 import CoreGraphics
 
-/// Realizes Placement on a single real macOS Space, as Aerospace.app does: storage
-/// windows are parked in the bottom-right corner and restored to their captured frame
-/// on switch.
+/// Applies `Placement` on one macOS Space, like AeroSpace. A storage window is moved to
+/// the bottom-right corner, and restored to its captured frame on the next switch.
 final class OffscreenParkingDesktop: Desktop {
     /// The bottom-right sliver a parked window is moved to.
     struct HiddenEdge {
@@ -60,8 +59,8 @@ final class OffscreenParkingDesktop: Desktop {
     }
 
     /// Moves the windows found parked at the hidden edge back on screen.
-    /// - Returns: the windows as they now stand: a recovered one has moved, and the model
-    ///   has to record where it ended up.
+    /// - Returns: the windows at their current frames. A recovered one has moved, and the
+    ///   model records where it ended up.
     func recover(_ windows: [WindowSnapshot]) -> [WindowSnapshot] {
         windows.map { snapshot in
             guard !snapshot.isMinimized, hiddenEdge.holds(snapshot.frame),
@@ -77,7 +76,7 @@ final class OffscreenParkingDesktop: Desktop {
 
     @discardableResult
     func place(_ windowId: CGWindowID, at placement: Placement) -> Bool {
-        // An already parked window is left where it is rather than read at all.
+        // An already parked window is left where it is, without a frame read.
         if placement == .storage, hiddenWindowFrames[windowId] != nil { return canReach(windowId) }
 
         guard let (win, currentFrame) = movableWindow(windowId, for: placement) else {
@@ -136,9 +135,9 @@ final class OffscreenParkingDesktop: Desktop {
         hiddenWindowFrames[windowId] = nil
     }
 
-    /// The corner is never a frame a window belongs to, so one sitting there is replaced
-    /// by an on-screen frame. No window is parked in the corner it already occupies, nor
-    /// restored to it.
+    /// No window belongs at the corner, so a frame sitting there is replaced by an
+    /// on-screen one. This keeps a window from being parked at a corner frame, or restored
+    /// to one.
     private func onScreenFrame(for windowId: CGWindowID, replacing frame: CGRect) -> CGRect {
         guard hiddenEdge.holds(frame) else { return frame }
 
@@ -154,10 +153,10 @@ final class OffscreenParkingDesktop: Desktop {
         }
     }
 
-    /// Reports whether the window still exists at all.
+    /// Reports whether the window still exists.
     ///
-    /// A quitting application drops its windows without a destroyed notification for
-    /// each, and the model would otherwise keep placing them on every switch.
+    /// A quitting application drops its windows without a destroyed notification for each.
+    /// Without this the model keeps placing them on every switch.
     private func canReach(_ windowId: CGWindowID) -> Bool {
         window(windowId) != nil
     }
@@ -173,7 +172,7 @@ final class OffscreenParkingDesktop: Desktop {
     private func handleActiveSpaceChange(_ callback: (CGWindowID) -> Void) {
         guard let focusedId = focusedWindowId(), hiddenWindowFrames[focusedId] != nil else {
             Log.desktop.debug("native space change: no hidden window focused")
-            // macOS makes the non-fullscreen counterpart visible when its fullscreen
+            // macOS moves the non-full-screen window back on screen when its full screen
             // instance exits, a Safari video for example.
             for (windowId, originalFrame) in hiddenWindowFrames {
                 guard let win = window(windowId),

@@ -1,8 +1,8 @@
 import Darwin
 import Dispatch
 
-/// Every way the process ends. A parked window sits at the hidden edge and the frame it
-/// belongs at is recorded nowhere but here, so it has to be put back before exiting.
+/// Every way the process ends. A parked window sits at the hidden edge, and the frame it
+/// belongs at is only held in memory, so it must be restored before the process exits.
 final class Shutdown {
     private let stop: () -> Void
     private let exit: (Int32) -> Void
@@ -19,8 +19,8 @@ final class Shutdown {
         self.observeSIGTERM = observeSIGTERM
     }
 
-    /// The `quit` action. It does not restore anything: `Engine.handle(.quit)` calls
-    /// `Engine.stop` before it calls this.
+    /// The `quit` action. Restores nothing: `Engine.handle(.quit)` calls `Engine.stop`
+    /// first.
     func quit() {
         Log.app.notice("quit action received, window frames restored")
         exit(EXIT_SUCCESS)

@@ -70,6 +70,8 @@ flowchart TB
 | Component                             | Role                                                                                                                                                                                                                                                                                                                                                                                                                       |
 |---------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `Engine`                              | Turns window events and actions into model updates and window moves.                                                                                                                            |
+| `AwaitedFocus`                        | The focus requests `Engine` made and has not seen answered. It tells a late answer apart from the user focusing a parked window.                                                                                                                                                                                                                                                                                          |
+| `WorkspaceBeforeFullScreen`           | The workspace each full screen window returns to.                                                                                                                                                                                                                                                                                                                                                                          |
 | `Workspaces`                          | The pure model: window → workspace, focus history per workspace, current workspace. It makes no OS call.                                                                                                                                                                                                                                                                                                                   |
 | `TabGroups`                           | Infers which windows are tabs of one another.                                                                                                                                                                                                                                                                                                                                                                              |
 | `Desktop` (`OffscreenParkingDesktop`) | It parks a storage window at the hidden edge and restores the captured frame. `restoreAll()` puts every parked window back.                                                                         |
@@ -154,14 +156,14 @@ The whole switch runs inside `WindowSystem.duringOperation`, so the focused wind
 
 The user can reach a parked window without OttoWM. Two detectors report it:
 
-- A `.focused` event for a window whose placement is `.storage`, on the same native Space. The event counts only when the OS still reports that window as focused, and when it is not the late answer to a focus OttoWM asked for.
+- A `.focused` event for a window whose placement is `.storage`, on the same native Space. The event counts only when the OS still reports that window as focused, and when it is not the late answer to a focus OttoWM requested, which `AwaitedFocus` tracks.
 - `activeSpaceDidChangeNotification` while a parked window has the focus, from another Space.
 
 `handleManualNavigation` then switches the model to that window's workspace. The one-shot `ignoreNextManualNavigation` flag drops the echo of a focus OttoWM caused itself. A space change also pulls a parked window back on screen when its full screen instance exits, so the desktop parks such a window again.
 
 ### Full screen
 
-A full screen window is not admissible, and OttoWM never places it. When a switch finds the focused window in full screen, the engine stops managing it and records the workspace it was in. When the window comes back, the engine switches to that workspace and assigns the window there. A `move-window-to-workspace` on that window clears the record.
+A full screen window is not admissible, and OttoWM never places it. When a switch finds the focused window in full screen, the engine stops managing it and `WorkspaceBeforeFullScreen` records the workspace it was in. When the window comes back, the engine switches to that workspace and assigns the window there. A `move-window-to-workspace` on that window clears the record.
 
 ### Window lifecycle
 

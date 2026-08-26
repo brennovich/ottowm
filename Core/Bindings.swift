@@ -1,7 +1,7 @@
 /// The bindings event tap for a given `Config`.
 final class Bindings {
-    /// `Hotkeys.start()` creates a real event tap and a thread to run it on, so the two
-    /// calls this type makes are the seam rather than `Hotkeys` itself.
+    /// `Hotkeys.start()` creates a real event tap and a thread to run it on. The seam is
+    /// these two calls, not `Hotkeys` itself.
     struct Tap {
         let start: () -> Bool
         let stop: () -> Void

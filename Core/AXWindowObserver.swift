@@ -5,8 +5,8 @@ import CoreGraphics
 private let subscriptionRetryDelay: TimeInterval = 0.1
 private let lockScreenBundleId = "com.apple.loginwindow"
 
-/// Per-app AXObservers plus NSWorkspace launch/terminate surface the window
-/// lifecycle events: created, focused, destroyed and (de)minimized.
+/// Turns per-application `AXObserver`s and `NSWorkspace` notifications into `WindowEvent`s:
+/// created, focused, destroyed, minimized and unminimized.
 final class AXWindowObserver {
     private let registry: WindowRegistry
     private let focusedWindow: () -> AXWindow?
@@ -24,9 +24,9 @@ final class AXWindowObserver {
     private var observers: [pid_t: AppObserver] = [:]
     private let ownPid = ProcessInfo.processInfo.processIdentifier
 
-    /// A freshly launched application can take seconds before its AX interface responds,
-    /// and until then its windows are never announced, hence the retries. One that fails
-    /// every retry is ignored; it may have no AX interface at all.
+    /// A freshly launched application can take seconds to answer AX, and announces no
+    /// window until it does, hence the retries. An application that fails every retry is
+    /// given up on; it may have no AX interface.
     static let subscriptionGracePeriod: TimeInterval = 15
 
     private static let applicationNotifications = [
@@ -61,9 +61,9 @@ final class AXWindowObserver {
         },
         makeWindow: @escaping (AXUIElement, NSRunningApplication) -> AXWindow = AXWindow.init(element:application:),
         focusedWindowOf: @escaping (NSRunningApplication) -> AXWindow? = AXWindow.focused(of:),
-        // Only an element the application has actually released returns invalidUIElement.
-        // A window that is merely slow or momentarily unreachable fails with some other
-        // error, so anything but invalidUIElement counts as alive.
+        // Only an element the application has released returns invalidUIElement. A slow
+        // or briefly unreachable window fails with another error, so anything but
+        // invalidUIElement counts as alive.
         isAlive: @escaping (AXUIElement) -> Bool = { element in
             var value: CFTypeRef?
             return AXUIElementCopyAttributeValue(element, AXAttribute.role.rawValue as CFString, &value) != .invalidUIElement
@@ -84,10 +84,10 @@ final class AXWindowObserver {
         self.screenIsLocked = screenIsLocked
     }
 
-    /// kAXUIElementDestroyedNotification is not delivered for every window that dies: the
-    /// close button of a window whose application is not in front removes it silently.
-    /// Probing every known window catches those, and is done when a stale entry is
-    /// relevant: an application coming to front or the screen unlocking.
+    /// macOS does not send kAXUIElementDestroyedNotification for every window that dies:
+    /// closing a background application's window sends nothing. Probing every known window
+    /// finds those. Called when an application comes to front and when the screen unlocks,
+    /// the two moments a stale entry starts to matter.
     func dropDeadWindows() {
         guard !screenIsLocked() else { return }
 
@@ -99,8 +99,8 @@ final class AXWindowObserver {
     }
 
     /// A window that is not the active tab of its group is absent from the application's
-    /// window list, so becoming focused is the only moment it can be discovered. Adopting
-    /// it makes it placeable and subscribes it to the lifecycle notifications.
+    /// window list. Taking the focus is the only moment it can be discovered. Adopting it
+    /// registers the window and subscribes it to the lifecycle notifications.
     func adoptFocusedWindow() -> AXWindow? {
         guard let window = focusedWindow() else { return nil }
         adopt(window)
@@ -108,8 +108,8 @@ final class AXWindowObserver {
     }
 
     /// Subscribes to every observable application and to launch and terminate notifications.
-    /// - Returns: the windows discovered while registering the observers, so the caller
-    ///   can seed the model with them instead of sweeping every application again.
+    /// - Returns: the windows found while registering the observers, so the caller can
+    ///   seed the model without sweeping every application again.
     func start(_ handler: @escaping (WindowEvent) -> Void) -> [WindowSnapshot] {
         self.handler = handler
 
@@ -186,8 +186,8 @@ final class AXWindowObserver {
 
     /// Subscribes to the application level notifications.
     ///
-    /// Retrying is necessary because the AX interface of a just launched application may not
-    /// be up yet. If the subscriptions fail nothing else re-subscribes.
+    /// A just launched application may not have its AX interface up yet, hence the retry.
+    /// Nothing else re-subscribes if these subscriptions fail.
     /// - Returns: the windows the application already has.
     private func subscribe(to app: NSRunningApplication, observer: AppObserver, deadline: Date) -> [WindowSnapshot] {
         let pid = app.processIdentifier

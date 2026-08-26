@@ -66,9 +66,9 @@ final class AXWindow: Window {
 
     /// Runs `body` with the application's frame animations turned off.
     ///
-    /// An application animates a frame write while AXEnhancedUserInterface is on, and
-    /// macOS turns that attribute on as soon as an assistive client like OttoWM attaches.
-    /// The move flickers, and a frame read mid animation returns the old position.
+    /// An application animates a frame write while AXEnhancedUserInterface is on. macOS
+    /// turns that attribute on as soon as an assistive client like OttoWM attaches. The
+    /// move flickers, and a frame read mid animation returns the old position.
     ///
     /// Credited to yabai and Rectangle, via AeroSpace.
     func withoutAnimations(_ body: () -> Void) {

@@ -1,7 +1,7 @@
 import CoreGraphics
 
-/// Orchestrates window lifecycle events and hotkey commands, keeping the pure
-/// Workspaces model and the physical Desktop in sync.
+/// Turns window events and hotkey actions into updates of the `Workspaces` model and
+/// moves on the `Desktop`.
 final class Engine {
     private let desktop: any Desktop
     private let windowSystem: WindowSystem
@@ -10,13 +10,8 @@ final class Engine {
     private let quit: () -> Void
     private let restart: () -> Void
     private var ignoreNextManualNavigation = false
-    private var fullscreenWindowOriginalWorkspace: [CGWindowID: Int] = [:]
-    /// The window OttoWM last asked for the focus, and the ones it asked for earlier and
-    /// replaced while their answer was still on its way. macOS delivers that answer all the
-    /// same, by which time a switch may have parked the window, and a focus event naming a
-    /// parked window reads exactly like the user reaching for one.
-    private var awaitedFocus: CGWindowID?
-    private var supersededFocus: Set<CGWindowID> = []
+    private var workspaceBeforeFullScreen = WorkspaceBeforeFullScreen()
+    private var awaitedFocus = AwaitedFocus()
 
     init(
         desktop: any Desktop,
@@ -49,16 +44,15 @@ final class Engine {
         return self
     }
 
-    /// OttoWM leaving takes the workspaces with it, and a window parked at the hidden
-    /// edge would be stranded there with nothing left to bring it back.
+    /// Prevents lost windows when OttoWM quit or crash.
     func stop() {
         desktop.restoreAll()
     }
 
     func handle(_ event: WindowEvent) {
-        // Behind the lock screen every window reads as closed. Acting on that would
-        // unmanage the windows and lose the frames parked ones are restored to. Events
-        // are dropped until unlock, which resyncs the state.
+        // Behind the lock screen every window reads as closed. Acting on that would drop
+        // every window and lose the frames the parked ones are restored to. Events are
+        // ignored until the screen unlocks.
         guard !screenIsLocked() else {
             Log.engine.debug("window event ignored: the screen is locked")
             return
@@ -75,8 +69,8 @@ final class Engine {
             case let .minimized(windowId):
                 handleMinimized(windowId)
             case let .unminimized(win):
-                // A window minimized while parked was unmanaged with its frame left at
-                // the corner. Recovering it is only possible now that it is back.
+                // A window minimized while parked was dropped with its frame left at the
+                // corner. It can only be recovered now that it is back.
                 for recovered in desktop.recover([win]) {
                     assign(recovered, to: workspaces.currentWorkspace)
                 }
@@ -136,25 +130,21 @@ final class Engine {
             workspaces.move(win.id, to: workspace)
             // An explicit move overrides the workspace a full screen window would
             // otherwise return to.
-            fullscreenWindowOriginalWorkspace[win.id] = nil
+            workspaceBeforeFullScreen.forget(win.id)
 
             restoreFocus()
         }
     }
 
     private func handleFocused(_ win: WindowSnapshot) {
-        let isEcho = supersededFocus.remove(win.id) != nil
-        if awaitedFocus == win.id {
-            awaitedFocus = nil
-            supersededFocus = []
-        }
+        let isEcho = awaitedFocus.settle(win.id)
 
         if desktop.placement(of: win.id) == .storage {
-            // Focus notifications are delivered asynchronously, so this one may
-            // describe a focus OttoWM caused before the switch that hid the window.
-            // Acting on that echo bounces back to the workspace just left, so only the
-            // window the OS considers focused right now, and whose focus OttoWM is not
-            // still owed an answer for, counts.
+            // Focus notifications arrive asynchronously, so this one may answer a focus
+            // OttoWM requested before the switch that parked the window. Acting on it
+            // would switch straight back to the workspace just left. Only a window the OS
+            // reports as focused right now, by a notification that is not a late answer,
+            // counts.
             guard windowSystem.focused()?.id == win.id, !isEcho else {
                 Log.engine.debug("ignoring stale focus event id=\(win.id)")
                 return
@@ -173,7 +163,7 @@ final class Engine {
         }
 
         // A tab discovered only now can belong to a group in another workspace. The user
-        // reached it, so follow them there instead of parking it.
+        // focused it, so switch there instead of parking it.
         if let assigned = assign(win, to: workspaces.currentWorkspace),
            assigned != workspaces.currentWorkspace {
             handleManualNavigation(win.id)
@@ -188,11 +178,10 @@ final class Engine {
         }
     }
 
-    /// A minimize takes the whole tab group to the Dock, so every tab goes out of reach at
-    /// once. Dropping only the one the notification named would leave its siblings managed
-    /// and focusable, and focusing one of those brings the group back up. It also means no
-    /// sibling is left to inherit the focus, the way one does when a tab is closed, so
-    /// unlike handleDestroyed this always looks for a new window to focus.
+    /// macOS minimizes a whole tab group, so every member goes out of reach at once.
+    /// Dropping only the window the notification names would leave its siblings managed and
+    /// focusable, and focusing one of those restores the group. No sibling keeps the focus,
+    /// unlike a closed tab, so this always picks a new window to focus.
     private func handleMinimized(_ windowId: CGWindowID) {
         guard workspaces.workspace(for: windowId) != nil else { return }
 
@@ -203,9 +192,9 @@ final class Engine {
         restoreFocus()
     }
 
-    /// A window its application never announced is discovered when the focus is read,
-    /// which can happen mid switch. It was on screen in the workspace being left, so it
-    /// joins that one rather than the one being entered.
+    /// A window its application never announced is found when the focus is read, which can
+    /// happen during a switch. It was on screen in the workspace being left, so it joins
+    /// that one.
     private func admitFocusedWindow() {
         guard let focused = windowSystem.focused(), workspaces.workspace(for: focused.id) == nil else { return }
 
@@ -217,11 +206,10 @@ final class Engine {
               let workspace = workspaces.workspace(for: focused.id)
         else { return }
 
-        // Unlike a minimized or destroyed one, a full screen window returns to the
-        // workspace it left rather than the current one. Recorded after unmanaging,
-        // which clears every other trace of the window.
+        // Recorded after the window is dropped, because dropping it clears every other
+        // trace of it.
         unmanage(focused.id, reason: "fullscreen")
-        fullscreenWindowOriginalWorkspace[focused.id] = workspace
+        workspaceBeforeFullScreen.record(focused.id, in: workspace)
     }
 
     /// The user can drag a managed window onto another native Space.
@@ -230,26 +218,27 @@ final class Engine {
         guard windowSystem.showsAny(parked) else { return }
 
         for windowId in workspaces.allWindowIds.subtracting(parked) where !windowSystem.shows(windowId) {
-            // Records the workspace a fullscreen app is owed.
-            guard let s = windowSystem.snapshot(of: windowId), !s.isFullScreen else { continue }
+            // A full screen window is off the desktop but comes back to it, so it stays
+            // managed. A window the registry can no longer resolve is skipped here too, and
+            // dropped by the next place() that cannot reach it.
+            guard let snapshot = windowSystem.snapshot(of: windowId), !snapshot.isFullScreen else { continue }
             unmanage(windowId, reason: "left the desktop")
         }
     }
 
     private func followWindowBackFromFullScreen(_ win: WindowSnapshot) -> Bool {
-        guard let workspaceBeforeFullscreen = fullscreenWindowOriginalWorkspace[win.id] else { return false }
+        guard let workspace = workspaceBeforeFullScreen.workspace(of: win.id) else { return false }
 
-        Log.engine.info("\(win.logDescription) is back from full screen → workspace \(workspaceBeforeFullscreen)")
-        if workspaceBeforeFullscreen != workspaces.currentWorkspace {
-            transitionToWorkspace(workspaceBeforeFullscreen)
+        Log.engine.info("\(win.logDescription) is back from full screen → workspace \(workspace)")
+        if workspace != workspaces.currentWorkspace {
+            transitionToWorkspace(workspace)
         }
-        return assign(win, to: workspaceBeforeFullscreen) != nil
+        return assign(win, to: workspace) != nil
     }
 
-    /// Takes a window off OttoWM. As a window out of reach cannot be parked and focusing
-    /// it would strand the user away from the desktop, so it stops being managed rather
-    /// than being flagged. An app that comes back joins the current workspace like a new
-    /// window.
+    /// Drops the window from OttoWM. A window out of reach cannot be parked, and focusing
+    /// it would leave the user on another native Space, so it is dropped rather than
+    /// marked. It joins the current workspace like a new window if it comes back.
     @discardableResult
     private func unmanage(_ windowId: CGWindowID, reason: String) -> Bool {
         let workspace = workspaces.workspace(for: windowId).map { String($0) } ?? "none"
@@ -257,15 +246,14 @@ final class Engine {
 
         let focusSettled = workspaces.remove(windowId)
         desktop.forget(windowId)
-        fullscreenWindowOriginalWorkspace[windowId] = nil
-        if awaitedFocus == windowId { awaitedFocus = nil }
-        supersededFocus.remove(windowId)
+        workspaceBeforeFullScreen.forget(windowId)
+        awaitedFocus.forget(windowId)
         return focusSettled
     }
 
-    /// Focusing a hidden window means the user navigated to it outside OttoWM (Cmd-Tab or
-    /// the Dock on the same native Space, Mission Control from another one), so follow
-    /// them by switching to that window's workspace.
+    /// A parked window taking the focus means the user reached it outside OttoWM: Cmd-Tab
+    /// or the Dock on the same native Space, Mission Control from another one. Switches to
+    /// that window's workspace.
     private func handleManualNavigation(_ windowId: CGWindowID) {
         windowSystem.duringOperation {
             if ignoreNextManualNavigation {
@@ -274,18 +262,26 @@ final class Engine {
                 return
             }
 
-            // AX still resolves elements of destroyed windows, so quitting an app or
-            // closing the last windows of a workspace emits focus events for them.
-            // Without this guard they would read as manual navigation and switch to a
-            // workspace with nothing left in it.
-            let currentWindowIds = workspaces.windowIds(in: workspaces.currentWorkspace)
-            if !currentWindowIds.isEmpty && currentWindowIds.allSatisfy({ id in
-                windowSystem.snapshot(of: id).map { !windowSystem.shows(id) && !$0.isMinimized } ?? true
-            }) { return }
+            if currentWorkspaceIsClosing { return }
 
             let target = workspaces.workspace(for: windowId) ?? 1
             Log.engine.info("manual navigation → workspace \(target) window id=\(windowId)")
             transitionToWorkspace(target)
+        }
+    }
+
+    /// Whether every window of the current workspace is already gone.
+    ///
+    /// AX still resolves the elements of destroyed windows, so quitting an application or
+    /// closing the last windows of a workspace emits focus events for them. Those events
+    /// would otherwise read as manual navigation, and switch to a workspace with nothing
+    /// left in it.
+    private var currentWorkspaceIsClosing: Bool {
+        let windowIds = workspaces.windowIds(in: workspaces.currentWorkspace)
+        guard !windowIds.isEmpty else { return false }
+
+        return windowIds.allSatisfy { windowId in
+            windowSystem.snapshot(of: windowId).map { !windowSystem.shows(windowId) && !$0.isMinimized } ?? true
         }
     }
 
@@ -305,17 +301,17 @@ final class Engine {
     private func assign(_ win: WindowSnapshot, to workspace: Int) -> Int? {
         guard canManage(win) else { return nil }
 
-        let workspaceBeforeWindowEnteredFullscreen = fullscreenWindowOriginalWorkspace.removeValue(forKey: win.id) ?? workspace
-        let assigned = workspaces.assign(win, to: workspaceBeforeWindowEnteredFullscreen, tabCount: windowSystem.tabCount(of: win.id))
+        let target = workspaceBeforeFullScreen.take(win.id) ?? workspace
+        let assigned = workspaces.assign(win, to: target, tabCount: windowSystem.tabCount(of: win.id))
         Log.engine.info("assigned \(win.logDescription) → workspace \(assigned)")
 
         desktop.place(win.id, at: assigned == workspaces.currentWorkspace ? .active : .storage)
         return assigned
     }
 
-    /// Leaving an unmanaged native Space or full screen window is only possible by
-    /// focusing a managed application. When the workspace is empty, focus any managed
-    /// window instead.
+    /// Focusing a managed window is the only way back from another native Space or from a
+    /// full screen window. Falls back to any managed window when the current workspace is
+    /// empty.
     private func returnToDesktop() {
         guard !restoreFocus() else { return }
 
@@ -344,9 +340,9 @@ final class Engine {
                     workspaces.recordFocus(on: osFocused.id, in: currentWorkspace)
                     return true
                 }
-                // A window that left management while out of reach is back, and joins
-                // the current workspace like a new one. Unless its tab group lives
-                // elsewhere, in which case it is parked and something else takes focus.
+                // A window dropped while out of reach is back, and joins the current
+                // workspace like a new one. If its tab group lives elsewhere it is parked
+                // instead, and another window takes the focus.
                 if workspace == nil,
                    assign(osFocused, to: currentWorkspace) == currentWorkspace {
                     return true
@@ -365,21 +361,19 @@ final class Engine {
     private func requestFocus(_ windowId: CGWindowID) -> Bool {
         guard desktop.focus(windowId) else { return false }
 
-        if let awaitedFocus, awaitedFocus != windowId { supersededFocus.insert(awaitedFocus) }
-        awaitedFocus = windowId
+        awaitedFocus.request(windowId)
         return true
     }
 
-    /// The desktop is in front when at least one managed window is on screen: another
-    /// native Space, a full screen app or one the user created, shows none of them.
+    /// True when at least one managed window is on screen. Another native Space or a full
+    /// screen window shows none of them.
     private var isDesktopInFront: Bool {
         let managed = workspaces.allWindowIds
         return managed.isEmpty || windowSystem.showsAny(managed)
     }
 
-    /// A window on another native Space is on screen too while that Space is the one in
-    /// front, so being on screen only tells a window apart from a hidden one once the
-    /// desktop is known to be the Space answering.
+    /// The on-screen list covers whichever native Space is in front, so it tells a managed
+    /// window apart from a parked one only once the desktop is known to be that Space.
     private func canManage(_ win: WindowSnapshot) -> Bool {
         guard isDesktopInFront else {
             Log.engine.debug("\(win.logDescription) ignored: another native Space is in front")

@@ -50,8 +50,8 @@ struct AXRole: Hashable, RawRepresentable {
 extension AXUIElement {
     /// Reads one attribute in one round trip.
     ///
-    /// A failed read is indistinguishable from an absent value here; a caller that needs
-    /// the reason reads the attribute itself.
+    /// A failed read is indistinguishable from an absent value. A caller that needs the
+    /// reason reads the attribute itself.
     func value(of attribute: AXAttribute) -> AnyObject? {
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(self, attribute.rawValue as CFString, &value) == .success

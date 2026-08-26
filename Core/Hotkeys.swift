@@ -2,15 +2,14 @@ import CoreGraphics
 import Dispatch
 import Foundation
 
-/// Global hotkeys via a session CGEventTap for more refined control of key events,
-/// such as left/right modifiers positions. The tap gets a thread of its own.
+/// Global hotkeys on a session `CGEventTap`.  The tap runs on a thread of its own.
 final class Hotkeys {
     private let keyCodeMatcher: (Int64, CGEventFlags) -> Action?
     private let dispatch: (@escaping () -> Void) -> Void
     private let handler: (Action) -> Void
 
-    /// Every mutable field below belongs to the tap thread once start() has handed it
-    /// over, so stop() asks that thread to release rather than doing it itself.
+    /// The tap thread owns every mutable field below once start() has handed them over.
+    /// stop() asks that thread to release them.
     private var tap: CFMachPort?
     private var runLoop: CFRunLoop?
     private var released = false
@@ -41,8 +40,8 @@ final class Hotkeys {
         self.tap = tap
         released = false
 
-        // The thread publishes its run loop before start() returns, so stop() on any
-        // other thread is guaranteed to find one.
+        // The thread publishes its run loop before start() returns, so stop() always
+        // finds one, whichever thread it runs on.
         let running = DispatchSemaphore(value: 0)
         let thread = Thread { [weak self] in
             let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
@@ -63,9 +62,8 @@ final class Hotkeys {
         return true
     }
 
-    /// Leaves the session's event stream for good: every application's keystrokes flow
-    /// through this tap, so it must not stay in the way once it can no longer serve the
-    /// hotkeys it exists for.
+    /// Removes the tap from the session event stream. Every keystroke of every application
+    /// passes through it, so it must not outlive the hotkeys it serves.
     func stop() {
         guard let runLoop else {
             release()
@@ -97,9 +95,8 @@ final class Hotkeys {
         ) else { return Unmanaged.passUnretained(event) }
 
         Log.hotkey.info("hotkey → \(action)")
-        // macOS disables a tap whose callback does not return promptly, so the
-        // action runs after the callback has already consumed the keystroke and
-        // returned.
+        // macOS disables a tap whose callback does not return promptly. The action runs
+        // after the callback has consumed the keystroke and returned.
         dispatch { [weak self] in self?.handler(action) }
         return nil
     }
@@ -113,8 +110,8 @@ final class Hotkeys {
         self.tap = nil
     }
 
-    /// Released here and not through the tap thread: the block stop() hands over would
-    /// outlive the deallocation it cleans up after.
+    /// Releases here rather than on the tap thread: the block stop() hands over would
+    /// outlive this object.
     deinit {
         let runLoop = self.runLoop
         release()

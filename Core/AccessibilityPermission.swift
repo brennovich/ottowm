@@ -36,7 +36,7 @@ struct AccessibilityPermission {
             self.relaunch()
         }
 
-        // A grant landing while an alert is up starts the relaunch behind it, and the
+        // A grant that lands while an alert is up starts the relaunch behind it. The
         // answer the user gives afterwards cannot cancel it.
         if ask(.openSettings) == .quit { return relaunching ? .relaunching : .quit }
         openSettings()

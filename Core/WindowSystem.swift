@@ -1,11 +1,11 @@
 import CoreGraphics
 
-/// A consistent read of what the OS is showing.
+/// A consistent read of what the OS shows.
 ///
-/// A hung application costs axMessagingTimeoutSeconds per AX round trip, and a
-/// single engine operation reads the focused window and the on-screen list
-/// several times over. Caching one read for the length of an operation bounds
-/// that cost, and every decision in the operation sees the same screen.
+/// One engine operation reads the focused window and the on-screen list several times, and
+/// each read costs axMessagingTimeoutSeconds against a hung application. Both are read once
+/// per operation, so the cost is bounded and every decision in the operation sees the same
+/// screen. `snapshot(of:)` and `tabCount(of:)` are not cached; each call is a fresh read.
 final class WindowSystem {
     private let focusedWindow: OperationCache<WindowSnapshot?>
     private let onScreenWindowIds: OperationCache<Set<CGWindowID>>
