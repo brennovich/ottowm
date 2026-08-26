@@ -3,6 +3,8 @@ import ApplicationServices
 import CoreGraphics
 import XCTest
 
+// swiftlint:disable file_length
+
 private final class Harness {
     let windows = KnownWindowsHarness()
     let center = NotificationCenter()
