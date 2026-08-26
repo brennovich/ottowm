@@ -386,6 +386,7 @@ private func openWindow(_ source: WindowSource, claimed: [AXUIElement]) -> AXUIE
             return
         }
         guard let opened, let closeButton = attribute(opened, kAXCloseButtonAttribute) else { return }
+        // swiftlint:disable:next force_cast
         AXUIElementPerformAction(closeButton as! AXUIElement, kAXPressAction as CFString)
     }
 

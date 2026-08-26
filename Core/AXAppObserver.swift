@@ -19,8 +19,11 @@ private final class CallbackBox {
 
 /// The C-convention AXObserver callback: trampolines to the Swift closure carried in refcon.
 private func axObserverCallback(
-    _ observer: AXObserver, _ element: AXUIElement, _ notification: CFString, _ refcon: UnsafeMutableRawPointer?)
-{
+    _ observer: AXObserver,
+    _ element: AXUIElement,
+    _ notification: CFString,
+    _ refcon: UnsafeMutableRawPointer?
+) {
     guard let refcon else { return }
 
     let box = Unmanaged<CallbackBox>.fromOpaque(refcon).takeUnretainedValue()

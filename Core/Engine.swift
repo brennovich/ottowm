@@ -318,11 +318,9 @@ final class Engine {
         ignoreNextManualNavigation = true
         Log.engine.debug("returning to desktop, ignoring next manual navigation")
 
-        for windowId in workspaces.allWindowIds {
-            if requestFocus(windowId) {
-                Log.engine.debug("brought the desktop to front via id=\(windowId)")
-                return
-            }
+        if let windowId = workspaces.allWindowIds.first(where: { requestFocus($0) }) {
+            Log.engine.debug("brought the desktop to front via id=\(windowId)")
+            return
         }
         Log.engine.debug("no live managed window to bring the desktop to front")
     }

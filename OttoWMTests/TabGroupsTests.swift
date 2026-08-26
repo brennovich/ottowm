@@ -26,24 +26,9 @@ final class TabGroupsTests: XCTestCase {
 
     func testGrouping() {
         let cases: [(name: String, windows: [TabbedWindow], subject: CGWindowID, expected: [CGWindowID])] = [
-            (
-                "an unknown window moves alone",
-                [],
-                999,
-                [999]
-            ),
-            (
-                "a window without tabs opens its own group",
-                [tabbed(100)],
-                100,
-                [100]
-            ),
-            (
-                "matching tabbed windows share a group",
-                [tabbed(100, tabCount: 2), tabbed(200, tabCount: 2)],
-                100,
-                [100, 200]
-            ),
+            ("an unknown window moves alone", [], 999, [999]),
+            ("a window without tabs opens its own group", [tabbed(100)], 100, [100]),
+            ("matching tabbed windows share a group", [tabbed(100, tabCount: 2), tabbed(200, tabCount: 2)], 100, [100, 200]),
             (
                 "a window of another app opens its own group",
                 [tabbed(100, appName: "Safari", tabCount: 2), tabbed(200, appName: "Terminal", tabCount: 2)],
@@ -52,46 +37,29 @@ final class TabGroupsTests: XCTestCase {
             ),
             (
                 "a window elsewhere on screen opens its own group",
-                [
-                    tabbed(100, tabCount: 2),
-                    tabbed(200, frame: CGRect(x: 500, y: 0, width: 800, height: 600), tabCount: 2),
-                ],
+                [tabbed(100, tabCount: 2), tabbed(200, frame: CGRect(x: 500, y: 0, width: 800, height: 600), tabCount: 2)],
                 200,
                 [200]
             ),
             (
                 "a window nudged within the y tolerance joins the group",
-                [
-                    tabbed(100, tabCount: 2),
-                    tabbed(200, frame: CGRect(x: 0, y: 10, width: 800, height: 600), tabCount: 2),
-                ],
+                [tabbed(100, tabCount: 2), tabbed(200, frame: CGRect(x: 0, y: 10, width: 800, height: 600), tabCount: 2)],
                 100,
                 [100, 200]
             ),
             (
                 "a window past the y tolerance opens its own group",
-                [
-                    tabbed(100, tabCount: 2),
-                    tabbed(200, frame: CGRect(x: 0, y: 11, width: 800, height: 600), tabCount: 2),
-                ],
+                [tabbed(100, tabCount: 2), tabbed(200, frame: CGRect(x: 0, y: 11, width: 800, height: 600), tabCount: 2)],
                 200,
                 [200]
             ),
             (
                 "a window of another size opens its own group",
-                [
-                    tabbed(100, tabCount: 2),
-                    tabbed(200, frame: CGRect(x: 0, y: 0, width: 801, height: 600), tabCount: 2),
-                ],
+                [tabbed(100, tabCount: 2), tabbed(200, frame: CGRect(x: 0, y: 0, width: 801, height: 600), tabCount: 2)],
                 200,
                 [200]
             ),
-            (
-                "a window without tabs never joins an existing group",
-                [tabbed(100, tabCount: 2), tabbed(200, tabCount: 1)],
-                200,
-                [200]
-            ),
+            ("a window without tabs never joins an existing group", [tabbed(100, tabCount: 2), tabbed(200, tabCount: 1)], 200, [200]),
             (
                 "a representative captured before its tabs existed still matches",
                 [tabbed(100, tabCount: 1), tabbed(200, tabCount: 2)],

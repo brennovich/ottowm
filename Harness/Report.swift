@@ -67,5 +67,5 @@ func shell(_ launchPath: String, _ arguments: [String]) -> String {
     let data = output.fileHandleForReading.readDataToEndOfFile()
     process.waitUntilExit()
 
-    return String(decoding: data, as: UTF8.self)
+    return String(bytes: data, encoding: .utf8) ?? ""
 }

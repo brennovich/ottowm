@@ -2,7 +2,9 @@ import CoreGraphics
 import XCTest
 
 final class WorkspacesTests: XCTestCase {
-    private func makeWorkspaces(assigning assignments: [(window: CGWindowID, workspace: Int)]) -> Workspaces {
+    private typealias Assignments = [(window: CGWindowID, workspace: Int)]
+
+    private func makeWorkspaces(assigning assignments: Assignments) -> Workspaces {
         let model = Workspaces()
         for assignment in assignments {
             model.assign(makeSnapshot(assignment.window), to: assignment.workspace)
@@ -15,7 +17,7 @@ final class WorkspacesTests: XCTestCase {
     }
 
     func testWindowAssignment() {
-        let cases: [(name: String, assignments: [(window: CGWindowID, workspace: Int)], windowsByWorkspace: [Int: [CGWindowID]])] = [
+        let cases: [(name: String, assignments: Assignments, windowsByWorkspace: [Int: [CGWindowID]])] = [
             ("assign single window", [(100, 1)], [1: [100]]),
             ("multiple windows across workspaces", [(100, 1), (200, 1), (300, 2)], [1: [100, 200], 2: [300], 3: []]),
             ("reassign window to a different workspace", [(100, 1), (200, 1), (100, 2)], [1: [200], 2: [100]]),
@@ -35,7 +37,7 @@ final class WorkspacesTests: XCTestCase {
     }
 
     func testUnregisterWindow() {
-        let cases: [(name: String, assignments: [(window: CGWindowID, workspace: Int)], unregister: CGWindowID, remaining: [CGWindowID])] = [
+        let cases: [(name: String, assignments: Assignments, unregister: CGWindowID, remaining: [CGWindowID])] = [
             ("remove the only window", [(100, 1)], 100, []),
             ("remove non-existent window", [], 999, []),
             ("remove one window among several", [(100, 1), (200, 1), (300, 1)], 200, [100, 300]),
@@ -94,20 +96,20 @@ final class WorkspacesTests: XCTestCase {
     }
 
     func testSwitchTo() {
-        let cases: [(name: String, assignments: [(window: CGWindowID, workspace: Int)], target: Int, toActive: Set<CGWindowID>, toStorage: Set<CGWindowID>)] = [
-            ("no windows", [], 2, [], []),
-            ("only target workspace windows", [(100, 2), (200, 2)], 2, [100, 200], []),
-            ("only current workspace windows", [(100, 1), (200, 1)], 2, [], [100, 200]),
-            ("windows in both workspaces", [(100, 1), (200, 2), (300, 1)], 2, [200], [100, 300]),
-            ("windows in other workspaces go to storage", [(100, 3), (200, 4)], 2, [], [100, 200]),
+        typealias Placement = (toActive: Set<CGWindowID>, toStorage: Set<CGWindowID>)
+        let cases: [(name: String, assignments: Assignments, target: Int, placement: Placement)] = [
+            ("no windows", [], 2, ([], [])),
+            ("only target workspace windows", [(100, 2), (200, 2)], 2, ([100, 200], [])),
+            ("only current workspace windows", [(100, 1), (200, 1)], 2, ([], [100, 200])),
+            ("windows in both workspaces", [(100, 1), (200, 2), (300, 1)], 2, ([200], [100, 300])),
+            ("windows in other workspaces go to storage", [(100, 3), (200, 4)], 2, ([], [100, 200])),
             (
                 "target, current and other workspaces",
                 [(100, 1), (200, 2), (300, 3), (400, 1)],
                 2,
-                [200],
-                [100, 300, 400]
+                ([200], [100, 300, 400])
             ),
-            ("target equals current workspace places nothing", [(100, 1), (200, 1), (300, 2)], 1, [], []),
+            ("target equals current workspace places nothing", [(100, 1), (200, 1), (300, 2)], 1, ([], [])),
         ]
 
         for testCase in cases {
@@ -116,8 +118,8 @@ final class WorkspacesTests: XCTestCase {
             let result = model.switchTo(testCase.target, leavingFocusOn: nil)
 
             XCTAssertEqual(model.current, testCase.target, testCase.name)
-            XCTAssertEqual(Set(result.toActive), testCase.toActive, testCase.name)
-            XCTAssertEqual(Set(result.toStorage), testCase.toStorage, testCase.name)
+            XCTAssertEqual(Set(result.toActive), testCase.placement.toActive, testCase.name)
+            XCTAssertEqual(Set(result.toStorage), testCase.placement.toStorage, testCase.name)
         }
     }
 
@@ -131,7 +133,7 @@ final class WorkspacesTests: XCTestCase {
     }
 
     func testAllWindowIds() {
-        let cases: [(name: String, assignments: [(window: CGWindowID, workspace: Int)], unregister: [CGWindowID], expected: Set<CGWindowID>)] = [
+        let cases: [(name: String, assignments: Assignments, unregister: [CGWindowID], expected: Set<CGWindowID>)] = [
             ("empty model", [], [], []),
             ("single window", [(100, 1)], [], [100]),
             ("windows across workspaces", [(100, 1), (200, 2), (300, 3)], [], [100, 200, 300]),

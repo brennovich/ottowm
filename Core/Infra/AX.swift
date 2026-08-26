@@ -79,6 +79,7 @@ extension AXUIElement {
         // The same force cast as checkedAXValue(_:), and for the same reason: `as? AXUIElement`
         // succeeds for any type.
         guard let value = value(of: attribute) else { return nil }
+        // swiftlint:disable:next force_cast
         return (value as! AXUIElement)
     }
 
@@ -150,5 +151,6 @@ extension CGSize {
 /// so the type has to be checked by its CFTypeID.
 private func checkedAXValue(_ value: AnyObject?) -> AXValue? {
     guard let value, CFGetTypeID(value) == AXValueGetTypeID() else { return nil }
+    // swiftlint:disable:next force_cast
     return (value as! AXValue)
 }

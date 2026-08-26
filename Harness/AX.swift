@@ -15,9 +15,11 @@ func axFrame(of window: AXUIElement) -> CGRect? {
 
     var origin = CGPoint.zero
     var size = CGSize.zero
+    // swiftlint:disable force_cast
     guard AXValueGetValue(rawPosition as! AXValue, .cgPoint, &origin),
           AXValueGetValue(rawSize as! AXValue, .cgSize, &size)
     else { return nil }
+    // swiftlint:enable force_cast
 
     return CGRect(origin: origin, size: size)
 }
@@ -35,6 +37,7 @@ func title(of window: AXUIElement) -> String? {
 func menuItem(ofApplication pid: pid_t, menu: String, named name: String) -> AXUIElement? {
     guard let bar = attribute(AXUIElementCreateApplication(pid), kAXMenuBarAttribute) else { return nil }
 
+    // swiftlint:disable:next force_cast
     let menus = attribute(bar as! AXUIElement, kAXChildrenAttribute) as? [AXUIElement] ?? []
     guard let opened = menus.first(where: { title(of: $0) == menu }),
           let list = (attribute(opened, kAXChildrenAttribute) as? [AXUIElement])?.first
