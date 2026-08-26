@@ -7,9 +7,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         registry: registry,
         screenIsLocked: { [screenLock] in screenLock.isLocked }
     )
-    private var hotkeys: Hotkeys?
+    private lazy var shutdown = Shutdown(stop: { [weak self] in self?.engine?.stop() })
+    private var bindings: Bindings?
     private var engine: Engine?
-    private var termination: (any DispatchSourceSignal)?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard case let .success(config) = ConfigFile.load() else {
@@ -62,53 +62,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 window: windowById
             ),
             screenIsLocked: { [screenLock] in screenLock.isLocked },
-            quit: {
-                Log.app.notice("quit action received, window frames restored")
-                exit(EXIT_SUCCESS)
-            },
-            restart: { [weak self] in self?.reloadConfig() }
+            quit: shutdown.quit,
+            restart: { [weak self] in self?.bindings?.reload() }
         )
         self.engine = engine.start(windows: windowObserver.start { engine.handle($0) })
-        self.hotkeys = Hotkeys(keyCodeMatcher: config.action, handler: engine.handle)
+
+        let bindings = Bindings.system(config: config, handler: engine.handle)
+        self.bindings = bindings
 
         screenLock.startWatching { [windowObserver] in windowObserver.dropDeadWindows() }
-        startHotkeys()
-        startWatchingSIGTERM()
+        bindings.start()
+        shutdown.startWatchingSIGTERM()
 
         permission.startWatchingTrust(
-            lost: { [weak self] in self?.hotkeys?.stop() },
-            regained: { [weak self] in self?.startHotkeys() }
+            lost: { [weak self] in self?.bindings?.stop() },
+            regained: { [weak self] in self?.bindings?.start() }
         )
-    }
-
-    private func startWatchingSIGTERM() {
-        signal(SIGTERM, SIG_IGN)
-        let termination = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
-        termination.setEventHandler { [weak self] in
-            Log.app.notice("SIGTERM received, restoring window frames")
-            self?.engine?.stop()
-            exit(EXIT_SUCCESS)
-        }
-        termination.resume()
-        self.termination = termination
-    }
-
-    private func reloadConfig() {
-        guard let engine else { return }
-        guard case let .success(config) = ConfigFile.load() else {
-            Log.app.error("unable to load a valid config, keeping the bindings already up")
-            return
-        }
-
-        hotkeys?.stop()
-        hotkeys = Hotkeys(keyCodeMatcher: config.action, handler: engine.handle)
-        startHotkeys()
-        Log.app.notice("config reloaded")
-    }
-
-    private func startHotkeys() {
-        if hotkeys?.start() != true {
-            Log.app.error("event tap creation failed (check Accessibility permission)")
-        }
     }
 }

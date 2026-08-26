@@ -25,6 +25,7 @@ flowchart TB
     subgraph inputs[Inputs]
         AXWindowObserver
         Hotkeys
+        Bindings
         ConfigFile
         ScreenLock
     end
@@ -41,11 +42,16 @@ flowchart TB
         WindowRegistry
         AXWindow
         MainScreen
+        Shutdown
     end
 
     AXWindowObserver -->|WindowEvent| Engine
-    ConfigFile -->|"(keyCode, flags) → Action?"| Hotkeys
+    ConfigFile -->|Config| Bindings
+    Bindings -->|"(keyCode, flags) → Action?"| Hotkeys
     Hotkeys -->|Action| Engine
+    Engine -->|restart → reload| Bindings
+    Engine -->|quit| Shutdown
+    Shutdown -->|stop| Engine
     ScreenLock -->|isLocked| Engine
     ScreenLock -->|unlock → dropDeadWindows| AXWindowObserver
     Engine --> Workspaces
@@ -73,8 +79,10 @@ flowchart TB
 | `WindowRegistry`                      | The map of known windows: `AXUIElement` ↔ `CGWindowID`, plus pid → application. It resolves an id back to a live `AXWindow`.                                                                                                                                                                                                                                                                                               |
 | `AXWindow`                            | One window behind the accessibility API: snapshot, frame writes, focus, tab count.                                                                                                                                                                                                                                                                                                                                         |
 | `Hotkeys`                             | A session `CGEventTap` on keyDown. Carbon hotkeys are not enough, because only the raw device flags tell the left modifier from the right one. It holds a matcher `(keyCode, flags) → Action?` and sends each match to `Engine.handle`.                                                                                                                                                                                    |
+| `Bindings`                            | The bindings currently up: the `Hotkeys` tap over one `Config`. `start()` and `stop()` follow the accessibility trust, and `reload()` reads the file again and replaces the tap. `Bindings.system` builds the tap; the two calls it makes are the seam, because `Hotkeys.start()` creates a real event tap.                                          |
+| `Shutdown`                            | Every way the process ends: the `quit` action and SIGTERM. `quit()` only exits, because `Engine.handle(.quit)` restores the windows before calling it; the signal handler restores them itself.                                                                                                                                                |
 | `Config`                              | The binding table `KeyCombo → Action`, indexed by key code, because the lookup runs inside the event tap callback.                                                                                                                                                                                                                                                                                                         |
-| `ConfigFile`                          | Reads `$XDG_CONFIG_HOME/ottowm/ottowm`, or `~/.config/ottowm/ottowm`. It falls back to the bundled copy only when the user has no file. A file that does not parse returns a `ConfigError`: `AppDelegate` exits on the launch read, and keeps the bindings already up on a reload. `ConfigFileParser` stops at the first bad line.                                                                                         |
+| `ConfigFile`                          | Reads `$XDG_CONFIG_HOME/ottowm/ottowm`, or `~/.config/ottowm/ottowm`. It falls back to the bundled copy only when the user has no file. A file that does not parse returns a `ConfigError`: `AppDelegate` exits on the launch read, and `Bindings` keeps the bindings already up on a reload. `ConfigFileParser` stops at the first bad line.                                                                                         |
 | `AccessibilityPermission`             | The startup gate. `request()` offers Settings and Quit, and relaunches the app when the grant lands. `startWatchingTrust` stops the event tap when the grant is revoked, and starts it again when it returns.                                                                                                                                                                                                              |
 | `ScreenLock`                          | Reports whether the login window covers the session, from the `com.apple.screenIsLocked` and `com.apple.screenIsUnlocked` notifications.                                                                                                                                                                                                                                                                                   |
 | `OperationCache`                      | Holds one AX or CG read for the length of an operation. Each read is an IPC round trip.                                                                                                                                                                                                                                                                                                                                    |
@@ -108,20 +116,20 @@ sequenceDiagram
     Desktop-->>Engine: [WindowSnapshot] at their recovered frames
     Engine->>Workspaces: assign every window to workspace 1
     Engine->>Desktop: startWatching(manualNavigation:)
-    AppDelegate->>Hotkeys: start()
+    AppDelegate->>Bindings: start()
 ```
 
 `AppDelegate` also sets a process-wide AX messaging timeout, because a hung application blocks the main thread for the length of each round trip.
 
 ### Shutdown
 
-An `LSUIElement` agent has no quit command, so the ways out are a bound `quit` action and a signal. `Engine.handle(.quit)` calls `Engine.stop` and then the `quit` closure `AppDelegate` injected, which ends the process. The hotkey handler already runs on the main queue, the only thread where the accessibility writes are allowed.
+An `LSUIElement` agent has no quit command, so the ways out are a bound `quit` action and a signal. `Engine.handle(.quit)` calls `Engine.stop` and then `Shutdown.quit`, which ends the process. The hotkey handler already runs on the main queue, the only thread where the accessibility writes are allowed.
 
-The default action for `SIGTERM` ends the process with every parked window still at the hidden edge. `AppDelegate` ignores the signal and takes it on a `DispatchSourceSignal` on the main queue. The handler calls `Engine.stop`, which calls `Desktop.restoreAll()`.
+The default action for `SIGTERM` ends the process with every parked window still at the hidden edge. `Shutdown.startWatchingSIGTERM` ignores the signal and takes it on a `DispatchSourceSignal` on the main queue. That handler calls `Engine.stop` itself, which calls `Desktop.restoreAll()`.
 
 ### Config reload
 
-`Engine.handle(.restart)` calls the `restart` closure `AppDelegate` injected, which reads the file again and replaces the event tap: `Hotkeys.stop()`, a new `Hotkeys` over the new `Config`, `start()`. The matcher is read on the tap thread, so it is replaced with the tap rather than written under it. The `Engine`, the workspaces and the parked windows are untouched, only what the keys are bound to changes.
+`Engine.handle(.restart)` calls the `restart` closure `AppDelegate` injected, which is `Bindings.reload()`. It reads the file again and replaces the event tap: `stop()`, a new `Hotkeys` over the new `Config`, `start()`. The matcher is read on the tap thread, so it is replaced with the tap rather than written under it. The `Engine`, the workspaces and the parked windows are untouched, only what the keys are bound to changes.
 
 ### Workspace switch
 
