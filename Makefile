@@ -34,6 +34,8 @@ BENCHMARK_SOURCES := $(shell find Benchmark -name '*.swift') $(HARNESS_SOURCES)
 BENCHMARK = $(BUILD_DIR)/benchmark
 BENCHMARK_ARGS ?= --budget-p95 500
 
+LINT_REPORT = $(BUILD_DIR)/swiftlint.sarif
+
 AXDUMP_SOURCES := $(shell find Tools/AXDump -name '*.swift')
 AXDUMP = $(BUILD_DIR)/axdump
 AXDUMP_DIR = OttoWMTests/Fixtures/axDumps
@@ -43,7 +45,7 @@ INSTALLED = $(INSTALL_DIR)/$(SCHEME).app
 
 CODE_SIGN_IDENTITY ?= -
 
-.PHONY: build test acceptance benchmark axdump release install clean version bump
+.PHONY: build test lint lint/report lint/summary acceptance benchmark axdump release install clean version bump
 
 version:
 	@echo $(VERSION)
@@ -61,6 +63,16 @@ build:
 
 test:
 	set -o pipefail; $(XCODEBUILD) test 2>&1 | $(XCBEAUTIFY)
+
+lint:
+	swiftlint lint
+
+lint/report:
+	@mkdir -p $(BUILD_DIR)
+	swiftlint lint --quiet --reporter sarif --output $(LINT_REPORT)
+
+lint/summary:
+	@Tools/lint-summary.sh $(LINT_REPORT)
 
 acceptance: $(ACCEPTANCE)
 	$(ACCEPTANCE)

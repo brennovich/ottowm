@@ -5,6 +5,7 @@
 ```sh
 make build      # xcodebuild, code signing disabled
 make test       # runs the OttoWMTests unit-test bundle
+make lint       # SwiftLint over every Swift target
 make bump       # bumps MARKETING_VERSION, also bump/minor and bump/major
 make release    # generates a signed OttoWM.app
 make install    # copies the signed app to /Applications
@@ -20,6 +21,12 @@ xcodebuild -scheme OttoWM test CODE_SIGNING_ALLOWED=NO \
 ```
 
 `ARCHITECTURE.md` is what the app is made of and why.
+
+## Static analysis
+
+`make lint` runs SwiftLint (`brew install swiftlint`) against the rules in `.swiftlint.yml`. Error-severity violations fail the build, warnings do not: the thresholds sit just above what the codebase does today, so a rule fires when new code goes past the current worst case. `force_cast` is a warning because the accessibility API returns `CFTypeRef` and `as?` succeeds for any type.
+
+CI runs it first in the `commit` job as `make lint/report`, which writes `build/swiftlint.sarif`. The report is uploaded as the `swiftlint` artifact and to code scanning, so violations show up in the Security tab and as PR annotations. `make lint/summary` renders the same report as the markdown table in the workflow summary; `Tools/lint-summary.sh` is what builds it.
 
 ## Acceptance and benchmark
 

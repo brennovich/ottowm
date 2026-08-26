@@ -30,8 +30,31 @@ jobs:
   commit:
     needs: version
     runs-on: macos-26
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v7
+      - id: swiftlint
+        run: command -v swiftlint || brew install swiftlint
+      - id: lint
+        run: make lint/report
+      - id: lint-summary
+        if: always()
+        run: make lint/summary >> "$GITHUB_STEP_SUMMARY"
+      - id: upload-lint
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: swiftlint
+          path: build/swiftlint.sarif
+          if-no-files-found: error
+      - id: code-scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: build/swiftlint.sarif
+          category: swiftlint
       - id: build
         run: make build
       - id: test
