@@ -1,12 +1,9 @@
 import Cocoa
 
 class AppDelegate: NSObject, NSApplicationDelegate {
-    private let registry = WindowRegistry()
     private let screenLock = ScreenLock()
-    private lazy var windowObserver = AXWindowObserver(
-        registry: registry,
-        screenIsLocked: { [screenLock] in screenLock.isLocked }
-    )
+    private lazy var knownWindows = KnownWindows(screenIsLocked: { [screenLock] in screenLock.isLocked })
+    private lazy var windowObserver = AXWindowObserver(knownWindows: knownWindows)
     private lazy var shutdown = Shutdown(stop: { [weak self] in self?.engine?.stop() })
     private var bindings: Bindings?
     private var engine: Engine?
@@ -37,11 +34,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         Log.app.notice("OttoWM (\(AppInfo.version())) launched")
 
-        let windowById: (CGWindowID) -> AXWindow? = { [registry] id in
-            registry.window(for: id)
+        let windowById: (CGWindowID) -> AXWindow? = { [knownWindows] id in
+            knownWindows.window(for: id)
         }
-        let adoptFocusedWindow: () -> AXWindow? = { [windowObserver] in
-            windowObserver.adoptFocusedWindow()
+        let adoptFocusedWindow: () -> AXWindow? = { [knownWindows] in
+            knownWindows.adoptFocused()
         }
 
         let engine = Engine(

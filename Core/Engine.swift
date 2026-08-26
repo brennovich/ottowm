@@ -219,7 +219,7 @@ final class Engine {
 
         for windowId in workspaces.allWindowIds.subtracting(parked) where !windowSystem.shows(windowId) {
             // A full screen window is off the desktop but comes back to it, so it stays
-            // managed. A window the registry can no longer resolve is skipped here too, and
+            // managed. A window `KnownWindows` can no longer resolve is skipped here too, and
             // dropped by the next place() that cannot reach it.
             guard let snapshot = windowSystem.snapshot(of: windowId), !snapshot.isFullScreen else { continue }
             unmanage(windowId, reason: "left the desktop")

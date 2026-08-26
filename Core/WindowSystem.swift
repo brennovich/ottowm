@@ -6,6 +6,9 @@ import CoreGraphics
 /// each read costs axMessagingTimeoutSeconds against a hung application. Both are read once
 /// per operation, so the cost is bounded and every decision in the operation sees the same
 /// screen. `snapshot(of:)` and `tabCount(of:)` are not cached; each call is a fresh read.
+///
+/// `focused()` is not a pure read: it goes through `KnownWindows.adoptFocused()`, which
+/// registers the window and subscribes it. The cache bounds that to once per operation.
 final class WindowSystem {
     private let focusedWindow: OperationCache<WindowSnapshot?>
     private let onScreenWindowIds: OperationCache<Set<CGWindowID>>

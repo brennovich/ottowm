@@ -72,7 +72,7 @@ flowchart LR
 | `Desktop`                   | macOS     | Parks a window at the hidden edge and restores its captured frame.                     |
 | `WindowSystem`              | macOS     | The focused window, the on-screen window ids, and the tab count of a window.           |
 | `AXWindowObserver`          | macOS     | Per-application observers and `NSWorkspace` notifications, turned into `WindowEvent`s. |
-| `WindowRegistry`            | macOS     | The known windows: `AXUIElement` ↔ `CGWindowID`, and pid → application.                |
+| `KnownWindows`              | macOS     | The windows OttoWM knows: `AXUIElement` ↔ `CGWindowID`, and their AX subscriptions.    |
 | `AXWindow`                  | macOS     | One window: snapshot, frame writes, focus, tab count.                                  |
 | `MainScreen`                | macOS     | The geometry of the main display, in top-left coordinates.                             |
 | `OperationCache`            | macOS     | Holds one AX or CG read for the length of an operation.                                |
@@ -116,14 +116,13 @@ flowchart TB
     Engine -->|focused, shows, tabCount| WindowSystem
     AXWindowObserver -->|WindowEvent| Engine
     Desktop --> MainScreen
-    Desktop --> WindowRegistry
-    WindowSystem --> WindowRegistry
-    WindowSystem -->|adopt focused| AXWindowObserver
-    AXWindowObserver -->|register, evict| WindowRegistry
-    WindowRegistry --> AXWindow
+    Desktop --> KnownWindows
+    WindowSystem -->|adopt focused| KnownWindows
+    AXWindowObserver -->|observe, watch, drop dead| KnownWindows
+    KnownWindows --> AXWindow
 ```
 
-macOS sends no destroyed notification when a background application's window is closed. `dropDeadWindows()` probes the known windows instead, when an application comes to front and when the screen unlocks.
+`KnownWindows` holds the windows and their subscriptions; `AXWindowObserver` translates the notifications those subscriptions deliver, and is the only component that emits a `WindowEvent`. Nothing calls back into it.
 
 ### Lifecycle
 
@@ -302,7 +301,7 @@ sequenceDiagram
     Note over Engine: a different workspace means the user is followed there
 ```
 
-An application lists only the active tab of a group, and sends no notification when the user switches tabs. A background tab is discovered when it takes the focus, through this event or through `AXWindowObserver.adoptFocusedWindow()`, which `WindowSystem.focused()` reads through.
+An application lists only the active tab of a group, and sends no notification when the user switches tabs. A background tab is discovered when it takes the focus, through this event or through `KnownWindows.adoptFocused()`, which `WindowSystem.focused()` reads through.
 
 ### Membership
 

@@ -4,75 +4,54 @@ import CoreGraphics
 import XCTest
 
 private final class Harness {
-    let registry = WindowRegistry()
+    let windows = KnownWindowsHarness()
     let center = NotificationCenter()
     var apps: [NSRunningApplication] = []
-    var elements: [pid_t: [AXUIElement]] = [:]
-    var windowIds: [AXUIElement: CGWindowID] = [:]
     var focusedElements: [pid_t: AXUIElement] = [:]
-    var systemFocusedWindow: AXWindow?
-    var failingObserverPids: Set<pid_t> = []
-    var unreadyPids: Set<pid_t> = []
-    var deadElements: Set<AXUIElement> = []
-    var screenIsLocked = false
     // What one attempt against an application that is not answering costs, so a test
     // that runs the retries also spends the time they would really take.
     let retryStep: TimeInterval = 0.4
     var clock = Date(timeIntervalSinceReferenceDate: 0)
 
-    private(set) var watched: [pid_t: [(element: AXUIElement, notification: String)]] = [:]
-    private(set) var callbacks: [pid_t: (AXUIElement, String) -> Void] = [:]
-    private(set) var invalidatedPids: [pid_t] = []
     private(set) var events: [WindowEvent] = []
     private(set) var scheduledRetries: [() -> Void] = []
 
-    private var nextElementToken: pid_t = 5000
-
     lazy var observer = AXWindowObserver(
-        registry: registry,
-        focusedWindow: { self.systemFocusedWindow },
-        makeObserver: { pid, callback in
-            guard !self.failingObserverPids.contains(pid) else { return nil }
-            self.callbacks[pid] = callback
-            return AppObserver(
-                watch: {
-                    self.watched[pid, default: []].append(($0, $1))
-                    return !self.unreadyPids.contains(pid)
-                },
-                invalidate: { self.invalidatedPids.append(pid) }
-            )
-        },
+        knownWindows: windows.knownWindows,
         scheduleRetry: { self.scheduledRetries.append($0) },
         now: { self.clock },
         notificationCenter: center,
         runningApplications: { self.apps },
-        windowElements: { self.elements[$0] ?? [] },
-        makeWindow: { AXWindow(element: $0, application: $1, id: self.windowIds[$0] ?? 0) },
         focusedWindowOf: { app in
             self.focusedElements[app.processIdentifier].map {
-                AXWindow(element: $0, application: app, id: self.windowIds[$0] ?? 0)
+                AXWindow(element: $0, application: app, id: self.windows.windowIds[$0] ?? 0)
             }
-        },
-        isAlive: { !self.deadElements.contains($0) },
-        screenIsLocked: { self.screenIsLocked }
+        }
     )
+
+    var knownWindows: KnownWindows { windows.knownWindows }
+    var callbacks: [pid_t: (AXUIElement, String) -> Void] { windows.callbacks }
+    var invalidatedPids: [pid_t] { windows.invalidatedPids }
+    var unreadyPids: Set<pid_t> {
+        get { windows.unreadyPids }
+        set { windows.unreadyPids = newValue }
+    }
+    var deadElements: Set<AXUIElement> {
+        get { windows.deadElements }
+        set { windows.deadElements = newValue }
+    }
 
     func start() -> [WindowSnapshot] {
         observer.start { self.events.append($0) }
     }
 
     func makeElement(id: CGWindowID) -> AXUIElement {
-        let element = AXUIElementCreateApplication(nextElementToken)
-        nextElementToken += 1
-        windowIds[element] = id
-        return element
+        windows.makeElement(id: id)
     }
 
     @discardableResult
     func addWindow(pid: pid_t, id: CGWindowID) -> AXUIElement {
-        let element = makeElement(id: id)
-        elements[pid, default: []].append(element)
-        return element
+        windows.addWindow(pid: pid, id: id)
     }
 
     func runScheduledRetries() {
@@ -80,10 +59,6 @@ private final class Harness {
         scheduledRetries = []
         clock.addTimeInterval(retryStep)
         retries.forEach { $0() }
-    }
-
-    func appNotificationCount(pid: pid_t) -> Int {
-        watched[pid]?.filter { $0.notification == kAXWindowCreatedNotification }.count ?? 0
     }
 
     func post(_ name: Notification.Name, _ app: NSRunningApplication) {
@@ -103,41 +78,18 @@ private final class Harness {
     }
 }
 
-private let windowNotifications = [
-    kAXUIElementDestroyedNotification,
-    kAXWindowMiniaturizedNotification,
-    kAXWindowDeminiaturizedNotification,
-]
-
 final class AXWindowObserverTests: XCTestCase {
 
-    func testStartReturnsAndRegistersWindowsOfRunningApps() {
+    func testStartReturnsTheWindowsOfRunningApps() {
         let harness = Harness()
         harness.apps = [StubRunningApplication(pid: 901)]
-        let first = harness.addWindow(pid: 901, id: 100)
-        let second = harness.addWindow(pid: 901, id: 200)
+        harness.addWindow(pid: 901, id: 100)
+        harness.addWindow(pid: 901, id: 200)
 
         let snapshots = harness.start()
 
         XCTAssertEqual(snapshots.map(\.id), [100, 200])
-        XCTAssertTrue(harness.registry.knows(first))
-        XCTAssertTrue(harness.registry.knows(second))
         XCTAssertEqual(harness.events, [])
-    }
-
-    func testStartWatchesAppAndWindowNotifications() {
-        let harness = Harness()
-        harness.apps = [StubRunningApplication(pid: 901)]
-        let window = harness.addWindow(pid: 901, id: 100)
-
-        _ = harness.start()
-
-        XCTAssertEqual(harness.watched[901]?.map(\.notification), [
-            kAXWindowCreatedNotification,
-            kAXFocusedWindowChangedNotification,
-        ] + windowNotifications)
-        XCTAssertEqual(harness.watched[901]?.first?.element, AXUIElementCreateApplication(901))
-        XCTAssertEqual(harness.watched[901]?.last?.element, window)
     }
 
     func testStartSkipsOwnPidAndNonRegularApps() {
@@ -157,13 +109,9 @@ final class AXWindowObserverTests: XCTestCase {
         harness.apps = [StubRunningApplication(pid: 901), StubRunningApplication(pid: 902)]
         harness.addWindow(pid: 901, id: 100)
         harness.addWindow(pid: 902, id: 200)
-        harness.failingObserverPids = [901]
+        harness.windows.failingObserverPids = [901]
 
-        let snapshots = harness.start()
-
-        XCTAssertEqual(snapshots.map(\.id), [200])
-        XCTAssertNil(harness.registry.window(for: 100))
-        XCTAssertNotNil(harness.registry.window(for: 200))
+        XCTAssertEqual(harness.start().map(\.id), [200])
     }
 
     func testStartSkipsTheLockScreen() {
@@ -216,18 +164,6 @@ final class AXWindowObserverTests: XCTestCase {
         }
     }
 
-    func testCreatedWindowIsRegisteredAndWatched() {
-        let harness = Harness()
-        harness.apps = [StubRunningApplication(pid: 901)]
-        _ = harness.start()
-        let element = harness.makeElement(id: 42)
-
-        harness.callbacks[901]?(element, kAXWindowCreatedNotification)
-
-        XCTAssertTrue(harness.registry.knows(element))
-        XCTAssertEqual(harness.watched[901]?.suffix(3).map(\.notification), windowNotifications)
-    }
-
     func testDestroyedNotificationRemovesRegisteredWindow() {
         let harness = Harness()
         harness.apps = [StubRunningApplication(pid: 901)]
@@ -237,7 +173,7 @@ final class AXWindowObserverTests: XCTestCase {
         harness.callbacks[901]?(window, kAXUIElementDestroyedNotification)
 
         XCTAssertEqual(harness.eventDescriptions, ["destroyed(100)"])
-        XCTAssertFalse(harness.registry.knows(window))
+        XCTAssertFalse(harness.knownWindows.knows(window))
     }
 
     func testDestroyedNotificationForUnknownElementIsDropped() {
@@ -248,32 +184,6 @@ final class AXWindowObserverTests: XCTestCase {
         harness.callbacks[901]?(harness.makeElement(id: 42), kAXUIElementDestroyedNotification)
 
         XCTAssertEqual(harness.events, [])
-    }
-
-    func testFocusedUnknownWindowIsAdopted() {
-        let harness = Harness()
-        harness.apps = [StubRunningApplication(pid: 901)]
-        _ = harness.start()
-        let element = harness.makeElement(id: 42)
-
-        harness.callbacks[901]?(element, kAXFocusedWindowChangedNotification)
-
-        XCTAssertEqual(harness.eventDescriptions, ["focused(42)"])
-        XCTAssertTrue(harness.registry.knows(element))
-        XCTAssertEqual(harness.watched[901]?.suffix(3).map(\.notification), windowNotifications)
-    }
-
-    func testFocusedKnownWindowIsNotReAdopted() {
-        let harness = Harness()
-        harness.apps = [StubRunningApplication(pid: 901)]
-        let window = harness.addWindow(pid: 901, id: 100)
-        _ = harness.start()
-        let watchCount = harness.watched[901]?.count
-
-        harness.callbacks[901]?(window, kAXFocusedWindowChangedNotification)
-
-        XCTAssertEqual(harness.eventDescriptions, ["focused(100)"])
-        XCTAssertEqual(harness.watched[901]?.count, watchCount)
     }
 
     func testApplicationLaunchObservesAndEmitsExistingWindows() {
@@ -311,12 +221,10 @@ final class AXWindowObserverTests: XCTestCase {
         XCTAssertEqual(harness.events, [])
 
         harness.unreadyPids = []
-        let window = harness.addWindow(pid: 901, id: 100)
+        harness.addWindow(pid: 901, id: 100)
         harness.runScheduledRetries()
 
         XCTAssertEqual(harness.eventDescriptions, ["created(100)"])
-        XCTAssertTrue(harness.registry.knows(window))
-        XCTAssertEqual(harness.appNotificationCount(pid: 901), 2)
         XCTAssertTrue(harness.scheduledRetries.isEmpty)
     }
 
@@ -340,11 +248,10 @@ final class AXWindowObserverTests: XCTestCase {
         // A cold Safari takes about seven attempts before its AX interface answers at all.
         for _ in 1...7 { harness.runScheduledRetries() }
         harness.unreadyPids = []
-        let window = harness.addWindow(pid: 901, id: 100)
+        harness.addWindow(pid: 901, id: 100)
         harness.runScheduledRetries()
 
         XCTAssertEqual(harness.eventDescriptions, ["created(100)"])
-        XCTAssertTrue(harness.registry.knows(window))
     }
 
     func testSubscriptionIsGivenUpOnceTheSubscriptionWindowHasPassed() {
@@ -388,18 +295,15 @@ final class AXWindowObserverTests: XCTestCase {
         XCTAssertTrue(harness.callbacks.isEmpty)
     }
 
-    func testApplicationTerminationInvalidatesAndEvicts() {
+    func testApplicationTerminationStopsObservingTheApplication() {
         let harness = Harness()
         let app = StubRunningApplication(pid: 901)
         harness.apps = [app]
-        let window = harness.addWindow(pid: 901, id: 100)
         _ = harness.start()
 
         harness.post(NSWorkspace.didTerminateApplicationNotification, app)
 
         XCTAssertEqual(harness.invalidatedPids, [901])
-        XCTAssertNil(harness.registry.window(for: 100))
-        XCTAssertFalse(harness.registry.knows(window))
     }
 
     func testApplicationTerminationOfUnobservedAppDoesNothing() {
@@ -423,7 +327,6 @@ final class AXWindowObserverTests: XCTestCase {
         harness.post(NSWorkspace.didActivateApplicationNotification, app)
 
         XCTAssertEqual(harness.eventDescriptions, ["created(200)", "focused(200)"])
-        XCTAssertTrue(harness.registry.knows(discovered))
     }
 
     func testApplicationActivationWithoutFocusedWindowEmitsOnlyRescans() {
@@ -447,10 +350,10 @@ final class AXWindowObserverTests: XCTestCase {
         XCTAssertEqual(harness.events, [])
     }
 
-    func testDropDeadWindowsAnnouncesAndForgetsTheOnesThatNoLongerAnswer() {
+    func testDropDeadWindowsAnnouncesTheOnesThatNoLongerAnswer() {
         let harness = Harness()
         harness.apps = [StubRunningApplication(pid: 901)]
-        let alive = harness.addWindow(pid: 901, id: 100)
+        harness.addWindow(pid: 901, id: 100)
         let dead = harness.addWindow(pid: 901, id: 200)
         _ = harness.start()
         harness.deadElements = [dead]
@@ -458,33 +361,6 @@ final class AXWindowObserverTests: XCTestCase {
         harness.observer.dropDeadWindows()
 
         XCTAssertEqual(harness.eventDescriptions, ["destroyed(200)"])
-        XCTAssertFalse(harness.registry.knows(dead))
-        XCTAssertTrue(harness.registry.knows(alive))
-    }
-
-    func testDropDeadWindowsKeepsEveryWindowThatStillAnswers() {
-        let harness = Harness()
-        harness.apps = [StubRunningApplication(pid: 901)]
-        harness.addWindow(pid: 901, id: 100)
-        _ = harness.start()
-
-        harness.observer.dropDeadWindows()
-
-        XCTAssertEqual(harness.events, [])
-    }
-
-    func testDropDeadWindowsDoesNothingWhileTheScreenIsLocked() {
-        let harness = Harness()
-        harness.apps = [StubRunningApplication(pid: 901)]
-        let window = harness.addWindow(pid: 901, id: 100)
-        _ = harness.start()
-        harness.deadElements = [window]
-        harness.screenIsLocked = true
-
-        harness.observer.dropDeadWindows()
-
-        XCTAssertEqual(harness.events, [])
-        XCTAssertTrue(harness.registry.knows(window))
     }
 
     // A window closed by its button while its application is in the background takes no
@@ -501,45 +377,6 @@ final class AXWindowObserverTests: XCTestCase {
         harness.post(NSWorkspace.didActivateApplicationNotification, activated)
 
         XCTAssertEqual(harness.eventDescriptions, ["destroyed(200)"])
-        XCTAssertFalse(harness.registry.knows(dead))
-    }
-
-    func testAdoptFocusedWindowAdoptsAndReturnsTheFocusedWindow() {
-        let harness = Harness()
-        let app = StubRunningApplication(pid: 901)
-        harness.apps = [app]
-        _ = harness.start()
-        let element = harness.makeElement(id: 42)
-        harness.systemFocusedWindow = AXWindow(element: element, application: app, id: 42)
-
-        let window = harness.observer.adoptFocusedWindow()
-
-        XCTAssertTrue(window === harness.systemFocusedWindow)
-        XCTAssertTrue(harness.registry.knows(element))
-        XCTAssertEqual(harness.watched[901]?.suffix(3).map(\.notification), windowNotifications)
-    }
-
-    func testAdoptFocusedWindowWithoutFocusReturnsNil() {
-        let harness = Harness()
-        harness.apps = [StubRunningApplication(pid: 901)]
-        _ = harness.start()
-
-        XCTAssertNil(harness.observer.adoptFocusedWindow())
-    }
-
-    func testAdoptFocusedKnownWindowReturnsItWithoutRewatching() {
-        let harness = Harness()
-        let app = StubRunningApplication(pid: 901)
-        harness.apps = [app]
-        let element = harness.addWindow(pid: 901, id: 100)
-        _ = harness.start()
-        let watchCount = harness.watched[901]?.count
-        harness.systemFocusedWindow = AXWindow(element: element, application: app, id: 100)
-
-        let window = harness.observer.adoptFocusedWindow()
-
-        XCTAssertTrue(window === harness.systemFocusedWindow)
-        XCTAssertEqual(harness.watched[901]?.count, watchCount)
     }
 }
 
