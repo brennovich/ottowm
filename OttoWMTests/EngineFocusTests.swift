@@ -12,7 +12,7 @@ final class EngineFocusTests: EngineTestCase {
         focused = win
         desktop.manualNavigationCallback?(700)
 
-        XCTAssertEqual(workspaces.currentWorkspace, 1)
+        XCTAssertEqual(workspaces.current, 1)
         XCTAssertEqual(desktop.placement(of: 700), .active)
     }
 
@@ -25,7 +25,7 @@ final class EngineFocusTests: EngineTestCase {
         focused = win
         engine.handle(.focused(win.snapshot()))
 
-        XCTAssertEqual(workspaces.currentWorkspace, 1)
+        XCTAssertEqual(workspaces.current, 1)
         XCTAssertEqual(desktop.placement(of: 700), .active)
     }
 
@@ -37,7 +37,7 @@ final class EngineFocusTests: EngineTestCase {
         focused = win1
         engine.handle(.focused(win2.snapshot()))
 
-        XCTAssertEqual(workspaces.currentWorkspace, 1)
+        XCTAssertEqual(workspaces.current, 1)
         XCTAssertEqual(desktop.placement(of: 200), .storage)
     }
 
@@ -50,7 +50,7 @@ final class EngineFocusTests: EngineTestCase {
         engine.switchToWorkspace(2)
         engine.handle(.focused(win1.snapshot()))
 
-        XCTAssertEqual(workspaces.currentWorkspace, 2)
+        XCTAssertEqual(workspaces.current, 2)
         XCTAssertEqual(desktop.placement(of: 100), .storage)
         XCTAssertEqual(desktop.placement(of: 200), .active)
     }
@@ -64,7 +64,7 @@ final class EngineFocusTests: EngineTestCase {
         focused = win2
         engine.handle(.focused(win2.snapshot()))
 
-        XCTAssertEqual(workspaces.currentWorkspace, 1)
+        XCTAssertEqual(workspaces.current, 1)
         XCTAssertEqual(desktop.placement(of: 200), .storage)
     }
 
@@ -77,7 +77,7 @@ final class EngineFocusTests: EngineTestCase {
         focused = win2
         engine.handle(.focused(win2.snapshot()))
 
-        XCTAssertEqual(workspaces.currentWorkspace, 1)
+        XCTAssertEqual(workspaces.current, 1)
         XCTAssertEqual(desktop.placement(of: 200), .storage)
     }
 
@@ -91,7 +91,7 @@ final class EngineFocusTests: EngineTestCase {
         focused = win2
         engine.handle(.focused(win2.snapshot()))
 
-        XCTAssertEqual(workspaces.currentWorkspace, 2)
+        XCTAssertEqual(workspaces.current, 2)
         XCTAssertEqual(desktop.placement(of: 200), .active)
     }
 

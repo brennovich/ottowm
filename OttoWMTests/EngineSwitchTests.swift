@@ -25,7 +25,7 @@ final class EngineSwitchTests: EngineTestCase {
 
         XCTAssertEqual(desktop.placement(of: 100), .storage)
         XCTAssertEqual(desktop.placement(of: 200), .active)
-        XCTAssertEqual(workspaces.currentWorkspace, 2)
+        XCTAssertEqual(workspaces.current, 2)
     }
 
     func testSwitchToSameWorkspaceOnFrontmostDesktopIsNoOp() {
@@ -61,7 +61,7 @@ final class EngineSwitchTests: EngineTestCase {
     func testSwitchWithNoManagedWindowsIsTreatedAsOnDesktop() {
         engine.switchToWorkspace(2)
 
-        XCTAssertEqual(workspaces.currentWorkspace, 2)
+        XCTAssertEqual(workspaces.current, 2)
         XCTAssertTrue(desktop.placeCalls.isEmpty)
     }
 
@@ -75,7 +75,7 @@ final class EngineSwitchTests: EngineTestCase {
 
         engine.handle(.focused(windows[187]!.snapshot()))
 
-        XCTAssertEqual(workspaces.currentWorkspace, 3)
+        XCTAssertEqual(workspaces.current, 3)
     }
 
     func testSwitchFromAnotherNativeSpaceDoesNotAdoptTheWindowItShows() {
@@ -183,7 +183,7 @@ final class EngineSwitchTests: EngineTestCase {
         focused = nil
         engine.switchToWorkspace(2)
 
-        XCTAssertEqual(workspaces.currentWorkspace, 2)
+        XCTAssertEqual(workspaces.current, 2)
         XCTAssertEqual(desktop.placement(of: 100), .storage)
         XCTAssertEqual(doomed.focusCount, 0)
     }

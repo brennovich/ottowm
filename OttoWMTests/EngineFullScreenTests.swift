@@ -31,7 +31,7 @@ final class EngineFullScreenTests: EngineTestCase {
         engine.handle(.focused(win2.snapshot()))
 
         XCTAssertEqual(workspaces.workspace(for: 200), 1)
-        XCTAssertEqual(workspaces.currentWorkspace, 1)
+        XCTAssertEqual(workspaces.current, 1)
         XCTAssertEqual(desktop.placement(of: 200), .active)
     }
 
@@ -51,7 +51,7 @@ final class EngineFullScreenTests: EngineTestCase {
         engine.handle(.destroyed(300))
 
         XCTAssertEqual(workspaces.workspace(for: 200), 1)
-        XCTAssertEqual(workspaces.currentWorkspace, 1)
+        XCTAssertEqual(workspaces.current, 1)
         XCTAssertEqual(desktop.placement(of: 200), .active)
         XCTAssertEqual(desktop.placement(of: 100), .active)
     }
@@ -71,7 +71,7 @@ final class EngineFullScreenTests: EngineTestCase {
         engine.handle(.focused(win2.snapshot()))
 
         XCTAssertEqual(workspaces.workspace(for: 200), 3)
-        XCTAssertEqual(workspaces.currentWorkspace, 2)
+        XCTAssertEqual(workspaces.current, 2)
     }
 
     func testWindowThatWasNeverManagedBeforeGoingFullScreenJoinsTheCurrentWorkspace() {
@@ -84,6 +84,6 @@ final class EngineFullScreenTests: EngineTestCase {
         engine.handle(.focused(win2.snapshot()))
 
         XCTAssertEqual(workspaces.workspace(for: 200), 2)
-        XCTAssertEqual(workspaces.currentWorkspace, 2)
+        XCTAssertEqual(workspaces.current, 2)
     }
 }

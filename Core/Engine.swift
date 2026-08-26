@@ -61,7 +61,7 @@ final class Engine {
         windowSystem.duringOperation {
             switch event {
             case let .created(win):
-                assign(win, to: workspaces.currentWorkspace)
+                assign(win, to: workspaces.current)
             case let .focused(win):
                 handleFocused(win)
             case let .destroyed(windowId):
@@ -72,7 +72,7 @@ final class Engine {
                 // A window minimized while parked was dropped with its frame left at the
                 // corner. It can only be recovered now that it is back.
                 for recovered in desktop.recover([win]) {
-                    assign(recovered, to: workspaces.currentWorkspace)
+                    assign(recovered, to: workspaces.current)
                 }
             }
         }
@@ -94,9 +94,9 @@ final class Engine {
             admitFocusedWindow()
 
             let onDesktop = isDesktopInFront
-            Log.engine.info("switch requested target=\(workspace) current=\(self.workspaces.currentWorkspace) onDesktop=\(onDesktop)")
+            Log.engine.info("switch requested target=\(workspace) current=\(self.workspaces.current) onDesktop=\(onDesktop)")
 
-            if workspace == workspaces.currentWorkspace {
+            if workspace == workspaces.current {
                 if !onDesktop {
                     returnToDesktop()
                 }
@@ -124,7 +124,7 @@ final class Engine {
                 return
             }
 
-            let placement: Placement = workspace == workspaces.currentWorkspace ? .active : .storage
+            let placement: Placement = workspace == workspaces.current ? .active : .storage
             Log.engine.info("moving window \(win.logDescription) to workspace \(workspace) placement=\(placement)")
             desktop.place(win.id, at: placement)
             workspaces.move(win.id, to: workspace)
@@ -164,8 +164,8 @@ final class Engine {
 
         // A tab discovered only now can belong to a group in another workspace. The user
         // focused it, so switch there instead of parking it.
-        if let assigned = assign(win, to: workspaces.currentWorkspace),
-           assigned != workspaces.currentWorkspace {
+        if let assigned = assign(win, to: workspaces.current),
+           assigned != workspaces.current {
             handleManualNavigation(win.id)
         }
     }
@@ -198,7 +198,7 @@ final class Engine {
     private func admitFocusedWindow() {
         guard let focused = windowSystem.focused(), workspaces.workspace(for: focused.id) == nil else { return }
 
-        assign(focused, to: workspaces.currentWorkspace)
+        assign(focused, to: workspaces.current)
     }
 
     private func dropFocusedWindowIfFullScreen() {
@@ -230,7 +230,7 @@ final class Engine {
         guard let workspace = workspaceBeforeFullScreen.workspace(of: win.id) else { return false }
 
         Log.engine.info("\(win.logDescription) is back from full screen → workspace \(workspace)")
-        if workspace != workspaces.currentWorkspace {
+        if workspace != workspaces.current {
             transitionToWorkspace(workspace)
         }
         return assign(win, to: workspace) != nil
@@ -277,7 +277,7 @@ final class Engine {
     /// would otherwise read as manual navigation, and switch to a workspace with nothing
     /// left in it.
     private var currentWorkspaceIsClosing: Bool {
-        let windowIds = workspaces.windowIds(in: workspaces.currentWorkspace)
+        let windowIds = workspaces.windowIds(in: workspaces.current)
         guard !windowIds.isEmpty else { return false }
 
         return windowIds.allSatisfy { windowId in
@@ -305,7 +305,7 @@ final class Engine {
         let assigned = workspaces.assign(win, to: target, tabCount: windowSystem.tabCount(of: win.id))
         Log.engine.info("assigned \(win.logDescription) → workspace \(assigned)")
 
-        desktop.place(win.id, at: assigned == workspaces.currentWorkspace ? .active : .storage)
+        desktop.place(win.id, at: assigned == workspaces.current ? .active : .storage)
         return assigned
     }
 
@@ -330,7 +330,7 @@ final class Engine {
     @discardableResult
     private func restoreFocus() -> Bool {
         windowSystem.duringOperation {
-            let currentWorkspace = workspaces.currentWorkspace
+            let currentWorkspace = workspaces.current
 
             if let osFocused = windowSystem.focused(), canManage(osFocused) {
                 if followWindowBackFromFullScreen(osFocused) { return true }

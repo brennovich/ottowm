@@ -81,7 +81,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         focused = win2
         center.postNativeSpaceChange()
 
-        XCTAssertEqual(workspaces.currentWorkspace, 2)
+        XCTAssertEqual(workspaces.current, 2)
         XCTAssertEqual(win2.frame, frame2)
         XCTAssertEqual(win1.frame, nubFrame(size: frame1.size))
     }
@@ -100,7 +100,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         nativeSpaceWindowIds = nil
         engine.handle(.focused(win1.snapshot()))
 
-        XCTAssertEqual(workspaces.currentWorkspace, 3)
+        XCTAssertEqual(workspaces.current, 3)
         XCTAssertEqual(win1.frame, nubFrame(size: frame1.size))
     }
 
@@ -136,7 +136,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         focused = win2
         center.postNativeSpaceChange()
 
-        XCTAssertEqual(workspaces.currentWorkspace, 1)
+        XCTAssertEqual(workspaces.current, 1)
         XCTAssertEqual(win2.frame, nubFrame(size: frame2.size))
     }
 

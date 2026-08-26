@@ -11,7 +11,7 @@ final class WorkspacesTests: XCTestCase {
     }
 
     func testCurrentWorkspaceStartsAtOne() {
-        XCTAssertEqual(Workspaces().currentWorkspace, 1)
+        XCTAssertEqual(Workspaces().current, 1)
     }
 
     func testWindowAssignment() {
@@ -115,7 +115,7 @@ final class WorkspacesTests: XCTestCase {
 
             let result = model.switchTo(testCase.target, leavingFocusOn: nil)
 
-            XCTAssertEqual(model.currentWorkspace, testCase.target, testCase.name)
+            XCTAssertEqual(model.current, testCase.target, testCase.name)
             XCTAssertEqual(Set(result.toActive), testCase.toActive, testCase.name)
             XCTAssertEqual(Set(result.toStorage), testCase.toStorage, testCase.name)
         }

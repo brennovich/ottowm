@@ -11,7 +11,7 @@ final class EngineLifecycleTests: EngineTestCase {
         XCTAssertEqual(desktop.recoverCount, 1)
         XCTAssertEqual(desktop.recoveredWindowIds, [100, 200])
         XCTAssertEqual(workspaces.allWindowIds, [100, 200])
-        XCTAssertEqual(workspaces.currentWorkspace, 1)
+        XCTAssertEqual(workspaces.current, 1)
     }
 
     func testStopBringsEveryParkedWindowBack() {
@@ -56,7 +56,7 @@ final class EngineLifecycleTests: EngineTestCase {
 
         engine.handle(Action.switchToWorkspace(2))
 
-        XCTAssertEqual(workspaces.currentWorkspace, 2)
+        XCTAssertEqual(workspaces.current, 2)
         XCTAssertEqual(desktop.placement(of: 100), .storage)
     }
 

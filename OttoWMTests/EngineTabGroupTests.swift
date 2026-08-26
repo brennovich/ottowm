@@ -37,7 +37,7 @@ final class EngineTabGroupTests: EngineTestCase {
         focused = lateTab
         engine.handle(.focused(lateTab.snapshot()))
 
-        XCTAssertEqual(workspaces.currentWorkspace, 1)
+        XCTAssertEqual(workspaces.current, 1)
         XCTAssertEqual(desktop.placement(of: 301), .active)
     }
 

@@ -1,13 +1,12 @@
 import CoreGraphics
 
-/// Model that maps windows to their respective workspace, keeping focus history
-/// of each workspace and the active workspace.
+/// Model that maps windows to their respective workspace, keeping the focus history of
+/// each workspace and the active workspace.
 final class Workspaces {
-    private(set) var currentWorkspace = 1
+    private(set) var current = 1
 
-    private var focusedWindows: [Int: [CGWindowID]] = [:]
+    private var workspaces: [Int: Workspace] = [:]
     private var windowWorkspaceMap: [CGWindowID: Int] = [:]
-    private var workspaceWindowsMap: [Int: [CGWindowID]] = [:]
 
     private var tabGroups = TabGroups()
 
@@ -16,7 +15,7 @@ final class Workspaces {
     }
 
     func recordFocus(on windowId: CGWindowID, in workspace: Int) {
-        focusedWindows[workspace] = [windowId] + (focusedWindows[workspace] ?? []).filter { $0 != windowId }
+        workspaces[workspace]?.recordFocus(on: windowId)
     }
 
     func workspace(for windowId: CGWindowID) -> Int? {
@@ -24,7 +23,7 @@ final class Workspaces {
     }
 
     func windowIds(in workspace: Int) -> [CGWindowID] {
-        workspaceWindowsMap[workspace] ?? []
+        workspaces[workspace]?.windowIds ?? []
     }
 
     /// Assigns the window to `workspace`, or to the workspace its tab group already sits in.
@@ -35,7 +34,7 @@ final class Workspaces {
     @discardableResult
     func assign(_ window: WindowSnapshot, to workspace: Int, tabCount: Int = 1) -> Int {
         tabGroups.add(window, tabCount: tabCount)
-        let target = workspaceOfTabGroup(window.id) ?? workspace
+        let target = tabGroups.siblings(of: window.id).lazy.compactMap { self.windowWorkspaceMap[$0] }.first ?? workspace
         assignTabGroup(of: window.id, to: target)
         recordFocus(on: window.id, in: target)
         return target
@@ -66,20 +65,19 @@ final class Workspaces {
         tabGroups.remove(windowId)
 
         if let workspace = windowWorkspaceMap.removeValue(forKey: windowId) {
-            removeWindowFromList(workspace, windowId)
+            workspaces[workspace]?.remove(windowId)
         }
-        removeWindowFromFocusHistory(windowId)
         return focusSettled
     }
 
     func switchTo(_ targetWorkspace: Int, leavingFocusOn windowId: CGWindowID?) -> (toActive: [CGWindowID], toStorage: [CGWindowID]) {
         let placement = (toActive: [CGWindowID](), toStorage: [CGWindowID]())
-        guard targetWorkspace != currentWorkspace else { return placement }
+        guard targetWorkspace != current else { return placement }
 
         if let windowId {
-            recordFocus(on: windowId, in: currentWorkspace)
+            recordFocus(on: windowId, in: current)
         }
-        currentWorkspace = targetWorkspace
+        current = targetWorkspace
 
         return windowWorkspaceMap.reduce(into: placement) { p, e in
             if e.value == targetWorkspace {
@@ -90,39 +88,20 @@ final class Workspaces {
         }
     }
 
-    /// The window to focus in the current workspace: the most recently focused one still
-    /// in it, or any window it holds.
-    /// - Complexity: O(*n*) in the number of windows of the current workspace.
+    /// The window to focus in the current workspace.
     var nextWindowToFocus: CGWindowID? {
-        focusedWindows[currentWorkspace]?.first { windowWorkspaceMap[$0] == currentWorkspace }
-            ?? workspaceWindowsMap[currentWorkspace]?.first
-    }
-
-    private func assign(_ windowId: CGWindowID, to workspace: Int) {
-        if let previousWorkspace = windowWorkspaceMap[windowId] {
-            guard previousWorkspace != workspace else { return }
-            removeWindowFromList(previousWorkspace, windowId)
-        }
-
-        workspaceWindowsMap[workspace, default: []].append(windowId)
-        windowWorkspaceMap[windowId] = workspace
-    }
-
-    private func workspaceOfTabGroup(_ windowId: CGWindowID) -> Int? {
-        tabGroups.siblings(of: windowId).lazy.compactMap { self.windowWorkspaceMap[$0] }.first
+        workspaces[current]?.nextWindowToFocus
     }
 
     private func assignTabGroup(of windowId: CGWindowID, to workspace: Int) {
         for memberId in tabGroups.members(of: windowId) {
-            assign(memberId, to: workspace)
+            if let previousWorkspace = windowWorkspaceMap[memberId] {
+                guard previousWorkspace != workspace else { continue }
+                workspaces[previousWorkspace]?.remove(memberId)
+            }
+
+            workspaces[workspace, default: Workspace()].add(memberId)
+            windowWorkspaceMap[memberId] = workspace
         }
-    }
-
-    private func removeWindowFromList(_ workspace: Int, _ windowId: CGWindowID) {
-        workspaceWindowsMap[workspace]?.removeAll { $0 == windowId }
-    }
-
-    private func removeWindowFromFocusHistory(_ windowId: CGWindowID) {
-        focusedWindows = focusedWindows.mapValues { $0.filter { $0 != windowId } }
     }
 }

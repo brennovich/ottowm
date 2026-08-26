@@ -68,6 +68,6 @@ final class EngineAdmissionTests: EngineTestCase {
         engine.handle(.focused(win.snapshot()))
 
         XCTAssertEqual(workspaces.allWindowIds, [100])
-        XCTAssertEqual(workspaces.currentWorkspace, 1)
+        XCTAssertEqual(workspaces.current, 1)
     }
 }

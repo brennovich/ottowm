@@ -33,6 +33,7 @@ flowchart TB
     subgraph model[Model]
         Engine
         Workspaces
+        Workspace
         TabGroups
     end
 
@@ -55,6 +56,7 @@ flowchart TB
     ScreenLock -->|isLocked| Engine
     ScreenLock -->|unlock → dropDeadWindows| AXWindowObserver
     Engine --> Workspaces
+    Workspaces --> Workspace
     Workspaces --> TabGroups
     Engine -->|recover / place / focus| Desktop
     Engine -->|focused / shows / tabCount| WindowSystem
@@ -73,6 +75,7 @@ flowchart TB
 | `AwaitedFocus`                        | The focus requests `Engine` made and has not seen answered. It tells a late answer apart from the user focusing a parked window.                                                                                                                                                                                                                                                                                          |
 | `WorkspaceBeforeFullScreen`           | The workspace each full screen window returns to.                                                                                                                                                                                                                                                                                                                                                                          |
 | `Workspaces`                          | The pure model: window → workspace, focus history per workspace, current workspace. It makes no OS call.                                                                                                                                                                                                                                                                                                                   |
+| `Workspace`                           | The windows of one workspace and the order they were focused in. The focus history only names windows the workspace holds.                                                                                                                                                                                                                                                                                                 |
 | `TabGroups`                           | Infers which windows are tabs of one another.                                                                                                                                                                                                                                                                                                                                                                              |
 | `Desktop` (`OffscreenParkingDesktop`) | It parks a storage window at the hidden edge and restores the captured frame. `restoreAll()` puts every parked window back.                                                                         |
 | `WindowSystem`                        | It caches the focused window and the on-screen window ids for the length of an operation.                                                                                                                                                                                                                                                                                                                   |
