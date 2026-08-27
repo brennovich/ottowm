@@ -79,6 +79,7 @@ final class Engine {
         switch action {
         case let .switchToWorkspace(workspace): switchToWorkspace(workspace)
         case let .moveWindowToWorkspace(workspace): moveFocusedWindow(toWorkspace: workspace)
+        case let .focus(direction): focusWindow(direction)
         case .quit: quit()
         case .restart: restart()
         }
@@ -131,6 +132,41 @@ final class Engine {
 
             restoreFocus()
         }
+    }
+
+    /// Moves the focus to the window `direction` leads to, taking the focused window as the point
+    /// of reference.
+    func focusWindow(_ direction: Direction) {
+        windowSystem.duringOperation {
+            guard let reference = windowSystem.focused(),
+                  workspaces.workspace(for: reference.id) == workspaces.current
+            else {
+                Log.engine.info("focus \(direction.rawValue) dropped: no reference in workspace \(self.workspaces.current)")
+                return
+            }
+
+            let neighbors = Neighbors(around: reference.frame, among: framesAround(reference.id))
+            guard let target = neighbors.nearest(to: direction) else {
+                Log.engine.info("focus \(direction.rawValue) dropped: no window that way")
+                return
+            }
+
+            Log.engine.info("focus \(direction.rawValue) from \(reference.logDescription) → id=\(target)")
+            requestFocus(target)
+        }
+    }
+
+    /// The frames a focus move can land on: the windows of the current workspace that are on
+    /// screen. A parked window is left out, and so are the ones the on-screen list does not hold:
+    /// a window that left the desktop, and the tabs of a group macOS is not showing.
+    private func framesAround(_ referenceId: CGWindowID) -> [CGWindowID: CGRect] {
+        workspaces.windowIds(in: workspaces.current)
+            .filter { $0 != referenceId && desktop.placement(of: $0) == .active && windowSystem.shows($0) }
+            .reduce(into: [:]) { frames, windowId in
+                guard let frame = windowSystem.snapshot(of: windowId)?.frame else { return }
+
+                frames[windowId] = frame
+            }
     }
 
     private func handleFocused(_ win: WindowSnapshot) {

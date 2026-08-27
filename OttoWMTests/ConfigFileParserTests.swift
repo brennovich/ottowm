@@ -13,6 +13,7 @@ final class ConfigFileParserTests: XCTestCase {
           hyper-f18   =   switch-to-workspace 12
         lopt-q = quit
         lopt-r = restart
+        lopt-h = focus west
         """
 
         XCTAssertEqual(
@@ -23,6 +24,7 @@ final class ConfigFileParserTests: XCTestCase {
                 "hyper-f18": .switchToWorkspace(12),
                 "lopt-q": .quit,
                 "lopt-r": .restart,
+                "lopt-h": .focus(.west),
             ]))
         )
     }
@@ -33,8 +35,8 @@ final class ConfigFileParserTests: XCTestCase {
         }
     }
 
-    func testErrors() {
-        let cases: [(name: String, text: String, expected: ConfigError)] = [
+    func testLineErrors() {
+        assertErrors([
             (
                 "line without an assignment",
                 "lalt-1 switch-to-workspace 1",
@@ -50,6 +52,16 @@ final class ConfigFileParserTests: XCTestCase {
                 "lalt-1 = switch-to-workspace 1\n\nlalt-nope = switch-to-workspace 2",
                 ConfigError(line: 3, reason: .unknownKey("nope"))
             ),
+            (
+                "the first problem stops the parse",
+                "lalt-2 = warp-to-workspace 2\nmeta-1 = switch-to-workspace 1",
+                ConfigError(line: 1, reason: .unknownAction("warp-to-workspace"))
+            ),
+        ])
+    }
+
+    func testActionErrors() {
+        assertErrors([
             (
                 "an action that does not parse",
                 "lalt-1 = warp-to-workspace 1",
@@ -81,17 +93,30 @@ final class ConfigFileParserTests: XCTestCase {
                 ConfigError(line: 1, reason: .invalidWorkspace("0"))
             ),
             (
-                "the first problem stops the parse",
-                "lalt-2 = warp-to-workspace 2\nmeta-1 = switch-to-workspace 1",
-                ConfigError(line: 1, reason: .unknownAction("warp-to-workspace"))
+                "an action that takes a direction, given none",
+                "lalt-1 = focus",
+                ConfigError(line: 1, reason: .malformedAction("focus"))
             ),
-        ]
+            (
+                "an action with an invalid direction",
+                "lalt-1 = focus sideways",
+                ConfigError(line: 1, reason: .invalidDirection("sideways"))
+            ),
+        ])
+    }
 
+    private func assertErrors(
+        _ cases: [(name: String, text: String, expected: ConfigError)],
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
         for testCase in cases {
             XCTAssertEqual(
                 ConfigFileParser.parse(testCase.text),
                 .failure(testCase.expected),
-                testCase.name
+                testCase.name,
+                file: file,
+                line: line
             )
         }
     }

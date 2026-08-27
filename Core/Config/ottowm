@@ -14,6 +14,12 @@ lopt-shift-2 = move-window-to-workspace 2
 lopt-shift-3 = move-window-to-workspace 3
 lopt-shift-4 = move-window-to-workspace 4
 
+# Move the focus to the window a direction leads to, within the current workspace
+lopt-h = focus west
+lopt-j = focus south
+lopt-k = focus north
+lopt-l = focus east
+
 # Quit OttoWM, putting every parked window back where it was
 hyper-q = quit
 

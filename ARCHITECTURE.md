@@ -21,7 +21,8 @@ OttoWM is a headless agent that offers several workspaces on one native macOS Sp
 
 ```
 WindowEvent  = created(WindowSnapshot) | focused(WindowSnapshot) | destroyed(id) | minimized(id) | unminimized(WindowSnapshot)
-Action       = switchToWorkspace(n) | moveWindowToWorkspace(n) | quit | restart   // "switch-to-workspace n" in the config
+Action       = switchToWorkspace(n) | moveWindowToWorkspace(n) | focus(direction) | quit | restart   // "switch-to-workspace n" in the config
+Direction    = north | east | south | west                       // "focus east" in the config
 KeyCombo     = (keyCode, [ModifierKey: ModifierSide])            // "lopt-shift-1"
 Placement    = active | storage
 WindowSnapshot(id, appName, isStandard, hasCloseButton, hasMinimizeButton, isFullScreen, isMinimized, frame)
@@ -67,6 +68,7 @@ flowchart LR
 | `Workspaces`                | Model     | Window → workspace, focus history, current workspace. Makes no OS call.                |
 | `Workspace`                 | Model     | The windows of one workspace and the order they were focused in.                       |
 | `TabGroups`                 | Model     | Infers which windows are tabs of one another.                                          |
+| `Neighbors`                 | Model     | The windows around one frame, and which of them a focus move lands on.                 |
 | `AwaitedFocus`              | Model     | The focus requests `Engine` made and has not seen answered.                            |
 | `WorkspaceBeforeFullScreen` | Model     | The workspace each full screen window returns to.                                      |
 | `Desktop`                   | macOS     | Parks a window at the hidden edge and restores its captured frame.                     |
@@ -100,6 +102,7 @@ The tap thread matches the key and dispatches the action to the main queue, the 
 ```mermaid
 flowchart LR
     Engine --> Workspaces
+    Engine --> Neighbors
     Engine --> AwaitedFocus
     Engine --> WorkspaceBeforeFullScreen
     Workspaces --> Workspace
@@ -190,6 +193,23 @@ sequenceDiagram
     Note over Engine: skipped when a window of the current workspace already has the focus
     Engine->>Desktop: focus(nextWindowToFocus)
 ```
+
+### Focus a neighbour window
+
+```mermaid
+sequenceDiagram
+    Hotkeys->>Engine: handle(focus(direction))
+    Engine->>WindowSystem: focused()
+    Note over Engine: dropped unless that window is in the current workspace
+    Engine->>Workspaces: windowIds(in: the current workspace)
+    Engine->>WindowSystem: shows(id), snapshot(of: id)
+    Note over Engine: keeps the on-screen windows that are placed active
+    Engine->>Neighbors: nearest(to: direction)
+    Neighbors-->>Engine: the window that way, or nothing
+    Engine->>Desktop: focus(id)
+```
+
+A window lies in a direction when its center does, so one covered by another is reachable like any other. A window sharing rows with the reference (columns, going north or south) wins over one that does not, however much closer that one is; the window id settles the ties that are left.
 
 ### Manual navigation
 
