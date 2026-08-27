@@ -12,6 +12,13 @@ let keyCodesByWorkspace: [Int: CGKeyCode] = [1: 18, 2: 19, 3: 20, 4: 21, 5: 23]
 let quitKeyCode: CGKeyCode = 12
 let restartKeyCode: CGKeyCode = 15
 
+// The bundled focus bindings, lopt-h/j/k/l in Core/Config/ottowm.
+enum Direction: String {
+    case north, east, south, west
+}
+
+let keyCodesByDirection: [Direction: CGKeyCode] = [.west: 4, .south: 38, .north: 40, .east: 37]
+
 // Built once rather than per post: the benchmark reads its clock before the hotkey goes
 // out, so anything built inside post() is charged to the app as latency.
 let eventSource: CGEventSource = {
@@ -47,6 +54,11 @@ func moveWindowToWorkspace(_ workspace: Int) {
                 | leftOptionBit | leftShiftBit
         )
     )
+}
+
+func focusNeighbor(_ direction: Direction) {
+    guard let keyCode = keyCodesByDirection[direction] else { fail("no key bound to focus \(direction.rawValue)") }
+    post(keyCode, CGEventFlags(rawValue: CGEventFlags.maskAlternate.rawValue | leftOptionBit))
 }
 
 func quit() {

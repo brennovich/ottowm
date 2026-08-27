@@ -34,6 +34,7 @@ Out of the box (bundled config):
 |---|---|
 | left&nbsp;Option + 1–4 | Switch to workspace |
 | left&nbsp;Option + Shift + 1–4 | Move focused window to workspace |
+| left&nbsp;Option + H/J/K/L | Focus the window to the west/south/north/east |
 | Cmd + Ctrl + Option + Shift + Q | Quit OttoWM |
 | Cmd + Ctrl + Option + Shift + R | Reload the config |
 
@@ -65,18 +66,20 @@ One `key combo = action` per line. Blank lines are skipped; there is no quoting,
 ```
 lopt-1 = switch-to-workspace 1
 lopt-shift-1 = move-window-to-workspace 1
+lopt-h = focus west
 
 hyper-5 = switch-to-workspace 5
 ```
 
 Workspaces are created on demand:
 
-| Action                       | Effect                                         |
-|------------------------------|------------------------------------------------|
-| `switch-to-workspace N`      | Switch to workspace N                          |
-| `move-window-to-workspace N` | Move the focused window to workspace N         |
-| `quit`                       | Quit OttoWM, putting every parked window back  |
-| `restart`                    | Read the config file again and rebind the keys |
+| Action                       | Effect                                                            |
+|------------------------------|-------------------------------------------------------------------|
+| `switch-to-workspace N`      | Switch to workspace N                                             |
+| `move-window-to-workspace N` | Move the focused window to workspace N                            |
+| `focus D`                    | Focus the window `D` leads to: `north`, `east`, `south` or `west` |
+| `quit`                       | Quit OttoWM, putting every parked window back                     |
+| `restart`                    | Read the config file again and rebind the keys                    |
 
 The `restart` action reload config without a relaunch: the windows stay where they are,. A file that does not parse leaves the bindings already up in place. Errors show up in the log:
 

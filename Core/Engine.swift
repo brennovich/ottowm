@@ -79,6 +79,7 @@ final class Engine {
         switch action {
         case let .switchToWorkspace(workspace): switchToWorkspace(workspace)
         case let .moveWindowToWorkspace(workspace): moveFocusedWindow(toWorkspace: workspace)
+        case let .focus(direction): focusWindow(direction)
         case .quit: quit()
         case .restart: restart()
         }
@@ -130,6 +131,37 @@ final class Engine {
             workspaceBeforeFullScreen.take(win.id)
 
             restoreFocus()
+        }
+    }
+
+    /// Moves the focus to the window `direction` leads to, using the focused window as
+    /// reference point.
+    func focusWindow(_ direction: Direction) {
+        windowSystem.duringOperation {
+            guard let reference = windowSystem.focused(),
+                  workspaces.workspace(for: reference.id) == workspaces.current
+            else {
+                Log.engine.info("focus \(direction.rawValue) dropped: no reference in workspace \(self.workspaces.current)")
+                return
+            }
+
+            // The frames of the windows that belongs to the current workspace.
+            let frames = workspaces.windowIds(in: workspaces.current)
+                .filter { $0 != reference.id && desktop.placement(of: $0) == .active && windowSystem.shows($0) }
+                .reduce(into: [CGWindowID: CGRect]()) { frames, windowId in
+                    guard let frame = windowSystem.snapshot(of: windowId)?.frame else { return }
+
+                    frames[windowId] = frame
+                }
+
+            let neighbors = Neighbors(around: reference.frame, among: frames)
+            guard let target = neighbors.nearest(to: direction) else {
+                Log.engine.info("focus \(direction.rawValue) dropped: no window that way")
+                return
+            }
+
+            Log.engine.info("focus \(direction.rawValue) from \(reference.logDescription) → id=\(target)")
+            requestFocus(target)
         }
     }
 

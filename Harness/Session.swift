@@ -39,20 +39,23 @@ struct Subject {
         AXUIElementSetAttributeValue(window, kAXFocusedAttribute as CFString, kCFBooleanTrue)
         NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first?.activate()
 
-        // Asked for the way OttoWM asks in Core/AXWindow.focused(), the focused window of
-        // the frontmost application, because that is the window a hotkey will act on.
-        eventually("\(name) is focused", announce: false) {
-            guard let frontmost = NSWorkspace.shared.frontmostApplication else { return "nothing is frontmost" }
-            guard frontmost.bundleIdentifier == bundleId else {
-                return "frontmost is \(frontmost.localizedName ?? "an unnamed application")"
-            }
-            guard let focused = attribute(
-                AXUIElementCreateApplication(frontmost.processIdentifier), kAXFocusedWindowAttribute
-            ), CFEqual(focused, window) else {
-                return "\(name) is frontmost with another of its windows focused"
-            }
-            return nil
+        eventually("\(name) is focused", announce: false) { lacksFocus() }
+    }
+
+    // Nil when this window is the one a hotkey would act on, otherwise where the focus
+    // actually is. Asked for the way OttoWM asks in Core/AXWindow.focused(), the focused
+    // window of the frontmost application.
+    func lacksFocus() -> String? {
+        guard let frontmost = NSWorkspace.shared.frontmostApplication else { return "nothing is frontmost" }
+        guard frontmost.bundleIdentifier == bundleId else {
+            return "frontmost is \(frontmost.localizedName ?? "an unnamed application")"
         }
+        guard let focused = attribute(
+            AXUIElementCreateApplication(frontmost.processIdentifier), kAXFocusedWindowAttribute
+        ), CFEqual(focused, window) else {
+            return "\(name) is frontmost with another of its windows focused"
+        }
+        return nil
     }
 }
 
@@ -123,7 +126,11 @@ struct Session {
 
     // Every instance is a whole desk of its own, so a run at two costs what a run at one
     // costs twice over, and the difference between them is what a window is worth.
-    static func start(instances: Int = 1) -> Session {
+    //
+    // An arranged desk stands in the four quarters of the screen instead of wherever
+    // macOS put it, for a run that asserts which window a focus move lands on and has to
+    // know the geometry to do it.
+    static func start(instances: Int = 1, arranged: Bool = false) -> Session {
         guard AXIsProcessTrusted() else {
             fail("""
             the harness itself has no Accessibility permission, it cannot post events nor read \
@@ -153,6 +160,8 @@ struct Session {
 
             return (source.name, source.bundleId, window)
         }
+
+        if arranged { arrange(windows) }
 
         // Everything is up, nothing else is about to move on its own, so what the windows
         // read now is what they are owed back after every switch.
@@ -184,6 +193,21 @@ struct Session {
         session.movable.focus()
 
         return session
+    }
+
+    // The subject opened in the named application, for a scene that drives one of the
+    // standing windows rather than the movable one.
+    func subject(named name: String) -> Subject {
+        guard let subject = subjects.first(where: { $0.name == name }) else {
+            fail("no subject named \(name)")
+        }
+        return subject
+    }
+
+    // Waits for the focus a hotkey was asked to move, and says where it actually is when
+    // it gives up.
+    func expectFocused(_ subject: Subject) {
+        eventually("the \(subject.name) window took the focus") { subject.lacksFocus() }
     }
 
     // Where every window stands right now, for a wait that gives up without one.
@@ -309,6 +333,40 @@ private func deskInstance(_ instance: Int) -> [WindowSource] {
         ) {
             $0 == document.lastPathComponent
         },
+    ]
+}
+
+// Each desk instance across the four quarters of the screen: Finder top left, Terminal
+// bottom left, Safari top right and TextEdit bottom right. The centers are what the
+// focus moves go by, so an application that clamps or rounds the frame it was handed
+// stays in its quarter all the same, and the wait below reads the frame back to be sure.
+private func arrange(_ windows: [(String, String, AXUIElement)]) {
+    let quarters = screenQuarters()
+
+    for (index, (name, _, window)) in windows.enumerated() {
+        let quarter = quarters[index % quarters.count]
+        setAXFrame(of: window, to: quarter.insetBy(dx: 10, dy: 10))
+
+        eventually("\(name) sits in its quarter", announce: false) {
+            guard let frame = axFrame(of: window) else { return "\(name) reads no frame" }
+
+            let center = CGPoint(x: frame.midX, y: frame.midY)
+            return quarter.contains(center) ? nil : "\(name) centered at \(center), wanted \(quarter)"
+        }
+    }
+}
+
+// Top left, bottom left, top right, bottom right, inset from the display edges so no
+// window starts out under the menu bar nor at the hidden edge.
+private func screenQuarters() -> [CGRect] {
+    let bounds = CGDisplayBounds(CGMainDisplayID()).insetBy(dx: 40, dy: 60)
+    let quarter = CGSize(width: bounds.width / 2, height: bounds.height / 2)
+
+    return [
+        CGRect(origin: CGPoint(x: bounds.minX, y: bounds.minY), size: quarter),
+        CGRect(origin: CGPoint(x: bounds.minX, y: bounds.midY), size: quarter),
+        CGRect(origin: CGPoint(x: bounds.midX, y: bounds.minY), size: quarter),
+        CGRect(origin: CGPoint(x: bounds.midX, y: bounds.midY), size: quarter),
     ]
 }
 
