@@ -161,7 +161,7 @@ final class Engine {
             }
 
             Log.engine.info("focus \(direction.rawValue) from \(reference.logDescription) → id=\(target)")
-            requestFocus(target)
+            focus(target)
         }
     }
 
@@ -347,7 +347,7 @@ final class Engine {
         ignoreNextManualNavigation = true
         Log.engine.debug("returning to desktop, ignoring next manual navigation")
 
-        if let windowId = workspaces.allWindowIds.first(where: { requestFocus($0) }) {
+        if let windowId = workspaces.allWindowIds.first(where: { focus($0) }) {
             Log.engine.debug("brought the desktop to front via id=\(windowId)")
             return
         }
@@ -376,7 +376,7 @@ final class Engine {
                 }
             }
 
-            if let windowId = workspaces.nextWindowToFocus, requestFocus(windowId) {
+            if let windowId = workspaces.nextWindowToFocus, focus(windowId) {
                 return true
             }
 
@@ -386,7 +386,7 @@ final class Engine {
     }
 
     @discardableResult
-    private func requestFocus(_ windowId: CGWindowID) -> Bool {
+    private func focus(_ windowId: CGWindowID) -> Bool {
         guard desktop.focus(windowId) else { return false }
 
         awaitedFocus.request(windowId)
