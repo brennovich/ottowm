@@ -44,7 +44,9 @@ enum AXAppObserver {
 
         return AppObserver(
             watch: { element, notification in
-                let result = AXObserverAddNotification(observer, element, notification as CFString, box.toOpaque())
+                let result = RoundTrips.shared.measure(.subscribe, notification) {
+                    AXObserverAddNotification(observer, element, notification as CFString, box.toOpaque())
+                }
                 if result == .success || result == .notificationAlreadyRegistered { return true }
 
                 Log.observer.error("addNotification \(notification) failed pid=\(pid) err=\(result.rawValue)")

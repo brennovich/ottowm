@@ -34,6 +34,12 @@ BENCHMARK_SOURCES := $(shell find Benchmark -name '*.swift') $(HARNESS_SOURCES)
 BENCHMARK = $(BUILD_DIR)/benchmark
 BENCHMARK_ARGS ?= --budget-p95 500
 
+PROFILE_TRACE = $(BUILD_DIR)/$(SCHEME).trace
+PROFILE_ARGS ?= --iterations 20 --warmup 2
+PROFILE_INSTRUMENTS ?= Time Profiler,os_signpost
+
+BUNDLE_ID = com.github.brennovich.ottowm
+
 LINT_REPORT = $(BUILD_DIR)/swiftlint.sarif
 
 TEST_SOURCES := $(shell find OttoWMTests -name '*.swift')
@@ -48,7 +54,7 @@ INSTALLED = $(INSTALL_DIR)/$(SCHEME).app
 
 CODE_SIGN_IDENTITY ?= -
 
-.PHONY: build test lint lint/report lint/summary coverage coverage/summary coverage/files acceptance benchmark axdump release install clean version bump
+.PHONY: build test lint lint/report lint/summary coverage coverage/summary coverage/files acceptance benchmark profile roundtrips axdump release install clean version bump
 
 version:
 	@echo $(VERSION)
@@ -104,6 +110,14 @@ benchmark: $(BENCHMARK)
 $(BENCHMARK): $(BENCHMARK_SOURCES)
 	@mkdir -p $(BUILD_DIR)
 	swiftc -O -o $@ $(BENCHMARK_SOURCES)
+
+profile: $(BENCHMARK)
+	@mkdir -p $(BUILD_DIR)
+	PROFILE_INSTRUMENTS="$(PROFILE_INSTRUMENTS)" Tools/profile.sh $(BENCHMARK) $(PROFILE_TRACE) $(PROFILE_ARGS)
+
+roundtrips:
+	log stream --level debug --style compact \
+		--predicate 'subsystem == "$(BUNDLE_ID)" AND category == "roundtrips"'
 
 axdump: $(AXDUMP)
 	$(AXDUMP) $(AXDUMP_DIR) $(ARGS)

@@ -1,6 +1,6 @@
 # Benchmark
 
-What a hotkey costs the user: the wall time from posting it to seeing every window where the action promised to put it. It drives the installed app through the harness in `Harness/`, the same one the acceptance run drives, so a number here is a number about the shipped bundle. Read `Harness/README.md` for the desk it runs on and what a run needs before it can start.
+What a hotkey costs the user: the wall time from posting it to seeing every window where the action promised to put it. It drives the installed app through the harness in `Harness/`, the same one the acceptance run drives, so a number here is a number about the shipped bundle. Read `Harness/README.md` for the desk it runs on and what a run needs before it can start. It says what a hotkey costs, not where the cost went: `make profile` records this same run in Instruments, and the Profiling section of `CONTRIBUTING.md` covers it.
 
 | File            | What it holds                                                                         |
 | --------------- | ------------------------------------------------------------------------------------- |

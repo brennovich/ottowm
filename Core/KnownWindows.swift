@@ -51,7 +51,9 @@ final class KnownWindows {
         // invalidUIElement counts as alive.
         isAlive: @escaping (AXUIElement) -> Bool = { element in
             var value: CFTypeRef?
-            return AXUIElementCopyAttributeValue(element, AXAttribute.role.rawValue as CFString, &value) != .invalidUIElement
+            return RoundTrips.shared.measure(.read, AXAttribute.role.rawValue) {
+                AXUIElementCopyAttributeValue(element, AXAttribute.role.rawValue as CFString, &value)
+            } != .invalidUIElement
         },
         screenIsLocked: @escaping () -> Bool = { false }
     ) {

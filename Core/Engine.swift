@@ -34,7 +34,7 @@ final class Engine {
     }
 
     func start(windows: [WindowSnapshot]) {
-        windowSystem.duringOperation {
+        windowSystem.duringOperation("start") {
             for win in desktop.recover(windows) {
                 assign(win, to: 1)
             }
@@ -59,7 +59,7 @@ final class Engine {
             return
         }
 
-        windowSystem.duringOperation {
+        windowSystem.duringOperation("window-event") {
             switch event {
             case let .created(win):
                 assign(win, to: workspaces.current)
@@ -90,7 +90,7 @@ final class Engine {
     }
 
     func switchToWorkspace(_ workspace: Int) {
-        windowSystem.duringOperation {
+        windowSystem.duringOperation("switch-to-workspace") {
             dropFocusedWindowIfFullScreen()
             dropWindowsThatLeftTheDesktop()
             admitFocusedWindow()
@@ -116,7 +116,7 @@ final class Engine {
     }
 
     func moveFocusedWindow(toWorkspace workspace: Int) {
-        windowSystem.duringOperation {
+        windowSystem.duringOperation("move-window-to-workspace") {
             guard workspace >= 1 else {
                 Log.engine.info("move dropped: invalid workspace \(workspace)")
                 return
@@ -141,7 +141,7 @@ final class Engine {
     /// Moves the focus to the window `direction` leads to, using the focused window as
     /// reference point.
     func focusWindow(_ direction: Direction) {
-        windowSystem.duringOperation {
+        windowSystem.duringOperation("focus-direction") {
             guard let reference = windowSystem.focused(),
                   workspaces.workspace(for: reference.id) == workspaces.current
             else {
@@ -282,7 +282,7 @@ final class Engine {
     /// or the Dock on the same native Space, Mission Control from another one. Switches to
     /// that window's workspace.
     private func handleManualNavigation(_ windowId: CGWindowID) {
-        windowSystem.duringOperation {
+        windowSystem.duringOperation("manual-navigation") {
             if ignoreNextManualNavigation {
                 ignoreNextManualNavigation = false
                 Log.engine.debug("ignoring manual navigation (one-shot)")
@@ -354,7 +354,7 @@ final class Engine {
 
     @discardableResult
     private func restoreFocus() -> Bool {
-        windowSystem.duringOperation {
+        windowSystem.duringOperation("restore-focus") {
             let currentWorkspace = workspaces.current
 
             if let osFocused = windowSystem.focused(), canManage(osFocused) {

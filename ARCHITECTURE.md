@@ -78,6 +78,8 @@ flowchart LR
 | `AXWindow`                  | macOS     | One window: snapshot, frame writes, focus, tab count.                                  |
 | `MainScreen`                | macOS     | The geometry of the main display, in top-left coordinates.                             |
 | `OperationCache`            | macOS     | Holds one AX or CG read for the length of an operation.                                |
+| `RoundTrips`                | macOS     | Prices an operation in the calls it makes out of the process: how many, of what, cost. |
+| `Signposts`                 | macOS     | The operation and round-trip intervals Instruments records.                            |
 | `AppDelegate`               | Lifecycle | The startup order.                                                                     |
 | `AccessibilityPermission`   | Lifecycle | The startup gate, and the watch on the accessibility trust.                            |
 | `ScreenLock`                | Lifecycle | Reports whether the login window covers the session.                                   |

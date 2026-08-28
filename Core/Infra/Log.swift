@@ -37,4 +37,5 @@ enum Log {
     static let window = LogChannel(subsystem: subsystem, category: "window")
     static let windows = LogChannel(subsystem: subsystem, category: "windows")
     static let observer = LogChannel(subsystem: subsystem, category: "observer")
+    static let roundTrips = LogChannel(subsystem: subsystem, category: "roundtrips")
 }

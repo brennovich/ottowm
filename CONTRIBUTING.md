@@ -11,6 +11,8 @@ make release    # generates a signed OttoWM.app
 make install    # copies the signed app to /Applications
 make acceptance # e2e of the installed app
 make benchmark  # hotkey latency of the installed app
+make roundtrips # streams the calls each operation makes out of the process
+make profile    # records the installed app in Instruments under the benchmark
 ```
 
 Run a single test:
@@ -35,6 +37,46 @@ CI runs it first in the `commit` job as `make lint/report`, which writes `build/
 Both drive the app installed in `/Applications` through the harness in `Harness/`: real hotkeys through the event tap, real frames read back through the accessibility API. Run `make install` first, and grant Accessibility permission to the terminal running them. `Harness/README.md` covers the desk they run on, the permissions they need and what they leave behind.
 
 CI runs both on every push, on each macOS runner in the matrix.
+
+## Profiling
+
+Placing or reading a window leaves the process: an accessibility call is a synchronous round trip to the application that owns the window, capped at `axMessagingTimeoutSeconds`, and the on-screen window list is a round trip to the window server. An operation is mostly the main thread blocked waiting, and a sampling profiler sees the stalled thread rather than the call, so `Core/Infra/RoundTrips.swift` counts them at the boundary instead.
+
+Counting is always on, release builds included, because the acceptance and benchmark runs drive the installed bundle. It costs a clock read and a dictionary update per round trip.
+
+### The round trips
+
+`make roundtrips` streams one line per operation:
+
+```
+switch-to-workspace 4.20ms, 27 round trips 3.95ms: write AXEnhancedUserInterface x8 1.40ms, read AXPosition+AXSize x5 0.90ms, read CGWindowList x1 0.42ms, action AXRaise x1 0.21ms
+```
+
+The first pair is the whole operation, the second is the part spent out of the process, and the gap between them is what OttoWM itself did. Then every call, most expensive first, named by what was asked and of what; `x8` is eight round trips. A read of several attributes is one round trip named by all of them, because `AXUIElementCopyMultipleAttributeValues` asks for them together.
+
+An operation that makes no round trip reports nothing. A nested operation is counted into the one around it, not reported on its own.
+
+| Counted                                    | Where                                        |
+| ------------------------------------------ | -------------------------------------------- |
+| Every accessibility read, write and action | `Core/Infra/AX.swift`, `Core/AXWindow.swift` |
+| The AX notification subscriptions          | `Core/AXAppObserver.swift`                   |
+| The on-screen window list                  | `App/AppDelegate.swift`                      |
+| Activating an application                  | `Core/AXWindow.swift`                        |
+| The frontmost application                  | `Core/AXWindow.swift`                        |
+
+### The trace
+
+`make profile` records the installed app in Instruments while the benchmark drives it. `make install` first, and the same Accessibility grant the benchmark needs:
+
+```sh
+make profile
+make profile PROFILE_ARGS="--iterations 50 --instances 3"
+make profile PROFILE_INSTRUMENTS="Time Profiler,os_signpost,Thread State Trace"
+```
+
+The benchmark launches the app itself, so `Tools/profile.sh` waits for it to come up, attaches, and stops the recording when the benchmark ends. The trace lands in `build/OttoWM.trace`.
+
+Time Profiler is the stacks. `os_signpost` reads the intervals `Core/Infra/Signposts.swift` emits on the Points of Interest track, one per engine operation and one per round trip inside it, which tells which operation a stack belongs to and how many round trips it was waiting on. `Thread State Trace` shows the blocking itself, which the time profiler does not.
 
 ## Releasing
 

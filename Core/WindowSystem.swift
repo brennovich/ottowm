@@ -5,19 +5,24 @@ final class WindowSystem {
     private let focusedWindow: OperationCache<WindowSnapshot?>
     private let onScreenWindows: OperationCache<[CGWindowID: CGRect]>
     private let window: (CGWindowID) -> (any Window)?
+    private let roundTrips: RoundTrips
 
     init(
         focusedWindow: OperationCache<WindowSnapshot?>,
         onScreenWindows: OperationCache<[CGWindowID: CGRect]>,
-        window: @escaping (CGWindowID) -> (any Window)?
+        window: @escaping (CGWindowID) -> (any Window)?,
+        roundTrips: RoundTrips = .shared
     ) {
         self.focusedWindow = focusedWindow
         self.onScreenWindows = onScreenWindows
         self.window = window
+        self.roundTrips = roundTrips
     }
 
-    func duringOperation<T>(_ body: () -> T) -> T {
-        onScreenWindows.duringOperation { focusedWindow.duringOperation(body) }
+    func duringOperation<T>(_ name: StaticString, _ body: () -> T) -> T {
+        roundTrips.duringOperation(name) {
+            onScreenWindows.duringOperation { focusedWindow.duringOperation(body) }
+        }
     }
 
     func focused() -> WindowSnapshot? {

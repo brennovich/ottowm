@@ -3,6 +3,7 @@ xcuserdata/
 
 build/
 DerivedData/
+*.profraw
 
 .swiftpm/
 .build/

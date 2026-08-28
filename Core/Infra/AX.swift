@@ -54,8 +54,10 @@ extension AXUIElement {
     /// reason reads the attribute itself.
     func value(of attribute: AXAttribute) -> AnyObject? {
         var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(self, attribute.rawValue as CFString, &value) == .success
-        else { return nil }
+        let status = RoundTrips.shared.measure(.read, attribute.rawValue) {
+            AXUIElementCopyAttributeValue(self, attribute.rawValue as CFString, &value)
+        }
+        guard status == .success else { return nil }
         return value
     }
 
@@ -63,9 +65,11 @@ extension AXUIElement {
     /// - Returns: the values that were read; an attribute whose read failed is absent.
     func values(of attributes: [AXAttribute]) -> [AXAttribute: AnyObject] {
         var result: CFArray?
-        let status = AXUIElementCopyMultipleAttributeValues(
-            self, attributes.map(\.rawValue) as CFArray, AXCopyMultipleAttributeOptions(rawValue: 0), &result
-        )
+        let status = RoundTrips.shared.measure(.read, attributes.map(\.rawValue).joined(separator: "+")) {
+            AXUIElementCopyMultipleAttributeValues(
+                self, attributes.map(\.rawValue) as CFArray, AXCopyMultipleAttributeOptions(rawValue: 0), &result
+            )
+        }
         guard status == .success, let raw = result as? [AnyObject], raw.count == attributes.count else {
             return [:]
         }
@@ -96,7 +100,9 @@ extension AXUIElement {
     }
 
     private func setValue(_ value: CFTypeRef, for attribute: AXAttribute) -> AXError {
-        AXUIElementSetAttributeValue(self, attribute.rawValue as CFString, value)
+        RoundTrips.shared.measure(.write, attribute.rawValue) {
+            AXUIElementSetAttributeValue(self, attribute.rawValue as CFString, value)
+        }
     }
 }
 

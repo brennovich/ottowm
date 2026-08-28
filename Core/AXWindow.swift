@@ -23,7 +23,9 @@ final class AXWindow: Window, WindowLogDescribing {
 
     lazy var id: CGWindowID = {
         var windowId: CGWindowID = 0
-        let result = _AXUIElementGetWindow(element, &windowId)
+        let result = RoundTrips.shared.measure(.read, "AXWindowID") {
+            _AXUIElementGetWindow(element, &windowId)
+        }
         if result != .success || windowId == 0 {
             Log.window.debug("window id lookup failed app=\(self.appName) err=\(result.rawValue)")
         }
@@ -93,9 +95,13 @@ final class AXWindow: Window, WindowLogDescribing {
     }
 
     func focus() {
-        let raiseResult = AXUIElementPerformAction(element, kAXRaiseAction as CFString)
+        let raiseResult = RoundTrips.shared.measure(.action, kAXRaiseAction) {
+            AXUIElementPerformAction(element, kAXRaiseAction as CFString)
+        }
         let mainResult = element.setValue(true, for: .main)
-        let activated = application.activate(options: AXWindow.activationOptions)
+        let activated = RoundTrips.shared.measure(.action, "activate") {
+            application.activate(options: AXWindow.activationOptions)
+        }
         if raiseResult != .success || mainResult != .success {
             Log.window.error("focus failed \(self.logDescription) raise=\(raiseResult.rawValue) main=\(mainResult.rawValue)")
         } else if !activated {
@@ -104,7 +110,9 @@ final class AXWindow: Window, WindowLogDescribing {
     }
 
     static func focused() -> AXWindow? {
-        NSWorkspace.shared.frontmostApplication.flatMap(focused(of:))
+        RoundTrips.shared
+            .measure(.read, "frontmostApplication") { NSWorkspace.shared.frontmostApplication }
+            .flatMap(focused(of:))
     }
 
     static func focused(of app: NSRunningApplication) -> AXWindow? {
