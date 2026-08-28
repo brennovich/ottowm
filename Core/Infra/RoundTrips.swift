@@ -1,10 +1,8 @@
 import Foundation
 
-/// One call that leaves the process: what was asked, and of what.
-///
-/// Mostly accessibility attributes, but not only: the on-screen window list is a call to
-/// the window server and activating an application is another, and an operation that
-/// counted the AX calls alone would under-report what it cost.
+/// Models an end-to-end call out of the process, identified by kind and subject: `read AXPosition`,
+/// `action AXRaise`, `read CGWindowList`. Calls sharing both are the same
+/// round trip and are counted together.
 struct RoundTrip: Hashable {
     enum Kind: String {
         case read
@@ -64,9 +62,6 @@ struct OperationCost {
 /// asked. Counting at the boundary names the question instead, and the count is exact
 /// rather than sampled. That count is the one thing about an operation the benchmark
 /// cannot see from outside, which is why it is the only part broken down here.
-///
-/// The counters carry no lock. Every call counted here runs on the main thread: `Hotkeys`
-/// dispatches actions there and the AX notifications arrive there.
 final class RoundTrips {
     static let shared = RoundTrips { Log.roundTrips.debug($0.summary) }
 

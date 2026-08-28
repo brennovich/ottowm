@@ -3,16 +3,17 @@
 ## Build and test
 
 ```sh
-make build      # xcodebuild, code signing disabled
-make test       # runs the OttoWMTests unit-test bundle
-make lint       # SwiftLint over every Swift target
-make bump       # bumps MARKETING_VERSION, also bump/minor and bump/major
-make release    # generates a signed OttoWM.app
-make install    # copies the signed app to /Applications
-make acceptance # e2e of the installed app
-make benchmark  # hotkey latency of the installed app
-make roundtrips # streams the calls each operation makes out of the process
-make profile    # records the installed app in Instruments under the benchmark
+make build             # xcodebuild, code signing disabled
+make test              # runs the OttoWMTests unit-test bundle
+make lint              # SwiftLint over every Swift target
+make bump              # bumps MARKETING_VERSION, also bump/minor and bump/major
+make release           # generates a signed OttoWM.app
+make install           # copies the signed app to /Applications
+make acceptance        # e2e of the installed app
+make benchmark         # hotkey latency of the installed app
+make roundtrips        # streams the calls each operation makes out of the process
+make roundtrips/pretty # the same stream, one call per line
+make profile           # records the installed app in Instruments under the benchmark
 ```
 
 Run a single test:
@@ -55,6 +56,18 @@ switch-to-workspace 4.20ms, 27 round trips 3.95ms: write AXEnhancedUserInterface
 The first pair is the whole operation, the second is the part spent out of the process, and the gap between them is what OttoWM itself did. Then every call, most expensive first, named by what was asked and of what; `x8` is eight round trips. A read of several attributes is one round trip named by all of them, because `AXUIElementCopyMultipleAttributeValues` asks for them together.
 
 An operation that makes no round trip reports nothing. A nested operation is counted into the one around it, not reported on its own.
+
+`make roundtrips/pretty` pipes the same stream through `Tools/roundtrips-pretty.sh`, which drops the log prefix and puts each call on its own line:
+
+```
+• switch-to-workspace 4.20ms, 27 round trips 3.95ms
+    └─ write AXEnhancedUserInterface x8 1.40ms
+    └─ read AXPosition+AXSize x5 0.90ms
+    └─ read CGWindowList x1 0.42ms
+    └─ action AXRaise x1 0.21ms
+```
+
+A line that carries no log prefix is passed through unchanged, so the stream's own status lines stay readable.
 
 | Counted                                    | Where                                        |
 | ------------------------------------------ | -------------------------------------------- |
