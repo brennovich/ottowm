@@ -72,7 +72,7 @@ flowchart LR
 | `AwaitedFocus`              | Model     | The focus requests `Engine` made and has not seen answered.                            |
 | `WorkspaceBeforeFullScreen` | Model     | The workspace each full screen window returns to.                                      |
 | `Desktop`                   | macOS     | Parks a window at the hidden edge and restores its captured frame.                     |
-| `WindowSystem`              | macOS     | The focused window, the on-screen window ids, and the tab count of a window.           |
+| `WindowSystem`              | macOS     | The focused window, the on-screen window frames, and the tab count of a window.        |
 | `AXWindowObserver`          | macOS     | The AX and `NSWorkspace` notifications, turned into `WindowEvent`s.                    |
 | `KnownWindows`              | macOS     | The windows OttoWM knows: `AXUIElement` ↔ `CGWindowID`, and their AX subscriptions.    |
 | `AXWindow`                  | macOS     | One window: snapshot, frame writes, focus, tab count.                                  |
@@ -202,7 +202,8 @@ sequenceDiagram
     Engine->>WindowSystem: focused()
     Note over Engine: dropped unless that window is in the current workspace
     Engine->>Workspaces: windowIds(in: the current workspace)
-    Engine->>WindowSystem: shows(id), snapshot(of: id)
+    Engine->>Desktop: placement(of: id)
+    Engine->>WindowSystem: frames(of: the windows placed active)
     Note over Engine: keeps the on-screen windows that are placed active
     Engine->>Neighbors: nearest(to: direction)
     Neighbors-->>Engine: the window that way, or nothing

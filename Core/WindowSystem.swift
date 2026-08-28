@@ -5,7 +5,7 @@ import CoreGraphics
 /// One engine operation reads the focused window and the on-screen windows several times,
 /// and each read costs axMessagingTimeoutSeconds against a hung application. Both are read
 /// once per operation, so the cost is bounded and every decision in the operation sees the
-/// same screen. The on-screen read carries each window's frame, so `frame(of:)` costs
+/// same screen. The on-screen read carries each window's frame, so `frames(of:)` costs
 /// nothing on top of it. `snapshot(of:)` and `tabCount(of:)` are not cached; each call is
 /// a fresh read.
 ///
@@ -43,8 +43,12 @@ final class WindowSystem {
         !windowIds.isDisjoint(with: onScreenWindows.value().keys)
     }
 
-    func frame(of windowId: CGWindowID) -> CGRect? {
-        onScreenWindows.value()[windowId]
+    /// The frames of the given windows, keeping only the ones on screen.
+    func frames(of windowIds: [CGWindowID]) -> [CGWindowID: CGRect] {
+        let onScreen = onScreenWindows.value()
+        return windowIds.reduce(into: [:]) { frames, windowId in
+            frames[windowId] = onScreen[windowId]
+        }
     }
 
     func snapshot(of windowId: CGWindowID) -> WindowSnapshot? {
