@@ -1,6 +1,5 @@
 import CoreGraphics
 
-/// The identity of a window in a log line.
 protocol WindowLogDescribing {
     var id: CGWindowID { get }
     var appName: String { get }

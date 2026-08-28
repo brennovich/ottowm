@@ -59,7 +59,7 @@ struct TabGroups {
     }
 
     /// Membership is inferred from two windows sharing an application and a frame, with a
-    /// tolerance on y.
+    /// tolerance on y (tab height).
     private func isTab(_ window: WindowSnapshot, of representative: WindowSnapshot) -> Bool {
         return window.appName == representative.appName
             && window.frame.origin.x == representative.frame.origin.x
