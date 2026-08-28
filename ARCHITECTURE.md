@@ -71,8 +71,9 @@ flowchart LR
 | `Neighbors`                 | Model     | The windows around one frame, and which of them a focus move lands on.                 |
 | `AwaitedFocus`              | Model     | The focus requests `Engine` made and has not seen answered.                            |
 | `WorkspaceBeforeFullScreen` | Model     | The workspace each full screen window returns to.                                      |
+| `IgnoredManualNavigation`   | Model     | The one manual navigation OttoWM caused itself, dropped when it arrives.               |
 | `Desktop`                   | macOS     | Parks a window at the hidden edge and restores its captured frame.                     |
-| `WindowSystem`              | macOS     | The focused window, the on-screen window ids, and the tab count of a window.           |
+| `WindowSystem`              | macOS     | The focused window, the on-screen window frames, and the tab count of a window.        |
 | `AXWindowObserver`          | macOS     | The AX and `NSWorkspace` notifications, turned into `WindowEvent`s.                    |
 | `KnownWindows`              | macOS     | The windows OttoWM knows: `AXUIElement` ↔ `CGWindowID`, and their AX subscriptions.    |
 | `AXWindow`                  | macOS     | One window: snapshot, frame writes, focus, tab count.                                  |
@@ -105,6 +106,7 @@ flowchart LR
     Engine --> Neighbors
     Engine --> AwaitedFocus
     Engine --> WorkspaceBeforeFullScreen
+    Engine --> IgnoredManualNavigation
     Workspaces --> Workspace
     Workspaces --> TabGroups
 ```
@@ -202,7 +204,8 @@ sequenceDiagram
     Engine->>WindowSystem: focused()
     Note over Engine: dropped unless that window is in the current workspace
     Engine->>Workspaces: windowIds(in: the current workspace)
-    Engine->>WindowSystem: shows(id), snapshot(of: id)
+    Engine->>Desktop: placement(of: id)
+    Engine->>WindowSystem: frames(of: the windows placed active)
     Note over Engine: keeps the on-screen windows that are placed active
     Engine->>Neighbors: nearest(to: direction)
     Neighbors-->>Engine: the window that way, or nothing
@@ -230,7 +233,7 @@ sequenceDiagram
     else from another native Space
         Desktop->>Engine: manualNavigation(parked window that has the focus)
     end
-    Note over Engine: dropped by the one-shot ignore flag,<br/>or when every window of the current workspace is already gone
+    Note over Engine: dropped when IgnoredManualNavigation remembers one OttoWM caused,<br/>or when every window of the current workspace is already gone
     Engine->>Workspaces: switchTo(that window's workspace)
     Engine->>Desktop: place(id, at: .active) and place(id, at: .storage)
 ```

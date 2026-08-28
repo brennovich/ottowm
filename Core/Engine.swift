@@ -9,7 +9,7 @@ final class Engine {
     private let screenIsLocked: () -> Bool
     private let quit: () -> Void
     private let restart: () -> Void
-    private var ignoreNextManualNavigation = false
+    private var ignoredManualNavigation = IgnoredManualNavigation()
     private var workspaceBeforeFullScreen = WorkspaceBeforeFullScreen()
     private var awaitedFocus = AwaitedFocus()
 
@@ -145,16 +145,10 @@ final class Engine {
                 return
             }
 
-            // The frames of the windows that belongs to the current workspace.
-            let frames = workspaces.windowIds(in: workspaces.current)
+            let candidates = workspaces.windowIds(in: workspaces.current)
                 .filter { $0 != reference.id && desktop.placement(of: $0) == .active }
-                .reduce(into: [CGWindowID: CGRect]()) { frames, windowId in
-                    guard let frame = windowSystem.frame(of: windowId) else { return }
 
-                    frames[windowId] = frame
-                }
-
-            let neighbors = Neighbors(around: reference.frame, among: frames)
+            let neighbors = Neighbors(around: reference.frame, among: windowSystem.frames(of: candidates))
             guard let target = neighbors.nearest(to: direction) else {
                 Log.engine.info("focus \(direction.rawValue) dropped: no window that way")
                 return
@@ -285,8 +279,7 @@ final class Engine {
     /// that window's workspace.
     private func handleManualNavigation(_ windowId: CGWindowID) {
         windowSystem.duringOperation {
-            if ignoreNextManualNavigation {
-                ignoreNextManualNavigation = false
+            if ignoredManualNavigation.take() {
                 Log.engine.debug("ignoring manual navigation (one-shot)")
                 return
             }
@@ -344,7 +337,7 @@ final class Engine {
     private func returnToDesktop() {
         guard !restoreFocus() else { return }
 
-        ignoreNextManualNavigation = true
+        ignoredManualNavigation.record()
         Log.engine.debug("returning to desktop, ignoring next manual navigation")
 
         if let windowId = workspaces.allWindowIds.first(where: { requestFocus($0) }) {

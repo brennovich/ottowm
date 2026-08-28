@@ -47,6 +47,14 @@ final class WindowSystem {
         onScreenWindows.value()[windowId]
     }
 
+    /// The frames of the given windows, keeping only the ones on screen.
+    func frames(of windowIds: [CGWindowID]) -> [CGWindowID: CGRect] {
+        let onScreen = onScreenWindows.value()
+        return windowIds.reduce(into: [:]) { frames, windowId in
+            frames[windowId] = onScreen[windowId]
+        }
+    }
+
     func snapshot(of windowId: CGWindowID) -> WindowSnapshot? {
         window(windowId)?.snapshot()
     }
