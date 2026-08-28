@@ -75,6 +75,18 @@ final class EngineFocusDirectionTests: EngineTestCase {
         }
     }
 
+    func testCandidateFramesAreReadWithoutWindowSnapshots() {
+        let reference = create(StubWindow(id: 100, frame: center))
+        let neighbor = create(StubWindow(id: 200, frame: east))
+        focused = reference
+        let readsBefore = neighbor.snapshotReadCount
+
+        engine.focusWindow(.east)
+
+        XCTAssertEqual(neighbor.snapshotReadCount, readsBefore)
+        XCTAssertEqual(neighbor.focusCount, 1)
+    }
+
     func testHandleDispatchesTheFocusAction() {
         let reference = create(StubWindow(id: 100, frame: center))
         let neighbor = create(StubWindow(id: 200, frame: east))

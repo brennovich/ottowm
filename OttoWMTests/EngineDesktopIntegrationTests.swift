@@ -12,10 +12,11 @@ final class EngineDesktopIntegrationTests: XCTestCase {
     private let workspaces = Workspaces()
     private let hiddenEdge = OffscreenParkingDesktop.HiddenEdge(screen: StubScreen.standard)
 
-    private lazy var onScreenWindows = OperationCache { [weak self] () -> Set<CGWindowID> in
-        guard let self else { return [] }
+    private lazy var onScreenWindows = OperationCache { [weak self] () -> [CGWindowID: CGRect] in
+        guard let self else { return [:] }
         self.snapshotCount += 1
-        return self.nativeSpaceWindowIds ?? Set(self.windows.keys)
+        let ids = self.nativeSpaceWindowIds ?? Set(self.windows.keys)
+        return ids.reduce(into: [CGWindowID: CGRect]()) { $0[$1] = self.windows[$1]?.frame ?? .zero }
     }
 
     private lazy var desktop: OffscreenParkingDesktop = OffscreenParkingDesktop(
@@ -29,7 +30,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         desktop: desktop,
         windowSystem: WindowSystem(
             focusedWindow: OperationCache { [weak self] in self?.focused?.snapshot() },
-            onScreenWindowIds: onScreenWindows,
+            onScreenWindows: onScreenWindows,
             window: { [weak self] in self?.windows[$0] }
         ),
         workspaces: workspaces

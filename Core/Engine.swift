@@ -147,9 +147,9 @@ final class Engine {
 
             // The frames of the windows that belongs to the current workspace.
             let frames = workspaces.windowIds(in: workspaces.current)
-                .filter { $0 != reference.id && desktop.placement(of: $0) == .active && windowSystem.shows($0) }
+                .filter { $0 != reference.id && desktop.placement(of: $0) == .active }
                 .reduce(into: [CGWindowID: CGRect]()) { frames, windowId in
-                    guard let frame = windowSystem.snapshot(of: windowId)?.frame else { return }
+                    guard let frame = windowSystem.frame(of: windowId) else { return }
 
                     frames[windowId] = frame
                 }
@@ -385,6 +385,7 @@ final class Engine {
         }
     }
 
+    @discardableResult
     private func requestFocus(_ windowId: CGWindowID) -> Bool {
         guard desktop.focus(windowId) else { return false }
 

@@ -2,31 +2,33 @@ import CoreGraphics
 
 /// A consistent read of what the OS shows.
 ///
-/// One engine operation reads the focused window and the on-screen list several times, and
-/// each read costs axMessagingTimeoutSeconds against a hung application. Both are read once
-/// per operation, so the cost is bounded and every decision in the operation sees the same
-/// screen. `snapshot(of:)` and `tabCount(of:)` are not cached; each call is a fresh read.
+/// One engine operation reads the focused window and the on-screen windows several times,
+/// and each read costs axMessagingTimeoutSeconds against a hung application. Both are read
+/// once per operation, so the cost is bounded and every decision in the operation sees the
+/// same screen. The on-screen read carries each window's frame, so `frame(of:)` costs
+/// nothing on top of it. `snapshot(of:)` and `tabCount(of:)` are not cached; each call is
+/// a fresh read.
 ///
 /// `focused()` is not a pure read: the injected reader may register and subscribe the
 /// window it finds (the app wires it to `KnownWindows.adoptFocused()`). The cache bounds
 /// that to once per operation.
 final class WindowSystem {
     private let focusedWindow: OperationCache<WindowSnapshot?>
-    private let onScreenWindowIds: OperationCache<Set<CGWindowID>>
+    private let onScreenWindows: OperationCache<[CGWindowID: CGRect]>
     private let window: (CGWindowID) -> (any Window)?
 
     init(
         focusedWindow: OperationCache<WindowSnapshot?>,
-        onScreenWindowIds: OperationCache<Set<CGWindowID>>,
+        onScreenWindows: OperationCache<[CGWindowID: CGRect]>,
         window: @escaping (CGWindowID) -> (any Window)?
     ) {
         self.focusedWindow = focusedWindow
-        self.onScreenWindowIds = onScreenWindowIds
+        self.onScreenWindows = onScreenWindows
         self.window = window
     }
 
     func duringOperation<T>(_ body: () -> T) -> T {
-        onScreenWindowIds.duringOperation { focusedWindow.duringOperation(body) }
+        onScreenWindows.duringOperation { focusedWindow.duringOperation(body) }
     }
 
     func focused() -> WindowSnapshot? {
@@ -34,11 +36,15 @@ final class WindowSystem {
     }
 
     func shows(_ windowId: CGWindowID) -> Bool {
-        onScreenWindowIds.value().contains(windowId)
+        onScreenWindows.value().keys.contains(windowId)
     }
 
     func showsAny(_ windowIds: Set<CGWindowID>) -> Bool {
-        !onScreenWindowIds.value().isDisjoint(with: windowIds)
+        !windowIds.isDisjoint(with: onScreenWindows.value().keys)
+    }
+
+    func frame(of windowId: CGWindowID) -> CGRect? {
+        onScreenWindows.value()[windowId]
     }
 
     func snapshot(of windowId: CGWindowID) -> WindowSnapshot? {

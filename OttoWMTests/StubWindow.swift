@@ -11,6 +11,7 @@ final class StubWindow: Window {
     var isMinimized: Bool
     private(set) var frame: CGRect
 
+    private(set) var snapshotReadCount = 0
     private(set) var positionSetCount = 0
     private(set) var sizeSetCount = 0
     private(set) var focusCount = 0
@@ -43,7 +44,8 @@ final class StubWindow: Window {
     }
 
     func snapshot() -> WindowSnapshot {
-        WindowSnapshot(
+        snapshotReadCount += 1
+        return WindowSnapshot(
             id: id,
             appName: appName,
             isStandard: isStandard,

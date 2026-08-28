@@ -24,9 +24,11 @@ class EngineTestCase: XCTestCase {
                 self.focusedReadCount += 1
                 return self.focused?.snapshot()
             },
-            onScreenWindowIds: OperationCache { [weak self] in
-                guard let self else { return [] }
-                return Set(self.windows.keys).subtracting(self.offScreenWindowIds)
+            onScreenWindows: OperationCache { [weak self] in
+                guard let self else { return [:] }
+                return self.windows.values
+                    .filter { !self.offScreenWindowIds.contains($0.id) }
+                    .reduce(into: [CGWindowID: CGRect]()) { $0[$1.id] = $1.frame }
             },
             window: { [weak self] id in self?.windows[id] }
         ),

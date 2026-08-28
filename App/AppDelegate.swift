@@ -46,12 +46,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             ),
             windowSystem: WindowSystem(
                 focusedWindow: OperationCache { [knownWindows] in knownWindows.adoptFocused()?.snapshot() },
-                onScreenWindowIds: OperationCache {
-                    Set((CGWindowListCopyWindowInfo(
+                onScreenWindows: OperationCache {
+                    (CGWindowListCopyWindowInfo(
                         [.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
-                         as? [[String: Any]] ?? [])
-                        .compactMap { $0[kCGWindowNumber as String] as? NSNumber }
-                        .map { CGWindowID($0.uint32Value) })
+                     as? [[String: Any]] ?? [])
+                        .reduce(into: [CGWindowID: CGRect]()) { frames, info in
+                            guard let number = info[kCGWindowNumber as String] as? NSNumber,
+                                  let bounds = info[kCGWindowBounds as String] as? NSDictionary,
+                                  let frame = CGRect(dictionaryRepresentation: bounds)
+                            else { return }
+
+                            frames[CGWindowID(number.uint32Value)] = frame
+                        }
                 },
                 window: windowById
             ),
