@@ -7,7 +7,11 @@ final class Workspaces {
 
     private var workspaces: [Int: Workspace] = [:]
 
-    private var tabGroups = TabGroups()
+    private var tabGroups: TabGroups
+
+    init(tabCount: @escaping (CGWindowID) -> Int) {
+        tabGroups = TabGroups(tabCount: tabCount)
+    }
 
     var allWindowIds: Set<CGWindowID> {
         Set(workspaces.values.flatMap(\.windowIds))
@@ -31,8 +35,8 @@ final class Workspaces {
     /// the group does not follow the window.
     /// - Returns: the workspace the window landed in.
     @discardableResult
-    func assign(_ window: WindowSnapshot, to workspace: Int, tabCount: Int = 1) -> Int {
-        tabGroups.add(window, tabCount: tabCount)
+    func assign(_ window: WindowSnapshot, to workspace: Int) -> Int {
+        tabGroups.add(window)
         let target = tabGroups.siblings(of: window.id).lazy.compactMap { self.workspace(for: $0) }.first ?? workspace
         assignTabGroup(of: window.id, to: target)
         recordFocus(on: window.id, in: target)

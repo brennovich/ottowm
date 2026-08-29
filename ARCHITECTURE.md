@@ -65,9 +65,9 @@ flowchart LR
 | `Bindings`                  | Input     | The bindings currently up: `start`, `stop`, `reload`.                                  |
 | `Hotkeys`                   | Input     | A session `CGEventTap` on keyDown, running on a thread of its own.                     |
 | `Engine`                    | Engine    | Turns window events and actions into model updates and window moves.                   |
-| `Workspaces`                | Model     | Window → workspace, focus history, current workspace. Makes no OS call.                |
+| `Workspaces`                | Model     | Window → workspace, focus history, current workspace.                                  |
 | `Workspace`                 | Model     | The windows of one workspace and the order they were focused in.                       |
-| `TabGroups`                 | Model     | Infers which windows are tabs of one another.                                          |
+| `TabGroups`                 | Model     | Infers which windows are tabs of one another. Reads a window's tab count on demand.    |
 | `Neighbors`                 | Model     | The windows around one frame, and which of them a focus move lands on.                 |
 | `AwaitedFocus`              | Model     | The focus requests `Engine` made and has not seen answered.                            |
 | `WorkspaceBeforeFullScreen` | Model     | The workspace each full screen window returns to.                                      |
@@ -118,7 +118,8 @@ Every window event, and every action that touches windows, runs inside `WindowSy
 ```mermaid
 flowchart TB
     Engine -->|recover, place, focus| Desktop
-    Engine -->|focused, shows, tabCount| WindowSystem
+    Engine -->|focused, shows, frames| WindowSystem
+    TabGroups -->|tabCount| WindowSystem
     AXWindowObserver -->|WindowEvent| Engine
     Desktop --> MainScreen
     Desktop --> KnownWindows
@@ -317,9 +318,9 @@ sequenceDiagram
     Application->>AXWindowObserver: the focused window changed
     Note over AXWindowObserver: KnownWindows registers the window and subscribes it
     AXWindowObserver->>Engine: focused(window)
-    Note over Engine: reads how many tabs the window shows
-    Engine->>Workspaces: assign(window, tabCount:)
-    Workspaces->>TabGroups: add(window, tabCount:)
+    Engine->>Workspaces: assign(window)
+    Workspaces->>TabGroups: add(window)
+    Note over TabGroups: reads how many tabs the window shows
     TabGroups-->>Workspaces: the group it joined
     Workspaces-->>Engine: the workspace of that group
     Note over Engine: a different workspace means the user is followed there

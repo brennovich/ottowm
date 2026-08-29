@@ -38,32 +38,35 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             knownWindows.window(for: id)
         }
 
+        let windowSystem = WindowSystem(
+            focusedWindow: OperationCache { [knownWindows] in knownWindows.adoptFocused()?.snapshot() },
+            onScreenWindows: OperationCache {
+                let onScreen = RoundTrips.shared.measure(.read, "CGWindowList") {
+                    CGWindowListCopyWindowInfo(
+                        [.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID
+                    ) as? [[String: Any]] ?? []
+                }
+
+                return onScreen.reduce(into: [CGWindowID: CGRect]()) { frames, info in
+                    guard let number = info[kCGWindowNumber as String] as? NSNumber,
+                          let bounds = info[kCGWindowBounds as String] as? NSDictionary,
+                          let frame = CGRect(dictionaryRepresentation: bounds)
+                    else { return }
+
+                    frames[CGWindowID(number.uint32Value)] = frame
+                }
+            },
+            window: windowById
+        )
+
         let engine = Engine(
             desktop: OffscreenParkingDesktop(
                 screen: MainScreen(),
                 window: windowById,
                 focusedWindowId: { AXWindow.focused()?.id }
             ),
-            windowSystem: WindowSystem(
-                focusedWindow: OperationCache { [knownWindows] in knownWindows.adoptFocused()?.snapshot() },
-                onScreenWindows: OperationCache {
-                    let onScreen = RoundTrips.shared.measure(.read, "CGWindowList") {
-                        CGWindowListCopyWindowInfo(
-                            [.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID
-                        ) as? [[String: Any]] ?? []
-                    }
-
-                    return onScreen.reduce(into: [CGWindowID: CGRect]()) { frames, info in
-                        guard let number = info[kCGWindowNumber as String] as? NSNumber,
-                              let bounds = info[kCGWindowBounds as String] as? NSDictionary,
-                              let frame = CGRect(dictionaryRepresentation: bounds)
-                        else { return }
-
-                        frames[CGWindowID(number.uint32Value)] = frame
-                    }
-                },
-                window: windowById
-            ),
+            windowSystem: windowSystem,
+            workspaces: Workspaces(tabCount: windowSystem.tabCount(of:)),
             screenIsLocked: { [screenLock] in screenLock.isLocked },
             quit: shutdown.quit,
             restart: { [weak self] in self?.bindings?.reload() }

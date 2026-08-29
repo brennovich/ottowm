@@ -9,7 +9,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
     private var nativeSpaceWindowIds: Set<CGWindowID>?
     private var snapshotCount = 0
     private let center = NotificationCenter()
-    private let workspaces = Workspaces()
+    private lazy var workspaces = Workspaces(tabCount: { [weak self] id in self?.windows[id]?.tabCount() ?? 1 })
     private let hiddenEdge = OffscreenParkingDesktop.HiddenEdge(screen: StubScreen.standard)
 
     private lazy var onScreenWindows = OperationCache { [weak self] () -> [CGWindowID: CGRect] in

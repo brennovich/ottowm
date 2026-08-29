@@ -20,7 +20,7 @@ final class Engine {
     init(
         desktop: any Desktop,
         windowSystem: WindowSystem,
-        workspaces: Workspaces = Workspaces(),
+        workspaces: Workspaces,
         screenIsLocked: @escaping () -> Bool = { false },
         quit: @escaping () -> Void = {},
         restart: @escaping () -> Void = {}
@@ -329,7 +329,7 @@ final class Engine {
         guard canManage(win) else { return nil }
 
         let target = workspaceBeforeFullScreen.take(win.id) ?? workspace
-        let assigned = workspaces.assign(win, to: target, tabCount: windowSystem.tabCount(of: win.id))
+        let assigned = workspaces.assign(win, to: target)
         Log.engine.info("assigned \(win.logDescription) → workspace \(assigned)")
 
         desktop.place(win.id, at: assigned == workspaces.current ? .active : .storage)

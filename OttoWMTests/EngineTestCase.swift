@@ -11,8 +11,9 @@ class EngineTestCase: XCTestCase {
     var screenIsLocked = false
     var quitCount = 0
     var restartCount = 0
-    let workspaces = Workspaces()
     let tabFrame = CGRect(x: 400, y: 0, width: 800, height: 600)
+
+    lazy var workspaces = Workspaces(tabCount: { [weak self] id in self?.windows[id]?.tabCount() ?? 1 })
 
     lazy var desktop = StubDesktop(window: { [weak self] id in self?.windows[id] })
 

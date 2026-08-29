@@ -11,6 +11,7 @@ struct TabGroups {
         var windowIds: [CGWindowID]
     }
 
+    private let tabCount: (CGWindowID) -> Int
     private var groups: [Int: Group] = [:]
     private var windowToGroup: [CGWindowID: Int] = [:]
 
@@ -18,12 +19,16 @@ struct TabGroups {
     /// keyed by that id could be taken over by an unrelated window.
     private var nextGroupId = 1
 
+    init(tabCount: @escaping (CGWindowID) -> Int) {
+        self.tabCount = tabCount
+    }
+
     /// Joins the group whose representative this window is a tab of, or opens a new
     /// one around it.
-    mutating func add(_ window: WindowSnapshot, tabCount: Int) {
+    mutating func add(_ window: WindowSnapshot) {
         guard windowToGroup[window.id] == nil else { return }
 
-        let groupId = group(representing: window, tabCount: tabCount) ?? openGroup(around: window)
+        let groupId = group(representing: window) ?? openGroup(around: window)
         groups[groupId]?.windowIds.append(window.id)
         windowToGroup[window.id] = groupId
     }
@@ -52,8 +57,8 @@ struct TabGroups {
         groups[groupId] = group.windowIds.isEmpty ? nil : group
     }
 
-    private func group(representing window: WindowSnapshot, tabCount: Int) -> Int? {
-        guard tabCount > 1 else { return nil }
+    private func group(representing window: WindowSnapshot) -> Int? {
+        guard tabCount(window.id) > 1 else { return nil }
 
         return groups.first { isTab(window, of: $0.value.representative) }?.key
     }

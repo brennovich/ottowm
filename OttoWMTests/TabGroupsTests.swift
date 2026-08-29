@@ -16,12 +16,20 @@ final class TabGroupsTests: XCTestCase {
         TabbedWindow(snapshot: makeSnapshot(id, appName: appName, frame: frame), tabCount: tabCount)
     }
 
+    private var tabCounts: [CGWindowID: Int] = [:]
+
     private func makeTabGroups(_ windows: [TabbedWindow]) -> TabGroups {
-        var tabGroups = TabGroups()
+        tabCounts = [:]
+        var tabGroups = TabGroups(tabCount: { [weak self] in self?.tabCounts[$0] ?? 1 })
         for window in windows {
-            tabGroups.add(window.snapshot, tabCount: window.tabCount)
+            add(window, to: &tabGroups)
         }
         return tabGroups
+    }
+
+    private func add(_ window: TabbedWindow, to tabGroups: inout TabGroups) {
+        tabCounts[window.snapshot.id] = window.tabCount
+        tabGroups.add(window.snapshot)
     }
 
     func testGrouping() {
@@ -112,7 +120,7 @@ final class TabGroupsTests: XCTestCase {
 
         tabGroups.remove(100)
         tabGroups.remove(200)
-        tabGroups.add(tabbed(300, tabCount: 2).snapshot, tabCount: 2)
+        add(tabbed(300, tabCount: 2), to: &tabGroups)
 
         XCTAssertEqual(tabGroups.members(of: 300), [300])
     }
