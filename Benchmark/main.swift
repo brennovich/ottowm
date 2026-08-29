@@ -110,7 +110,10 @@ func append(_ text: String, to path: String) {
 }
 
 let options = parseOptions()
-let session = Session.start(instances: options.instances)
+// Arranged in the four quarters of the screen, because a focus move is only measurable
+// against a desk whose geometry the run knows: it has to name the window the move is
+// owed to land on.
+let session = Session.start(instances: options.instances, arranged: true)
 
 // Waits out whatever the previous operation is still doing, so the hotkey below is timed
 // against a desk that is standing still rather than one that is on its way somewhere. A
@@ -188,9 +191,18 @@ func deskIsBack() -> Bool {
 
 var move = Latency("move-window-to-workspace")
 var switchTo = Latency("switch-to-workspace")
+var focusMove = Latency("focus-direction")
+
+// Two desk instances stand two Safari windows in the same quarter, and a focus move north
+// lands on whichever of them the rule picks, which the run cannot name.
+let measuresFocus = options.instances == 1
 
 report("measuring \(options.iterations) iterations after \(options.warmup) warmup ones, "
     + "on \(session.subjects.count) windows across \(options.instances) desk instances")
+
+if !measuresFocus {
+    report("focus-direction is not measured across \(options.instances) desk instances")
+}
 
 for iteration in 1...(options.warmup + options.iterations) {
     session.movable.focus()
@@ -204,10 +216,25 @@ for iteration in 1...(options.warmup + options.iterations) {
     _ = measure("the moved window parked", { moveWindowToWorkspace(1) }, until: movedAway)
     _ = measure("the desk came back", { switchToWorkspace(1) }, until: deskIsBack)
 
+    // Measured last, on the whole desk the return leg just restored. The focus is put back
+    // on the movable window first rather than taken to be there: a switch hands it to
+    // whichever window it pleases, and the move north is only owed to Safari from the
+    // bottom right quarter.
+    var focused: Observation?
+    if measuresFocus {
+        session.movable.focus()
+        focused = measure(
+            "the focus moved north",
+            { focusNeighbor(.north) },
+            until: { session.subject(named: "Safari").hasFocus }
+        )
+    }
+
     guard iteration > options.warmup else { continue }
 
     if let moved { move.record(moved) }
     if let switched { switchTo.record(switched) }
+    if let focused { focusMove.record(focused) }
 
     report("iteration \(iteration - options.warmup)/\(options.iterations)")
 }
@@ -216,7 +243,8 @@ session.finish()
 
 // Dropping a sample keeps the run going, dropping every one of them leaves a record of
 // zeros that would read as a pass.
-let unmeasured = [move, switchTo].filter { $0.samples.isEmpty }.map { $0.operation }
+let latencies = measuresFocus ? [move, switchTo, focusMove] : [move, switchTo]
+let unmeasured = latencies.filter { $0.samples.isEmpty }.map { $0.operation }
 guard unmeasured.isEmpty else {
     fail("every iteration missed \(unmeasured.joined(separator: " and ")), there is nothing to report")
 }
@@ -235,7 +263,7 @@ let record = Record(
     instances: options.instances,
     iterations: options.iterations,
     warmup: options.warmup,
-    summaries: [move.summary, switchTo.summary]
+    summaries: latencies.map { $0.summary }
 )
 
 write(record.json, to: options.output)

@@ -60,3 +60,20 @@ func menuItem(ofApplication pid: pid_t, menu: String, named name: String) -> AXU
 
     return (attribute(list, kAXChildrenAttribute) as? [AXUIElement])?.first { title(of: $0) == name }
 }
+
+// The system wide element, built once: a benchmark reads its clock before the hotkey goes
+// out, so anything built inside a probe is charged to the app as latency.
+private let systemWide = AXUIElementCreateSystemWide()
+
+// The focused window as the accessibility API reports it, rather than through
+// NSWorkspace.frontmostApplication, which only updates when the main run loop runs. A
+// measuring loop that polls without running it would read the same stale value until it
+// gave up.
+func systemFocusedWindow() -> AXUIElement? {
+    guard let application = attribute(systemWide, kAXFocusedApplicationAttribute) else { return nil }
+    // swiftlint:disable force_cast
+    guard let window = attribute(application as! AXUIElement, kAXFocusedWindowAttribute) else { return nil }
+
+    return (window as! AXUIElement)
+    // swiftlint:enable force_cast
+}

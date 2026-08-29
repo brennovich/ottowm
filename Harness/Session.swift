@@ -42,6 +42,12 @@ struct Subject {
         eventually("\(name) is focused", announce: false) { lacksFocus() }
     }
 
+    // Whether this window has the focus right now, for a loop that polls without running
+    // the main run loop and so cannot use lacksFocus below.
+    var hasFocus: Bool {
+        systemFocusedWindow().map { CFEqual($0, window) } ?? false
+    }
+
     // Nil when this window is the one a hotkey would act on, otherwise where the focus
     // actually is. Asked for the way OttoWM asks in Core/AXWindow.focused(), the focused
     // window of the frontmost application.

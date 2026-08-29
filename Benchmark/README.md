@@ -16,14 +16,19 @@ make benchmark BENCHMARK_ARGS="--budget-p95 250"
 
 ## What it measures
 
-Two operations, over a workspace 1 → 2 → 1 round trip so every iteration starts where the last one ended:
+Three operations, over a workspace 1 → 2 → 1 round trip so every iteration starts where the last one ended:
 
-| Operation                  | Done when                                                       |
-| -------------------------- | --------------------------------------------------------------- |
-| `move-window-to-workspace` | The moved window is parked at the hidden edge                   |
-| `switch-to-workspace`      | The entered workspace is on screen *and* the left one is parked |
+| Operation                  | Done when                                                        |
+| -------------------------- | ---------------------------------------------------------------- |
+| `move-window-to-workspace` | The moved window is parked at the hidden edge                    |
+| `switch-to-workspace`      | The entered workspace is on screen *and* the left one is parked  |
+| `focus-direction`          | The window the move is owed to land on holds the focus           |
 
 The return leg moves the window back and switches back, untimed: it starts from a different state than the two above and its numbers would only blur theirs. The first `--warmup` iterations are run and discarded.
+
+The desk stands in the four quarters of the screen, because a focus move is only measurable against a desk whose geometry the run knows: it has to name the window the move is owed to land on. `focus-direction` is measured on the leg from the bottom right window to the top right one, taken last in the iteration on the whole desk the return leg just restored. The focus is put back on the bottom right window first rather than taken to be there, because a switch hands it to whichever window it pleases. Only that one leg is timed: the other three are different pairs of applications, and one blended figure would be a number no pair actually has. At more than one `--instances` the operation is skipped: two desks stand two Safari windows in the same quarter, and the move lands on whichever of them the rule picks, which the run cannot name.
+
+The focus is read through the accessibility API rather than `NSWorkspace.frontmostApplication`, which only updates when the main run loop runs: a measuring loop that polls without running it would read the same stale value until it gave up.
 
 An operation the desk never gets to within 15s warns, drops that sample and lets the run carry on to the next iteration, because aborting would throw away every sample already taken over one window that would not move. The `Samples` column is what the statistics were drawn from, so a run that missed reports fewer than it was asked for. Only a run that measured nothing at all fails.
 
@@ -48,7 +53,7 @@ All of them passed through `BENCHMARK_ARGS`, which the Makefile sets to `--budge
 
 Three things to hold on to while reading it.
 
-`resolution` is the mean gap between two reads of the desk while that operation was running. It is the width of the ruler: a latency is only good to that much, and sits about half of it high, because the operation finished somewhere between the read that missed it and the read that caught it. The two operations do not poll the same number of windows, so they do not share a resolution, and one blended figure would flatter the expensive one and libel the cheap one. Read it before believing a difference between two runs, a gap smaller than the resolution is not a gap.
+`resolution` is the mean gap between two reads of the desk while that operation was running. It is the width of the ruler: a latency is only good to that much, and sits about half of it high, because the operation finished somewhere between the read that missed it and the read that caught it. The operations do not poll the same number of windows, so they do not share a resolution, and one blended figure would flatter the expensive one and libel the cheap one. Read it before believing a difference between two runs, a gap smaller than the resolution is not a gap.
 
 `ops/s` is the mean turned around rather than a throughput anyone measured. The run settles the desk between every iteration and never performs these back to back.
 
