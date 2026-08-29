@@ -27,6 +27,33 @@ final class EngineTabGroupTests: EngineTestCase {
         XCTAssertEqual(desktop.placement(of: 301), .storage)
     }
 
+    func testSelectingAnotherTabKeepsTheDesktopInFront() {
+        let tab1 = create(StubWindow(id: 300, appName: "Terminal", frame: tabFrame, tabCount: 2))
+        let tab2 = add(StubWindow(id: 301, appName: "Terminal", frame: tabFrame, tabCount: 2))
+        offScreenWindowIds = [300]
+        focused = tab2
+
+        engine.switchToWorkspace(2)
+
+        XCTAssertEqual(workspaces.workspace(for: 301), 1)
+        XCTAssertEqual(desktop.placement(of: 301), .storage)
+        XCTAssertEqual(tab1.focusCount, 0)
+    }
+
+    func testTabHiddenBySiblingIsNotDroppedAsHavingLeftTheDesktop() {
+        create(StubWindow(id: 300, appName: "Terminal", frame: tabFrame, tabCount: 2))
+        let tab2 = create(StubWindow(id: 301, appName: "Terminal", frame: tabFrame, tabCount: 2))
+        let other = create(StubWindow(id: 100))
+        moveFocusedWindow(other, to: 2)
+
+        focused = tab2
+        offScreenWindowIds = [300]
+        engine.switchToWorkspace(2)
+
+        XCTAssertEqual(workspaces.workspace(for: 300), 1)
+        XCTAssertEqual(desktop.placement(of: 300), .storage)
+    }
+
     func testFocusingATabOfAGroupParkedElsewhereFollowsTheUserToIt() {
         create(StubWindow(id: 300, appName: "Terminal", frame: tabFrame, tabCount: 2))
         engine.switchToWorkspace(2)

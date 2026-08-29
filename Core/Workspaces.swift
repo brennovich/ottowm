@@ -48,6 +48,11 @@ final class Workspaces {
         recordFocus(on: windowId, in: workspace)
     }
 
+    /// Whether the window is a tab of a group that is already managed.
+    func hasTabGroup(for window: WindowSnapshot) -> Bool {
+        tabGroups.hasGroup(for: window)
+    }
+
     /// The windows macOS minimizes, restores and moves together with this one. A tab group
     /// is one window to macOS.
     func tabGroupMembers(of windowId: CGWindowID) -> [CGWindowID] {

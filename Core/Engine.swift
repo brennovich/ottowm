@@ -244,7 +244,7 @@ final class Engine {
         let parked = workspaces.allWindowIds.filter { desktop.placement(of: $0) == .storage }
         guard windowSystem.showsAny(parked) else { return }
 
-        for windowId in workspaces.allWindowIds.subtracting(parked) where !windowSystem.shows(windowId) {
+        for windowId in workspaces.allWindowIds.subtracting(parked) where !showsTabGroup(of: windowId) {
             // A full screen window is off the desktop but comes back to it, so it stays
             // managed. A window `KnownWindows` can no longer resolve is skipped here too, and
             // dropped by the next place() that cannot reach it.
@@ -395,7 +395,19 @@ final class Engine {
     /// screen window shows none of them.
     private var isDesktopInFront: Bool {
         let managed = workspaces.allWindowIds
-        return managed.isEmpty || windowSystem.showsAny(managed)
+        if managed.isEmpty || windowSystem.showsAny(managed) { return true }
+
+        // Selecting another tab takes the managed one out of the on-screen list. When every
+        // managed window is a tab left in the background, the sibling shown in its place is
+        // the only evidence the desktop is still in front.
+        guard let focused = windowSystem.focused(), windowSystem.shows(focused.id) else { return false }
+        return workspaces.hasTabGroup(for: focused)
+    }
+
+    /// A tab left in the background is absent from the on-screen list, so what proves a
+    /// window is still on the desktop is its group showing, not the window itself.
+    private func showsTabGroup(of windowId: CGWindowID) -> Bool {
+        windowSystem.showsAny(Set(workspaces.tabGroupMembers(of: windowId)))
     }
 
     /// The on-screen list covers whichever native Space is in front, so it tells a managed

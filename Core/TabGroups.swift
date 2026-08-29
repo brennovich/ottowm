@@ -41,6 +41,12 @@ struct TabGroups {
         return groupId
     }
 
+    /// Whether the window is a tab of a group already opened, whether or not it is a
+    /// member of it yet.
+    func hasGroup(for window: WindowSnapshot) -> Bool {
+        return group(representing: window) != nil
+    }
+
     func members(of windowId: CGWindowID) -> [CGWindowID] {
         return windowToGroup[windowId].flatMap { groups[$0]?.windowIds } ?? [windowId]
     }
