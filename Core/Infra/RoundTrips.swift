@@ -62,13 +62,20 @@ struct OperationCost {
 /// asked. Counting at the boundary names the question instead, and the count is exact
 /// rather than sampled. That count is the one thing about an operation the benchmark
 /// cannot see from outside, which is why it is the only part broken down here.
+///
+/// An operation that fans its calls out over several threads records from all of them, so
+/// every access to the counters is taken under `lock`. The operation itself belongs to the
+/// thread that opened it: a `duringOperation` entered on another thread while one is in
+/// flight counts into it rather than replacing it.
 final class RoundTrips {
     static let shared = RoundTrips { Log.roundTrips.debug($0.summary) }
 
     private let report: (OperationCost) -> Void
+    private let lock = NSLock()
     private var counts: [RoundTrip: Int] = [:]
     private var nanoseconds: [RoundTrip: UInt64] = [:]
     private var order: [RoundTrip] = []
+    private var owner: Thread?
     private var depth = 0
     private var startedAt: UInt64 = 0
 
@@ -81,15 +88,8 @@ final class RoundTrips {
     /// and share the reads `OperationCache` holds.
     func duringOperation<T>(_ operation: StaticString, _ body: () -> T) -> T {
         Signposts.interval("operation", "\(operation)") {
-            depth += 1
-            if depth == 1 {
-                clear()
-                startedAt = DispatchTime.now().uptimeNanoseconds
-            }
-            defer {
-                depth -= 1
-                if depth == 0 { finish(operation) }
-            }
+            begin()
+            defer { end(operation) }
 
             return body()
         }
@@ -110,6 +110,8 @@ final class RoundTrips {
     }
 
     func record(_ roundTrip: RoundTrip, nanoseconds elapsed: UInt64) {
+        lock.lock()
+        defer { lock.unlock() }
         guard depth > 0 else { return }
 
         if counts[roundTrip] == nil { order.append(roundTrip) }
@@ -117,19 +119,46 @@ final class RoundTrips {
         nanoseconds[roundTrip, default: 0] += elapsed
     }
 
-    private func finish(_ operation: StaticString) {
-        guard !order.isEmpty else { return }
+    private func begin() {
+        lock.lock()
+        defer { lock.unlock() }
+
+        guard let owner else {
+            owner = Thread.current
+            depth = 1
+            clear()
+            startedAt = DispatchTime.now().uptimeNanoseconds
+            return
+        }
+        if owner === Thread.current { depth += 1 }
+    }
+
+    /// Reported outside the lock: `report` logs, and the counters are free for the next
+    /// operation as soon as they have been read.
+    private func end(_ operation: StaticString) {
+        guard let cost = finish(operation) else { return }
+
+        report(cost)
+    }
+
+    private func finish(_ operation: StaticString) -> OperationCost? {
+        lock.lock()
+        defer { lock.unlock() }
+
+        guard owner === Thread.current else { return nil }
+
+        depth -= 1
+        guard depth == 0 else { return nil }
+        owner = nil
+        guard !order.isEmpty else { return nil }
 
         let calls = order
             .map { RoundTripCost(roundTrip: $0, count: counts[$0] ?? 0, nanoseconds: nanoseconds[$0] ?? 0) }
             .sorted { $0.nanoseconds > $1.nanoseconds }
-
-        report(OperationCost(
-            operation: "\(operation)",
-            nanoseconds: DispatchTime.now().uptimeNanoseconds - startedAt,
-            calls: calls
-        ))
+        let elapsed = DispatchTime.now().uptimeNanoseconds - startedAt
         clear()
+
+        return OperationCost(operation: "\(operation)", nanoseconds: elapsed, calls: calls)
     }
 
     private func clear() {

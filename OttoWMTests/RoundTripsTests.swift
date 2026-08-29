@@ -95,6 +95,40 @@ final class RoundTripsTests: XCTestCase {
         XCTAssertEqual(reported.first?.calls.map(\.roundTrip), [RoundTrip(kind: .read, subject: "AXRole")])
     }
 
+    func testRecordsCallsMadeFromSeveralThreadsAtOnce() {
+        roundTrips.duringOperation("switch-to-workspace") {
+            DispatchQueue.concurrentPerform(iterations: 8) { _ in
+                for _ in 1...100 { roundTrips.record(position, nanoseconds: 1000) }
+            }
+        }
+
+        XCTAssertEqual(reported.first?.calls.first?.count, 800)
+        XCTAssertEqual(reported.first?.calls.first?.nanoseconds, 800_000)
+    }
+
+    func testAnOperationOnAnotherThreadDoesNotTakeOverTheOneInFlight() {
+        let otherStarted = DispatchSemaphore(value: 0)
+        let otherMayFinish = DispatchSemaphore(value: 0)
+        let otherFinished = DispatchSemaphore(value: 0)
+
+        roundTrips.duringOperation("switch-to-workspace") {
+            DispatchQueue.global().async {
+                self.roundTrips.duringOperation("focus-direction") {
+                    otherStarted.signal()
+                    otherMayFinish.wait()
+                }
+                otherFinished.signal()
+            }
+            otherStarted.wait()
+            roundTrips.record(position, nanoseconds: 1000)
+        }
+        otherMayFinish.signal()
+        otherFinished.wait()
+
+        XCTAssertEqual(reported.map(\.operation), ["switch-to-workspace"])
+        XCTAssertEqual(reported.first?.count, 1)
+    }
+
     func testSummaryNamesTheOperationAndTheCallsItMade() {
         roundTrips.duringOperation("switch-to-workspace") {
             roundTrips.record(position, nanoseconds: 1_000_000)
