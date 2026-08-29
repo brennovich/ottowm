@@ -8,6 +8,11 @@ protocol Desktop {
     ///   it.
     @discardableResult
     func place(_ windowId: CGWindowID, at placement: Placement) -> Bool
+    /// Places every window of the batch, in the order given.
+    /// - Returns: the ids of the windows that no longer exist, so the caller can stop
+    ///   placing them.
+    @discardableResult
+    func place(_ placements: [(windowId: CGWindowID, placement: Placement)]) -> [CGWindowID]
     /// Moves every stored window back to its captured frame.
     func restoreAll()
     func placement(of windowId: CGWindowID) -> Placement

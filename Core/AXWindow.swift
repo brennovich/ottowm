@@ -34,6 +34,8 @@ final class AXWindow: Window, WindowLogDescribing {
 
     var appName: String { application.localizedName ?? "" }
 
+    var pid: pid_t { application.processIdentifier }
+
     func snapshot() -> WindowSnapshot {
         let attributes = element.values(of: [
             .subrole,

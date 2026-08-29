@@ -317,9 +317,9 @@ final class Engine {
         let placements = workspaces.switchTo(workspace, leavingFocusOn: focusToKeep)
         Log.engine.info("switching to \(workspace) toActive=\(placements.toActive) toStorage=\(placements.toStorage)")
 
-        (placements.toActive.filter { !desktop.place($0, at: .active) }
-         + placements.toStorage.filter { !desktop.place($0, at: .storage) })
-            .forEach { unmanage($0, reason: "gone") }
+        let batch = placements.toActive.map { (windowId: $0, placement: Placement.active) }
+            + placements.toStorage.map { (windowId: $0, placement: Placement.storage) }
+        desktop.place(batch).forEach { unmanage($0, reason: "gone") }
     }
 
     /// Takes the window under management and places it.

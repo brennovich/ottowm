@@ -1,7 +1,9 @@
 import CoreGraphics
+import Foundation
 
 final class StubWindow: Window {
     let id: CGWindowID
+    let pid: pid_t
     let appName: String
     let tabs: Int
     let isStandard: Bool
@@ -18,11 +20,14 @@ final class StubWindow: Window {
     private(set) var movableFrameCount = 0
     private(set) var tabCountReadCount = 0
     private(set) var animatedWriteCount = 0
+    private(set) var positionSetThread: Thread?
+    var onSetPosition: (() -> Void)?
 
     private var animationsDisabled = false
 
     init(
         id: CGWindowID,
+        pid: pid_t = 0,
         appName: String = "App",
         frame: CGRect = CGRect(x: 0, y: 0, width: 800, height: 600),
         tabCount: Int = 1,
@@ -33,6 +38,7 @@ final class StubWindow: Window {
         isMinimized: Bool = false
     ) {
         self.id = id
+        self.pid = pid
         self.appName = appName
         self.frame = frame
         self.tabs = tabCount
@@ -74,8 +80,10 @@ final class StubWindow: Window {
     }
 
     func setPosition(_ origin: CGPoint) {
+        onSetPosition?()
         frame.origin = origin
         positionSetCount += 1
+        positionSetThread = Thread.current
         countAnimatedWrite()
     }
 

@@ -28,6 +28,16 @@ final class EngineSwitchTests: EngineTestCase {
         XCTAssertEqual(workspaces.current, 2)
     }
 
+    func testSwitchPlacesEveryWindowInOneCall() {
+        create(StubWindow(id: 100))
+        let win2 = create(StubWindow(id: 200))
+        moveFocusedWindow(win2, to: 2)
+
+        engine.switchToWorkspace(2)
+
+        XCTAssertEqual(desktop.placeBatches, [[200, 100]])
+    }
+
     func testSwitchToSameWorkspaceOnFrontmostDesktopIsNoOp() {
         let win = create(StubWindow(id: 100))
         desktop.clearPlaceCalls()

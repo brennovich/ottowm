@@ -5,6 +5,7 @@ final class StubDesktop: Desktop {
 
     private(set) var placements: [CGWindowID: Placement] = [:]
     private(set) var placeCalls: [(windowId: CGWindowID, placement: Placement)] = []
+    private(set) var placeBatches: [[CGWindowID]] = []
     private(set) var forgottenWindowIds: [CGWindowID] = []
     private(set) var recoverCount = 0
     private(set) var recoveredWindowIds: [CGWindowID] = []
@@ -31,8 +32,15 @@ final class StubDesktop: Desktop {
         return true
     }
 
+    @discardableResult
+    func place(_ placements: [(windowId: CGWindowID, placement: Placement)]) -> [CGWindowID] {
+        placeBatches.append(placements.map(\.windowId))
+        return placements.compactMap { place($0.windowId, at: $0.placement) ? nil : $0.windowId }
+    }
+
     func clearPlaceCalls() {
         placeCalls = []
+        placeBatches = []
     }
 
     func restoreAll() {

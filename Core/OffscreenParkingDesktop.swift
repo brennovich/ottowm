@@ -38,6 +38,22 @@ final class OffscreenParkingDesktop: Desktop {
         }
     }
 
+    /// One window's move, decided on the main thread and carried out off it.
+    private struct Move {
+        let windowId: CGWindowID
+        let window: any Window
+        let placement: Placement
+        /// The frame the window is owed back, when it is already parked.
+        let parkedFrom: CGRect?
+    }
+
+    /// What a move leaves for the model: the frame the window is owed back, or `nil` once
+    /// it is on screen.
+    private struct Moved {
+        let windowId: CGWindowID
+        let parkedFrom: CGRect?
+    }
+
     private let hiddenEdge: HiddenEdge
     private let window: (CGWindowID) -> (any Window)?
     private let focusedWindowId: () -> CGWindowID?
@@ -76,28 +92,38 @@ final class OffscreenParkingDesktop: Desktop {
 
     @discardableResult
     func place(_ windowId: CGWindowID, at placement: Placement) -> Bool {
-        // An already parked window is left where it is, without a frame read.
-        if placement == .storage, hiddenWindowFrames[windowId] != nil { return canReach(windowId) }
+        place([(windowId: windowId, placement: placement)]).isEmpty
+    }
 
-        guard let (win, currentFrame) = movableWindow(windowId, for: placement) else {
-            return canReach(windowId)
+    @discardableResult
+    func place(_ placements: [(windowId: CGWindowID, placement: Placement)]) -> [CGWindowID] {
+        var gone: [CGWindowID] = []
+        var moves: [Move] = []
+
+        for (windowId, placement) in placements {
+            // A quitting application drops its windows without a destroyed notification
+            // for each. Without this the model keeps placing them on every switch.
+            guard let win = window(windowId) else {
+                Log.desktop.info("cannot move id=\(windowId) to \(placement): window not found")
+                gone.append(windowId)
+                continue
+            }
+            // An already parked window is left where it is, without a frame read.
+            guard placement != .storage || hiddenWindowFrames[windowId] == nil else { continue }
+
+            moves.append(Move(
+                windowId: windowId,
+                window: win,
+                placement: placement,
+                parkedFrom: hiddenWindowFrames[windowId]
+            ))
         }
 
-        switch placement {
-        case .storage:
-            let originalFrame = onScreenFrame(for: windowId, replacing: currentFrame)
-            let hidden = hiddenEdge.frame(parking: originalFrame)
-            hiddenWindowFrames[windowId] = originalFrame
-            move(win, from: currentFrame, to: hidden)
-            Log.desktop.debug("hid id=\(windowId) from=\(currentFrame) to=\(hidden)")
-        case .active:
-            let target = onScreenFrame(for: windowId, replacing: hiddenWindowFrames[windowId] ?? currentFrame)
-            hiddenWindowFrames[windowId] = nil
-            guard target != currentFrame else { return true }
-            move(win, from: currentFrame, to: target)
-            Log.desktop.debug("restored id=\(windowId) to=\(target)")
+        for moved in carryOut(moves) {
+            hiddenWindowFrames[moved.windowId] = moved.parkedFrom
         }
-        return true
+
+        return gone
     }
 
     func restoreAll() {
@@ -146,27 +172,45 @@ final class OffscreenParkingDesktop: Desktop {
         return recovered
     }
 
+    /// An accessibility call blocks until the application it addresses answers, so moves
+    /// of different applications overlap. The ones of a single application stay in one
+    /// group, in the order they were asked for: they would queue behind each other anyway.
+    private func carryOut(_ moves: [Move]) -> [Moved] {
+        Concurrently.map(over: Array(Dictionary(grouping: moves, by: \.window.pid).values)) {
+            $0.map(run)
+        }
+    }
+
+    /// Runs off the main thread. It reads and writes the window it was given and nothing
+    /// else, and hands the model back what to record.
+    private func run(_ requested: Move) -> Moved {
+        guard let currentFrame = requested.window.movableFrame() else {
+            Log.desktop.info("cannot move id=\(requested.windowId) to \(requested.placement): window not movable")
+            return Moved(windowId: requested.windowId, parkedFrom: requested.parkedFrom)
+        }
+
+        switch requested.placement {
+        case .storage:
+            let originalFrame = onScreenFrame(for: requested.windowId, replacing: currentFrame)
+            let hidden = hiddenEdge.frame(parking: originalFrame)
+            move(requested.window, from: currentFrame, to: hidden)
+            Log.desktop.debug("hid id=\(requested.windowId) from=\(currentFrame) to=\(hidden)")
+            return Moved(windowId: requested.windowId, parkedFrom: originalFrame)
+        case .active:
+            let target = onScreenFrame(for: requested.windowId, replacing: requested.parkedFrom ?? currentFrame)
+            if target != currentFrame {
+                move(requested.window, from: currentFrame, to: target)
+                Log.desktop.debug("restored id=\(requested.windowId) to=\(target)")
+            }
+            return Moved(windowId: requested.windowId, parkedFrom: nil)
+        }
+    }
+
     private func move(_ win: any Window, from current: CGRect, to target: CGRect) {
         win.withoutAnimations {
             if current.origin != target.origin { win.setPosition(target.origin) }
             if current.size != target.size { win.setSize(target.size) }
         }
-    }
-
-    /// Reports whether the window still exists.
-    ///
-    /// A quitting application drops its windows without a destroyed notification for each.
-    /// Without this the model keeps placing them on every switch.
-    private func canReach(_ windowId: CGWindowID) -> Bool {
-        window(windowId) != nil
-    }
-
-    private func movableWindow(_ windowId: CGWindowID, for placement: Placement) -> (window: any Window, frame: CGRect)? {
-        guard let win = window(windowId), let frame = win.movableFrame() else {
-            Log.desktop.info("cannot move id=\(windowId) to \(placement): window not found or not movable")
-            return nil
-        }
-        return (win, frame)
     }
 
     private func handleActiveSpaceChange(_ callback: (CGWindowID) -> Void) {

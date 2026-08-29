@@ -21,8 +21,8 @@ final class OffscreenParkingDesktopTests: XCTestCase {
     )
 
     @discardableResult
-    private func addWindow(_ id: CGWindowID, frame: CGRect) -> StubWindow {
-        let window = StubWindow(id: id, frame: frame)
+    private func addWindow(_ id: CGWindowID, frame: CGRect, pid: pid_t = 0) -> StubWindow {
+        let window = StubWindow(id: id, pid: pid, frame: frame)
         windows[id] = window
         return window
     }
@@ -139,6 +139,62 @@ final class OffscreenParkingDesktopTests: XCTestCase {
 
         XCTAssertFalse(desktop.place(100, at: .storage))
         XCTAssertFalse(desktop.place(100, at: .active))
+    }
+
+    func testPlaceMovesEveryWindowOfABatch() {
+        let other = addWindow(200, frame: pulledBackFrame)
+
+        let gone = desktop.place([(windowId: 100, placement: .storage), (windowId: 200, placement: .storage)])
+
+        XCTAssertEqual(gone, [])
+        XCTAssertEqual(win.frame, nubFrame(size: originalFrame.size))
+        XCTAssertEqual(other.frame, nubFrame(size: pulledBackFrame.size))
+        XCTAssertEqual(desktop.placement(of: 100), .storage)
+        XCTAssertEqual(desktop.placement(of: 200), .storage)
+    }
+
+    func testPlaceReportsTheWindowsOfABatchThatAreGone() {
+        let gone = desktop.place([(windowId: 100, placement: .storage), (windowId: 999, placement: .storage)])
+
+        XCTAssertEqual(gone, [999])
+        XCTAssertEqual(desktop.placement(of: 100), .storage)
+    }
+
+    func testPlaceRestoresEveryWindowOfABatchToTheFrameItWasParkedFrom() {
+        let other = addWindow(200, frame: pulledBackFrame)
+        desktop.place([(windowId: 100, placement: .storage), (windowId: 200, placement: .storage)])
+
+        desktop.place([(windowId: 100, placement: .active), (windowId: 200, placement: .active)])
+
+        XCTAssertEqual(win.frame, originalFrame)
+        XCTAssertEqual(other.frame, pulledBackFrame)
+    }
+
+    func testPlaceOverlapsTheMovesOfDifferentApplications() {
+        let batch = (1...8).map { addWindow(CGWindowID($0) * 10, frame: originalFrame, pid: pid_t($0)) }
+        let firstMove = DispatchSemaphore(value: 1)
+        let anotherMove = DispatchSemaphore(value: 0)
+        for window in batch {
+            window.onSetPosition = {
+                if firstMove.wait(timeout: .now()) == .success {
+                    XCTAssertEqual(anotherMove.wait(timeout: .now() + 2), .success)
+                } else {
+                    anotherMove.signal()
+                }
+            }
+        }
+
+        desktop.place(batch.map { (windowId: $0.id, placement: .storage) })
+
+        XCTAssertEqual(Set(batch.map(\.frame)), [nubFrame(size: originalFrame.size)])
+    }
+
+    func testPlaceKeepsTheWindowsOfOneApplicationOnOneThread() {
+        let batch = (1...8).map { addWindow(CGWindowID($0) * 10, frame: originalFrame, pid: 42) }
+
+        desktop.place(batch.map { (windowId: $0.id, placement: .storage) })
+
+        XCTAssertEqual(Set(batch.compactMap(\.positionSetThread)).count, 1)
     }
 
     func testFocusReportsWhetherTheWindowWasStillThere() {

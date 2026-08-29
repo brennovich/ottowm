@@ -53,7 +53,7 @@ Counting is always on, release builds included, because the acceptance and bench
 switch-to-workspace 4.20ms, 27 round trips 3.95ms: write AXEnhancedUserInterface x8 1.40ms, read AXPosition+AXSize x5 0.90ms, read CGWindowList x1 0.42ms, action AXRaise x1 0.21ms
 ```
 
-The first pair is the whole operation, the second is the part spent out of the process, and the gap between them is what OttoWM itself did. Then every call, most expensive first, named by what was asked and of what; `x8` is eight round trips. A read of several attributes is one round trip named by all of them, because `AXUIElementCopyMultipleAttributeValues` asks for them together.
+The first pair is the whole operation, the second is the part spent out of the process, and the gap between them is what OttoWM itself did. A placement pass that fans its writes out by application overlaps its round trips, so the second number can be larger than the first: it is then the time the calls cost added up, not the time the operation waited for them. Then every call, most expensive first, named by what was asked and of what; `x8` is eight round trips. A read of several attributes is one round trip named by all of them, because `AXUIElementCopyMultipleAttributeValues` asks for them together.
 
 An operation that makes no round trip reports nothing. A nested operation is counted into the one around it, not reported on its own.
 
