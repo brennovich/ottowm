@@ -289,7 +289,7 @@ final class Engine {
                 return
             }
 
-            if currentWorkspaceIsClosing { return }
+            if dropClosedWindowsOfCurrentWorkspace() { return }
 
             let target = workspaces.workspace(for: windowId) ?? 1
             Log.engine.info("manual navigation → workspace \(target) window id=\(windowId)")
@@ -297,19 +297,34 @@ final class Engine {
         }
     }
 
-    /// Whether every window of the current workspace is already gone.
-    ///
-    /// AX still resolves the elements of destroyed windows, so quitting an application or
-    /// closing the last windows of a workspace emits focus events for them. Those events
-    /// would otherwise read as manual navigation, and switch to a workspace with nothing
-    /// left in it.
-    private var currentWorkspaceIsClosing: Bool {
-        let windowIds = workspaces.windowIds(in: workspaces.current)
-        guard !windowIds.isEmpty else { return false }
+    /// Closing a window makes macOS focus another one, and a parked window is a candidate
+    /// for it, so the focus can land in another workspace. AX still resolves the element of
+    /// a destroyed window, and its destroyed notification can arrive after that focus event
+    /// or not at all, so the close is seen here first and the focus it caused reads as
+    /// manual navigation.
+    /// - Returns: `true` when the current workspace held closed windows, so the focus change
+    ///   is fallout from those closes rather than the user navigating.
+    private func dropClosedWindowsOfCurrentWorkspace() -> Bool {
+        let closed = workspaces.windowIds(in: workspaces.current).filter(hasClosed)
+        guard !closed.isEmpty else { return false }
 
-        return windowIds.allSatisfy { windowId in
-            windowSystem.snapshot(of: windowId).map { !windowSystem.shows(windowId) && !$0.isMinimized } ?? true
+        var focusSettled = false
+        for windowId in closed {
+            focusSettled = unmanage(windowId, reason: "closed") || focusSettled
         }
+
+        if !focusSettled {
+            restoreFocus()
+        }
+        return true
+    }
+
+    /// Whether macOS no longer shows the window and does not report it as minimized. A full
+    /// screen window is off the desktop too, but it comes back to it.
+    private func hasClosed(_ windowId: CGWindowID) -> Bool {
+        guard let snapshot = windowSystem.snapshot(of: windowId) else { return true }
+
+        return !windowSystem.shows(windowId) && !snapshot.isMinimized && !snapshot.isFullScreen
     }
 
     private func transitionToWorkspace(_ workspace: Int) {

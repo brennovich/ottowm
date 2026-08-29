@@ -81,6 +81,22 @@ final class EngineFocusTests: EngineTestCase {
         XCTAssertEqual(desktop.placement(of: 200), .storage)
     }
 
+    func testFocusedStorageWindowDoesNotSwitchWhenOneWindowOfTheCurrentWorkspaceClosed() {
+        create(StubWindow(id: 100))
+        let win2 = create(StubWindow(id: 200))
+        moveFocusedWindow(win2, to: 2)
+        let survivor = create(StubWindow(id: 101))
+
+        windows[100] = nil
+        focused = win2
+        engine.handle(.focused(win2.snapshot()))
+
+        XCTAssertEqual(workspaces.current, 1)
+        XCTAssertEqual(desktop.placement(of: 200), .storage)
+        XCTAssertEqual(workspaces.allWindowIds, [101, 200])
+        XCTAssertEqual(survivor.focusCount, 1)
+    }
+
     func testFocusedStorageWindowSwitchesWhenCurrentWorkspaceWindowIsOnlyMinimized() {
         let win1 = create(StubWindow(id: 100))
         let win2 = create(StubWindow(id: 200))
