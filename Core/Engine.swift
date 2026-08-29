@@ -84,6 +84,7 @@ final class Engine {
         case let .switchToWorkspace(workspace): switchToWorkspace(workspace)
         case let .moveWindowToWorkspace(workspace): moveFocusedWindow(toWorkspace: workspace)
         case let .focus(direction): focusWindow(direction)
+        case let .moveWindow(step): moveFocusedWindow(step)
         case .quit: quit()
         case .restart: restart()
         }
@@ -160,6 +161,24 @@ final class Engine {
 
             Log.engine.info("focus \(direction.rawValue) from \(reference.logDescription) → id=\(target)")
             focus(target)
+        }
+    }
+
+    /// Moves the focused window one step across the desktop. Only a window of the workspace
+    /// on screen moves.
+    func moveFocusedWindow(_ step: Step) {
+        windowSystem.duringOperation("move-window") {
+            guard let win = windowSystem.focused(),
+                  workspaces.workspace(for: win.id) == workspaces.current
+            else {
+                Log.engine.info("move \(step.direction.rawValue) dropped: no window of workspace \(self.workspaces.current) focused")
+                return
+            }
+
+            Log.engine.info("moving \(win.logDescription) \(step.direction.rawValue) by \(step.points)")
+            if !desktop.move(win.id, step) {
+                unmanage(win.id, reason: "gone")
+            }
         }
     }
 

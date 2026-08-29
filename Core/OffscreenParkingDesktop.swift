@@ -126,6 +126,29 @@ final class OffscreenParkingDesktop: Desktop {
         return gone
     }
 
+    @discardableResult
+    func move(_ windowId: CGWindowID, _ step: Step) -> Bool {
+        guard let win = window(windowId) else {
+            Log.desktop.info("cannot move id=\(windowId) \(step.direction.rawValue): window not found")
+            return false
+        }
+        // A parked window is owed the frame recorded for it, not the one it sits at, so
+        // moving it here would be undone by the next restore.
+        guard hiddenWindowFrames[windowId] == nil else {
+            Log.desktop.debug("move id=\(windowId) dropped: the window is parked")
+            return true
+        }
+        guard let current = win.movableFrame() else {
+            Log.desktop.info("cannot move id=\(windowId) \(step.direction.rawValue): window not movable")
+            return true
+        }
+
+        let target = step.frame(moving: current, within: hiddenEdge.screen.visibleFrame)
+        move(win, from: current, to: target)
+        Log.desktop.debug("moved id=\(windowId) \(step.direction.rawValue) from=\(current) to=\(target)")
+        return true
+    }
+
     func restoreAll() {
         Log.desktop.info("restoring \(self.hiddenWindowFrames.count) parked windows")
         for windowId in hiddenWindowFrames.keys.sorted() {

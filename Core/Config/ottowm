@@ -20,6 +20,12 @@ lopt-j = focus south
 lopt-k = focus north
 lopt-l = focus east
 
+# Move the focused window a direction, 15 points by default
+lopt-shift-h = move-window west
+lopt-shift-j = move-window south
+lopt-shift-k = move-window north
+lopt-shift-l = move-window east
+
 # Quit OttoWM, putting every parked window back where it was
 hyper-q = quit
 

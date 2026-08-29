@@ -35,6 +35,7 @@ Out of the box (bundled config):
 | left&nbsp;Option + 1–4 | Switch to workspace |
 | left&nbsp;Option + Shift + 1–4 | Move focused window to workspace |
 | left&nbsp;Option + H/J/K/L | Focus the window to the west/south/north/east |
+| left&nbsp;Option + Shift + H/J/K/L | Move the focused window west/south/north/east |
 | Cmd + Ctrl + Option + Shift + Q | Quit OttoWM |
 | Cmd + Ctrl + Option + Shift + R | Reload the config |
 
@@ -67,19 +68,21 @@ One `key combo = action` per line. Blank lines are skipped; there is no quoting,
 lopt-1 = switch-to-workspace 1
 lopt-shift-1 = move-window-to-workspace 1
 lopt-h = focus west
+lopt-shift-h = move-window west
 
 hyper-5 = switch-to-workspace 5
 ```
 
 Workspaces are created on demand:
 
-| Action                       | Effect                                                            |
-|------------------------------|-------------------------------------------------------------------|
-| `switch-to-workspace N`      | Switch to workspace N                                             |
-| `move-window-to-workspace N` | Move the focused window to workspace N                            |
-| `focus D`                    | Focus the window `D` leads to: `north`, `east`, `south` or `west` |
-| `quit`                       | Quit OttoWM, putting every parked window back                     |
-| `restart`                    | Read the config file again and rebind the keys                    |
+| Action                       | Effect                                                                           |
+|------------------------------|----------------------------------------------------------------------------------|
+| `switch-to-workspace N`      | Switch to workspace N                                                            |
+| `move-window-to-workspace N` | Move the focused window to workspace N                                           |
+| `focus D`                    | Focus the window `D` leads to: `north`, `east`, `south` or `west`                |
+| `move-window D [N]`          | Move the focused window N points `D`, 15 by default, stopping at the screen edge |
+| `quit`                       | Quit OttoWM, putting every parked window back                                    |
+| `restart`                    | Read the config file again and rebind the keys                                   |
 
 The `restart` action reload config without a relaunch: the windows stay where they are,. A file that does not parse leaves the bindings already up in place. Errors show up in the log:
 
@@ -90,7 +93,7 @@ log stream --level debug --predicate 'subsystem == "com.github.brennovich.ottowm
 ## Limitations
 
 - No Multi-Single screen support (yet)
-- No Window controls (move, resize) (yet)
+- No window resize (yet)
 - Activating an workspace from a unmanaged native space or fullscreen app is only possible on workspaces that has applications to activate, if not some other workspace with an application will be activated instead. As macOS has no public API to switch spaces
 
 <hr>

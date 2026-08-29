@@ -21,8 +21,9 @@ OttoWM is a headless agent that offers several workspaces on one native macOS Sp
 
 ```
 WindowEvent  = created(WindowSnapshot) | focused(WindowSnapshot) | destroyed(id) | minimized(id) | unminimized(WindowSnapshot)
-Action       = switchToWorkspace(n) | moveWindowToWorkspace(n) | focus(direction) | quit | restart   // "switch-to-workspace n" in the config
+Action       = switchToWorkspace(n) | moveWindowToWorkspace(n) | focus(direction) | moveWindow(step) | quit | restart
 Direction    = north | east | south | west                       // "focus east" in the config
+Step         = (direction, points)                               // "move-window east 15" in the config
 KeyCombo     = (keyCode, [ModifierKey: ModifierSide])            // "lopt-shift-1"
 Placement    = active | storage
 WindowSnapshot(id, appName, isStandard, hasCloseButton, hasMinimizeButton, isFullScreen, isMinimized, frame)
@@ -69,9 +70,10 @@ flowchart LR
 | `Workspace`                 | Model     | The windows of one workspace and the order they were focused in.                       |
 | `TabGroups`                 | Model     | Infers which windows are tabs of one another. Reads a window's tab count on demand.    |
 | `Neighbors`                 | Model     | The windows around one frame, and which of them a focus move lands on.                 |
+| `Step`                      | Model     | One move of a window in points, and where it lands within the screen.                  |
 | `AwaitedFocus`              | Model     | The focus requests `Engine` made and has not seen answered.                            |
 | `WorkspaceBeforeFullScreen` | Model     | The workspace each full screen window returns to.                                      |
-| `Desktop`                   | macOS     | Parks a window at the hidden edge and restores its captured frame.                     |
+| `Desktop`                   | macOS     | Parks a window at the hidden edge, restores its captured frame, and steps it around.   |
 | `WindowSystem`              | macOS     | The focused window, the on-screen window frames, and the tab count of a window.        |
 | `AXWindowObserver`          | macOS     | The AX and `NSWorkspace` notifications, turned into `WindowEvent`s.                    |
 | `KnownWindows`              | macOS     | The windows OttoWM knows: `AXUIElement` ↔ `CGWindowID`, and their AX subscriptions.    |

@@ -27,6 +27,50 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         return window
     }
 
+    func testMoveStepsTheWindowWithoutAnimating() {
+        XCTAssertTrue(desktop.move(100, Step(direction: .east, points: 15)))
+
+        XCTAssertEqual(win.frame, originalFrame.offsetBy(dx: 15, dy: 0))
+        XCTAssertEqual(win.animatedWriteCount, 0)
+    }
+
+    func testMoveStopsAtTheVisibleFrame() {
+        desktop.move(100, Step(direction: .north, points: 500))
+
+        XCTAssertEqual(win.frame.minY, StubScreen.standard.visibleFrame.minY)
+    }
+
+    func testMoveKeepsTheWindowOutOfTheHiddenEdge() {
+        desktop.move(100, Step(direction: .east, points: 5000))
+        desktop.move(100, Step(direction: .south, points: 5000))
+
+        XCTAssertFalse(hiddenEdge.holds(win.frame))
+    }
+
+    func testMoveLeavesAParkedWindowAtTheHiddenEdge() {
+        desktop.place(100, at: .storage)
+
+        XCTAssertTrue(desktop.move(100, Step(direction: .west, points: 15)))
+
+        XCTAssertEqual(win.frame, nubFrame(size: originalFrame.size))
+
+        desktop.place(100, at: .active)
+
+        XCTAssertEqual(win.frame, originalFrame)
+    }
+
+    func testMoveReportsAWindowThatNoLongerExists() {
+        XCTAssertFalse(desktop.move(999, Step(direction: .east, points: 15)))
+    }
+
+    func testMoveLeavesAMinimizedWindowAlone() {
+        win.isMinimized = true
+
+        XCTAssertTrue(desktop.move(100, Step(direction: .east, points: 15)))
+
+        XCTAssertEqual(win.frame, originalFrame)
+    }
+
     func testPlaceCapturesFrameAndHidesThenRestores() {
         XCTAssertEqual(desktop.placement(of: 100), .active)
 

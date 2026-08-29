@@ -14,6 +14,8 @@ final class ConfigFileParserTests: XCTestCase {
         lopt-q = quit
         lopt-r = restart
         lopt-h = focus west
+        lopt-shift-h = move-window west
+        lopt-shift-l = move-window east 100
         """
 
         XCTAssertEqual(
@@ -25,6 +27,8 @@ final class ConfigFileParserTests: XCTestCase {
                 "lopt-q": .quit,
                 "lopt-r": .restart,
                 "lopt-h": .focus(.west),
+                "lopt-shift-h": .moveWindow(Step(direction: .west, points: 15)),
+                "lopt-shift-l": .moveWindow(Step(direction: .east, points: 100)),
             ]))
         )
     }
@@ -101,6 +105,36 @@ final class ConfigFileParserTests: XCTestCase {
                 "an action with an invalid direction",
                 "lalt-1 = focus sideways",
                 ConfigError(line: 1, reason: .invalidDirection("sideways"))
+            ),
+        ])
+    }
+
+    func testStepActionErrors() {
+        assertErrors([
+            (
+                "an action that takes a direction and a step, given none",
+                "lalt-1 = move-window",
+                ConfigError(line: 1, reason: .malformedAction("move-window"))
+            ),
+            (
+                "an action that takes a direction and a step, given a third argument",
+                "lalt-1 = move-window east 15 fast",
+                ConfigError(line: 1, reason: .malformedAction("move-window east 15 fast"))
+            ),
+            (
+                "a step action with an invalid direction",
+                "lalt-1 = move-window sideways",
+                ConfigError(line: 1, reason: .invalidDirection("sideways"))
+            ),
+            (
+                "a step action with a step that is not a number",
+                "lalt-1 = move-window east abc",
+                ConfigError(line: 1, reason: .invalidStep("abc"))
+            ),
+            (
+                "a step action with a step below one point",
+                "lalt-1 = move-window east 0",
+                ConfigError(line: 1, reason: .invalidStep("0"))
             ),
         ])
     }

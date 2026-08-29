@@ -13,6 +13,10 @@ protocol Desktop {
     ///   placing them.
     @discardableResult
     func place(_ placements: [(windowId: CGWindowID, placement: Placement)]) -> [CGWindowID]
+    /// Moves the window one step, keeping it on screen.
+    /// - Returns: `false` if the window no longer exists, so the caller can drop it.
+    @discardableResult
+    func move(_ windowId: CGWindowID, _ step: Step) -> Bool
     /// Moves every stored window back to its captured frame.
     func restoreAll()
     func placement(of windowId: CGWindowID) -> Placement
