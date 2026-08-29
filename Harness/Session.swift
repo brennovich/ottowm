@@ -344,14 +344,17 @@ private func arrange(_ windows: [(String, String, AXUIElement)]) {
     let quarters = screenQuarters()
 
     for (index, (name, _, window)) in windows.enumerated() {
-        let quarter = quarters[index % quarters.count]
-        setAXFrame(of: window, to: quarter.insetBy(dx: 10, dy: 10))
+        let target = quarters[index % quarters.count].insetBy(dx: 10, dy: 10)
 
+        // Written until it takes rather than once: a window that has just opened drops the
+        // position write while it is still settling, Finder does. Checking only that the
+        // window landed somewhere in its quarter passed over that, and left the run
+        // asserting focus moves against a desk it had not arranged.
         eventually("\(name) sits in its quarter", announce: false) {
+            setAXFrame(of: window, to: target)
             guard let frame = axFrame(of: window) else { return "\(name) reads no frame" }
 
-            let center = CGPoint(x: frame.midX, y: frame.midY)
-            return quarter.contains(center) ? nil : "\(name) centered at \(center), wanted \(quarter)"
+            return frame.origin.equalTo(target.origin) ? nil : "\(name) at \(frame.origin), wanted \(target.origin)"
         }
     }
 }
