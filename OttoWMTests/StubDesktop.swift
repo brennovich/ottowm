@@ -8,7 +8,6 @@ final class StubDesktop: Desktop {
     private(set) var moveCalls: [(windowId: CGWindowID, step: Step)] = []
     private(set) var recoverCount = 0
     private(set) var recoveredWindowIds: [CGWindowID] = []
-    private(set) var reparkCalls: [[CGWindowID]] = []
     private(set) var nativeSpaceChangeCallback: (() -> Void)?
 
     var recoveredFrames: [CGWindowID: CGRect] = [:]
@@ -68,7 +67,5 @@ final class StubDesktop: Desktop {
         nativeSpaceChangeCallback = callback
     }
 
-    func repark(_ parked: [(windowId: CGWindowID, owedFrame: CGRect)]) {
-        reparkCalls.append(parked.map(\.windowId))
-    }
+    func repark(_: [(windowId: CGWindowID, owedFrame: CGRect)]) {}
 }

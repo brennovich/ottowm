@@ -125,6 +125,65 @@ final class WorkspacesTests: XCTestCase {
         }
     }
 
+    func testMembershipOfAWindowInFullScreen() {
+        let model = makeWorkspaces(assigning: [(100, 2)])
+        model.recordFullScreen(100, leaving: 5)
+
+        XCTAssertEqual(model.membership(of: makeSnapshot(100), whenNew: 1), .fullScreen(5))
+    }
+
+    func testMembershipOfAnAssignedWindow() {
+        let model = makeWorkspaces(assigning: [(100, 2)])
+
+        XCTAssertEqual(model.membership(of: makeSnapshot(100), whenNew: 1), .assigned(2))
+    }
+
+    func testMembershipOfAnUnknownWindowLandsOnTheFallback() {
+        XCTAssertEqual(makeWorkspaces().membership(of: makeSnapshot(100), whenNew: 4), .unassigned(4))
+    }
+
+    func testMembershipOfAnUnknownWindowLandsOnItsTabGroupWorkspace() {
+        let model = makeWorkspaces(tabbed: [100, 200])
+        model.assign(makeSnapshot(100, appName: "Safari"), to: 3)
+
+        XCTAssertEqual(model.membership(of: makeSnapshot(200, appName: "Safari"), whenNew: 1), .unassigned(3))
+        XCTAssertNil(model.workspace(for: 200))
+    }
+
+    func testAssignConsumesTheWorkspaceLeftForFullScreen() {
+        let model = makeWorkspaces()
+        model.recordFullScreen(100, leaving: 5)
+
+        XCTAssertEqual(model.assign(makeSnapshot(100), to: 1), 5)
+        XCTAssertEqual(model.membership(of: makeSnapshot(200), whenNew: 1), .unassigned(1))
+    }
+
+    func testATabGroupOutranksTheWorkspaceLeftForFullScreen() {
+        let model = makeWorkspaces(tabbed: [100, 200])
+        model.assign(makeSnapshot(100, appName: "Safari"), to: 3)
+        model.recordFullScreen(200, leaving: 5)
+
+        XCTAssertEqual(model.assign(makeSnapshot(200, appName: "Safari"), to: 1), 3)
+    }
+
+    func testRemovingAWindowDropsTheWorkspaceLeftForFullScreen() {
+        let model = makeWorkspaces(assigning: [(100, 2)])
+        model.recordFullScreen(100, leaving: 5)
+
+        model.remove(100)
+
+        XCTAssertEqual(model.membership(of: makeSnapshot(100), whenNew: 1), .unassigned(1))
+    }
+
+    func testMovingAWindowDropsTheWorkspaceLeftForFullScreen() {
+        let model = makeWorkspaces(assigning: [(100, 2)])
+        model.recordFullScreen(100, leaving: 5)
+
+        model.move(100, to: 4)
+
+        XCTAssertEqual(model.membership(of: makeSnapshot(100), whenNew: 1), .assigned(4))
+    }
+
     func testAssignWindowToWorkspaceKeepsATabGroupWhereItAlreadyIsAndReportsIt() {
         let model = makeWorkspaces(tabbed: [100, 200])
 

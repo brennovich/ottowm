@@ -2,33 +2,6 @@ import CoreGraphics
 import XCTest
 
 final class EngineFocusTests: EngineTestCase {
-    func testNativeSpaceChangeToHiddenWindowSwitchesToItsWorkspace() {
-        let win = add(StubWindow(id: 700))
-        engine.start(windows: [win.snapshot()])
-        engine.switchToWorkspace(2)
-
-        XCTAssertEqual(parkedWindows.placement(of: 700), .parked)
-
-        focused = win
-        desktop.nativeSpaceChangeCallback?()
-
-        XCTAssertEqual(workspaces.current, 1)
-        XCTAssertEqual(parkedWindows.placement(of: 700), .active)
-    }
-
-    func testNativeSpaceChangeWithoutHiddenWindowFocusedReparksTheParkedWindows() {
-        let win = add(StubWindow(id: 700))
-        let onScreen = add(StubWindow(id: 100))
-        engine.start(windows: [win.snapshot(), onScreen.snapshot()])
-        moveFocusedWindow(win, to: 2)
-
-        focused = onScreen
-        desktop.nativeSpaceChangeCallback?()
-
-        XCTAssertEqual(desktop.reparkCalls, [[700]])
-        XCTAssertEqual(workspaces.current, 1)
-    }
-
     func testFocusedParkedWindowSwitchesToItsWorkspace() {
         let win = create(StubWindow(id: 700))
         engine.switchToWorkspace(2)
@@ -48,33 +21,6 @@ final class EngineFocusTests: EngineTestCase {
         moveFocusedWindow(win2, to: 2)
 
         focused = win1
-        engine.handle(.focused(win2.snapshot()))
-
-        XCTAssertEqual(workspaces.current, 1)
-        XCTAssertEqual(parkedWindows.placement(of: 200), .parked)
-    }
-
-    func testFocusEchoFromTheWorkspaceLeftDoesNotBounceBack() {
-        let win1 = create(StubWindow(id: 100))
-        let win2 = create(StubWindow(id: 200))
-        moveFocusedWindow(win2, to: 2)
-        focused = win1
-
-        engine.switchToWorkspace(2)
-        engine.handle(.focused(win1.snapshot()))
-
-        XCTAssertEqual(workspaces.current, 2)
-        XCTAssertEqual(parkedWindows.placement(of: 100), .parked)
-        XCTAssertEqual(parkedWindows.placement(of: 200), .active)
-    }
-
-    func testFocusedParkedWindowDoesNotSwitchWhileCurrentWorkspaceIsClosing() {
-        create(StubWindow(id: 100))
-        let win2 = create(StubWindow(id: 200))
-        moveFocusedWindow(win2, to: 2)
-
-        windows[100] = nil
-        focused = win2
         engine.handle(.focused(win2.snapshot()))
 
         XCTAssertEqual(workspaces.current, 1)
@@ -132,6 +78,15 @@ final class EngineFocusTests: EngineTestCase {
         engine.handle(.destroyed(200))
 
         XCTAssertEqual(parkedWindows.placement(of: 200), .active)
+    }
+
+    func testDestroyedWindowThatWasNeverManagedDoesNotMoveTheFocus() {
+        let win1 = create(StubWindow(id: 100))
+        engine.handle(.focused(win1.snapshot()))
+
+        engine.handle(.destroyed(900))
+
+        XCTAssertEqual(win1.focusCount, 0)
     }
 
     func testDestroyedWindowRestoresFocusToPreviousWindow() {

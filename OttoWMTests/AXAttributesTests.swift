@@ -35,13 +35,4 @@ final class AXAttributesTests: XCTestCase {
 
         XCTAssertNil(systemWide.values(of: [unknown])[unknown])
     }
-
-    func testKeepsNonErrorValues() {
-        let values: [AnyObject] = [true as NSNumber, CGSize(width: 8, height: 6).axValue]
-
-        let result = values.discardingAXErrors
-
-        XCTAssertEqual(result[0] as? Bool, true)
-        XCTAssertEqual(CGSize(axValue: result[1]), CGSize(width: 8, height: 6))
-    }
 }

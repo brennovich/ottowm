@@ -1,7 +1,5 @@
 import CoreGraphics
 
-/// The bindings the user configured, indexed by key code because the lookup runs inside the
-/// event tap callback, which macOS disables if it does not return promptly.
 struct Config: Equatable {
     private let bindingsByKeyCode: [Int64: [KeyCombo: Action]]
 

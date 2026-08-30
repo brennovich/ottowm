@@ -9,19 +9,17 @@ enum ConfigFileParser {
             .filter { !$0.text.isEmpty }
             .reduce(.success([:])) { (acc: Result<[KeyCombo: Action], ConfigError>, line) in
                 acc.flatMap { bindings in
-                    binding(in: line.text)
+                    guard let separator = line.text.range(of: "="),
+                          case let key = line.text[..<separator.lowerBound].trimmed, !key.isEmpty
+                    else { return .failure(ConfigError(line: line.number, reason: .syntax(line.text))) }
+
+                    return KeyCombo.parse(key)
+                        .flatMap { combo in Action.parse(line.text[separator.upperBound...].trimmed).map { [combo: $0] } }
                         .map { bindings.merging($0, uniquingKeysWith: { _, new in new }) }
                         .mapError { ConfigError(line: line.number, reason: $0) }
                 }
             }
             .map(Config.init)
-    }
-
-    private static func binding(in line: String) -> Result<[KeyCombo: Action], ConfigError.Reason> {
-        guard let parts = line.range(of: "=") else { return .failure(.syntax(line)) }
-        guard case let key = line[..<parts.lowerBound].trimmed, !key.isEmpty else { return .failure(.syntax(line)) }
-
-        return KeyCombo.parse(key).flatMap { kc in Action.parse(line[parts.upperBound...].trimmed).map { [kc: $0] }}
     }
 }
 

@@ -1,39 +1,52 @@
+import AppKit
 import Darwin
 import Dispatch
 
-/// Every way the process ends. A parked window sits at the hidden edge, and the frame it
-/// belongs at is only held in memory, so it must be restored before the process exits.
-final class Shutdown {
+final class Lifecycle {
     private let stop: () -> Void
     private let exit: (Int32) -> Void
+    private let launchNewInstance: (@escaping () -> Void) -> Void
     private let observeSIGTERM: (@escaping () -> Void) -> (any DispatchSourceSignal)?
     private var termination: (any DispatchSourceSignal)?
 
     init(
         stop: @escaping () -> Void,
         exit: @escaping (Int32) -> Void = { Darwin.exit($0) },
-        observeSIGTERM: @escaping (@escaping () -> Void) -> (any DispatchSourceSignal)? = Shutdown.sigterm
+        launchNewInstance: @escaping (@escaping () -> Void) -> Void = Lifecycle.newInstance,
+        observeSIGTERM: @escaping (@escaping () -> Void) -> (any DispatchSourceSignal)? = Lifecycle.sigterm
     ) {
         self.stop = stop
         self.exit = exit
+        self.launchNewInstance = launchNewInstance
         self.observeSIGTERM = observeSIGTERM
     }
 
-    /// The `quit` action.
     func quit() {
         Log.app.notice("quit action received, restoring window frames")
         stop()
         exit(EXIT_SUCCESS)
     }
 
-    /// The default action for SIGTERM ends the process with every parked window still at
-    /// the hidden edge.
+    func relaunch() {
+        Log.app.notice("relaunching, restoring window frames")
+        stop()
+        launchNewInstance { [exit] in exit(EXIT_SUCCESS) }
+    }
+
     func startWatchingSIGTERM() {
         termination = observeSIGTERM { [stop, exit] in
             Log.app.notice("SIGTERM received, restoring window frames")
             stop()
             exit(EXIT_SUCCESS)
         }
+    }
+
+    private static func newInstance(_ launched: @escaping () -> Void) {
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.createsNewApplicationInstance = true
+        NSWorkspace.shared.openApplication(
+            at: Bundle.main.bundleURL, configuration: configuration
+        ) { _, _ in launched() }
     }
 
     private static func sigterm(_ handler: @escaping () -> Void) -> (any DispatchSourceSignal)? {

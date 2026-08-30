@@ -24,8 +24,6 @@ struct LogChannel {
     }
 }
 
-/// Flow oriented logs, enable verbose output at runtime with:
-///   `log stream --level debug --predicate 'subsystem == "com.github.brennovich.ottowm"'`.
 enum Log {
     static let subsystem = "com.github.brennovich.ottowm"
 

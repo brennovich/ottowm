@@ -1,27 +1,23 @@
 import CoreGraphics
 
-/// One move of a window across the desktop, in points.
 struct Step: Equatable {
     let direction: Direction
     let points: CGFloat
 
-    /// The frame the window lands on. The move stops at the edge of `bounds` it travels
-    /// towards, and a window already past that edge stays where it is rather than jumping
-    /// back inside. Only the axis the move travels changes.
-    func frame(moving windowFrame: CGRect, within bounds: CGRect) -> CGRect {
-        var origin = windowFrame.origin
+    func frame(moving frame: CGRect, within bounds: CGRect) -> CGRect {
+        var origin = frame.origin
 
         switch direction {
         case .north:
-            origin.y = max(windowFrame.minY - points, min(bounds.minY, windowFrame.minY))
+            origin.y = max(frame.minY - points, min(bounds.minY, frame.minY))
         case .south:
-            origin.y = min(windowFrame.minY + points, max(bounds.maxY - windowFrame.height, windowFrame.minY))
+            origin.y = min(frame.minY + points, max(bounds.maxY - frame.height, frame.minY))
         case .west:
-            origin.x = max(windowFrame.minX - points, min(bounds.minX, windowFrame.minX))
+            origin.x = max(frame.minX - points, min(bounds.minX, frame.minX))
         case .east:
-            origin.x = min(windowFrame.minX + points, max(bounds.maxX - windowFrame.width, windowFrame.minX))
+            origin.x = min(frame.minX + points, max(bounds.maxX - frame.width, frame.minX))
         }
 
-        return CGRect(origin: origin, size: windowFrame.size)
+        return CGRect(origin: origin, size: frame.size)
     }
 }

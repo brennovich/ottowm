@@ -2,10 +2,6 @@ import AppKit
 import CoreGraphics
 
 extension CGRect {
-    /// The rect in OttoWM's top-left (AX) origin, y down space.
-    ///
-    /// Cocoa rects have a bottom-left origin with y up, measured against the primary
-    /// display's height.
     func flippedToTopLeft(primaryHeight: CGFloat) -> CGRect {
         CGRect(
             x: origin.x,

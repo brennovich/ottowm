@@ -2,8 +2,8 @@ import XCTest
 
 final class AccessibilityPermissionTests: XCTestCase {
     private var trusted = false
-    private var requests: [AccessibilityPermission.Request] = []
-    private var responses: [AccessibilityPermission.Response] = []
+    private var requests: [AccessibilityAlert.Request] = []
+    private var responses: [AccessibilityAlert.Response] = []
     private var watchingWhenAsked: [Bool] = []
     private var waits: [TimeInterval] = []
     private var waitsWhenAsked: [Int] = []
@@ -35,9 +35,9 @@ final class AccessibilityPermissionTests: XCTestCase {
         struct TestCase {
             let name: String
             let trusted: Bool
-            let responses: [AccessibilityPermission.Response]
+            let responses: [AccessibilityAlert.Response]
             let outcome: AccessibilityPermission.Outcome
-            let requests: [AccessibilityPermission.Request]
+            let requests: [AccessibilityAlert.Request]
             let openedSettings: Bool
             let relaunches: Int
         }
@@ -168,9 +168,6 @@ final class AccessibilityPermissionTests: XCTestCase {
         XCTAssertEqual(restarts, 0)
     }
 
-    // The workspace assignments and the frames of the parked windows only live in
-    // memory, and a revocation leaves them untouched: relaunching would collapse
-    // every window into workspace 1 and lose the frame each parked one is owed.
     func testTrustComingBackAfterARevocationRestartsInPlace() throws {
         trusted = true
         startWatchingTrust()

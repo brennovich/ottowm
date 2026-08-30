@@ -68,6 +68,60 @@ final class EngineFullScreenTests: EngineTestCase {
         XCTAssertEqual(workspaces.current, 2)
     }
 
+    func testNativeSpaceChangeFollowsTheWindowBackFromFullScreen() {
+        engine.start(windows: [])
+        let win2 = sendWindowFullScreenAndLeave()
+
+        win2.isFullScreen = false
+        offScreenWindowIds = []
+        desktop.nativeSpaceChangeCallback?()
+
+        XCTAssertEqual(workspaces.workspace(for: 200), 1)
+        XCTAssertEqual(workspaces.current, 1)
+        XCTAssertEqual(parkedWindows.placement(of: 200), .active)
+    }
+
+    func testWindowBackFromFullScreenIsFollowedWhenAnotherWindowEventArrives() {
+        let win2 = sendWindowFullScreenAndLeave()
+
+        win2.isFullScreen = false
+        offScreenWindowIds = []
+        focused = nil
+        engine.handle(.destroyed(999))
+
+        XCTAssertEqual(workspaces.workspace(for: 200), 1)
+        XCTAssertEqual(workspaces.current, 1)
+        XCTAssertEqual(parkedWindows.placement(of: 200), .active)
+        XCTAssertEqual(win2.focusCount, 1)
+    }
+
+    func testWindowStillLeavingFullScreenOnTheSpaceChangeIsFollowedOnARetry() {
+        engine.start(windows: [])
+        let win2 = sendWindowFullScreenAndLeave()
+
+        desktop.nativeSpaceChangeCallback?()
+
+        XCTAssertEqual(workspaces.current, 2)
+
+        win2.isFullScreen = false
+        offScreenWindowIds = []
+        runScheduledRetries()
+
+        XCTAssertEqual(workspaces.workspace(for: 200), 1)
+        XCTAssertEqual(workspaces.current, 1)
+        XCTAssertEqual(parkedWindows.placement(of: 200), .active)
+    }
+
+    func testTheRetriesForAWindowLeavingFullScreenStop() {
+        engine.start(windows: [])
+        _ = sendWindowFullScreenAndLeave()
+
+        desktop.nativeSpaceChangeCallback?()
+
+        XCTAssertEqual(runScheduledRetries(), [0.1, 0.2, 0.4, 0.8, 1.6])
+        XCTAssertEqual(workspaces.current, 2)
+    }
+
     private func sendWindowFullScreenAndLeave() -> StubWindow {
         create(StubWindow(id: 100))
         let win2 = create(StubWindow(id: 200))

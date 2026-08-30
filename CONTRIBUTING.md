@@ -72,7 +72,7 @@ A line that carries no log prefix is passed through unchanged, so the stream's o
 | Counted                                    | Where                                        |
 | ------------------------------------------ | -------------------------------------------- |
 | Every accessibility read, write and action | `Core/Infra/AX.swift`, `Core/AXWindow.swift` |
-| The AX notification subscriptions          | `Core/AXAppObserver.swift`                   |
+| The AX notification subscriptions          | `Core/Infra/AX.swift`                        |
 | The on-screen window list                  | `App/AppDelegate.swift`                      |
 | Activating an application                  | `Core/AXWindow.swift`                        |
 | The frontmost application                  | `Core/AXWindow.swift`                        |

@@ -1,7 +1,4 @@
-/// The bindings event tap for a given `Config`.
 final class Bindings {
-    /// `Hotkeys.start()` creates a real event tap and a thread to run it on. The seam is
-    /// these two calls, not `Hotkeys` itself.
     struct Tap {
         let start: () -> Bool
         let stop: () -> Void
@@ -31,8 +28,6 @@ final class Bindings {
         current.stop()
     }
 
-    /// The matcher is read on the tap thread, so a new config replaces the tap rather
-    /// than being written under it.
     func reload() {
         guard case let .success(config) = load() else {
             Log.app.error("unable to load a valid config, keeping the bindings already up")

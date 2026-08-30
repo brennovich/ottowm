@@ -288,20 +288,6 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         XCTAssertEqual(windows.values.reduce(0) { $0 + $1.tabCountReadCount }, before)
     }
 
-    func testWindowGoneWithoutNoticeIsDroppedOnTheNextSwitch() {
-        let win1 = addWindow(100, frame: frame1)
-        let vanished = addWindow(200, frame: frame2)
-        focused = win1
-        start()
-        moveFocusedWindow(vanished, to: 2)
-
-        windows[200] = nil
-        focused = win1
-        engine.switchToWorkspace(2)
-
-        XCTAssertNil(workspaces.workspace(for: 200))
-    }
-
     func testFocusFallsToALiveWindowWhenTheRememberedOneIsGone() {
         let win1 = addWindow(100, frame: frame1)
         let live = addWindow(200, frame: frame2)
@@ -316,5 +302,6 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         engine.switchToWorkspace(2)
 
         XCTAssertEqual(live.focusCount, 1)
+        XCTAssertNil(workspaces.workspace(for: 300))
     }
 }

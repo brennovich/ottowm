@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 import XCTest
 
 /// The fixture the engine test cases share: a stub desktop and window system over a
@@ -9,6 +10,7 @@ class EngineTestCase: XCTestCase {
     var focusedReadCount = 0
     var offScreenWindowIds: Set<CGWindowID> = []
     var screenIsLocked = false
+    var scheduledRetries: [(delay: TimeInterval, work: () -> Void)] = []
     var quitCount = 0
     var restartCount = 0
     let tabFrame = CGRect(x: 400, y: 0, width: 800, height: 600)
@@ -37,10 +39,22 @@ class EngineTestCase: XCTestCase {
         ),
         workspaces: workspaces,
         parkedWindows: parkedWindows,
+        scheduleRetry: { [weak self] delay, work in self?.scheduledRetries.append((delay, work)) },
         screenIsLocked: { [weak self] in self?.screenIsLocked ?? false },
         quit: { [weak self] in self?.quit() },
         restart: { [weak self] in self?.restartCount += 1 }
     )
+
+    @discardableResult
+    func runScheduledRetries(limit: Int = 10) -> [TimeInterval] {
+        var delays: [TimeInterval] = []
+        for _ in 0 ..< limit where !scheduledRetries.isEmpty {
+            let retry = scheduledRetries.removeFirst()
+            delays.append(retry.delay)
+            retry.work()
+        }
+        return delays
+    }
 
     @discardableResult
     func add(_ window: StubWindow) -> StubWindow {
@@ -69,7 +83,7 @@ class EngineTestCase: XCTestCase {
         return (tab1, tab2, other)
     }
 
-    /// Mirrors the production wiring, where Shutdown.quit stops the engine before it
+    /// Mirrors the production wiring, where Lifecycle.quit stops the engine before it
     /// exits.
     private func quit() {
         engine.stop()

@@ -1,6 +1,5 @@
 import CoreGraphics
 
-/// A consistent read of what the OS shows, optimized by caching system calls.
 final class WindowSystem {
     private let focusedWindow: OperationCache<WindowSnapshot?>
     private let onScreenWindows: OperationCache<[CGWindowID: CGRect]>

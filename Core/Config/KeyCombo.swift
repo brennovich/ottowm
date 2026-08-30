@@ -16,9 +16,7 @@ enum ModifierKey: CaseIterable {
         }
     }
 
-    /// The device-dependent NX_DEVICE* bits macOS sets next to the mask: the only public
-    /// way to tell the left key from the right one.
-    private var deviceBits: (left: UInt64, right: UInt64) {
+    fileprivate var deviceBits: (left: UInt64, right: UInt64) {
         switch self {
         case .command: return (left: 0x8, right: 0x10)
         case .control: return (left: 0x1, right: 0x2000)
@@ -26,20 +24,8 @@ enum ModifierKey: CaseIterable {
         case .shift: return (left: 0x2, right: 0x4)
         }
     }
-
-    fileprivate func isPressed(_ side: ModifierSide, in flags: CGEventFlags) -> Bool {
-        guard flags.contains(mask) else { return false }
-
-        switch side {
-        case .either: return true
-        case .left: return flags.rawValue & deviceBits.left != 0 && flags.rawValue & deviceBits.right == 0
-        case .right: return flags.rawValue & deviceBits.right != 0 && flags.rawValue & deviceBits.left == 0
-        }
-    }
 }
 
-/// A key plus the modifiers that must accompany it, as written in the config file:
-/// `modifier ("-" modifier)* "-" key`, e.g. "lalt-shift-1".
 struct KeyCombo: Hashable {
     let keyCode: Int64
     let modifiers: [ModifierKey: ModifierSide]
@@ -74,7 +60,13 @@ struct KeyCombo: Hashable {
     func matches(_ flags: CGEventFlags) -> Bool {
         ModifierKey.allCases.allSatisfy { key in
             guard let side = modifiers[key] else { return !flags.contains(key.mask) }
-            return key.isPressed(side, in: flags)
+            guard flags.contains(key.mask) else { return false }
+
+            switch side {
+            case .either: return true
+            case .left: return flags.rawValue & key.deviceBits.left != 0 && flags.rawValue & key.deviceBits.right == 0
+            case .right: return flags.rawValue & key.deviceBits.right != 0 && flags.rawValue & key.deviceBits.left == 0
+            }
         }
     }
 

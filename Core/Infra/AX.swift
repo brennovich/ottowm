@@ -1,10 +1,8 @@
 import ApplicationServices
 import CoreGraphics
 
-/// Ceiling on how long a single AX round trip may block the caller.
 let axMessagingTimeoutSeconds: Float = 0.3
 
-/// The name of an accessibility attribute.
 struct AXAttribute: Hashable, RawRepresentable {
     let rawValue: String
 
@@ -20,18 +18,15 @@ struct AXAttribute: Hashable, RawRepresentable {
     static let subrole = AXAttribute(rawValue: kAXSubroleAttribute)
     static let windows = AXAttribute(rawValue: kAXWindowsAttribute)
 
-    // Undeclared by the AX headers, but supported by the applications OttoWM manages.
     static let fullScreen = AXAttribute(rawValue: "AXFullScreen")
     static let enhancedUserInterface = AXAttribute(rawValue: "AXEnhancedUserInterface")
 }
 
-/// The value of an element's `role` or `subrole` attribute.
 struct AXRole: Hashable, RawRepresentable {
     let rawValue: String
 
     static let standardWindow = AXRole(rawValue: kAXStandardWindowSubrole)
 
-    // Undeclared by the AX headers.
     static let tabGroup = AXRole(rawValue: "AXTabGroup")
     static let radioButton = AXRole(rawValue: "AXRadioButton")
 
@@ -39,33 +34,83 @@ struct AXRole: Hashable, RawRepresentable {
         self.rawValue = rawValue
     }
 
-    /// Reads a role out of an attribute value.
-    /// - Returns: `nil` if the value is absent or is not a string.
     init?(_ value: AnyObject?) {
         guard let name = value as? String else { return nil }
         self.init(rawValue: name)
     }
 }
 
+/// The AX notification channel of one process. `AXObserver` delivers every
+/// notification subscribed through it to one callback, so the AX machinery is not
+/// leaked to the callers.
+///
+/// The callback is held by a `CallbackBox`, the only way to pass it to the C
+/// callback function AX calls when a notification arrives.
+struct AXNotifications {
+    let subscribe: (AXUIElement, String) -> AXError
+    let invalidate: () -> Void
+
+    static func of(pid: pid_t, callback: @escaping (AXUIElement, String) -> Void) -> AXNotifications? {
+        var observer: AXObserver?
+        guard AXObserverCreate(pid, axObserverCallback, &observer) == .success, let observer else {
+            return nil
+        }
+
+        CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .defaultMode)
+        let box = Unmanaged.passRetained(CallbackBox(callback))
+
+        return AXNotifications(
+            subscribe: { element, notification in
+                let result = trace(.subscribe, notification) {
+                    AXObserverAddNotification(observer, element, notification as CFString, box.toOpaque())
+                }
+                if result == .success || result == .notificationAlreadyRegistered { return .success }
+
+                Log.observer.error("addNotification \(notification) failed pid=\(pid) err=\(result.rawValue)")
+                return result
+            },
+            invalidate: {
+                CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .defaultMode)
+                box.release()
+            }
+        )
+    }
+}
+
+private final class CallbackBox {
+    let callback: (AXUIElement, String) -> Void
+
+    init(_ callback: @escaping (AXUIElement, String) -> Void) {
+        self.callback = callback
+    }
+}
+
+private func axObserverCallback(
+    _ observer: AXObserver,
+    _ element: AXUIElement,
+    _ notification: CFString,
+    _ refcon: UnsafeMutableRawPointer?
+) {
+    guard let refcon else { return }
+
+    // Rebuilds the Unmanaged from the raw pointer
+    let box = Unmanaged<CallbackBox>.fromOpaque(refcon).takeUnretainedValue()
+    box.callback(element, notification as String)
+}
+
 extension AXUIElement {
-    /// Reads one attribute in one round trip.
-    ///
-    /// A failed read is indistinguishable from an absent value. A caller that needs the
-    /// reason reads the attribute itself.
     func value(of attribute: AXAttribute) -> AnyObject? {
         var value: CFTypeRef?
-        let status = RoundTrips.shared.measure(.read, attribute.rawValue) {
+        let status = trace(.read, attribute.rawValue) {
             AXUIElementCopyAttributeValue(self, attribute.rawValue as CFString, &value)
         }
         guard status == .success else { return nil }
         return value
     }
 
-    /// Reads several attributes in one round trip.
-    /// - Returns: the values that were read; an attribute whose read failed is absent.
     func values(of attributes: [AXAttribute]) -> [AXAttribute: AnyObject] {
         var result: CFArray?
-        let status = RoundTrips.shared.measure(.read, attributes.map(\.rawValue).joined(separator: "+")) {
+        let status = trace(.read, attributes.map(\.rawValue).joined(separator: "+")) {
             AXUIElementCopyMultipleAttributeValues(
                 self, attributes.map(\.rawValue) as CFArray, AXCopyMultipleAttributeOptions(rawValue: 0), &result
             )
@@ -78,10 +123,7 @@ extension AXUIElement {
         })
     }
 
-    /// Reads an element-valued attribute in one round trip.
     func elementValue(of attribute: AXAttribute) -> AXUIElement? {
-        // The same force cast as checkedAXValue(_:), and for the same reason: `as? AXUIElement`
-        // succeeds for any type.
         guard let value = value(of: attribute) else { return nil }
         // swiftlint:disable:next force_cast
         return (value as! AXUIElement)
@@ -100,17 +142,13 @@ extension AXUIElement {
     }
 
     private func setValue(_ value: CFTypeRef, for attribute: AXAttribute) -> AXError {
-        RoundTrips.shared.measure(.write, attribute.rawValue) {
+        trace(.write, attribute.rawValue) {
             AXUIElementSetAttributeValue(self, attribute.rawValue as CFString, value)
         }
     }
 }
 
 extension Array where Element == AnyObject {
-    /// The values with the failed reads replaced by `nil`.
-    ///
-    /// `AXUIElementCopyMultipleAttributeValues` reports a per-attribute failure inline,
-    /// as an `AXValue` of type `.axError`, rather than failing the whole call.
     var discardingAXErrors: [AnyObject?] {
         map { value in
             if let axValue = checkedAXValue(value), AXValueGetType(axValue) == .axError { return nil }
@@ -120,14 +158,11 @@ extension Array where Element == AnyObject {
 }
 
 extension CGPoint {
-    /// The box the accessibility API takes a point in.
     var axValue: AXValue {
         var point = self
         return AXValueCreate(.cgPoint, &point)!
     }
 
-    /// Reads a point out of an attribute value.
-    /// - Returns: `nil` if the value is absent or does not box a point.
     init?(axValue value: AnyObject?) {
         guard let value = checkedAXValue(value), AXValueGetType(value) == .cgPoint else { return nil }
         var point = CGPoint.zero
@@ -137,14 +172,11 @@ extension CGPoint {
 }
 
 extension CGSize {
-    /// The box the accessibility API takes a size in.
     var axValue: AXValue {
         var size = self
         return AXValueCreate(.cgSize, &size)!
     }
 
-    /// Reads a size out of an attribute value.
-    /// - Returns: `nil` if the value is absent or does not box a size.
     init?(axValue value: AnyObject?) {
         guard let value = checkedAXValue(value), AXValueGetType(value) == .cgSize else { return nil }
         var size = CGSize.zero
@@ -153,8 +185,6 @@ extension CGSize {
     }
 }
 
-/// Swift cannot dynamically cast to a CoreFoundation type (`as? AXValue` always succeeds)
-/// so the type has to be checked by its CFTypeID.
 private func checkedAXValue(_ value: AnyObject?) -> AXValue? {
     guard let value, CFGetTypeID(value) == AXValueGetTypeID() else { return nil }
     // swiftlint:disable:next force_cast

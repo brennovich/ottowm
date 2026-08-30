@@ -2,9 +2,13 @@ import Cocoa
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     private let screenLock = ScreenLock()
-    private lazy var knownWindows = KnownWindows(screenIsLocked: { [screenLock] in screenLock.isLocked })
-    private lazy var windowObserver = AXWindowObserver(knownWindows: knownWindows)
-    private lazy var shutdown = Shutdown(stop: { [weak self] in self?.engine?.stop() })
+    private let applications = Applications()
+    private lazy var windowEvents = AXWindowEvents(
+        applications: applications,
+        screenIsLocked: { [screenLock] in screenLock.isLocked }
+    )
+    private lazy var windowObserver = AXWindowObserver(windowEvents: windowEvents)
+    private lazy var lifecycle = Lifecycle(stop: { [weak self] in self?.engine?.stop() })
     private var bindings: Bindings?
     private var engine: Engine?
 
@@ -14,34 +18,30 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             exit(EXIT_FAILURE)
         }
 
-        let permission = AccessibilityPermission.system()
+        let permission = AccessibilityPermission(relaunch: lifecycle.relaunch)
         switch permission.request() {
         case .granted:
             break
         case .relaunching:
-            // The relaunch is asynchronous and exits this process once the new instance
-            // is on its way. Nothing here may exit before that.
             return
         case .quit:
             Log.app.error("unable to acquire accessibility permissions, exiting")
             exit(EXIT_FAILURE)
         }
 
-        // Every AX call is a synchronous IPC round trip. Without a timeout a hung
-        // application blocks the main thread for as long as it hangs. Setting it on the
-        // system-wide element makes it the process-wide default.
         AXUIElementSetMessagingTimeout(AXUIElementCreateSystemWide(), axMessagingTimeoutSeconds)
 
         Log.app.notice("OttoWM (\(AppInfo.version())) launched")
 
-        let windowById: (CGWindowID) -> AXWindow? = { [knownWindows] id in
-            knownWindows.window(for: id)
-        }
-
         let windowSystem = WindowSystem(
-            focusedWindow: OperationCache { [knownWindows] in knownWindows.adoptFocused()?.snapshot() },
+            focusedWindow: OperationCache { [applications] in
+                guard let window = AXWindow.focused() else { return nil }
+
+                applications.find(by: window.pid)?.attach(window)
+                return window.snapshot()
+            },
             onScreenWindows: OperationCache {
-                let onScreen = RoundTrips.shared.measure(.read, "CGWindowList") {
+                let onScreen = trace(.read, "CGWindowList") {
                     CGWindowListCopyWindowInfo(
                         [.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID
                     ) as? [[String: Any]] ?? []
@@ -56,20 +56,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     frames[CGWindowID(number.uint32Value)] = frame
                 }
             },
-            window: windowById
+            window: applications.findWindow(by:)
         )
 
         let parkedWindows = ParkedWindows()
         let engine = Engine(
             desktop: OffscreenParkingDesktop(
                 screen: MainScreen(),
-                window: windowById
+                window: applications.findWindow(by:)
             ),
             windowSystem: windowSystem,
             workspaces: Workspaces(tabCount: windowSystem.tabCount(of:)),
             parkedWindows: parkedWindows,
             screenIsLocked: { [screenLock] in screenLock.isLocked },
-            quit: shutdown.quit,
+            quit: lifecycle.quit,
             restart: { [weak self] in self?.bindings?.reload() }
         )
         engine.start(windows: windowObserver.start { engine.handle($0) })
@@ -78,9 +78,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let bindings = Bindings.system(config: config, handler: engine.handle)
         self.bindings = bindings
 
-        screenLock.startWatching { [windowObserver] in windowObserver.dropDeadWindows() }
+        screenLock.startWatching { [windowObserver] in
+            engine.resync(windows: windowObserver.resync())
+        }
         bindings.start()
-        shutdown.startWatchingSIGTERM()
+        lifecycle.startWatchingSIGTERM()
 
         permission.startWatchingTrust(
             lost: { [weak self] in self?.bindings?.stop() },

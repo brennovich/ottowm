@@ -2,11 +2,19 @@ import AppKit
 import ApplicationServices
 import CoreGraphics
 
-/// The stable CGWindowID for an AX window.
+// Unexported symbol to retrieve the CGWindowID that ties an AX element to the
+// window server list.
 @_silgen_name("_AXUIElementGetWindow")
 @discardableResult
 private func _AXUIElementGetWindow(_ element: AXUIElement, _ id: inout CGWindowID) -> AXError
 
+/// A live macOS application's window reached driven the Accessibility API.
+///
+/// Keeps the element and its application because the interface is split between
+/// them. Attributes, actions and the window id come from the element; activation
+/// and `AXEnhancedUserInterface` are only on the application. Every read
+/// and write is a round trip into the owning process, so attributes are read in
+/// batches and the id is read once.
 final class AXWindow: Window, WindowLogDescribing {
     let element: AXUIElement
     let application: NSRunningApplication
@@ -23,7 +31,7 @@ final class AXWindow: Window, WindowLogDescribing {
 
     lazy var id: CGWindowID = {
         var windowId: CGWindowID = 0
-        let result = RoundTrips.shared.measure(.read, "AXWindowID") {
+        let result = trace(.read, "AXWindowID") {
             _AXUIElementGetWindow(element, &windowId)
         }
         if result != .success || windowId == 0 {
@@ -33,7 +41,6 @@ final class AXWindow: Window, WindowLogDescribing {
     }()
 
     var appName: String { application.localizedName ?? "" }
-
     var pid: pid_t { application.processIdentifier }
 
     func snapshot() -> WindowSnapshot {
@@ -66,11 +73,9 @@ final class AXWindow: Window, WindowLogDescribing {
         return frame(position: attributes[.position], size: attributes[.size])
     }
 
-    /// Runs `body` with the application's frame animations turned off.
-    ///
-    /// An application animates a frame write while AXEnhancedUserInterface is on. macOS
-    /// turns that attribute on as soon as an assistive client like OttoWM attaches. The
-    /// move flickers, and a frame read mid animation returns the old position.
+    /// An application animates a frame write while `AXEnhancedUserInterface` is on.
+    /// macOS turns that attribute on as soon as an assistive client attaches.
+    /// Also, A read mid animation returns the old position.
     ///
     /// Credited to yabai and Rectangle, via AeroSpace.
     func withoutAnimations(_ body: () -> Void) {
@@ -97,11 +102,11 @@ final class AXWindow: Window, WindowLogDescribing {
     }
 
     func focus() {
-        let raiseResult = RoundTrips.shared.measure(.action, kAXRaiseAction) {
+        let raiseResult = trace(.action, kAXRaiseAction) {
             AXUIElementPerformAction(element, kAXRaiseAction as CFString)
         }
         let mainResult = element.setValue(true, for: .main)
-        let activated = RoundTrips.shared.measure(.action, "activate") {
+        let activated = trace(.action, "activate") {
             application.activate(options: AXWindow.activationOptions)
         }
         if raiseResult != .success || mainResult != .success {
@@ -112,9 +117,14 @@ final class AXWindow: Window, WindowLogDescribing {
     }
 
     static func focused() -> AXWindow? {
-        RoundTrips.shared
-            .measure(.read, "frontmostApplication") { NSWorkspace.shared.frontmostApplication }
+        trace(.read, "frontmostApplication") { NSWorkspace.shared.frontmostApplication }
             .flatMap(focused(of:))
+    }
+
+    static func all(of app: NSRunningApplication) -> [AXWindow] {
+        let appElement = AXUIElementCreateApplication(app.processIdentifier)
+        let elements = appElement.value(of: .windows) as? [AXUIElement] ?? []
+        return elements.map { AXWindow(element: $0, application: app) }
     }
 
     static func focused(of app: NSRunningApplication) -> AXWindow? {
@@ -129,12 +139,17 @@ final class AXWindow: Window, WindowLogDescribing {
             return 1
         }
         return children.lazy
-            .compactMap(tabGroupTabs)
+            .compactMap { child -> [AXUIElement]? in
+                let attributes = child.values(of: [.role, .children])
+                guard AXRole(attributes[.role]) == .tabGroup else { return nil }
+                return attributes[.children] as? [AXUIElement]
+            }
             .first
-            .map { max($0.filter(isRadioButton).count, 1) } ?? 1
+            .map { tabs in
+                max(tabs.filter { AXRole($0.value(of: .role)) == .radioButton }.count, 1)
+            } ?? 1
     }
 
-    /// Required to activate an app from a background agent prior to macOS 14.
     private static var activationOptions: NSApplication.ActivationOptions {
         if #available(macOS 14.0, *) { return [] }
         return .activateIgnoringOtherApps
@@ -147,16 +162,6 @@ final class AXWindow: Window, WindowLogDescribing {
         }
     }
 
-    private func isRadioButton(_ element: AXUIElement) -> Bool {
-        AXRole(element.value(of: .role)) == .radioButton
-    }
-
-    private func tabGroupTabs(of child: AXUIElement) -> [AXUIElement]? {
-        let attributes = child.values(of: [.role, .children])
-        guard AXRole(attributes[.role]) == .tabGroup else { return nil }
-        return attributes[.children] as? [AXUIElement]
-    }
-
     private func frame(position: AnyObject?, size: AnyObject?) -> CGRect? {
         guard let origin = CGPoint(axValue: position),
               let size = CGSize(axValue: size)
@@ -165,5 +170,17 @@ final class AXWindow: Window, WindowLogDescribing {
             return nil
         }
         return CGRect(origin: origin, size: size)
+    }
+}
+
+/// A window is identified by its element: a new `AXWindow` is built for every notification,
+/// and the id does not tell two windows apart, tabs of one group share it.
+extension AXWindow: Hashable {
+    static func == (lhs: AXWindow, rhs: AXWindow) -> Bool {
+        lhs.element == rhs.element
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(element)
     }
 }

@@ -1,6 +1,5 @@
 import CoreGraphics
 
-/// The bottom-right sliver a parked window is moved to.
 struct HiddenEdge {
     private static let epsilon: CGFloat = 1
     private static let detectionMargin: CGFloat = 10

@@ -1,27 +1,28 @@
 import AppKit
-import ApplicationServices
 
-private let subscriptionRetryDelay: TimeInterval = 0.1
+private let initialRetryDelay: TimeInterval = 0.1
 private let lockScreenBundleId = "com.apple.loginwindow"
 
-/// Turns the AX notifications `KnownWindows` delivers and the `NSWorkspace` notifications
-/// into `WindowEvent`s: created, focused, destroyed, minimized and unminimized.
-/// `KnownWindows` holds the windows and their subscriptions; every event OttoWM sees is
-/// emitted here.
-final class AXWindowObserver {
-    private typealias Observed = (windows: [WindowSnapshot], subscribed: Bool)
+// WebKit runs one of these XPC services per tab, per network session and per GPU
+// context, so a browser accounts for dozens of them. None owns a window and none
+// answers the Accessibility API: every subscription attempt costs a full messaging
+// timeout, and the retries spend it again until the grace period runs out.
+private let webKitServiceBundleIds: Set<String> = [
+    "com.apple.WebKit.WebContent",
+    "com.apple.WebKit.Networking",
+    "com.apple.WebKit.GPU",
+]
 
-    private let knownWindows: KnownWindows
-    private let scheduleRetry: (@escaping () -> Void) -> Void
+final class AXWindowObserver {
+    private let windowEvents: AXWindowEvents
+    private let scheduleRetry: (TimeInterval, @escaping () -> Void) -> Void
+    private let whenFinishedLaunching: (NSRunningApplication, @escaping () -> Void) -> Void
     private let now: () -> Date
     private let notificationCenter: NotificationCenter
     private let runningApplications: () -> [NSRunningApplication]
     private var handler: ((WindowEvent) -> Void)?
     private let ownPid = ProcessInfo.processInfo.processIdentifier
 
-    /// A freshly launched application can take seconds to answer AX, and announces no
-    /// window until it does, hence the retries. An application that fails every retry is
-    /// given up on; it may have no AX interface.
     static let subscriptionGracePeriod: TimeInterval = 15
 
     private static let workspaceNotifications: [(name: NSNotification.Name, selector: Selector)] = [
@@ -31,115 +32,111 @@ final class AXWindowObserver {
     ]
 
     init(
-        knownWindows: KnownWindows,
-        scheduleRetry: @escaping (@escaping () -> Void) -> Void = { work in
-            DispatchQueue.main.asyncAfter(deadline: .now() + subscriptionRetryDelay, execute: work)
+        windowEvents: AXWindowEvents,
+        scheduleRetry: @escaping (TimeInterval, @escaping () -> Void) -> Void = { delay, work in
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+        },
+        whenFinishedLaunching: @escaping (NSRunningApplication, @escaping () -> Void) -> Void = { app, finished in
+            var observation: NSKeyValueObservation?
+            observation = app.observe(\.isFinishedLaunching) { app, _ in
+                guard app.isFinishedLaunching else { return }
+
+                observation?.invalidate()
+                observation = nil
+                finished()
+            }
         },
         now: @escaping () -> Date = Date.init,
         notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
         runningApplications: @escaping () -> [NSRunningApplication] = { NSWorkspace.shared.runningApplications }
     ) {
-        self.knownWindows = knownWindows
+        self.windowEvents = windowEvents
         self.scheduleRetry = scheduleRetry
+        self.whenFinishedLaunching = whenFinishedLaunching
         self.now = now
         self.notificationCenter = notificationCenter
         self.runningApplications = runningApplications
     }
 
-    /// Announces the windows that died without a notification. Called when an application
-    /// comes to front and when the screen unlocks, the two moments a stale entry starts to
-    /// matter.
-    func dropDeadWindows() {
-        for id in knownWindows.dropDead() {
-            handler?(.destroyed(id))
-        }
-    }
-
-    /// Subscribes to every observable application and to launch and terminate notifications.
-    /// - Returns: the windows found while registering the observers, so the caller can
-    ///   seed the model without sweeping every application again.
     func start(_ handler: @escaping (WindowEvent) -> Void) -> [WindowSnapshot] {
         self.handler = handler
+        windowEvents.onEvent = { [weak self] in self?.handler?($0) }
 
-        let windows = runningApplications()
-            .filter(canObserve)
-            .flatMap { observe($0) }
+        // Each application is a group of its own: subscribing costs a handful of round
+        // trips into that process, and one that does not answer holds its thread for the
+        // messaging timeout instead of holding up every application behind it.
+        let attempts = Concurrently.map(over: runningApplications().filter(canSubscribe).map { [$0] }) {
+            $0.compactMap { app in windowEvents.start(app).map { (app: app, attempt: $0) } }
+        }
+
+        let deadline = now().addingTimeInterval(Self.subscriptionGracePeriod)
+        for started in attempts where started.attempt.subscription == .unreachable {
+            retry(started.app, after: initialRetryDelay, until: deadline)
+        }
 
         for n in Self.workspaceNotifications {
             notificationCenter.addObserver(self, selector: n.selector, name: n.name, object: nil)
         }
 
-        return windows
+        return attempts.flatMap { $0.attempt.windows }
     }
 
-    private func event(for element: AXUIElement, notification: String, app: NSRunningApplication) -> WindowEvent? {
-        switch notification {
-        case kAXWindowCreatedNotification:
-            return knownWindows.watch(element, of: app).map { .created($0.snapshot()) }
-        case kAXFocusedWindowChangedNotification:
-            return knownWindows.adopt(element, of: app).map { .focused($0.snapshot()) }
-        case kAXUIElementDestroyedNotification:
-            return knownWindows.removeWindow(for: element).map(WindowEvent.destroyed)
-        case kAXWindowMiniaturizedNotification:
-            return knownWindows.window(of: element, in: app).map { .minimized($0.id) }
-        case kAXWindowDeminiaturizedNotification:
-            return knownWindows.window(of: element, in: app).map { .unminimized($0.snapshot()) }
-        default:
-            return nil
+    /// Answers with every window of every running application, so the engine can adopt
+    /// the ones no workspace knows. The sweep runs first: a window it drops must not come
+    /// back in the answer as one to adopt again.
+    func resync() -> [WindowSnapshot] {
+        windowEvents.runGC()
+
+        return Concurrently.map(over: runningApplications().filter(canSubscribe).map { [$0] }) {
+            $0.flatMap { windowEvents.resync($0) }
         }
     }
 
-    /// The login window must not be managed.
-    private func canObserve(_ app: NSRunningApplication) -> Bool {
-        app.activationPolicy == .regular && app.processIdentifier != ownPid
-            && app.bundleIdentifier != lockScreenBundleId
+    private func canSubscribe(_ app: NSRunningApplication) -> Bool {
+        let pid = app.processIdentifier
+        guard app.activationPolicy != .prohibited else {
+            Log.observer.debug("skipping pid=\(pid) app=\(app.localizedName ?? ""): activation policy is prohibited")
+            return false
+        }
+        guard pid != ownPid else { return false }
+        guard let bundleId = app.bundleIdentifier else { return true }
+        guard bundleId != lockScreenBundleId else {
+            Log.observer.debug("skipping pid=\(pid) app=\(app.localizedName ?? ""): lock screen")
+            return false
+        }
+        guard !webKitServiceBundleIds.contains(bundleId) else {
+            Log.observer.debug("skipping pid=\(pid) app=\(app.localizedName ?? ""): WebKit service")
+            return false
+        }
+
+        return true
     }
 
-    private func observe(_ app: NSRunningApplication) -> [WindowSnapshot] {
-        guard let observed = knownWindows.observe(app, notify: { [weak self] element, notification in
-            guard let self else { return }
-            guard let event = event(for: element, notification: notification, app: app) else {
-                Log.observer.debug("dropped \(notification)")
-                return
-            }
-            handler?(event)
-        }) else { return [] }
+    private func subscribe(_ app: NSRunningApplication) -> [WindowSnapshot] {
+        guard let attempt = windowEvents.start(app) else { return [] }
 
-        retry(app, observed, until: now().addingTimeInterval(Self.subscriptionGracePeriod))
+        if attempt.subscription == .unreachable {
+            retry(app, after: initialRetryDelay, until: now().addingTimeInterval(Self.subscriptionGracePeriod))
+        }
 
-        return observed.windows
+        return attempt.windows
     }
 
-    /// Asks the application again until its subscriptions are in place and it lists a
-    /// window.
-    ///
-    /// A just launched application can report the subscriptions in place and list no
-    /// window, and then open one without sending kAXWindowCreated. Nothing else would
-    /// find that window until the user focuses the application again.
-    private func retry(_ app: NSRunningApplication, _ observed: Observed, until deadline: Date) {
-        guard !observed.subscribed || !knownWindows.hasWindows(of: app) else { return }
-
+    // Exponential backoff retry, this is necessary because some apps take
+    // a while to finish launching and become reachable via AX.
+    private func retry(_ app: NSRunningApplication, after delay: TimeInterval, until deadline: Date) {
         guard now() < deadline else {
             let waited = Int(Self.subscriptionGracePeriod)
             let pid = app.processIdentifier
             let name = app.localizedName ?? ""
-            if observed.subscribed {
-                Log.observer.info("pid=\(pid) app=\(name) listed no window in \(waited)s, waiting for its notifications")
-            } else {
-                Log.observer.error("giving up on pid=\(pid) app=\(name): unreachable for \(waited)s")
-            }
+            Log.observer.error("giving up on pid=\(pid) app=\(name): unreachable for \(waited)s")
             return
         }
 
-        scheduleRetry { [weak self] in
-            guard let self, let observed = knownWindows.resubscribe(to: app) else { return }
+        scheduleRetry(min(delay, deadline.timeIntervalSince(now()))) { [weak self] in
+            guard let self, windowEvents.reconcile(app) == .unreachable else { return }
 
-            for snapshot in observed.windows {
-                Log.observer.info("retry found window \(snapshot.logDescription)")
-                handler?(.created(snapshot))
-            }
-
-            retry(app, observed, until: deadline)
+            retry(app, after: delay * 2, until: deadline)
         }
     }
 
@@ -148,29 +145,30 @@ final class AXWindowObserver {
     }
 
     @objc private func applicationLaunched(_ notification: Notification) {
-        guard let app = app(from: notification), canObserve(app) else { return }
-        for snapshot in observe(app) {
+        guard let app = app(from: notification), canSubscribe(app) else { return }
+        guard app.isFinishedLaunching else {
+            whenFinishedLaunching(app) { [weak self] in self?.announceWindows(of: app) }
+            return
+        }
+
+        announceWindows(of: app)
+    }
+
+    private func announceWindows(of app: NSRunningApplication) {
+        for snapshot in subscribe(app) {
             handler?(.created(snapshot))
         }
     }
 
     @objc private func applicationTerminated(_ notification: Notification) {
         guard let app = app(from: notification) else { return }
-        knownWindows.stopObserving(app)
+        windowEvents.stop(app)
     }
 
     @objc private func applicationActivated(_ notification: Notification) {
-        guard let app = app(from: notification), canObserve(app), knownWindows.isObserving(app)
-        else { return }
+        guard let app = app(from: notification), canSubscribe(app) else { return }
 
-        dropDeadWindows()
-
-        for snapshot in knownWindows.rescan(app) {
-            Log.observer.info("rescan found window \(snapshot.logDescription)")
-            handler?(.created(snapshot))
-        }
-        guard let window = knownWindows.adoptFocused(of: app) else { return }
-        handler?(.focused(window.snapshot()))
+        windowEvents.reconcile(app)
     }
 
     deinit {

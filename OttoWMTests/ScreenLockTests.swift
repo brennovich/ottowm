@@ -14,27 +14,17 @@ final class ScreenLockTests: XCTestCase {
     }
 
     func testLockingAndUnlockingFollowTheSystemNotifications() {
-        screenLock.startWatching {}
-
-        center.postScreenLocked()
-
-        XCTAssertTrue(screenLock.isLocked)
-
-        center.postScreenUnlocked()
-
-        XCTAssertFalse(screenLock.isLocked)
-    }
-
-    func testUnlockingCallsBack() {
         var unlocks = 0
         screenLock.startWatching { unlocks += 1 }
 
         center.postScreenLocked()
 
+        XCTAssertTrue(screenLock.isLocked)
         XCTAssertEqual(unlocks, 0)
 
         center.postScreenUnlocked()
 
+        XCTAssertFalse(screenLock.isLocked)
         XCTAssertEqual(unlocks, 1)
     }
 

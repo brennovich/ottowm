@@ -1,11 +1,17 @@
 import CoreGraphics
 
-/// Model that maps windows to their respective workspace, keeping the focus history of
-/// each workspace and the active workspace.
 final class Workspaces {
+    enum Membership: Equatable {
+        case fullScreen(Int)
+        case assigned(Int)
+        case unassigned(Int)
+    }
+
     private(set) var current = 1
 
     private var workspaces: [Int: Workspace] = [:]
+
+    private(set) var fullScreenWindows: [CGWindowID: Int] = [:]
 
     private var tabGroups: TabGroups
 
@@ -29,41 +35,44 @@ final class Workspaces {
         workspaces[workspace]?.windowIds ?? []
     }
 
-    /// Assigns the window to `workspace`, or to the workspace its tab group already sits in.
-    ///
-    /// A tab group moves as one unit. A window joining a group lands where the group is;
-    /// the group does not follow the window.
-    /// - Returns: the workspace the window landed in.
+    func membership(of window: WindowSnapshot, whenNew fallback: Int) -> Membership {
+        if let workspace = fullScreenWindows[window.id] { return .fullScreen(workspace) }
+        if let assigned = workspace(for: window.id) { return .assigned(assigned) }
+        return .unassigned(workspaceOfTabGroup(for: window) ?? fallback)
+    }
+
+    func recordFullScreen(_ windowId: CGWindowID, leaving workspace: Int) {
+        fullScreenWindows[windowId] = workspace
+    }
+
     @discardableResult
     func assign(_ window: WindowSnapshot, to workspace: Int) -> Int {
+        let target = workspaceOfTabGroup(for: window) ?? fullScreenWindows[window.id] ?? workspace
+        fullScreenWindows.removeValue(forKey: window.id)
         tabGroups.add(window)
-        let target = tabGroups.siblings(of: window.id).lazy.compactMap { self.workspace(for: $0) }.first ?? workspace
         assignTabGroup(of: window.id, to: target)
         recordFocus(on: window.id, in: target)
         return target
     }
 
     func move(_ windowId: CGWindowID, to workspace: Int) {
+        fullScreenWindows.removeValue(forKey: windowId)
         assignTabGroup(of: windowId, to: workspace)
         recordFocus(on: windowId, in: workspace)
     }
 
-    /// Whether the window is a tab of a group that is already managed.
     func hasTabGroup(for window: WindowSnapshot) -> Bool {
         tabGroups.hasGroup(for: window)
     }
 
-    /// The windows macOS minimizes, restores and moves together with this one. A tab group
-    /// is one window to macOS.
     func tabGroupMembers(of windowId: CGWindowID) -> [CGWindowID] {
         tabGroups.members(of: windowId)
     }
 
-    /// Drops the window from its workspace and from the focus history.
-    /// - Returns: `true` if a surviving tab sibling took the focus, so no other window
-    ///   needs it.
     @discardableResult
     func remove(_ windowId: CGWindowID) -> Bool {
+        fullScreenWindows.removeValue(forKey: windowId)
+
         var focusSettled = false
         if let firstTabSibling = tabGroups.siblings(of: windowId).first,
            let siblingWorkspace = workspace(for: firstTabSibling) {
@@ -96,9 +105,12 @@ final class Workspaces {
         }
     }
 
-    /// The window to focus in the current workspace.
     var nextWindowToFocus: CGWindowID? {
         workspaces[current]?.nextWindowToFocus
+    }
+
+    private func workspaceOfTabGroup(for window: WindowSnapshot) -> Int? {
+        tabGroups.siblings(of: window).lazy.compactMap { self.workspace(for: $0) }.first
     }
 
     private func assignTabGroup(of windowId: CGWindowID, to workspace: Int) {

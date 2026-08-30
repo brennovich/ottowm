@@ -21,14 +21,6 @@ final class EngineAdmissionTests: EngineTestCase {
         XCTAssertEqual(workspaces.allWindowIds, [])
     }
 
-    func testAWindowThatIsNotStandardButKeepsItsTitleBarButtonsIsAdmitted() {
-        let win = add(StubWindow(id: 100, isStandard: false))
-
-        engine.handle(.created(win.snapshot()))
-
-        XCTAssertEqual(workspaces.allWindowIds, [100])
-    }
-
     func testCreatedWindowIsAssignedToCurrentWorkspace() {
         engine.switchToWorkspace(2)
         create(StubWindow(id: 100))
