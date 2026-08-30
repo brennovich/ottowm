@@ -1,0 +1,106 @@
+name: benchmark
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to benchmark, defaults to the latest deployment-pipeline build
+        required: false
+      iterations:
+        description: Measured iterations per runner
+        default: '100'
+
+# One benchmark run at a time, and never cancelled: a run that shares a machine with
+# another one measures the other one too.
+concurrency:
+  group: benchmark
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      run: ${{ steps.resolve.outputs.run }}
+      sha: ${{ steps.resolve.outputs.sha }}
+    steps:
+      # The bundle comes from a pipeline run, the same zip the release is cut from. A tag
+      # takes the run that built the commit it points at, whatever state that run is in:
+      # the release job publishes after the commit job uploaded the artifact, so on a
+      # release trigger it is already there even though that run is still going. Without a
+      # tag the last run that succeeded on the ref, which is the last build there is.
+      - id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag || github.event.release.tag_name }}
+        run: |
+          if [ -n "$TAG" ]; then
+            sha=$(gh api "repos/$GH_REPO/commits/$TAG" --jq .sha)
+            run=$(gh run list --workflow deployment-pipeline.yml --commit "$sha" \
+              --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+            [ -n "$run" ] || { echo "no deployment-pipeline run built $TAG" >&2; exit 1; }
+          else
+            run=$(gh run list --workflow deployment-pipeline.yml --branch "$GITHUB_REF_NAME" \
+              --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+            [ -n "$run" ] || { echo "no deployment-pipeline run succeeded on $GITHUB_REF_NAME" >&2; exit 1; }
+          fi
+          echo "run=$run" >> $GITHUB_OUTPUT
+          echo "sha=$(gh run view "$run" --json headSha --jq .headSha)" >> $GITHUB_OUTPUT
+
+  benchmark:
+    needs: build
+    # Serial, one macOS version after the other: concurrent runs share whatever the hosted
+    # runners sit on, and the numbers then price the neighbour rather than the hotkey.
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        os: [macos-14, macos-15, macos-26]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      # The harness is compiled from the commit the benchmarked bundle was built from.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.build.outputs.sha }}
+      - id: download
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh run download "${{ needs.build.outputs.run }}" --name OttoWM --dir build
+      - id: install
+        run: |
+          ditto -x -k build/OttoWM-*.zip /Applications
+          xattr -cr /Applications/OttoWM.app
+      - id: harness
+        run: make build/benchmark
+      - id: grant-permissions
+        run: |
+          brew untap aws/tap || true
+          brew install tccutil
+          sudo tccutil --insert /Applications/OttoWM.app/Contents/MacOS/OttoWM
+          sudo tccutil --enable /Applications/OttoWM.app/Contents/MacOS/OttoWM
+          sudo tccutil --insert com.apple.Terminal
+          sudo tccutil --enable com.apple.Terminal
+          sleep 2
+          sudo tccutil --list | grep -q "OttoWM" || exit 1
+      # No log stream while measuring: it costs the machine the run is pricing.
+      - id: run
+        run: >
+          make benchmark
+          BENCHMARK_ARGS="--iterations ${{ inputs.iterations || 100 }} --warmup 10
+          --budget-p95 500 --output build/benchmark-${{ matrix.os }}.json"
+      - id: upload
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-${{ matrix.os }}
+          path: build/benchmark-${{ matrix.os }}.json
+          if-no-files-found: warn

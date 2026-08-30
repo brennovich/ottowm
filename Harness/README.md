@@ -9,7 +9,7 @@ Shared machinery for the acceptance run in `Acceptance/` and the benchmark in `B
 | `Hotkeys.swift` | Posts the bundled key combos as real key events into the session event tap                              |
 | `Report.swift`  | Output, failure, and the wait every check is built on                                                   |
 
-There is no target of its own to build. Each run compiles the harness into its own binary, `make build/acceptance` and `make build/benchmark`, which is also how CI builds both before it grants permissions to anything.
+There is no target of its own to build. Each run compiles the harness into its own binary, `make build/acceptance` and `make build/benchmark`, which is also how CI builds the one it is about to run before it grants permissions to anything.
 
 ## Before a run
 

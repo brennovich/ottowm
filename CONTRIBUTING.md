@@ -37,7 +37,7 @@ CI runs it first in the `commit` job as `make lint/report`, which writes `build/
 
 Both drive the app installed in `/Applications` through the harness in `Harness/`: real hotkeys through the event tap, real frames read back through the accessibility API. Run `make install` first, and grant Accessibility permission to the terminal running them. `Harness/README.md` covers the desk they run on, the permissions they need and what they leave behind.
 
-CI runs both on every push, on each macOS runner in the matrix.
+CI runs the acceptance scenarios on every push, on each macOS runner in the matrix. The benchmark has a workflow of its own, on a published release and on `workflow_dispatch`, where the runners take their turn one after the other: a measurement taken beside another job prices that job too.
 
 ## Profiling
 

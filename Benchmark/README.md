@@ -67,4 +67,8 @@ Percentiles are nearest rank, so every one reported is a sample that really happ
 
 The run fails when a p95 goes over `--budget-p95`, 500 by default against the single digit milliseconds a four window desk takes, so it catches a collapse rather than policing milliseconds. Tune it once the CI runners have shown what they measure.
 
-CI runs the benchmark right after the acceptance scenarios on every push, on each macOS runner in the matrix, appends the table to the job summary and uploads `benchmark.json` as the `benchmark-<runner>` artifact.
+CI runs the benchmark in its own `benchmark` workflow, on a published release and on `workflow_dispatch`, not on every push. The macOS runners take their turn one after the other rather than at once, and two runs of the workflow never overlap, because concurrent runs share whatever the hosted runners sit on and the numbers then price the neighbour rather than the hotkey. Nothing else runs in the job: the acceptance scenarios run elsewhere, and no log stream is open while measuring. Each runner appends its table to the job summary and uploads `benchmark-<runner>.json` as the `benchmark-<runner>` artifact.
+
+The bundle is the `OttoWM` artifact of a `deployment-pipeline` run, the same zip the release is cut from, rather than a build of its own: a benchmark that compiled the app itself would measure a bundle nobody ships. It defaults to the last run that succeeded on the dispatched ref. `workflow_dispatch` also takes a tag, and the release trigger passes the one it published: a tag takes the run that built the commit it points at, whatever state that run is in, because the pipeline uploads the artifact in its `commit` job and only publishes the release afterwards. Either way the harness is compiled from the commit that run built, so it matches the bundle it drives. Artifacts expire, so a run old enough to have lost its own cannot be benchmarked again.
+
+`workflow_dispatch` takes the number of iterations too.

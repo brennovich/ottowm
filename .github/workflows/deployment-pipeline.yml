@@ -91,7 +91,7 @@ jobs:
           ditto -x -k build/OttoWM-${{ needs.version.outputs.version }}.zip /Applications
           xattr -cr /Applications/OttoWM.app
       - id: harness
-        run: make build/acceptance build/benchmark
+        run: make build/acceptance
       - id: grant-permissions
         run: |
           brew untap aws/tap || true
@@ -109,8 +109,6 @@ jobs:
           echo $! > log.pid
       - id: run
         run: make acceptance
-      - id: load-test
-        run: make benchmark BENCHMARK_ARGS="--iterations 50 --budget-p95 300 --output build/benchmark-1.json"
       - id: stop-log
         if: always()
         run: kill "$(cat log.pid)" 2>/dev/null || true
@@ -125,13 +123,6 @@ jobs:
           path: |
             ottowm.log
             screen.png
-          if-no-files-found: warn
-      - id: upload-benchmark
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: benchmark-${{ matrix.os }}
-          path: build/benchmark-*.json
           if-no-files-found: warn
 
   release:
