@@ -11,7 +11,7 @@ final class ParkedWindowsTests: XCTestCase {
 
         parked.park(100, owing: frame)
 
-        XCTAssertEqual(parked.placement(of: 100), .storage)
+        XCTAssertEqual(parked.placement(of: 100), .parked)
         XCTAssertEqual(parked.owedFrame(of: 100), frame)
     }
 
@@ -42,7 +42,7 @@ final class ParkedWindowsTests: XCTestCase {
     func testRecordForgetsTheWindowsLeftOnScreen() {
         parked.park(100, owing: frame)
 
-        parked.record([.onScreen(100)])
+        parked.record([.activated(100)])
 
         XCTAssertEqual(parked.placement(of: 100), .active)
     }

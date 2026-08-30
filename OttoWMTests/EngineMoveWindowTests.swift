@@ -39,7 +39,7 @@ final class EngineMoveWindowTests: EngineTestCase {
 
         engine.moveFocusedWindow(toWorkspace: 2)
 
-        XCTAssertEqual(parkedWindows.placement(of: 100), .storage)
+        XCTAssertEqual(parkedWindows.placement(of: 100), .parked)
 
         engine.moveFocusedWindow(toWorkspace: 1)
 

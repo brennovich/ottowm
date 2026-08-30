@@ -31,10 +31,10 @@ final class StubDesktop: Desktop {
 
         return placements.map { request in
             switch request.placement {
-            case .storage:
+            case .parked:
                 return .parked(request.windowId, owing: request.owedFrame ?? window(request.windowId)?.snapshot().frame ?? .zero)
             case .active:
-                return .onScreen(request.windowId)
+                return .activated(request.windowId)
             }
         }
     }

@@ -11,7 +11,7 @@ final class ParkedWindows {
     }
 
     func placement(of windowId: CGWindowID) -> Placement {
-        owedFrames[windowId] != nil ? .storage : .active
+        owedFrames[windowId] != nil ? .parked : .active
     }
 
     func owedFrame(of windowId: CGWindowID) -> CGRect? {
@@ -24,7 +24,7 @@ final class ParkedWindows {
         for outcome in outcomes {
             switch outcome {
             case let .parked(windowId, owedFrame): park(windowId, owing: owedFrame)
-            case let .onScreen(windowId): forget(windowId)
+            case let .activated(windowId): forget(windowId)
             case .gone: continue
             }
         }

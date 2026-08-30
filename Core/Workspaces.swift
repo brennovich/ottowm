@@ -78,8 +78,8 @@ final class Workspaces {
         return focusSettled
     }
 
-    func switchTo(_ targetWorkspace: Int, leavingFocusOn windowId: CGWindowID?) -> (toActive: [CGWindowID], toStorage: [CGWindowID]) {
-        let placement = (toActive: [CGWindowID](), toStorage: [CGWindowID]())
+    func switchTo(_ targetWorkspace: Int, leavingFocusOn windowId: CGWindowID?) -> (activating: [CGWindowID], parking: [CGWindowID]) {
+        let placement = (activating: [CGWindowID](), parking: [CGWindowID]())
         guard targetWorkspace != current else { return placement }
 
         if let windowId {
@@ -89,9 +89,9 @@ final class Workspaces {
 
         return workspaces.reduce(into: placement) { p, e in
             if e.key == targetWorkspace {
-                p.toActive.append(contentsOf: e.value.windowIds)
+                p.activating.append(contentsOf: e.value.windowIds)
             } else {
-                p.toStorage.append(contentsOf: e.value.windowIds)
+                p.parking.append(contentsOf: e.value.windowIds)
             }
         }
     }

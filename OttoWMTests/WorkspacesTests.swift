@@ -71,13 +71,13 @@ final class WorkspacesTests: XCTestCase {
     }
 
     func testSwitchTo() {
-        typealias Placement = (toActive: Set<CGWindowID>, toStorage: Set<CGWindowID>)
+        typealias Placement = (activating: Set<CGWindowID>, parking: Set<CGWindowID>)
         let cases: [(name: String, assignments: Assignments, target: Int, placement: Placement)] = [
             ("no windows", [], 2, ([], [])),
             ("only target workspace windows", [(100, 2), (200, 2)], 2, ([100, 200], [])),
             ("only current workspace windows", [(100, 1), (200, 1)], 2, ([], [100, 200])),
             ("windows in both workspaces", [(100, 1), (200, 2), (300, 1)], 2, ([200], [100, 300])),
-            ("windows in other workspaces go to storage", [(100, 3), (200, 4)], 2, ([], [100, 200])),
+            ("windows in other workspaces are parked", [(100, 3), (200, 4)], 2, ([], [100, 200])),
             (
                 "target, current and other workspaces",
                 [(100, 1), (200, 2), (300, 3), (400, 1)],
@@ -93,8 +93,8 @@ final class WorkspacesTests: XCTestCase {
             let result = model.switchTo(testCase.target, leavingFocusOn: nil)
 
             XCTAssertEqual(model.current, testCase.target, testCase.name)
-            XCTAssertEqual(Set(result.toActive), testCase.placement.toActive, testCase.name)
-            XCTAssertEqual(Set(result.toStorage), testCase.placement.toStorage, testCase.name)
+            XCTAssertEqual(Set(result.activating), testCase.placement.activating, testCase.name)
+            XCTAssertEqual(Set(result.parking), testCase.placement.parking, testCase.name)
         }
     }
 

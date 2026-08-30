@@ -19,11 +19,11 @@ final class EngineSwitchTests: EngineTestCase {
         let win2 = create(StubWindow(id: 200))
         moveFocusedWindow(win2, to: 2)
 
-        XCTAssertEqual(parkedWindows.placement(of: 200), .storage)
+        XCTAssertEqual(parkedWindows.placement(of: 200), .parked)
 
         engine.switchToWorkspace(2)
 
-        XCTAssertEqual(parkedWindows.placement(of: 100), .storage)
+        XCTAssertEqual(parkedWindows.placement(of: 100), .parked)
         XCTAssertEqual(parkedWindows.placement(of: 200), .active)
         XCTAssertEqual(workspaces.current, 2)
     }
@@ -163,7 +163,7 @@ final class EngineSwitchTests: EngineTestCase {
         engine.switchToWorkspace(2)
 
         XCTAssertEqual(workspaces.windowIds(in: 1), [100, 200])
-        XCTAssertEqual(parkedWindows.placement(of: 200), .storage)
+        XCTAssertEqual(parkedWindows.placement(of: 200), .parked)
 
         engine.switchToWorkspace(1)
 
@@ -192,7 +192,7 @@ final class EngineSwitchTests: EngineTestCase {
         engine.switchToWorkspace(2)
 
         XCTAssertEqual(workspaces.current, 2)
-        XCTAssertEqual(parkedWindows.placement(of: 100), .storage)
+        XCTAssertEqual(parkedWindows.placement(of: 100), .parked)
         XCTAssertEqual(doomed.focusCount, 0)
     }
 }

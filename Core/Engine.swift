@@ -132,7 +132,7 @@ final class Engine {
                 return
             }
 
-            let placement: Placement = workspace == workspaces.current ? .active : .storage
+            let placement: Placement = workspace == workspaces.current ? .active : .parked
             Log.engine.info("moving window \(win.logDescription) to workspace \(workspace) placement=\(placement)")
             place(win.id, at: placement)
             workspaces.move(win.id, to: workspace)
@@ -196,7 +196,7 @@ final class Engine {
     private func handleFocused(_ win: WindowSnapshot) {
         let isEcho = awaitedFocus.settle(win.id)
 
-        if parkedWindows.placement(of: win.id) == .storage {
+        if parkedWindows.placement(of: win.id) == .parked {
             // Focus notifications arrive asynchronously, so this one may answer a focus
             // OttoWM requested before the switch that parked the window. Acting on it
             // would switch straight back to the workspace just left. Only a window the OS
@@ -271,7 +271,7 @@ final class Engine {
 
     /// The user can drag a managed window onto another native Space.
     private func dropWindowsThatLeftTheDesktop() {
-        let parked = workspaces.allWindowIds.filter { parkedWindows.placement(of: $0) == .storage }
+        let parked = workspaces.allWindowIds.filter { parkedWindows.placement(of: $0) == .parked }
         guard windowSystem.showsAny(parked) else { return }
 
         for windowId in workspaces.allWindowIds.subtracting(parked) where !showsTabGroup(of: windowId) {
@@ -315,7 +315,7 @@ final class Engine {
     private func handleNativeSpaceChange() {
         windowSystem.duringOperation("native-space-change") {
             guard let focused = windowSystem.focused(),
-                  parkedWindows.placement(of: focused.id) == .storage
+                  parkedWindows.placement(of: focused.id) == .parked
             else {
                 Log.engine.debug("native space change: no parked window focused")
                 desktop.repark(parkedWindows.all)
@@ -379,10 +379,10 @@ final class Engine {
     private func transitionToWorkspace(_ workspace: Int) {
         let focusToKeep = windowSystem.focused().flatMap { canManage($0) ? $0.id : nil }
         let placements = workspaces.switchTo(workspace, leavingFocusOn: focusToKeep)
-        Log.engine.info("switching to \(workspace) toActive=\(placements.toActive) toStorage=\(placements.toStorage)")
+        Log.engine.info("switching to \(workspace) activating=\(placements.activating) parking=\(placements.parking)")
 
-        let batch = placements.toActive.map { (windowId: $0, placement: Placement.active) }
-            + placements.toStorage.map { (windowId: $0, placement: Placement.storage) }
+        let batch = placements.activating.map { (windowId: $0, placement: Placement.active) }
+            + placements.parking.map { (windowId: $0, placement: Placement.parked) }
         place(batch).forEach { unmanage($0, reason: "gone") }
     }
 
@@ -396,7 +396,7 @@ final class Engine {
         let assigned = workspaces.assign(win, to: target)
         Log.engine.info("assigned \(win.logDescription) → workspace \(assigned)")
 
-        place(win.id, at: assigned == workspaces.current ? .active : .storage)
+        place(win.id, at: assigned == workspaces.current ? .active : .parked)
         return assigned
     }
 

@@ -34,7 +34,7 @@ final class EngineLifecycleTests: EngineTestCase {
 
         engine.handle(.restart)
 
-        XCTAssertEqual(parkedWindows.placement(of: 100), .storage)
+        XCTAssertEqual(parkedWindows.placement(of: 100), .parked)
         XCTAssertEqual(parkedWindows.placement(of: 200), .active)
         XCTAssertEqual(restartCount, 1)
     }
@@ -63,7 +63,7 @@ final class EngineLifecycleTests: EngineTestCase {
         engine.handle(.created(add(StubWindow(id: 200)).snapshot()))
 
         XCTAssertEqual(workspaces.allWindowIds, [100])
-        XCTAssertEqual(parkedWindows.placement(of: win.id), .storage)
+        XCTAssertEqual(parkedWindows.placement(of: win.id), .parked)
     }
 
     func testWindowEventsAreHandledOnceTheScreenIsUnlocked() {

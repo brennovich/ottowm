@@ -10,8 +10,8 @@ OttoWM is a headless agent that offers several workspaces on one native macOS Sp
 | Desktop        | The native Space OttoWM controls, and the component that moves windows on it.                                 |
 | Workspace      | A numbered set of windows. It exists as soon as an action names it.                                           |
 | Managed window | A window that belongs to a workspace.                                                                         |
-| Placement      | Where a managed window sits: `active` on screen, or `storage` at the hidden edge.                             |
-| Hidden edge    | The bottom-right corner of the display. A storage window is parked there.                                     |
+| Placement      | Where a managed window sits: `active` on screen, or `parked` at the hidden edge.                              |
+| Hidden edge    | The bottom-right corner of the display. A parked window sits there.                                           |
 | Tab group      | The windows macOS shows as tabs of one window. See [Tabbed windows](#tabbed-windows).                         |
 | Window id      | The `CGWindowID` of a window. It identifies the window for as long as the window lives.                       |
 | Frame          | A rect in top-left coordinates.                                                                               |
@@ -25,7 +25,7 @@ Action       = switchToWorkspace(n) | moveWindowToWorkspace(n) | focus(direction
 Direction    = north | east | south | west                       // "focus east" in the config
 Step         = (direction, points)                               // "move-window east 15" in the config
 KeyCombo     = (keyCode, [ModifierKey: ModifierSide])            // "lopt-shift-1"
-Placement    = active | storage
+Placement    = active | parked
 WindowSnapshot(id, appName, isStandard, hasCloseButton, hasMinimizeButton, isFullScreen, isMinimized, frame)
 ```
 
@@ -89,7 +89,7 @@ flowchart LR
 | `ScreenLock`                | Lifecycle | Reports whether the login window covers the session.                                   |
 | `Shutdown`                  | Lifecycle | Every way the process ends: the `quit` action and SIGTERM.                             |
 
-`Desktop` is a protocol; `OffscreenParkingDesktop` is the implementation the app runs. It holds no state of its own: `Engine` hands it the frame each window is owed, and records what the placement reports back in `ParkedWindows`, which it reads to tell an active window from a stored one.
+`Desktop` is a protocol; `OffscreenParkingDesktop` is the implementation the app runs. It holds no state of its own: `Engine` hands it the frame each window is owed, and records what the placement reports back in `ParkedWindows`, which it reads to tell an active window from a parked one.
 
 ### Input
 
@@ -178,9 +178,9 @@ sequenceDiagram
     Engine->>WindowSystem: focused(), shows(), showsAny()
     Note over Engine: drops the focused window if full screen,<br/>drops the windows that left the desktop,<br/>admits the focused window
     Engine->>Workspaces: switchTo(n, leavingFocusOn: focused)
-    Workspaces-->>Engine: (toActive, toStorage)
+    Workspaces-->>Engine: (activating, parking)
     Engine->>Desktop: place(each window, at its placement, owing the frame recorded for it)
-    Desktop-->>Engine: parked owing a frame, on screen, or gone, per window
+    Desktop-->>Engine: parked owing a frame, activated, or gone, per window
     Engine->>ParkedWindows: record(what came back)
     alt the desktop is in front
         Engine->>Desktop: focus(nextWindowToFocus)
@@ -198,7 +198,7 @@ sequenceDiagram
     Hotkeys->>Engine: handle(moveWindowToWorkspace(n))
     Engine->>WindowSystem: focused()
     WindowSystem-->>Engine: the window, or nothing to move
-    Engine->>Desktop: place(id, at: .active if n is current, else .storage)
+    Engine->>Desktop: place(id, at: .active if n is current, else .parked)
     Engine->>ParkedWindows: record(what came back)
     Engine->>Workspaces: move(id, to: n)
     Engine->>WorkspaceBeforeFullScreen: forget(id)
@@ -237,7 +237,7 @@ sequenceDiagram
     participant Workspaces
 
     alt on the same native Space
-        AXWindowObserver->>Engine: focused(window placed in storage)
+        AXWindowObserver->>Engine: focused(a parked window)
         Engine->>WindowSystem: focused()
         Note over Engine: dropped unless the OS reports that window focused now,<br/>and the event is not the answer to a focus OttoWM requested
     else from another native Space
@@ -247,7 +247,7 @@ sequenceDiagram
     end
     Note over Engine: dropped by the one-shot ignore flag,<br/>or when every window of the current workspace is already gone
     Engine->>Workspaces: switchTo(that window's workspace)
-    Engine->>Desktop: place(id, at: .active) and place(id, at: .storage)
+    Engine->>Desktop: place(id, at: .active) and place(id, at: .parked)
 ```
 
 A Space change also pulls a parked window back on screen when its full screen instance exits. With no parked window focused, `Engine` answers the change with `repark`, which puts the parked windows found on screen back at the hidden edge.

@@ -37,7 +37,7 @@ final class EngineAdmissionTests: EngineTestCase {
 
         engine.switchToWorkspace(1)
 
-        XCTAssertEqual(parkedWindows.placement(of: 100), .storage)
+        XCTAssertEqual(parkedWindows.placement(of: 100), .parked)
     }
 
     func testFocusedUnknownWindowIsAssignedToCurrentWorkspace() {

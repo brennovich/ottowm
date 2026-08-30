@@ -7,7 +7,7 @@ final class EngineFocusTests: EngineTestCase {
         engine.start(windows: [win.snapshot()])
         engine.switchToWorkspace(2)
 
-        XCTAssertEqual(parkedWindows.placement(of: 700), .storage)
+        XCTAssertEqual(parkedWindows.placement(of: 700), .parked)
 
         focused = win
         desktop.nativeSpaceChangeCallback?()
@@ -29,11 +29,11 @@ final class EngineFocusTests: EngineTestCase {
         XCTAssertEqual(workspaces.current, 1)
     }
 
-    func testFocusedStorageWindowSwitchesToItsWorkspace() {
+    func testFocusedParkedWindowSwitchesToItsWorkspace() {
         let win = create(StubWindow(id: 700))
         engine.switchToWorkspace(2)
 
-        XCTAssertEqual(parkedWindows.placement(of: 700), .storage)
+        XCTAssertEqual(parkedWindows.placement(of: 700), .parked)
 
         focused = win
         engine.handle(.focused(win.snapshot()))
@@ -42,7 +42,7 @@ final class EngineFocusTests: EngineTestCase {
         XCTAssertEqual(parkedWindows.placement(of: 700), .active)
     }
 
-    func testStaleFocusEventForStorageWindowIsIgnored() {
+    func testStaleFocusEventForParkedWindowIsIgnored() {
         let win1 = create(StubWindow(id: 100))
         let win2 = create(StubWindow(id: 200))
         moveFocusedWindow(win2, to: 2)
@@ -51,7 +51,7 @@ final class EngineFocusTests: EngineTestCase {
         engine.handle(.focused(win2.snapshot()))
 
         XCTAssertEqual(workspaces.current, 1)
-        XCTAssertEqual(parkedWindows.placement(of: 200), .storage)
+        XCTAssertEqual(parkedWindows.placement(of: 200), .parked)
     }
 
     func testFocusEchoFromTheWorkspaceLeftDoesNotBounceBack() {
@@ -64,11 +64,11 @@ final class EngineFocusTests: EngineTestCase {
         engine.handle(.focused(win1.snapshot()))
 
         XCTAssertEqual(workspaces.current, 2)
-        XCTAssertEqual(parkedWindows.placement(of: 100), .storage)
+        XCTAssertEqual(parkedWindows.placement(of: 100), .parked)
         XCTAssertEqual(parkedWindows.placement(of: 200), .active)
     }
 
-    func testFocusedStorageWindowDoesNotSwitchWhileCurrentWorkspaceIsClosing() {
+    func testFocusedParkedWindowDoesNotSwitchWhileCurrentWorkspaceIsClosing() {
         create(StubWindow(id: 100))
         let win2 = create(StubWindow(id: 200))
         moveFocusedWindow(win2, to: 2)
@@ -78,10 +78,10 @@ final class EngineFocusTests: EngineTestCase {
         engine.handle(.focused(win2.snapshot()))
 
         XCTAssertEqual(workspaces.current, 1)
-        XCTAssertEqual(parkedWindows.placement(of: 200), .storage)
+        XCTAssertEqual(parkedWindows.placement(of: 200), .parked)
     }
 
-    func testFocusedStorageWindowDoesNotSwitchWhenCurrentWorkspaceWindowClosedBeforeItsDestroyedEvent() {
+    func testFocusedParkedWindowDoesNotSwitchWhenCurrentWorkspaceWindowClosedBeforeItsDestroyedEvent() {
         create(StubWindow(id: 100))
         let win2 = create(StubWindow(id: 200))
         moveFocusedWindow(win2, to: 2)
@@ -91,10 +91,10 @@ final class EngineFocusTests: EngineTestCase {
         engine.handle(.focused(win2.snapshot()))
 
         XCTAssertEqual(workspaces.current, 1)
-        XCTAssertEqual(parkedWindows.placement(of: 200), .storage)
+        XCTAssertEqual(parkedWindows.placement(of: 200), .parked)
     }
 
-    func testFocusedStorageWindowDoesNotSwitchWhenOneWindowOfTheCurrentWorkspaceClosed() {
+    func testFocusedParkedWindowDoesNotSwitchWhenOneWindowOfTheCurrentWorkspaceClosed() {
         create(StubWindow(id: 100))
         let win2 = create(StubWindow(id: 200))
         moveFocusedWindow(win2, to: 2)
@@ -105,12 +105,12 @@ final class EngineFocusTests: EngineTestCase {
         engine.handle(.focused(win2.snapshot()))
 
         XCTAssertEqual(workspaces.current, 1)
-        XCTAssertEqual(parkedWindows.placement(of: 200), .storage)
+        XCTAssertEqual(parkedWindows.placement(of: 200), .parked)
         XCTAssertEqual(workspaces.allWindowIds, [101, 200])
         XCTAssertEqual(survivor.focusCount, 1)
     }
 
-    func testFocusedStorageWindowSwitchesWhenCurrentWorkspaceWindowIsOnlyMinimized() {
+    func testFocusedParkedWindowSwitchesWhenCurrentWorkspaceWindowIsOnlyMinimized() {
         let win1 = create(StubWindow(id: 100))
         let win2 = create(StubWindow(id: 200))
         moveFocusedWindow(win2, to: 2)

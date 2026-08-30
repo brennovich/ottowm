@@ -1,7 +1,7 @@
 import AppKit
 import CoreGraphics
 
-/// Applies `Placement` on one macOS Space, like AeroSpace. A storage window is moved to
+/// Applies `Placement` on one macOS Space, like AeroSpace. A parked window is moved to
 /// the bottom-right corner, and restored to its captured frame on the next switch.
 final class OffscreenParkingDesktop: Desktop {
     /// One window's move, decided on the main thread and carried out off it.
@@ -58,7 +58,7 @@ final class OffscreenParkingDesktop: Desktop {
                 continue
             }
             // An already parked window is left where it is, without a frame read.
-            guard placement != .storage || owedFrame == nil else { continue }
+            guard placement != .parked || owedFrame == nil else { continue }
 
             moves.append(Move(windowId: windowId, window: win, placement: placement, parkedFrom: owedFrame))
         }
@@ -141,12 +141,12 @@ final class OffscreenParkingDesktop: Desktop {
     private func run(_ requested: Move) -> PlacementOutcome {
         guard let currentFrame = requested.window.movableFrame() else {
             Log.desktop.info("cannot move id=\(requested.windowId) to \(requested.placement): window not movable")
-            guard let parkedFrom = requested.parkedFrom else { return .onScreen(requested.windowId) }
+            guard let parkedFrom = requested.parkedFrom else { return .activated(requested.windowId) }
             return .parked(requested.windowId, owing: parkedFrom)
         }
 
         switch requested.placement {
-        case .storage:
+        case .parked:
             let originalFrame = onScreenFrame(for: requested.windowId, replacing: currentFrame)
             let hidden = hiddenEdge.frame(parking: originalFrame)
             move(requested.window, from: currentFrame, to: hidden)
@@ -158,7 +158,7 @@ final class OffscreenParkingDesktop: Desktop {
                 move(requested.window, from: currentFrame, to: target)
                 Log.desktop.debug("restored id=\(requested.windowId) to=\(target)")
             }
-            return .onScreen(requested.windowId)
+            return .activated(requested.windowId)
         }
     }
 
