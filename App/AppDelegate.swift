@@ -59,14 +59,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             window: windowById
         )
 
+        let parkedWindows = ParkedWindows()
         let engine = Engine(
             desktop: OffscreenParkingDesktop(
                 screen: MainScreen(),
-                window: windowById,
-                focusedWindowId: { AXWindow.focused()?.id }
+                window: windowById
             ),
             windowSystem: windowSystem,
             workspaces: Workspaces(tabCount: windowSystem.tabCount(of:)),
+            parkedWindows: parkedWindows,
             screenIsLocked: { [screenLock] in screenLock.isLocked },
             quit: shutdown.quit,
             restart: { [weak self] in self?.bindings?.reload() }

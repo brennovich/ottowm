@@ -10,7 +10,6 @@ final class EngineMinimizeTests: EngineTestCase {
         engine.handle(.minimized(200))
 
         XCTAssertEqual(workspaces.allWindowIds, [100])
-        XCTAssertEqual(desktop.forgottenWindowIds, [200])
         XCTAssertEqual(win1.focusCount, 1)
     }
 
@@ -22,7 +21,6 @@ final class EngineMinimizeTests: EngineTestCase {
         engine.handle(.minimized(301))
 
         XCTAssertEqual(workspaces.allWindowIds, [100])
-        XCTAssertEqual(desktop.forgottenWindowIds, [300, 301])
         XCTAssertEqual(other.focusCount, 1)
         XCTAssertEqual(tab1.focusCount, 0)
     }
@@ -59,6 +57,6 @@ final class EngineMinimizeTests: EngineTestCase {
 
         engine.switchToWorkspace(2)
 
-        XCTAssertEqual(desktop.placement(of: 100), .storage)
+        XCTAssertEqual(parkedWindows.placement(of: 100), .storage)
     }
 }

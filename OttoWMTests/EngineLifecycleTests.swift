@@ -22,8 +22,8 @@ final class EngineLifecycleTests: EngineTestCase {
 
         engine.handle(.quit)
 
-        XCTAssertEqual(desktop.placement(of: 100), .active)
-        XCTAssertEqual(desktop.placement(of: 200), .active)
+        XCTAssertEqual(parkedWindows.placement(of: 100), .active)
+        XCTAssertEqual(parkedWindows.placement(of: 200), .active)
         XCTAssertEqual(quitCount, 1)
     }
 
@@ -34,8 +34,8 @@ final class EngineLifecycleTests: EngineTestCase {
 
         engine.handle(.restart)
 
-        XCTAssertEqual(desktop.placement(of: 100), .storage)
-        XCTAssertEqual(desktop.placement(of: 200), .active)
+        XCTAssertEqual(parkedWindows.placement(of: 100), .storage)
+        XCTAssertEqual(parkedWindows.placement(of: 200), .active)
         XCTAssertEqual(restartCount, 1)
     }
 
@@ -63,8 +63,7 @@ final class EngineLifecycleTests: EngineTestCase {
         engine.handle(.created(add(StubWindow(id: 200)).snapshot()))
 
         XCTAssertEqual(workspaces.allWindowIds, [100])
-        XCTAssertEqual(desktop.forgottenWindowIds, [])
-        XCTAssertEqual(desktop.placement(of: win.id), .storage)
+        XCTAssertEqual(parkedWindows.placement(of: win.id), .storage)
     }
 
     func testWindowEventsAreHandledOnceTheScreenIsUnlocked() {
@@ -76,6 +75,5 @@ final class EngineLifecycleTests: EngineTestCase {
         engine.handle(.destroyed(100))
 
         XCTAssertEqual(workspaces.allWindowIds, [])
-        XCTAssertEqual(desktop.forgottenWindowIds, [100])
     }
 }

@@ -1,7 +1,7 @@
 import XCTest
 
 final class HiddenEdgeTests: XCTestCase {
-    private let hiddenEdge = OffscreenParkingDesktop.HiddenEdge(screen: StubScreen.standard)
+    private let hiddenEdge = HiddenEdge(screen: StubScreen.standard)
 
     func testParkingPinsOriginToBottomRightNubKeepingSize() {
         let hidden = hiddenEdge.frame(parking: CGRect(x: 100, y: 100, width: 800, height: 600))

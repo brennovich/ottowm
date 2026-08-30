@@ -29,6 +29,17 @@ final class EngineMoveWindowDirectionTests: EngineTestCase {
         }
     }
 
+    func testParkedWindowOfTheCurrentWorkspaceMovesNothing() {
+        let win = create(StubWindow(id: 100, frame: frame))
+        focused = win
+        parkedWindows.park(win.id, owing: frame)
+
+        engine.moveFocusedWindow(step)
+
+        XCTAssertTrue(desktop.moveCalls.isEmpty)
+        XCTAssertEqual(win.frame, frame)
+    }
+
     func testWindowThatNoLongerExistsIsDropped() {
         let win = create(StubWindow(id: 100, frame: frame))
         focused = win
@@ -36,7 +47,6 @@ final class EngineMoveWindowDirectionTests: EngineTestCase {
 
         engine.moveFocusedWindow(step)
 
-        XCTAssertEqual(desktop.forgottenWindowIds, [win.id])
         XCTAssertNil(workspaces.workspace(for: win.id))
     }
 

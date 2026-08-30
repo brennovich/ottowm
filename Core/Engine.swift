@@ -6,6 +6,7 @@ final class Engine {
     private let desktop: any Desktop
     private let windowSystem: WindowSystem
     private let workspaces: Workspaces
+    private let parkedWindows: ParkedWindows
     private let screenIsLocked: () -> Bool
     private let quit: () -> Void
     private let restart: () -> Void
@@ -21,6 +22,7 @@ final class Engine {
         desktop: any Desktop,
         windowSystem: WindowSystem,
         workspaces: Workspaces,
+        parkedWindows: ParkedWindows,
         screenIsLocked: @escaping () -> Bool = { false },
         quit: @escaping () -> Void = {},
         restart: @escaping () -> Void = {}
@@ -28,6 +30,7 @@ final class Engine {
         self.desktop = desktop
         self.windowSystem = windowSystem
         self.workspaces = workspaces
+        self.parkedWindows = parkedWindows
         self.screenIsLocked = screenIsLocked
         self.quit = quit
         self.restart = restart
@@ -39,15 +42,17 @@ final class Engine {
                 assign(win, to: 1)
             }
 
-            desktop.startWatching { [weak self] windowId in
-                self?.handleManualNavigation(windowId)
+            desktop.startWatching { [weak self] in
+                self?.handleNativeSpaceChange()
             }
         }
     }
 
     /// Prevents lost windows when OttoWM quit or crash.
     func stop() {
-        desktop.restoreAll()
+        let parked = parkedWindows.all.map { (windowId: $0.windowId, placement: Placement.active) }
+        Log.engine.info("restoring \(parked.count) parked windows")
+        place(parked)
     }
 
     func handle(_ event: WindowEvent) {
@@ -129,7 +134,7 @@ final class Engine {
 
             let placement: Placement = workspace == workspaces.current ? .active : .storage
             Log.engine.info("moving window \(win.logDescription) to workspace \(workspace) placement=\(placement)")
-            desktop.place(win.id, at: placement)
+            place(win.id, at: placement)
             workspaces.move(win.id, to: workspace)
             // An explicit move overrides the workspace a full screen window would
             // otherwise return to.
@@ -151,7 +156,7 @@ final class Engine {
             }
 
             let candidates = workspaces.windowIds(in: workspaces.current)
-                .filter { $0 != reference.id && desktop.placement(of: $0) == .active }
+                .filter { $0 != reference.id && parkedWindows.placement(of: $0) == .active }
 
             let neighbors = Neighbors(around: reference.frame, among: windowSystem.frames(of: candidates))
             guard let target = neighbors.nearest(to: direction) else {
@@ -174,6 +179,12 @@ final class Engine {
                 Log.engine.info("move \(step.direction.rawValue) dropped: no window of workspace \(self.workspaces.current) focused")
                 return
             }
+            // A parked window is owed the frame recorded for it, not the one it sits at,
+            // so moving it now would be undone by the next restore.
+            guard parkedWindows.placement(of: win.id) == .active else {
+                Log.engine.info("move \(step.direction.rawValue) dropped: id=\(win.id) is parked")
+                return
+            }
 
             Log.engine.info("moving \(win.logDescription) \(step.direction.rawValue) by \(step.points)")
             if !desktop.move(win.id, step) {
@@ -185,7 +196,7 @@ final class Engine {
     private func handleFocused(_ win: WindowSnapshot) {
         let isEcho = awaitedFocus.settle(win.id)
 
-        if desktop.placement(of: win.id) == .storage {
+        if parkedWindows.placement(of: win.id) == .storage {
             // Focus notifications arrive asynchronously, so this one may answer a focus
             // OttoWM requested before the switch that parked the window. Acting on it
             // would switch straight back to the workspace just left. Only a window the OS
@@ -260,7 +271,7 @@ final class Engine {
 
     /// The user can drag a managed window onto another native Space.
     private func dropWindowsThatLeftTheDesktop() {
-        let parked = workspaces.allWindowIds.filter { desktop.placement(of: $0) == .storage }
+        let parked = workspaces.allWindowIds.filter { parkedWindows.placement(of: $0) == .storage }
         guard windowSystem.showsAny(parked) else { return }
 
         for windowId in workspaces.allWindowIds.subtracting(parked) where !showsTabGroup(of: windowId) {
@@ -291,10 +302,29 @@ final class Engine {
         Log.engine.info("\(reason) id=\(windowId), dropped from workspace \(workspace)")
 
         let focusSettled = workspaces.remove(windowId)
-        desktop.forget(windowId)
+        parkedWindows.forget(windowId)
         workspaceBeforeFullScreen.take(windowId)
         awaitedFocus.forget(windowId)
         return focusSettled
+    }
+
+    /// The native Space in front changed. Either the user reached a parked window from
+    /// another one, or macOS pulled parked windows back on screen: it moves the
+    /// non-full-screen window back when its full screen instance exits, a Safari video for
+    /// example.
+    private func handleNativeSpaceChange() {
+        windowSystem.duringOperation("native-space-change") {
+            guard let focused = windowSystem.focused(),
+                  parkedWindows.placement(of: focused.id) == .storage
+            else {
+                Log.engine.debug("native space change: no parked window focused")
+                desktop.repark(parkedWindows.all)
+                return
+            }
+
+            Log.engine.info("native space change with parked window focused id=\(focused.id)")
+            handleManualNavigation(focused.id)
+        }
     }
 
     /// A parked window taking the focus means the user reached it outside OttoWM: Cmd-Tab
@@ -353,7 +383,7 @@ final class Engine {
 
         let batch = placements.toActive.map { (windowId: $0, placement: Placement.active) }
             + placements.toStorage.map { (windowId: $0, placement: Placement.storage) }
-        desktop.place(batch).forEach { unmanage($0, reason: "gone") }
+        place(batch).forEach { unmanage($0, reason: "gone") }
     }
 
     /// Takes the window under management and places it.
@@ -366,8 +396,27 @@ final class Engine {
         let assigned = workspaces.assign(win, to: target)
         Log.engine.info("assigned \(win.logDescription) → workspace \(assigned)")
 
-        desktop.place(win.id, at: assigned == workspaces.current ? .active : .storage)
+        place(win.id, at: assigned == workspaces.current ? .active : .storage)
         return assigned
+    }
+
+    private func place(_ windowId: CGWindowID, at placement: Placement) {
+        place([(windowId: windowId, placement: placement)])
+    }
+
+    /// Places the windows and records where each one ended up.
+    /// - Returns: the ids of the windows that no longer exist.
+    @discardableResult
+    private func place(_ placements: [(windowId: CGWindowID, placement: Placement)]) -> [CGWindowID] {
+        let outcomes = desktop.place(placements.map {
+            (windowId: $0.windowId, placement: $0.placement, owedFrame: parkedWindows.owedFrame(of: $0.windowId))
+        })
+        parkedWindows.record(outcomes)
+
+        return outcomes.compactMap { outcome -> CGWindowID? in
+            guard case let .gone(windowId) = outcome else { return nil }
+            return windowId
+        }
     }
 
     /// Focusing a managed window is the only way back from another native Space or from a

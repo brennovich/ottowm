@@ -24,7 +24,7 @@ final class EngineTabGroupTests: EngineTestCase {
         engine.switchToWorkspace(2)
 
         XCTAssertEqual(workspaces.workspace(for: 301), 1)
-        XCTAssertEqual(desktop.placement(of: 301), .storage)
+        XCTAssertEqual(parkedWindows.placement(of: 301), .storage)
     }
 
     func testSelectingAnotherTabKeepsTheDesktopInFront() {
@@ -36,7 +36,7 @@ final class EngineTabGroupTests: EngineTestCase {
         engine.switchToWorkspace(2)
 
         XCTAssertEqual(workspaces.workspace(for: 301), 1)
-        XCTAssertEqual(desktop.placement(of: 301), .storage)
+        XCTAssertEqual(parkedWindows.placement(of: 301), .storage)
         XCTAssertEqual(tab1.focusCount, 0)
     }
 
@@ -51,7 +51,7 @@ final class EngineTabGroupTests: EngineTestCase {
         engine.switchToWorkspace(2)
 
         XCTAssertEqual(workspaces.workspace(for: 300), 1)
-        XCTAssertEqual(desktop.placement(of: 300), .storage)
+        XCTAssertEqual(parkedWindows.placement(of: 300), .storage)
     }
 
     func testFocusingATabOfAGroupParkedElsewhereFollowsTheUserToIt() {
@@ -63,7 +63,7 @@ final class EngineTabGroupTests: EngineTestCase {
         engine.handle(.focused(lateTab.snapshot()))
 
         XCTAssertEqual(workspaces.current, 1)
-        XCTAssertEqual(desktop.placement(of: 301), .active)
+        XCTAssertEqual(parkedWindows.placement(of: 301), .active)
     }
 
     func testDestroyedTabbedWindowDoesNotStealFocus() {

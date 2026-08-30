@@ -15,6 +15,8 @@ class EngineTestCase: XCTestCase {
 
     lazy var workspaces = Workspaces(tabCount: { [weak self] id in self?.windows[id]?.tabCount() ?? 1 })
 
+    let parkedWindows = ParkedWindows()
+
     lazy var desktop = StubDesktop(window: { [weak self] id in self?.windows[id] })
 
     lazy var engine = Engine(
@@ -34,6 +36,7 @@ class EngineTestCase: XCTestCase {
             window: { [weak self] id in self?.windows[id] }
         ),
         workspaces: workspaces,
+        parkedWindows: parkedWindows,
         screenIsLocked: { [weak self] in self?.screenIsLocked ?? false },
         quit: { [weak self] in self?.quit() },
         restart: { [weak self] in self?.restartCount += 1 }

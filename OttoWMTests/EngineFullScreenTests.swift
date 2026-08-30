@@ -13,7 +13,6 @@ final class EngineFullScreenTests: EngineTestCase {
         engine.switchToWorkspace(1)
 
         XCTAssertEqual(workspaces.allWindowIds, [100])
-        XCTAssertEqual(desktop.forgottenWindowIds, [200])
         XCTAssertEqual(win1.focusCount, 1)
     }
 
@@ -26,7 +25,7 @@ final class EngineFullScreenTests: EngineTestCase {
 
         XCTAssertEqual(workspaces.workspace(for: 200), 1)
         XCTAssertEqual(workspaces.current, 1)
-        XCTAssertEqual(desktop.placement(of: 200), .active)
+        XCTAssertEqual(parkedWindows.placement(of: 200), .active)
     }
 
     func testWindowFoundBackFromFullScreenWhileRestoringFocusReturnsToTheWorkspaceItLeft() {
@@ -40,8 +39,8 @@ final class EngineFullScreenTests: EngineTestCase {
 
         XCTAssertEqual(workspaces.workspace(for: 200), 1)
         XCTAssertEqual(workspaces.current, 1)
-        XCTAssertEqual(desktop.placement(of: 200), .active)
-        XCTAssertEqual(desktop.placement(of: 100), .active)
+        XCTAssertEqual(parkedWindows.placement(of: 200), .active)
+        XCTAssertEqual(parkedWindows.placement(of: 100), .active)
     }
 
     func testMovingAWindowBackFromFullScreenOverridesTheWorkspaceItLeft() {

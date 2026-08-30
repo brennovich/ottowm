@@ -10,7 +10,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
     private var snapshotCount = 0
     private let center = NotificationCenter()
     private lazy var workspaces = Workspaces(tabCount: { [weak self] id in self?.windows[id]?.tabCount() ?? 1 })
-    private let hiddenEdge = OffscreenParkingDesktop.HiddenEdge(screen: StubScreen.standard)
+    private let hiddenEdge = HiddenEdge(screen: StubScreen.standard)
 
     private lazy var onScreenWindows = OperationCache { [weak self] () -> [CGWindowID: CGRect] in
         guard let self else { return [:] }
@@ -19,10 +19,11 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         return ids.reduce(into: [CGWindowID: CGRect]()) { $0[$1] = self.windows[$1]?.frame ?? .zero }
     }
 
+    private let parkedWindows = ParkedWindows()
+
     private lazy var desktop: OffscreenParkingDesktop = OffscreenParkingDesktop(
         screen: StubScreen.standard,
         window: { [weak self] in self?.windows[$0] },
-        focusedWindowId: { [weak self] in self?.focused?.id },
         notificationCenter: center
     )
 
@@ -33,7 +34,8 @@ final class EngineDesktopIntegrationTests: XCTestCase {
             onScreenWindows: onScreenWindows,
             window: { [weak self] in self?.windows[$0] }
         ),
-        workspaces: workspaces
+        workspaces: workspaces,
+        parkedWindows: parkedWindows
     )
 
     private func addWindow(_ id: CGWindowID, frame: CGRect, isMinimized: Bool = false) -> StubWindow {
@@ -93,6 +95,21 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         XCTAssertEqual(win1.frame, nubFrame(size: frame1.size))
     }
 
+    func testNativeSpaceChangeParksAgainTheWindowsItPulledBackOnScreen() {
+        let win1 = addWindow(100, frame: frame1)
+        let win2 = addWindow(200, frame: frame2)
+        focused = win1
+        start()
+        moveFocusedWindow(win2, to: 2)
+
+        win2.moveTo(frame2)
+        focused = win1
+        center.postNativeSpaceChange()
+
+        XCTAssertEqual(win2.frame, nubFrame(size: frame2.size))
+        XCTAssertEqual(workspaces.current, 1)
+    }
+
     func testReturnToDesktopSuppressesFollowUpManualNavigation() {
         let win1 = addWindow(100, frame: frame1)
         focused = win1
@@ -120,7 +137,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         windows[700] = nil
         engine.handle(.destroyed(700))
 
-        XCTAssertEqual(desktop.placement(of: 700), .active)
+        XCTAssertEqual(parkedWindows.placement(of: 700), .active)
 
         let recycledFrame = CGRect(x: 20, y: 30, width: 500, height: 400)
         let newWin = addWindow(700, frame: recycledFrame)

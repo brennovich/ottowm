@@ -73,7 +73,9 @@ flowchart LR
 | `Step`                      | Model     | One move of a window in points, and where it lands within the screen.                  |
 | `AwaitedFocus`              | Model     | The focus requests `Engine` made and has not seen answered.                            |
 | `WorkspaceBeforeFullScreen` | Model     | The workspace each full screen window returns to.                                      |
-| `Desktop`                   | macOS     | Parks a window at the hidden edge, restores its captured frame, and steps it around.   |
+| `ParkedWindows`             | Model     | The windows parked at the hidden edge, and the frame each one is owed back.            |
+| `Desktop`                   | macOS     | Parks a window at the hidden edge, restores the frame it is owed, and steps it around. |
+| `HiddenEdge`                | macOS     | The corner sliver a parked window sits in, and the frame one is recovered to.          |
 | `WindowSystem`              | macOS     | The focused window, the on-screen window frames, and the tab count of a window.        |
 | `AXWindowObserver`          | macOS     | The AX and `NSWorkspace` notifications, turned into `WindowEvent`s.                    |
 | `KnownWindows`              | macOS     | The windows OttoWM knows: `AXUIElement` ↔ `CGWindowID`, and their AX subscriptions.    |
@@ -87,7 +89,7 @@ flowchart LR
 | `ScreenLock`                | Lifecycle | Reports whether the login window covers the session.                                   |
 | `Shutdown`                  | Lifecycle | Every way the process ends: the `quit` action and SIGTERM.                             |
 
-`Desktop` is a protocol; `OffscreenParkingDesktop` is the implementation the app runs.
+`Desktop` is a protocol; `OffscreenParkingDesktop` is the implementation the app runs. It holds no state of its own: `Engine` hands it the frame each window is owed, and records what the placement reports back in `ParkedWindows`, which it reads to tell an active window from a stored one.
 
 ### Input
 
@@ -109,6 +111,7 @@ flowchart LR
     Engine --> Neighbors
     Engine --> AwaitedFocus
     Engine --> WorkspaceBeforeFullScreen
+    Engine --> ParkedWindows
     Workspaces --> Workspace
     Workspaces --> TabGroups
 ```
@@ -124,6 +127,7 @@ flowchart TB
     TabGroups -->|tabCount| WindowSystem
     AXWindowObserver -->|WindowEvent| Engine
     Desktop --> MainScreen
+    Desktop --> HiddenEdge
     Desktop --> KnownWindows
     WindowSystem -->|adopt focused| KnownWindows
     AXWindowObserver -->|observe, watch, drop dead| KnownWindows
@@ -162,7 +166,7 @@ sequenceDiagram
     Engine->>Desktop: recover(windows)
     Desktop-->>Engine: the same windows, parked ones back on screen
     Engine->>Workspaces: assign each one to workspace 1
-    Engine->>Desktop: startWatching(manualNavigation:)
+    Engine->>Desktop: startWatching(nativeSpaceChange:)
     AppDelegate->>Bindings: start()
 ```
 
@@ -175,7 +179,9 @@ sequenceDiagram
     Note over Engine: drops the focused window if full screen,<br/>drops the windows that left the desktop,<br/>admits the focused window
     Engine->>Workspaces: switchTo(n, leavingFocusOn: focused)
     Workspaces-->>Engine: (toActive, toStorage)
-    Engine->>Desktop: place(id, at: .active) and place(id, at: .storage)
+    Engine->>Desktop: place(each window, at its placement, owing the frame recorded for it)
+    Desktop-->>Engine: parked owing a frame, on screen, or gone, per window
+    Engine->>ParkedWindows: record(what came back)
     alt the desktop is in front
         Engine->>Desktop: focus(nextWindowToFocus)
     else another native Space is in front
@@ -193,6 +199,7 @@ sequenceDiagram
     Engine->>WindowSystem: focused()
     WindowSystem-->>Engine: the window, or nothing to move
     Engine->>Desktop: place(id, at: .active if n is current, else .storage)
+    Engine->>ParkedWindows: record(what came back)
     Engine->>Workspaces: move(id, to: n)
     Engine->>WorkspaceBeforeFullScreen: forget(id)
     Note over Engine: skipped when a window of the current workspace already has the focus
@@ -207,7 +214,7 @@ sequenceDiagram
     Engine->>WindowSystem: focused()
     Note over Engine: dropped unless that window is in the current workspace
     Engine->>Workspaces: windowIds(in: the current workspace)
-    Engine->>Desktop: placement(of: id)
+    Engine->>ParkedWindows: placement(of: id)
     Engine->>WindowSystem: frames(of: the windows placed active)
     Note over Engine: keeps the on-screen windows that are placed active
     Engine->>Neighbors: nearest(to: direction)
@@ -234,14 +241,16 @@ sequenceDiagram
         Engine->>WindowSystem: focused()
         Note over Engine: dropped unless the OS reports that window focused now,<br/>and the event is not the answer to a focus OttoWM requested
     else from another native Space
-        Desktop->>Engine: manualNavigation(parked window that has the focus)
+        Desktop->>Engine: nativeSpaceChange()
+        Engine->>WindowSystem: focused()
+        Note over Engine: followed only when that window is parked
     end
     Note over Engine: dropped by the one-shot ignore flag,<br/>or when every window of the current workspace is already gone
     Engine->>Workspaces: switchTo(that window's workspace)
     Engine->>Desktop: place(id, at: .active) and place(id, at: .storage)
 ```
 
-A Space change also pulls a parked window back on screen when its full screen instance exits, so `Desktop` parks such a window again.
+A Space change also pulls a parked window back on screen when its full screen instance exits. With no parked window focused, `Engine` answers the change with `repark`, which puts the parked windows found on screen back at the hidden edge.
 
 ### Full screen round trip
 
@@ -281,11 +290,11 @@ An `LSUIElement` agent has no quit command, so the ways out are a bound `quit` a
 sequenceDiagram
     alt quit action
         Hotkeys->>Engine: handle(quit)
-        Engine->>Desktop: restoreAll()
+        Engine->>Desktop: place(every parked window, at: .active)
         Engine->>Shutdown: quit()
     else SIGTERM
         Shutdown->>Engine: stop()
-        Engine->>Desktop: restoreAll()
+        Engine->>Desktop: place(every parked window, at: .active)
     end
     Shutdown->>Shutdown: exit(EXIT_SUCCESS)
 ```

@@ -3,14 +3,13 @@ import CoreGraphics
 final class StubDesktop: Desktop {
     private let window: (CGWindowID) -> (any Window)?
 
-    private(set) var placements: [CGWindowID: Placement] = [:]
     private(set) var placeCalls: [(windowId: CGWindowID, placement: Placement)] = []
     private(set) var placeBatches: [[CGWindowID]] = []
-    private(set) var forgottenWindowIds: [CGWindowID] = []
     private(set) var moveCalls: [(windowId: CGWindowID, step: Step)] = []
     private(set) var recoverCount = 0
     private(set) var recoveredWindowIds: [CGWindowID] = []
-    private(set) var manualNavigationCallback: ((CGWindowID) -> Void)?
+    private(set) var reparkCalls: [[CGWindowID]] = []
+    private(set) var nativeSpaceChangeCallback: (() -> Void)?
 
     var recoveredFrames: [CGWindowID: CGRect] = [:]
 
@@ -26,17 +25,18 @@ final class StubDesktop: Desktop {
         }
     }
 
-    @discardableResult
-    func place(_ windowId: CGWindowID, at placement: Placement) -> Bool {
-        placeCalls.append((windowId: windowId, placement: placement))
-        placements[windowId] = placement
-        return true
-    }
-
-    @discardableResult
-    func place(_ placements: [(windowId: CGWindowID, placement: Placement)]) -> [CGWindowID] {
+    func place(_ placements: [(windowId: CGWindowID, placement: Placement, owedFrame: CGRect?)]) -> [PlacementOutcome] {
         placeBatches.append(placements.map(\.windowId))
-        return placements.compactMap { place($0.windowId, at: $0.placement) ? nil : $0.windowId }
+        placeCalls.append(contentsOf: placements.map { (windowId: $0.windowId, placement: $0.placement) })
+
+        return placements.map { request in
+            switch request.placement {
+            case .storage:
+                return .parked(request.windowId, owing: request.owedFrame ?? window(request.windowId)?.snapshot().frame ?? .zero)
+            case .active:
+                return .onScreen(request.windowId)
+            }
+        }
     }
 
     var missingWindowIds: Set<CGWindowID> = []
@@ -58,28 +58,17 @@ final class StubDesktop: Desktop {
         placeBatches = []
     }
 
-    func restoreAll() {
-        for (windowId, placement) in placements where placement == .storage {
-            place(windowId, at: .active)
-        }
-    }
-
-    func placement(of windowId: CGWindowID) -> Placement {
-        placements[windowId] ?? .active
-    }
-
     func focus(_ windowId: CGWindowID) -> Bool {
         guard let win = window(windowId) else { return false }
         win.focus()
         return true
     }
 
-    func startWatching(manualNavigation callback: @escaping (CGWindowID) -> Void) {
-        manualNavigationCallback = callback
+    func startWatching(nativeSpaceChange callback: @escaping () -> Void) {
+        nativeSpaceChangeCallback = callback
     }
 
-    func forget(_ windowId: CGWindowID) {
-        forgottenWindowIds.append(windowId)
-        placements[windowId] = nil
+    func repark(_ parked: [(windowId: CGWindowID, owedFrame: CGRect)]) {
+        reparkCalls.append(parked.map(\.windowId))
     }
 }
