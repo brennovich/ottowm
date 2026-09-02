@@ -1,14 +1,16 @@
 import Cocoa
 
 class AppDelegate: NSObject, NSApplicationDelegate {
-    private let screenLock = ScreenLock()
     private let applications = Applications()
+    private lazy var lifecycle = Lifecycle(
+        stop: { [weak self] in self?.engine?.stop() },
+        resume: { [weak self] in self?.resync() }
+    )
     private lazy var windowEvents = AXWindowEvents(
         applications: applications,
-        screenIsLocked: { [screenLock] in screenLock.isLocked }
+        screenIsLocked: { [lifecycle] in lifecycle.screenIsLocked }
     )
     private lazy var windowObserver = AXWindowObserver(windowEvents: windowEvents)
-    private lazy var lifecycle = Lifecycle(stop: { [weak self] in self?.engine?.stop() })
     private var bindings: Bindings?
     private var engine: Engine?
 
@@ -68,7 +70,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             windowSystem: windowSystem,
             workspaces: Workspaces(tabCount: windowSystem.tabCount(of:)),
             parkedWindows: parkedWindows,
-            screenIsLocked: { [screenLock] in screenLock.isLocked },
+            screenIsLocked: { [lifecycle] in lifecycle.screenIsLocked },
             quit: lifecycle.quit,
             restart: { [weak self] in self?.bindings?.reload() }
         )
@@ -78,15 +80,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let bindings = Bindings.system(config: config, handler: engine.handle)
         self.bindings = bindings
 
-        screenLock.startWatching { [windowObserver] in
-            engine.resync(windows: windowObserver.resync())
-        }
         bindings.start()
         lifecycle.startWatchingSIGTERM()
+        lifecycle.startWatchingScreenLock()
 
         permission.startWatchingTrust(
             lost: { [weak self] in self?.bindings?.stop() },
             regained: { [weak self] in self?.bindings?.start() }
         )
+    }
+
+    private func resync() {
+        engine?.resync(windows: windowObserver.resync())
     }
 }

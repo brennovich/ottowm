@@ -91,8 +91,8 @@ flowchart LR
 | `Signposts`                 | macOS     | The operation and round-trip intervals Instruments records.                             |
 | `AppDelegate`               | Lifecycle | The startup order.                                                                      |
 | `AccessibilityPermission`   | Lifecycle | The startup gate, and the watch on the accessibility trust.                             |
-| `ScreenLock`                | Lifecycle | Reports whether the login window covers the session.                                    |
-| `Lifecycle`                 | Lifecycle | The ways the process ends once it owns windows: `quit`, SIGTERM, relaunch.              |
+| `ScreenLock`                | Lifecycle | Reports whether the login window covers the session, and when it is uncovered.          |
+| `Lifecycle`                 | Lifecycle | The transitions once it owns windows: `quit`, SIGTERM, relaunch, resync on unlock.      |
 | `AccessibilityAlert`        | UI        | The accessibility permission alerts: what they say and how they show.                   |
 
 `Window` is a protocol; `AXWindow` is the implementation the app runs.
@@ -157,10 +157,12 @@ flowchart LR
     AppDelegate --> Engine
     AppDelegate --> Bindings
     AccessibilityPermission -->|trust lost, regained| Bindings
-    ScreenLock -->|isLocked| Engine
-    ScreenLock -->|isLocked| AXWindowEvents
-    ScreenLock -->|unlock| AXWindowObserver
-    Lifecycle -->|stop| Engine
+    AppDelegate --> Lifecycle
+    Lifecycle --> ScreenLock
+    Lifecycle -->|stop, resync| Engine
+    Lifecycle -->|screenIsLocked| Engine
+    Lifecycle -->|screenIsLocked| AXWindowEvents
+    Lifecycle -->|resync| AXWindowObserver
     AccessibilityPermission -->|relaunch| Lifecycle
 ```
 
@@ -314,6 +316,29 @@ sequenceDiagram
 ```
 
 The default action for SIGTERM ends the process with every parked window still at the hidden edge. `Lifecycle.startWatchingSIGTERM` ignores the signal and takes it on a `DispatchSourceSignal` on the main queue.
+
+### Unlock
+
+Window events are dropped while the screen is locked, and a sweep run behind the login window reads every window as closed, so the registry and the workspaces drift apart. Unlocking closes the gap: `Lifecycle` runs both halves of the reconciliation, the removals first and the additions after.
+
+```mermaid
+sequenceDiagram
+    ScreenLock->>Lifecycle: unlocked
+    Lifecycle->>AXWindowObserver: resync()
+    AXWindowObserver->>AXWindowEvents: runGC()
+    AXWindowEvents->>Engine: destroyed(windowId), for each window that stopped answering
+    loop each running application
+        AXWindowObserver->>AXWindowEvents: resync(app)
+        AXWindowEvents-->>AXWindowObserver: every window the application holds
+    end
+    AXWindowObserver-->>Lifecycle: the windows of every application
+    Lifecycle->>Engine: resync(windows:)
+    Engine->>Engine: assign the ones no workspace knows to the current workspace
+```
+
+The sweep runs first: a window it drops must not come back in the answer as one to adopt again. A window is reported dead only after two passes without an answer, because an application still coming back from sleep answers for none of its windows.
+
+The answer holds every window, not only the ones this pass attached. A window created behind the login window was attached by the notification that announced it, and only the engine dropped the event, so it reaches the workspaces solely because `Engine.resync` reads the full set and keeps what no workspace knows.
 
 ### Window lifecycle
 
