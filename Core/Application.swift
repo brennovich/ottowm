@@ -3,6 +3,20 @@ import ApplicationServices
 import CoreGraphics
 
 final class Application {
+    /// `known` carries the instance registered earlier, whose id is already read.
+    enum Attachment: Equatable {
+        case attached(AXWindow)
+        case known(AXWindow)
+        case rejected
+
+        var window: AXWindow? {
+            switch self {
+            case let .attached(window), let .known(window): window
+            case .rejected: nil
+            }
+        }
+    }
+
     let running: NSRunningApplication
 
     private let channel: AXNotifications
@@ -25,15 +39,16 @@ final class Application {
     }
 
     @discardableResult
-    func attach(_ window: AXWindow) -> AXWindow? {
-        guard !attached.contains(window), window.id != 0 else { return nil }
+    func attach(_ window: AXWindow) -> Attachment {
+        if let known = findWindow(window) { return .known(known) }
+        guard window.id != 0 else { return .rejected }
 
         Subscription.window(window, channel: channel).activate()
         attached.insert(window)
         windowsById[window.id] = window
 
         Log.windows.info("subscribing \(window.logDescription)")
-        return window
+        return .attached(window)
     }
 
     func findWindow(_ window: AXWindow) -> AXWindow? {

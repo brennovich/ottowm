@@ -34,7 +34,10 @@ final class Applications {
         }
 
         let focused = attachFocusedWindow(of: application)
-        let windows = listedWindows(application.running).compactMap { application.attach($0) }
+        let windows = listedWindows(application.running).compactMap { window -> AXWindow? in
+            guard case let .attached(attached) = application.attach(window) else { return nil }
+            return attached
+        }
 
         return AddedResult(subscription: subscription, windows: windows, focused: focused)
     }
@@ -55,8 +58,7 @@ final class Applications {
         guard application.running.isActive, let window = focusedWindow(application.running)
         else { return nil }
 
-        application.attach(window)
-        return window
+        return application.attach(window).window
     }
 
     private func locked<T>(_ body: () -> T) -> T {

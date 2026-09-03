@@ -133,12 +133,12 @@ final class AXWindowEvents {
     ) -> WindowEvent? {
         switch notification {
         case kAXWindowCreatedNotification:
-            return app.attach(window).map { .created($0.snapshot()) }
+            guard case let .attached(attached) = app.attach(window) else { return nil }
+            return .created(attached.snapshot())
         case kAXFocusedWindowChangedNotification:
             // A window already attached is reported again, from the registry: a repeated
             // focus is an event, and the stored window has its id without a read.
-            let attached = app.attach(window) ?? app.findWindow(window)
-            return attached.map { .focused($0.snapshot()) }
+            return app.attach(window).window.map { .focused($0.snapshot()) }
         case kAXUIElementDestroyedNotification:
             return app.detach(window).map { WindowEvent.destroyed($0.id) }
         case kAXWindowMiniaturizedNotification:

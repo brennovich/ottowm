@@ -21,35 +21,52 @@ final class ApplicationTests: XCTestCase {
         AXWindow(element: element, application: app, id: id)
     }
 
-    func testAttachSubscribesTheWindowNotificationsAndReturnsTheWindow() {
+    func testAttachSubscribesTheWindowNotificationsAndAnswersAttached() {
         let element = AXUIElementCreateApplication(5000)
+        let attached = window(id: 42, element: element)
 
-        let attached = application.attach(window(id: 42, element: element))
+        let attachment = application.attach(attached)
 
-        XCTAssertEqual(attached?.id, 42)
-        XCTAssertEqual(attached?.element, element)
+        XCTAssertEqual(attachment, .attached(attached))
+        XCTAssertIdentical(attachment.window, attached)
         XCTAssertEqual(watched.map(\.notification), windowNotifications)
         XCTAssertEqual(Set(watched.map(\.element)), [element])
     }
 
-    func testAttachOfAKnownWindowReportsNothingAndDoesNotSubscribeItAgain() {
+    func testAttachOfAKnownWindowAnswersTheRegisteredInstanceAndDoesNotSubscribeItAgain() {
         let element = AXUIElementCreateApplication(5000)
-        _ = application.attach(window(id: 42, element: element))
+        let first = window(id: 42, element: element)
+        application.attach(first)
         let count = watched.count
 
-        XCTAssertNil(application.attach(window(id: 42, element: element)))
+        let attachment = application.attach(window(id: 42, element: element))
+
+        XCTAssertEqual(attachment, .known(first))
+        XCTAssertIdentical(attachment.window, first)
         XCTAssertEqual(watched.count, count)
     }
 
-    func testAttachOfAWindowWithoutAnIdReportsNothing() {
-        XCTAssertNil(application.attach(window(id: 0)))
+    func testAttachFindsAKnownWindowByItsElementWithoutReadingItsId() {
+        let element = AXUIElementCreateApplication(5000)
+        let first = window(id: 42, element: element)
+        application.attach(first)
+
+        XCTAssertEqual(application.attach(AXWindow(element: element, application: app)), .known(first))
+    }
+
+    func testAttachOfAWindowWithoutAnIdAnswersRejected() {
+        let attachment = application.attach(window(id: 0))
+
+        XCTAssertEqual(attachment, .rejected)
+        XCTAssertNil(attachment.window)
         XCTAssertEqual(watched.count, 0)
     }
 
-    func testAttachOfAnApplicationThatDoesNotAnswerStillReturnsTheWindow() {
+    func testAttachOfAnApplicationThatDoesNotAnswerStillAttachesTheWindow() {
         answer = .cannotComplete
+        let attached = window(id: 42)
 
-        XCTAssertEqual(application.attach(window(id: 42))?.id, 42)
+        XCTAssertEqual(application.attach(attached), .attached(attached))
     }
 
     func testFindWindowOfAnAttachedWindowIsTheWindowItWasAttachedWith() {

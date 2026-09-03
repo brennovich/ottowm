@@ -169,6 +169,15 @@ final class AXWindowEventsLifecycleTests: AXWindowEventsTestCase {
         XCTAssertEqual(events, [])
     }
 
+    func testReconcileOfAFocusedWindowWithoutAnIdReportsNothing() {
+        start(app)
+        harness.focusedElements[901] = harness.makeElement(id: 0)
+
+        windowEvents.reconcile(app)
+
+        XCTAssertEqual(events, [])
+    }
+
     // The focused window of an application that is not the active one is not what has
     // focus, so a reconcile driven by the retry loop must not report it.
     func testReconcileLeavesTheFocusedWindowOfAnInactiveApplicationAlone() {
