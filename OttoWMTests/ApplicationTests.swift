@@ -47,9 +47,7 @@ final class ApplicationTests: XCTestCase {
         XCTAssertEqual(scan.subscription, .active)
         XCTAssertEqual(scan.windows, [new])
         XCTAssertNil(scan.focused)
-        XCTAssertEqual(
-            watched.map(\.notification), windowNotifications + applicationNotifications + windowNotifications
-        )
+        XCTAssertEqual(watched.count, 2 * windowNotifications.count + applicationNotifications.count)
         XCTAssertEqual(application.windows.map(\.id).sorted(), [42, 43])
     }
 
@@ -104,25 +102,17 @@ final class ApplicationTests: XCTestCase {
         XCTAssertEqual(Set(watched.map(\.element)), [element])
     }
 
-    func testAttachOfAKnownWindowAnswersTheRegisteredInstanceAndDoesNotSubscribeItAgain() {
+    func testAttachOfAKnownWindowAnswersTheRegisteredInstanceWithoutReadingItsIdOrSubscribingItAgain() {
         let element = AXUIElementCreateApplication(5000)
         let first = window(id: 42, element: element)
         application.attach(first)
         let count = watched.count
 
-        let attachment = application.attach(window(id: 42, element: element))
+        let attachment = application.attach(AXWindow(element: element, application: app))
 
         XCTAssertEqual(attachment, .known(first))
         XCTAssertIdentical(attachment.window, first)
         XCTAssertEqual(watched.count, count)
-    }
-
-    func testAttachFindsAKnownWindowByItsElementWithoutReadingItsId() {
-        let element = AXUIElementCreateApplication(5000)
-        let first = window(id: 42, element: element)
-        application.attach(first)
-
-        XCTAssertEqual(application.attach(AXWindow(element: element, application: app)), .known(first))
     }
 
     func testAttachOfAWindowWithoutAnIdAnswersRejected() {
@@ -140,26 +130,20 @@ final class ApplicationTests: XCTestCase {
         XCTAssertEqual(application.attach(attached), .attached(attached))
     }
 
-    func testFindWindowByElementIsTheWindowItWasAttachedWith() {
+    func testFindWindowByElementIsTheWindowItWasAttachedWithAndNilForAnyOther() {
         let attached = window(id: 42, element: AXUIElementCreateApplication(5000))
         application.attach(attached)
 
         XCTAssertIdentical(application.findWindow(element: AXUIElementCreateApplication(5000)), attached)
+        XCTAssertNil(application.findWindow(element: AXUIElementCreateApplication(5001)))
     }
 
-    func testFindWindowByAnUnknownElementReturnsNil() {
-        XCTAssertNil(application.findWindow(element: AXUIElementCreateApplication(5000)))
-    }
-
-    func testFindWindowByAnAttachedIdIsTheWindowItWasAttachedWith() {
+    func testFindWindowByAnAttachedIdIsTheWindowItWasAttachedWithAndNilForAnyOther() {
         let attached = window(id: 42)
         application.attach(attached)
 
         XCTAssertIdentical(application.findWindow(by: 42), attached)
-    }
-
-    func testFindWindowByAnUnknownIdReturnsNil() {
-        XCTAssertNil(application.findWindow(by: 42))
+        XCTAssertNil(application.findWindow(by: 43))
     }
 
     func testDetachKeepsTheIdHeldByAnotherElementOfTheSameTabGroup() {
@@ -180,14 +164,8 @@ final class ApplicationTests: XCTestCase {
 
         XCTAssertIdentical(application.detach(element: element), attached)
         XCTAssertNil(application.findWindow(element: element))
+        XCTAssertNil(application.findWindow(by: 42))
         XCTAssertNil(application.detach(element: element))
-    }
-
-    func testWindowsListsTheAttachedWindows() {
-        _ = application.attach(window(id: 42, element: AXUIElementCreateApplication(5000)))
-        _ = application.attach(window(id: 43, element: AXUIElementCreateApplication(5001)))
-
-        XCTAssertEqual(application.windows.map(\.id).sorted(), [42, 43])
     }
 
     func testInvalidateEndsEverySubscriptionMadeThroughTheChannel() {

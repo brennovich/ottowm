@@ -20,7 +20,6 @@ final class AXWindowEventsHarness {
     private var subscriptions: [pid_t: [(element: AXUIElement, notification: String)]] = [:]
     private var notificationCallbacks: [pid_t: (AXUIElement, String) -> Void] = [:]
     private var invalidations: [pid_t] = []
-    private var listings: [pid_t] = []
     private var built: [AXUIElement] = []
 
     private var nextElementToken: pid_t = 5000
@@ -28,7 +27,6 @@ final class AXWindowEventsHarness {
     var subscribed: [pid_t: [(element: AXUIElement, notification: String)]] { locked { subscriptions } }
     var callbacks: [pid_t: (AXUIElement, String) -> Void] { locked { notificationCallbacks } }
     var invalidatedPids: [pid_t] { locked { invalidations } }
-    var listedPids: [pid_t] { locked { listings } }
     var builtElements: [AXUIElement] { locked { built } }
 
     lazy var applications = Applications()
@@ -55,9 +53,7 @@ final class AXWindowEventsHarness {
         frontmostWindow: { self.frontmost },
         focusedWindow: { self.focusedWindow(of: $0) },
         listedWindows: { app in
-            let pid = app.processIdentifier
-            self.locked { self.listings.append(pid) }
-            return (self.elements[pid] ?? []).map { self.window($0, of: app) }
+            (self.elements[app.processIdentifier] ?? []).map { self.window($0, of: app) }
         },
         isAlive: { !self.deadElements.contains($0.element) },
         screenIsLocked: { self.screenIsLocked }
@@ -83,10 +79,6 @@ final class AXWindowEventsHarness {
         let element = makeElement(id: id)
         elements[pid, default: []].append(element)
         return element
-    }
-
-    func appNotificationCount(pid: pid_t) -> Int {
-        subscribed[pid]?.filter { $0.notification == kAXWindowCreatedNotification }.count ?? 0
     }
 
     private func locked<T>(_ body: () -> T) -> T {

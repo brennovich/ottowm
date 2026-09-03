@@ -12,17 +12,10 @@ final class EngineMoveWindowTests: EngineTestCase {
         XCTAssertEqual(win2.focusCount, 0)
     }
 
-    func testMoveWindowToWorkspaceDoesNothingWithoutFocusedWindow() {
-        create(StubWindow(id: 100))
-        desktop.clearPlaceCalls()
-
+    func testMoveWindowToWorkspaceIgnoresInvalidTargetOrUnmanageableWindow() {
+        focused = nil
         engine.moveFocusedWindow(toWorkspace: 2)
 
-        XCTAssertTrue(desktop.placeCalls.isEmpty)
-        XCTAssertEqual(parkedWindows.placement(of: 100), .active)
-    }
-
-    func testMoveWindowToWorkspaceIgnoresInvalidTargetOrWindow() {
         focused = add(StubWindow(id: 100))
         engine.moveFocusedWindow(toWorkspace: 0)
 

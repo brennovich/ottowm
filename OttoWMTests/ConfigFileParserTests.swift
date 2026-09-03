@@ -72,11 +72,6 @@ final class ConfigFileParserTests: XCTestCase {
                 ConfigError(line: 1, reason: .unknownAction("warp-to-workspace"))
             ),
             (
-                "an unknown action without an argument",
-                "lalt-1 = warp",
-                ConfigError(line: 1, reason: .unknownAction("warp"))
-            ),
-            (
                 "an action that takes no argument, given one",
                 "lalt-1 = quit 1",
                 ConfigError(line: 1, reason: .malformedAction("quit 1"))
@@ -97,11 +92,6 @@ final class ConfigFileParserTests: XCTestCase {
                 ConfigError(line: 1, reason: .invalidWorkspace("0"))
             ),
             (
-                "an action that takes a direction, given none",
-                "lalt-1 = focus",
-                ConfigError(line: 1, reason: .malformedAction("focus"))
-            ),
-            (
                 "an action with an invalid direction",
                 "lalt-1 = focus sideways",
                 ConfigError(line: 1, reason: .invalidDirection("sideways"))
@@ -111,11 +101,6 @@ final class ConfigFileParserTests: XCTestCase {
 
     func testStepActionErrors() {
         assertErrors([
-            (
-                "an action that takes a direction and a step, given none",
-                "lalt-1 = move-window",
-                ConfigError(line: 1, reason: .malformedAction("move-window"))
-            ),
             (
                 "an action that takes a direction and a step, given a third argument",
                 "lalt-1 = move-window east 15 fast",

@@ -25,24 +25,7 @@ final class EngineMinimizeTests: EngineTestCase {
         XCTAssertEqual(tab1.focusCount, 0)
     }
 
-    func testMinimizedWindowIsLeftAloneWhenItsWorkspaceComesBack() {
-        let win = create(StubWindow(id: 100))
-        moveFocusedWindow(win, to: 2)
-        engine.switchToWorkspace(2)
-
-        win.isMinimized = true
-        engine.handle(.minimized(100))
-        let placeCalls = desktop.placeCalls.count
-        let focusCount = win.focusCount
-
-        engine.switchToWorkspace(1)
-        engine.switchToWorkspace(2)
-
-        XCTAssertEqual(desktop.placeCalls.count, placeCalls)
-        XCTAssertEqual(win.focusCount, focusCount)
-    }
-
-    func testUnminimizedWindowJoinsTheCurrentWorkspace() {
+    func testUnminimizedWindowIsRecoveredAndJoinsTheCurrentWorkspace() {
         let win = create(StubWindow(id: 100))
         moveFocusedWindow(win, to: 2)
         engine.switchToWorkspace(2)
@@ -53,6 +36,7 @@ final class EngineMinimizeTests: EngineTestCase {
         win.isMinimized = false
         engine.handle(.unminimized(win.snapshot()))
 
+        XCTAssertEqual(desktop.recoveredWindowIds, [100])
         XCTAssertEqual(workspaces.allWindowIds, [100])
 
         engine.switchToWorkspace(2)

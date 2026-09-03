@@ -5,12 +5,10 @@ final class ScreenLockTests: XCTestCase {
     private let center = NotificationCenter()
     private lazy var screenLock = ScreenLock(notificationCenter: center, isLockedNow: { false })
 
-    func testAScreenNobodyLockedIsUnlocked() {
-        XCTAssertFalse(screenLock.isLocked)
-    }
-
-    func testAScreenAlreadyLockedAtLaunchIsLocked() {
-        XCTAssertTrue(ScreenLock(notificationCenter: center, isLockedNow: { true }).isLocked)
+    func testTheScreenStartsAsLockedAsTheSystemSaysItIs() {
+        for locked in [false, true] {
+            XCTAssertEqual(ScreenLock(notificationCenter: center, isLockedNow: { locked }).isLocked, locked)
+        }
     }
 
     func testLockingAndUnlockingFollowTheSystemNotifications() {

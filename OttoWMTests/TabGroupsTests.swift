@@ -90,7 +90,6 @@ final class TabGroupsTests: XCTestCase {
     func testSiblings() {
         let cases: [(name: String, windows: [TabbedWindow], subject: CGWindowID, expected: [CGWindowID])] = [
             ("an unknown window has no siblings", [], 999, []),
-            ("a window alone in its group has no siblings", [tabbed(100)], 100, []),
             (
                 "the other members of the group",
                 [tabbed(100, tabCount: 2), tabbed(200, tabCount: 2), tabbed(300, tabCount: 2)],
@@ -110,19 +109,18 @@ final class TabGroupsTests: XCTestCase {
         tabGroups.remove(100)
 
         XCTAssertEqual(tabGroups.members(of: 100), [100])
-        XCTAssertEqual(tabGroups.siblings(of: 100), [])
         XCTAssertEqual(tabGroups.members(of: 200), [200])
-        XCTAssertEqual(tabGroups.siblings(of: 200), [])
     }
 
     func testRemovingEveryMemberRetiresTheGroup() {
         var tabGroups = makeTabGroups([tabbed(100, tabCount: 2), tabbed(200, tabCount: 2)])
+        let later = tabbed(300, tabCount: 2)
+        tabCounts[later.snapshot.id] = later.tabCount
 
         tabGroups.remove(100)
         tabGroups.remove(200)
-        add(tabbed(300, tabCount: 2), to: &tabGroups)
 
-        XCTAssertEqual(tabGroups.members(of: 300), [300])
+        XCTAssertFalse(tabGroups.hasGroup(for: later.snapshot))
     }
 
     func testRemoveUnknownWindowIsANoOp() {

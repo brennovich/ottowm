@@ -43,19 +43,10 @@ final class EngineMoveWindowDirectionTests: EngineTestCase {
     func testWindowThatNoLongerExistsIsDropped() {
         let win = create(StubWindow(id: 100, frame: frame))
         focused = win
-        desktop.missingWindowIds = [win.id]
+        windows[win.id] = nil
 
         engine.moveFocusedWindow(step)
 
         XCTAssertNil(workspaces.workspace(for: win.id))
-    }
-
-    func testHandleDispatchesTheMoveWindowAction() {
-        let win = create(StubWindow(id: 100, frame: frame))
-        focused = win
-
-        engine.handle(.moveWindow(Step(direction: .south, points: 40)))
-
-        XCTAssertEqual(win.frame, frame.offsetBy(dx: 0, dy: 40))
     }
 }

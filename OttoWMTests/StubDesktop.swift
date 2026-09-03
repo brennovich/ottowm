@@ -6,7 +6,6 @@ final class StubDesktop: Desktop {
     private(set) var placeCalls: [(windowId: CGWindowID, placement: Placement)] = []
     private(set) var placeBatches: [[CGWindowID]] = []
     private(set) var moveCalls: [(windowId: CGWindowID, step: Step)] = []
-    private(set) var recoverCount = 0
     private(set) var recoveredWindowIds: [CGWindowID] = []
     private(set) var nativeSpaceChangeCallback: (() -> Void)?
 
@@ -17,7 +16,6 @@ final class StubDesktop: Desktop {
     }
 
     func recover(_ windows: [WindowSnapshot]) -> [WindowSnapshot] {
-        recoverCount += 1
         recoveredWindowIds = windows.map(\.id)
         return windows.map { win in
             recoveredFrames[win.id].map { win.moved(to: $0) } ?? win
@@ -29,21 +27,21 @@ final class StubDesktop: Desktop {
         placeCalls.append(contentsOf: placements.map { (windowId: $0.windowId, placement: $0.placement) })
 
         return placements.map { request in
+            guard let win = window(request.windowId) else { return .gone(request.windowId) }
+
             switch request.placement {
             case .parked:
-                return .parked(request.windowId, owing: request.owedFrame ?? window(request.windowId)?.snapshot().frame ?? .zero)
+                return .parked(request.windowId, owing: request.owedFrame ?? win.snapshot().frame)
             case .active:
                 return .activated(request.windowId)
             }
         }
     }
 
-    var missingWindowIds: Set<CGWindowID> = []
-
     /// Applies the step without bounds, which is `Step`'s and the real desktop's job.
     @discardableResult
     func move(_ windowId: CGWindowID, _ step: Step) -> Bool {
-        guard !missingWindowIds.contains(windowId), let win = window(windowId) else { return false }
+        guard let win = window(windowId) else { return false }
 
         moveCalls.append((windowId: windowId, step: step))
         win.withoutAnimations {

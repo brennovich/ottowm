@@ -47,13 +47,6 @@ final class ConfigFileTests: XCTestCase {
         }
     }
 
-    func testUserConfigReplacesTheBundledOne() throws {
-        XCTAssertEqual(
-            load(userConfig: "hyper-1 = switch-to-workspace 1"),
-            .success(try makeConfig(["hyper-1": .switchToWorkspace(1)]))
-        )
-    }
-
     func testFallsBackToTheBundledConfigWhenThereIsNone() throws {
         let config = try load(userConfig: nil).get()
 

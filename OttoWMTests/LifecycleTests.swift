@@ -42,30 +42,17 @@ final class LifecycleTests: XCTestCase {
         XCTAssertEqual(events, ["stop", "launch", "exit 0"])
     }
 
-    func testUnlockingTheScreenResumes() {
+    func testLockingTheScreenIsReportedAndUnlockingItResumes() {
         let lifecycle = makeLifecycle()
 
         lifecycle.startWatchingScreenLock()
         center.postScreenLocked()
         XCTAssertEqual(events, [])
-
-        center.postScreenUnlocked()
-
-        XCTAssertEqual(events, ["resume"])
-    }
-
-    func testTheScreenLockStateIsReported() {
-        let lifecycle = makeLifecycle()
-        lifecycle.startWatchingScreenLock()
-
-        XCTAssertFalse(lifecycle.screenIsLocked)
-
-        center.postScreenLocked()
-
         XCTAssertTrue(lifecycle.screenIsLocked)
 
         center.postScreenUnlocked()
 
+        XCTAssertEqual(events, ["resume"])
         XCTAssertFalse(lifecycle.screenIsLocked)
     }
 }

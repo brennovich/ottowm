@@ -27,26 +27,19 @@ final class HotkeysTests: XCTestCase {
         return event
     }
 
-    func testConsumedHotkeysRunOffTheCallbackInOrder() throws {
+    func testHotkeysMatchedOnKeyCodeAndFlagsAreConsumedAndRunOffTheCallbackInOrder() throws {
         let hotkeys = makeHotkeys()
 
         XCTAssertNil(hotkeys.handle(type: .keyDown, event: try keyDown(18, .leftOption)))
         XCTAssertNil(hotkeys.handle(type: .keyDown, event: try keyDown(20, [.leftOption, .leftShift])))
+        XCTAssertEqual(matched.map(\.keyCode), [18, 20])
+        XCTAssertTrue(matched[0].flags.contains(.leftOption))
+        XCTAssertTrue(matched[1].flags.contains([.leftOption, .leftShift]))
         XCTAssertEqual(received, [])
 
         deferred.forEach { $0() }
 
         XCTAssertEqual(received, [.switchToWorkspace(1), .moveWindowToWorkspace(3)])
-    }
-
-    func testMatcherReceivesTheKeystrokesKeyCodeAndFlags() throws {
-        let hotkeys = makeHotkeys()
-
-        _ = hotkeys.handle(type: .keyDown, event: try keyDown(18, .leftOption))
-
-        XCTAssertEqual(matched.count, 1)
-        XCTAssertEqual(matched[0].keyCode, 18)
-        XCTAssertTrue(matched[0].flags.contains(.leftOption))
     }
 
     func testUnmatchedKeyPassesThroughWithoutDeferringAnything() throws {

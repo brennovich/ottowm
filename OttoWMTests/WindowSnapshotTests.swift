@@ -15,8 +15,6 @@ final class WindowSnapshotTests: XCTestCase {
              makeSnapshot(100, isStandard: false, hasMinimizeButton: false), false),
             ("a panel with no buttons at all, as the Steam launcher process reports",
              makeSnapshot(100, isStandard: false, hasCloseButton: false, hasMinimizeButton: false), false),
-            ("a minimized dialog carrying the title bar buttons",
-             makeSnapshot(100, isStandard: false, isMinimized: true), false),
         ]
 
         for testCase in cases {

@@ -55,28 +55,19 @@ final class StepTests: XCTestCase {
         }
     }
 
-    func testWindowPastTheEdgeStaysWhereItIs() {
+    func testWindowPastTheEdgeOrWiderThanTheBoundsStaysWhereItIs() {
         let cases: [(name: String, direction: Direction, frame: CGRect)] = [
             ("north above the top", .north, CGRect(x: 800, y: -50, width: 400, height: 300)),
             ("south below the bottom", .south, CGRect(x: 800, y: 1000, width: 400, height: 300)),
             ("west left of the left", .west, CGRect(x: -50, y: 500, width: 400, height: 300)),
             ("east right of the right", .east, CGRect(x: 1500, y: 500, width: 400, height: 300)),
+            ("east wider than the bounds", .east, CGRect(x: 0, y: 500, width: 2000, height: 300)),
         ]
 
         for testCase in cases {
             let step = Step(direction: testCase.direction, points: 15)
 
             XCTAssertEqual(step.frame(moving: testCase.frame, within: bounds), testCase.frame, testCase.name)
-        }
-    }
-
-    func testWindowLargerThanTheBoundsDoesNotMoveAlongThatAxis() {
-        let wide = CGRect(x: 0, y: 500, width: 2000, height: 300)
-
-        for direction in [Direction.east, .west] {
-            let step = Step(direction: direction, points: 15)
-
-            XCTAssertEqual(step.frame(moving: wide, within: bounds), wide, direction.rawValue)
         }
     }
 

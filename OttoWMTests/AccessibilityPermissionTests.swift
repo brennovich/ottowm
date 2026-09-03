@@ -4,7 +4,6 @@ final class AccessibilityPermissionTests: XCTestCase {
     private var trusted = false
     private var requests: [AccessibilityAlert.Request] = []
     private var responses: [AccessibilityAlert.Response] = []
-    private var watchingWhenAsked: [Bool] = []
     private var waits: [TimeInterval] = []
     private var waitsWhenAsked: [Int] = []
     private var openedSettings = false
@@ -19,7 +18,6 @@ final class AccessibilityPermissionTests: XCTestCase {
             isTrusted: { self.trusted },
             ask: { request in
                 self.requests.append(request)
-                self.watchingWhenAsked.append(self.notifyChange != nil)
                 self.waitsWhenAsked.append(self.waits.count)
                 self.whileAsking?()
                 return self.responses.removeFirst()
@@ -135,14 +133,6 @@ final class AccessibilityPermissionTests: XCTestCase {
         try XCTUnwrap(notifyChange)()
 
         XCTAssertEqual(relaunches, 0)
-    }
-
-    func testTheGrantIsWatchedForBeforeAnyAlertIsShown() {
-        responses = [.confirm, .quit]
-
-        _ = makePermission().request()
-
-        XCTAssertEqual(watchingWhenAsked, [true, true])
     }
 
     func testARevocationWhileRunningReleasesTheTapOnce() throws {

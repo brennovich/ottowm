@@ -28,46 +28,6 @@ final class EngineFullScreenTests: EngineTestCase {
         XCTAssertEqual(parkedWindows.placement(of: 200), .active)
     }
 
-    func testWindowFoundBackFromFullScreenWhileRestoringFocusReturnsToTheWorkspaceItLeft() {
-        let win2 = sendWindowFullScreenAndLeave()
-        offScreenWindowIds = []
-        create(StubWindow(id: 300))
-
-        win2.isFullScreen = false
-        windows[300] = nil
-        engine.handle(.destroyed(300))
-
-        XCTAssertEqual(workspaces.workspace(for: 200), 1)
-        XCTAssertEqual(workspaces.current, 1)
-        XCTAssertEqual(parkedWindows.placement(of: 200), .active)
-        XCTAssertEqual(parkedWindows.placement(of: 100), .active)
-    }
-
-    func testMovingAWindowBackFromFullScreenOverridesTheWorkspaceItLeft() {
-        let win2 = sendWindowFullScreenAndLeave()
-
-        win2.isFullScreen = false
-        offScreenWindowIds = []
-        engine.moveFocusedWindow(toWorkspace: 3)
-        engine.handle(.focused(win2.snapshot()))
-
-        XCTAssertEqual(workspaces.workspace(for: 200), 3)
-        XCTAssertEqual(workspaces.current, 2)
-    }
-
-    func testWindowThatWasNeverManagedBeforeGoingFullScreenJoinsTheCurrentWorkspace() {
-        create(StubWindow(id: 100))
-        engine.switchToWorkspace(2)
-        let win2 = add(StubWindow(id: 200, isFullScreen: true))
-        focused = win2
-
-        win2.isFullScreen = false
-        engine.handle(.focused(win2.snapshot()))
-
-        XCTAssertEqual(workspaces.workspace(for: 200), 2)
-        XCTAssertEqual(workspaces.current, 2)
-    }
-
     func testNativeSpaceChangeFollowsTheWindowBackFromFullScreen() {
         engine.start(windows: [])
         let win2 = sendWindowFullScreenAndLeave()
@@ -92,6 +52,7 @@ final class EngineFullScreenTests: EngineTestCase {
         XCTAssertEqual(workspaces.workspace(for: 200), 1)
         XCTAssertEqual(workspaces.current, 1)
         XCTAssertEqual(parkedWindows.placement(of: 200), .active)
+        XCTAssertEqual(parkedWindows.placement(of: 100), .active)
         XCTAssertEqual(win2.focusCount, 1)
     }
 

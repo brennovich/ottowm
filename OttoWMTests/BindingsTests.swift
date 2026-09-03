@@ -20,25 +20,15 @@ final class BindingsTests: XCTestCase {
         )
     }
 
-    func testTapsTheConfigItWasBuiltWith() throws {
+    func testTapsTheConfigItWasBuiltWithAndTakesTheSameTapBackAfterItWasReleased() throws {
         let config = try makeConfig(["hyper-q": .quit])
         let bindings = makeBindings(config)
 
         bindings.start()
         bindings.stop()
+        bindings.start()
 
         XCTAssertEqual(built, [config])
-        XCTAssertEqual(events, ["start 0", "stop 0"])
-    }
-
-    func testTakesTheSameTapBackAfterItWasReleased() throws {
-        let bindings = makeBindings(try makeConfig(["hyper-q": .quit]))
-
-        bindings.start()
-        bindings.stop()
-        bindings.start()
-
-        XCTAssertEqual(built.count, 1)
         XCTAssertEqual(events, ["start 0", "stop 0", "start 0"])
     }
 

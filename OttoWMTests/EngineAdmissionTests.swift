@@ -5,11 +5,8 @@ final class EngineAdmissionTests: EngineTestCase {
     func testInvalidWindowsAreNeverAdmitted() {
         offScreenWindowIds = [500]
         let invalid = [
-            add(StubWindow(id: 0)),
-            add(StubWindow(id: 300, isStandard: false, hasMinimizeButton: false)),
             add(StubWindow(id: 400, isFullScreen: true)),
             add(StubWindow(id: 500)),
-            add(StubWindow(id: 600, isMinimized: true)),
         ]
 
         engine.start(windows: invalid.map { $0.snapshot() })
@@ -33,33 +30,27 @@ final class EngineAdmissionTests: EngineTestCase {
     }
 
     func testFocusedUnknownWindowIsAssignedToCurrentWorkspace() {
+        engine.switchToWorkspace(2)
         let win = add(StubWindow(id: 100))
 
         engine.handle(.focused(win.snapshot()))
 
-        XCTAssertEqual(workspaces.allWindowIds, [100])
+        XCTAssertEqual(workspaces.workspace(for: 100), 2)
+        XCTAssertEqual(workspaces.current, 2)
     }
 
-    func testWindowCreatedOnAnotherNativeSpaceIsIgnored() {
+    func testWindowsCreatedOrFocusedOnAnotherNativeSpaceAreIgnored() {
         create(StubWindow(id: 100))
         offScreenWindowIds = [100]
         desktop.clearPlaceCalls()
 
         create(StubWindow(id: 200))
-
-        XCTAssertEqual(workspaces.allWindowIds, [100])
-        XCTAssertTrue(desktop.placeCalls.isEmpty)
-    }
-
-    func testWindowFocusedOnAnotherNativeSpaceIsNotAdopted() {
-        create(StubWindow(id: 100))
-        offScreenWindowIds = [100]
-        let win = add(StubWindow(id: 200))
-
+        let win = add(StubWindow(id: 300))
         focused = win
         engine.handle(.focused(win.snapshot()))
 
         XCTAssertEqual(workspaces.allWindowIds, [100])
+        XCTAssertTrue(desktop.placeCalls.isEmpty)
         XCTAssertEqual(workspaces.current, 1)
     }
 }

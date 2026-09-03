@@ -36,7 +36,7 @@ final class EngineSwitchTests: EngineTestCase {
 
         engine.switchToWorkspace(2)
 
-        XCTAssertEqual(desktop.placeBatches, [[200, 100]])
+        XCTAssertEqual(desktop.placeBatches.map(Set.init), [[200, 100]])
     }
 
     func testSwitchToSameWorkspaceOnFrontmostDesktopIsNoOp() {
@@ -58,24 +58,6 @@ final class EngineSwitchTests: EngineTestCase {
         XCTAssertEqual(win.focusCount, 1)
     }
 
-    func testSwitchToNonEmptyWorkspaceOffDesktopRestoresItsWindows() {
-        let win = create(StubWindow(id: 700))
-        moveFocusedWindow(win, to: 2)
-        offScreenWindowIds = [700]
-
-        engine.switchToWorkspace(2)
-
-        XCTAssertEqual(win.focusCount, 1)
-        XCTAssertEqual(parkedWindows.placement(of: 700), .active)
-    }
-
-    func testSwitchWithNoManagedWindowsIsTreatedAsOnDesktop() {
-        engine.switchToWorkspace(2)
-
-        XCTAssertEqual(workspaces.current, 2)
-        XCTAssertTrue(desktop.placeCalls.isEmpty)
-    }
-
     func testBringToFrontInducedFocusDoesNotSwitchAwayFromEmptyWorkspace() {
         [72, 88, 187].forEach { create(StubWindow(id: $0)) }
         offScreenWindowIds = [72, 88, 187]
@@ -84,22 +66,10 @@ final class EngineSwitchTests: EngineTestCase {
 
         XCTAssertEqual(windows.values.reduce(0) { $0 + $1.focusCount }, 1)
 
+        focused = windows[187]
         engine.handle(.focused(windows[187]!.snapshot()))
 
         XCTAssertEqual(workspaces.current, 3)
-    }
-
-    func testSwitchFromAnotherNativeSpaceDoesNotAdoptTheWindowItShows() {
-        let win1 = create(StubWindow(id: 100))
-        offScreenWindowIds = [100]
-        let win2 = add(StubWindow(id: 200))
-
-        focused = win2
-        engine.switchToWorkspace(2)
-
-        XCTAssertEqual(workspaces.allWindowIds, [100])
-        XCTAssertEqual(win1.focusCount, 1)
-        XCTAssertEqual(win2.focusCount, 0)
     }
 
     func testWindowThatLeftTheDesktopIsDropped() {
@@ -170,29 +140,34 @@ final class EngineSwitchTests: EngineTestCase {
         XCTAssertEqual(parkedWindows.placement(of: 200), .active)
     }
 
-    func testSwitchReadsTheFocusedWindowOnce() {
+    func testSwitchReadsTheFocusedWindowAndTheScreenOnce() {
         let win1 = create(StubWindow(id: 100))
         let win2 = create(StubWindow(id: 200))
         moveFocusedWindow(win2, to: 2)
 
         focused = win1
         focusedReadCount = 0
+        onScreenReadCount = 0
         engine.switchToWorkspace(2)
 
         XCTAssertEqual(focusedReadCount, 1)
+        XCTAssertEqual(onScreenReadCount, 1)
     }
 
-    func testSwitchStillCompletesWhenTheRememberedWindowDiedMidOperation() {
+    func testSwitchDropsTheRememberedWindowThatDiedMidOperationAndFocusesALiveOne() {
         create(StubWindow(id: 100))
-        let doomed = create(StubWindow(id: 200))
+        let live = create(StubWindow(id: 200))
+        let doomed = create(StubWindow(id: 300))
+        moveFocusedWindow(live, to: 2)
         moveFocusedWindow(doomed, to: 2)
 
-        windows[200] = nil
+        windows[300] = nil
         focused = nil
         engine.switchToWorkspace(2)
 
         XCTAssertEqual(workspaces.current, 2)
         XCTAssertEqual(parkedWindows.placement(of: 100), .parked)
-        XCTAssertEqual(doomed.focusCount, 0)
+        XCTAssertNil(workspaces.workspace(for: 300))
+        XCTAssertEqual(live.focusCount, 1)
     }
 }

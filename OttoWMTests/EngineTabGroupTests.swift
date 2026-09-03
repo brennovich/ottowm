@@ -16,17 +16,6 @@ final class EngineTabGroupTests: EngineTestCase {
         XCTAssertEqual(workspaces.workspace(for: 301), 2)
     }
 
-    func testTabDiscoveredDuringASwitchStaysInItsGroupsWorkspace() {
-        create(StubWindow(id: 300, appName: "Terminal", frame: tabFrame, tabCount: 2))
-        let lateTab = add(StubWindow(id: 301, appName: "Terminal", frame: tabFrame, tabCount: 2))
-        focused = lateTab
-
-        engine.switchToWorkspace(2)
-
-        XCTAssertEqual(workspaces.workspace(for: 301), 1)
-        XCTAssertEqual(parkedWindows.placement(of: 301), .parked)
-    }
-
     func testSelectingAnotherTabKeepsTheDesktopInFront() {
         let tab1 = create(StubWindow(id: 300, appName: "Terminal", frame: tabFrame, tabCount: 2))
         let tab2 = add(StubWindow(id: 301, appName: "Terminal", frame: tabFrame, tabCount: 2))

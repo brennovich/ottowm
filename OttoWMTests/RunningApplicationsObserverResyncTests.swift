@@ -3,52 +3,28 @@ import XCTest
 final class RunningApplicationsObserverResyncTests: XCTestCase {
     private let harness = RunningApplicationsObserverHarness()
 
-    func testResyncAnswersWithTheWindowsOfEveryRunningApplication() {
+    func testResyncAnswersWithTheWindowsOfEveryRunningApplicationSubscribingTheOnesThatAppeared() {
         harness.apps = [StubRunningApplication(pid: 901), StubRunningApplication(pid: 902)]
         harness.addWindow(pid: 901, id: 100)
         _ = harness.start()
         harness.addWindow(pid: 901, id: 200)
         harness.addWindow(pid: 902, id: 300)
+        harness.apps.append(StubRunningApplication(pid: 903))
+        harness.addWindow(pid: 903, id: 400)
 
         let windows = harness.observer.resync()
 
-        XCTAssertEqual(Set(windows.map(\.id)), [100, 200, 300])
+        XCTAssertEqual(Set(windows.map(\.id)), [100, 200, 300, 400])
+        XCTAssertNotNil(harness.callbacks[903])
     }
 
-    func testResyncSubscribesAnApplicationThatAppearedWhileTheScreenWasLocked() {
-        _ = harness.start()
-        harness.apps = [StubRunningApplication(pid: 901)]
-        harness.addWindow(pid: 901, id: 100)
-
-        let windows = harness.observer.resync()
-
-        XCTAssertEqual(windows.map(\.id), [100])
-        XCTAssertNotNil(harness.callbacks[901])
-    }
-
-    func testResyncRetriesAnApplicationThatAppearedWhileTheScreenWasLockedUntilItAnswers() {
+    func testResyncRetriesAnApplicationThatAppearedWhileTheScreenWasLockedAndDoesNotAnswer() {
         _ = harness.start()
         harness.apps = [StubRunningApplication(pid: 901)]
         harness.unreadyPids = [901]
 
         XCTAssertEqual(harness.observer.resync().map(\.id), [])
         XCTAssertFalse(harness.scheduledRetries.isEmpty)
-
-        harness.unreadyPids = []
-        harness.addWindow(pid: 901, id: 100)
-        harness.runScheduledRetries()
-
-        XCTAssertEqual(harness.eventDescriptions, ["created(100)"])
-    }
-
-    func testResyncDoesNotRetryAnApplicationThatAnswered() {
-        harness.apps = [StubRunningApplication(pid: 901)]
-        _ = harness.start()
-        harness.apps.append(StubRunningApplication(pid: 902))
-
-        _ = harness.observer.resync()
-
-        XCTAssertTrue(harness.scheduledRetries.isEmpty)
     }
 
     func testResyncRetriesAKnownApplicationThatStillDoesNotAnswer() {

@@ -33,14 +33,9 @@ final class RunningApplicationsObserverHarness {
         get { windows.focusedElements }
         set { windows.focusedElements = newValue }
     }
-    var invalidatedPids: [pid_t] { windows.invalidatedPids }
     var unreadyPids: Set<pid_t> {
         get { windows.unreadyPids }
         set { windows.unreadyPids = newValue }
-    }
-    var unsupportedPids: Set<pid_t> {
-        get { windows.unsupportedPids }
-        set { windows.unsupportedPids = newValue }
     }
     var deadElements: Set<AXUIElement> {
         get { windows.deadElements }

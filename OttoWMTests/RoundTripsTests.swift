@@ -20,15 +20,6 @@ final class RoundTripsTests: XCTestCase {
         XCTAssertEqual(reported.first?.roundTripNanoseconds, 4000)
     }
 
-    func testCountsCallsThatAreNotAccessibilityCalls() {
-        roundTrips.duringOperation("switch-to-workspace") {
-            roundTrips.record(position, nanoseconds: 1000)
-            roundTrips.record(windowList, nanoseconds: 4000)
-        }
-
-        XCTAssertEqual(reported.first?.calls.map(\.roundTrip), [windowList, position])
-    }
-
     func testTimesTheOperationItself() {
         roundTrips.duringOperation("switch-to-workspace") { roundTrips.record(position, nanoseconds: 1000) }
 

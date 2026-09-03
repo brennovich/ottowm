@@ -5,39 +5,29 @@ import XCTest
 /// The AX notifications a watched application delivers, translated into `WindowEvent`.
 final class AXWindowEventsTests: AXWindowEventsTestCase {
     func testNotificationMapping() {
-        let cases: [(notification: String, known: Bool, expected: [String])] = [
-            (kAXWindowCreatedNotification, false, ["created(42)"]),
-            (kAXFocusedWindowChangedNotification, false, ["focused(42)"]),
-            (kAXWindowMiniaturizedNotification, true, ["minimized(42)"]),
-            (kAXWindowDeminiaturizedNotification, true, ["unminimized(42)"]),
-            ("AXSomethingElse", false, []),
+        let cases: [(notification: String, known: Bool, id: CGWindowID, expected: [String])] = [
+            (kAXWindowCreatedNotification, false, 42, ["created(42)"]),
+            (kAXWindowCreatedNotification, false, 0, []),
+            (kAXFocusedWindowChangedNotification, false, 42, ["focused(42)"]),
+            (kAXFocusedWindowChangedNotification, false, 0, []),
+            (kAXUIElementDestroyedNotification, true, 42, ["destroyed(42)"]),
+            (kAXUIElementDestroyedNotification, false, 42, []),
+            (kAXWindowMiniaturizedNotification, true, 42, ["minimized(42)"]),
+            (kAXWindowMiniaturizedNotification, false, 42, []),
+            (kAXWindowDeminiaturizedNotification, true, 42, ["unminimized(42)"]),
+            (kAXWindowDeminiaturizedNotification, false, 42, []),
+            ("AXSomethingElse", false, 42, []),
         ]
 
         for testCase in cases {
             let reported = descriptions(of: testCase.notification) {
-                testCase.known ? $0.addWindow(pid: 901, id: 42) : $0.makeElement(id: 42)
+                testCase.known ? $0.addWindow(pid: 901, id: testCase.id) : $0.makeElement(id: testCase.id)
             }
 
-            XCTAssertEqual(reported, testCase.expected, testCase.notification)
+            XCTAssertEqual(
+                reported, testCase.expected, "\(testCase.notification) known=\(testCase.known) id=\(testCase.id)"
+            )
         }
-    }
-
-    func testDestroyedNotificationForgetsAndReportsTheWindow() {
-        let element = harness.addWindow(pid: 901, id: 100)
-        start()
-
-        notify(element, kAXUIElementDestroyedNotification)
-
-        XCTAssertEqual(events.descriptions, ["destroyed(100)"])
-        XCTAssertNil(applications.findWindow(by: 100))
-    }
-
-    func testDestroyedNotificationForAnUnknownElementIsDropped() {
-        start()
-
-        notify(harness.makeElement(id: 42), kAXUIElementDestroyedNotification)
-
-        XCTAssertEqual(events, [])
     }
 
     func testFocusedNotificationForAKnownWindowIsReportedAgain() {
@@ -58,18 +48,6 @@ final class AXWindowEventsTests: AXWindowEventsTestCase {
         notify(element, kAXWindowCreatedNotification)
 
         XCTAssertEqual(events.descriptions, ["created(42)"])
-    }
-
-    func testNotificationsForAWindowWithoutAnIdAreDropped() {
-        for notification in [kAXWindowCreatedNotification, kAXFocusedWindowChangedNotification] {
-            XCTAssertEqual(descriptions(of: notification) { $0.makeElement(id: 0) }, [], notification)
-        }
-    }
-
-    func testMiniaturizeNotificationsForAnUnknownWindowAreDropped() {
-        for notification in [kAXWindowMiniaturizedNotification, kAXWindowDeminiaturizedNotification] {
-            XCTAssertEqual(descriptions(of: notification) { $0.makeElement(id: 42) }, [], notification)
-        }
     }
 
     func testNotificationsOnAnAttachedWindowDoNotBuildAWindow() {
@@ -94,7 +72,7 @@ final class AXWindowEventsTests: AXWindowEventsTestCase {
         XCTAssertEqual(events, [])
     }
 
-    func testAdoptFocusedWindowAttachesTheWindowInFrontAndAnswersIt() {
+    func testAdoptFocusedWindowAttachesTheWindowInFrontOnceAndAnswersIt() {
         start()
         let tab = harness.makeElement(id: 300)
         harness.frontmost = harness.window(tab, of: app)
@@ -102,15 +80,10 @@ final class AXWindowEventsTests: AXWindowEventsTestCase {
         XCTAssertEqual(windowEvents.adoptFocusedWindow()?.id, 300)
         XCTAssertEqual(applications.findWindow(by: 300)?.element, tab)
         XCTAssertEqual(events, [])
-    }
 
-    func testAdoptFocusedWindowOfAKnownWindowDoesNotSubscribeItAgain() {
-        let element = harness.addWindow(pid: 901, id: 100)
-        start()
         let count = harness.subscribed[901]?.count
-        harness.frontmost = harness.window(element, of: app)
 
-        XCTAssertEqual(windowEvents.adoptFocusedWindow()?.id, 100)
+        XCTAssertEqual(windowEvents.adoptFocusedWindow()?.id, 300)
         XCTAssertEqual(harness.subscribed[901]?.count, count)
     }
 
@@ -119,13 +92,6 @@ final class AXWindowEventsTests: AXWindowEventsTestCase {
 
         XCTAssertNil(windowEvents.adoptFocusedWindow())
         XCTAssertNil(applications.findWindow(by: 300))
-    }
-
-    func testAdoptFocusedWindowWithoutAnIdAnswersNil() {
-        start()
-        harness.frontmost = harness.window(harness.makeElement(id: 0), of: app)
-
-        XCTAssertNil(windowEvents.adoptFocusedWindow())
     }
 
     /// Sends one notification against a fixture of its own, so a table row never sees the

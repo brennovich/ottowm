@@ -8,6 +8,7 @@ class EngineTestCase: XCTestCase {
     var windows: [CGWindowID: StubWindow] = [:]
     var focused: StubWindow?
     var focusedReadCount = 0
+    var onScreenReadCount = 0
     var offScreenWindowIds: Set<CGWindowID> = []
     var screenIsLocked = false
     var scheduledRetries: [(delay: TimeInterval, work: () -> Void)] = []
@@ -31,6 +32,7 @@ class EngineTestCase: XCTestCase {
             },
             onScreenWindows: OperationCache { [weak self] in
                 guard let self else { return [:] }
+                self.onScreenReadCount += 1
                 return self.windows.values
                     .filter { !self.offScreenWindowIds.contains($0.id) }
                     .reduce(into: [CGWindowID: CGRect]()) { $0[$1.id] = $1.frame }

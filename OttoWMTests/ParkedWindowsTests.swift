@@ -33,26 +33,23 @@ final class ParkedWindowsTests: XCTestCase {
         XCTAssertNil(parked.owedFrame(of: 100))
     }
 
-    func testRecordParksTheWindowsLeftAtTheHiddenEdge() {
-        parked.record([.parked(100, owing: frame)])
+    func testRecordAppliesTheOutcomeOfEachPlacement() {
+        let cases: [(name: String, parkedBefore: Bool, outcome: PlacementOutcome, owedFrame: CGRect?)] = [
+            ("parks the window left at the hidden edge", false, .parked(100, owing: frame), frame),
+            ("forgets the window left on screen", true, .activated(100), nil),
+            ("keeps the frame owed by a window that is gone", true, .gone(100), frame),
+        ]
 
-        XCTAssertEqual(parked.owedFrame(of: 100), frame)
-    }
+        for testCase in cases {
+            let parked = ParkedWindows()
+            if testCase.parkedBefore {
+                parked.park(100, owing: frame)
+            }
 
-    func testRecordForgetsTheWindowsLeftOnScreen() {
-        parked.park(100, owing: frame)
+            parked.record([testCase.outcome])
 
-        parked.record([.activated(100)])
-
-        XCTAssertEqual(parked.placement(of: 100), .active)
-    }
-
-    func testRecordKeepsTheFrameOwedByAWindowThatIsGone() {
-        parked.park(100, owing: frame)
-
-        parked.record([.gone(100)])
-
-        XCTAssertEqual(parked.owedFrame(of: 100), frame)
+            XCTAssertEqual(parked.owedFrame(of: 100), testCase.owedFrame, testCase.name)
+        }
     }
 
     func testAllListsEveryParkedWindowInIdOrder() {
