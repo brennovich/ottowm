@@ -168,6 +168,7 @@ final class AXWindowObserver {
     @objc private func applicationActivated(_ notification: Notification) {
         guard let app = app(from: notification), canSubscribe(app) else { return }
 
+        windowEvents.runGC()
         windowEvents.reconcile(app)
     }
 

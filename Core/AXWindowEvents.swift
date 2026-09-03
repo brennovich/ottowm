@@ -72,8 +72,6 @@ final class AXWindowEvents {
         let added = applications.add(application)
         report(added.windows.map { $0.snapshot() })
 
-        runGC()
-
         if let focused = added.focused { onEvent?(.focused(focused.snapshot())) }
 
         return added.subscription

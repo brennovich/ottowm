@@ -417,6 +417,20 @@ final class AXWindowObserverTests: XCTestCase {
         XCTAssertEqual(harness.eventDescriptions, ["destroyed(200)"])
     }
 
+    func testRetryDoesNotSweepTheWindowsOfOtherApplications() {
+        harness.apps = [StubRunningApplication(pid: 901), StubRunningApplication(pid: 902)]
+        harness.unreadyPids = [901]
+        let dead = harness.addWindow(pid: 902, id: 200)
+        _ = harness.start()
+        harness.deadElements = [dead]
+
+        harness.runScheduledRetries()
+        harness.runScheduledRetries()
+
+        XCTAssertEqual(harness.events, [])
+        XCTAssertFalse(harness.scheduledRetries.isEmpty)
+    }
+
     func testResyncAnswersWithTheWindowsOfEveryRunningApplication() {
         harness.apps = [StubRunningApplication(pid: 901), StubRunningApplication(pid: 902)]
         harness.addWindow(pid: 901, id: 100)
