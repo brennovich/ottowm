@@ -72,6 +72,18 @@ final class AXWindowEventsTests: AXWindowEventsTestCase {
         }
     }
 
+    func testNotificationsOnAnAttachedWindowDoNotBuildAWindow() {
+        let element = harness.addWindow(pid: 901, id: 100)
+        start()
+
+        notify(element, kAXWindowMiniaturizedNotification)
+        notify(element, kAXWindowDeminiaturizedNotification)
+        notify(element, kAXUIElementDestroyedNotification)
+
+        XCTAssertEqual(events.descriptions, ["minimized(100)", "unminimized(100)", "destroyed(100)"])
+        XCTAssertEqual(harness.builtElements, [])
+    }
+
     func testNotificationsOfAnApplicationNoLongerWatchedAreDropped() {
         let element = harness.addWindow(pid: 901, id: 100)
         start()

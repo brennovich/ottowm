@@ -104,7 +104,7 @@ final class AXWindowEvents {
                     stillSuspected.insert(window)
                     continue
                 }
-                if let id = application.detach(window)?.id { confirmed.append(id) }
+                if let id = application.detach(element: window.element)?.id { confirmed.append(id) }
             }
         }
 
@@ -117,7 +117,7 @@ final class AXWindowEvents {
 
     private func handle(_ element: AXUIElement, _ notification: String, of app: NSRunningApplication) {
         guard let owner = applications.find(by: app.processIdentifier),
-              let event = event(for: makeWindow(element, owner.running), notification: notification, of: owner)
+              let event = event(for: element, notification: notification, of: owner)
         else {
             Log.windows.debug("dropped \(notification)")
             return
@@ -127,24 +127,24 @@ final class AXWindowEvents {
     }
 
     private func event(
-        for window: AXWindow,
+        for element: AXUIElement,
         notification: String,
         of app: Application
     ) -> WindowEvent? {
         switch notification {
         case kAXWindowCreatedNotification:
-            guard case let .attached(attached) = app.attach(window) else { return nil }
+            guard case let .attached(attached) = app.attach(makeWindow(element, app.running)) else { return nil }
             return .created(attached.snapshot())
         case kAXFocusedWindowChangedNotification:
             // A window already attached is reported again, from the registry: a repeated
             // focus is an event, and the stored window has its id without a read.
-            return app.attach(window).window.map { .focused($0.snapshot()) }
+            return app.attach(makeWindow(element, app.running)).window.map { .focused($0.snapshot()) }
         case kAXUIElementDestroyedNotification:
-            return app.detach(window).map { WindowEvent.destroyed($0.id) }
+            return app.detach(element: element).map { WindowEvent.destroyed($0.id) }
         case kAXWindowMiniaturizedNotification:
-            return app.findWindow(window).map { .minimized($0.id) }
+            return app.findWindow(element: element).map { .minimized($0.id) }
         case kAXWindowDeminiaturizedNotification:
-            return app.findWindow(window).map { .unminimized($0.snapshot()) }
+            return app.findWindow(element: element).map { .unminimized($0.snapshot()) }
         default:
             return nil
         }

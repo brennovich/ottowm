@@ -69,23 +69,15 @@ final class ApplicationTests: XCTestCase {
         XCTAssertEqual(application.attach(attached), .attached(attached))
     }
 
-    func testFindWindowOfAnAttachedWindowIsTheWindowItWasAttachedWith() {
-        let attached = window(id: 42)
-        _ = application.attach(attached)
+    func testFindWindowByElementIsTheWindowItWasAttachedWith() {
+        let attached = window(id: 42, element: AXUIElementCreateApplication(5000))
+        application.attach(attached)
 
-        XCTAssertIdentical(application.findWindow(attached), attached)
+        XCTAssertIdentical(application.findWindow(element: AXUIElementCreateApplication(5000)), attached)
     }
 
-    func testFindWindowMatchesAnotherWindowOverTheSameElement() {
-        let element = AXUIElementCreateApplication(5000)
-        let attached = window(id: 42, element: element)
-        _ = application.attach(attached)
-
-        XCTAssertIdentical(application.findWindow(window(id: 42, element: element)), attached)
-    }
-
-    func testFindWindowOfAnUnknownWindowReturnsNil() {
-        XCTAssertNil(application.findWindow(window(id: 42)))
+    func testFindWindowByAnUnknownElementReturnsNil() {
+        XCTAssertNil(application.findWindow(element: AXUIElementCreateApplication(5000)))
     }
 
     func testFindWindowByAnAttachedIdIsTheWindowItWasAttachedWith() {
@@ -105,18 +97,19 @@ final class ApplicationTests: XCTestCase {
         application.attach(first)
         application.attach(second)
 
-        _ = application.detach(first)
+        _ = application.detach(element: first.element)
 
         XCTAssertIdentical(application.findWindow(by: 42), second)
     }
 
-    func testDetachReturnsTheWindowAndForgetsIt() {
-        let attached = window(id: 42)
-        _ = application.attach(attached)
+    func testDetachByElementReturnsTheWindowAndForgetsIt() {
+        let element = AXUIElementCreateApplication(5000)
+        let attached = window(id: 42, element: element)
+        application.attach(attached)
 
-        XCTAssertIdentical(application.detach(attached), attached)
-        XCTAssertNil(application.findWindow(attached))
-        XCTAssertNil(application.detach(attached))
+        XCTAssertIdentical(application.detach(element: element), attached)
+        XCTAssertNil(application.findWindow(element: element))
+        XCTAssertNil(application.detach(element: element))
     }
 
     func testWindowsListsTheAttachedWindows() {

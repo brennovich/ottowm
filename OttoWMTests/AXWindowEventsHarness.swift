@@ -20,6 +20,7 @@ final class AXWindowEventsHarness {
     private var notificationCallbacks: [pid_t: (AXUIElement, String) -> Void] = [:]
     private var invalidations: [pid_t] = []
     private var listings: [pid_t] = []
+    private var built: [AXUIElement] = []
 
     private var nextElementToken: pid_t = 5000
 
@@ -27,6 +28,7 @@ final class AXWindowEventsHarness {
     var callbacks: [pid_t: (AXUIElement, String) -> Void] { locked { notificationCallbacks } }
     var invalidatedPids: [pid_t] { locked { invalidations } }
     var listedPids: [pid_t] { locked { listings } }
+    var builtElements: [AXUIElement] { locked { built } }
 
     lazy var applications = Applications(
         focusedWindow: { self.focusedWindow(of: $0) },
@@ -52,7 +54,10 @@ final class AXWindowEventsHarness {
                 invalidate: { self.locked { self.invalidations.append(pid) } }
             )
         },
-        makeWindow: { self.window($0, of: $1) },
+        makeWindow: { element, app in
+            self.locked { self.built.append(element) }
+            return self.window(element, of: app)
+        },
         isAlive: { !self.deadElements.contains($0.element) },
         screenIsLocked: { self.screenIsLocked }
     )

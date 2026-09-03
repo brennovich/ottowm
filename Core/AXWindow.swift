@@ -173,8 +173,8 @@ final class AXWindow: Window, WindowLogDescribing {
     }
 }
 
-/// A window is identified by its element: a new `AXWindow` is built for every notification,
-/// and the id does not tell two windows apart, tabs of one group share it.
+/// A window is identified by its element: the id does not tell two windows apart, tabs of
+/// one group share it.
 extension AXWindow: Hashable {
     static func == (lhs: AXWindow, rhs: AXWindow) -> Bool {
         lhs.element == rhs.element
