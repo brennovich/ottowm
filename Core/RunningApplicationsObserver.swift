@@ -79,6 +79,12 @@ final class RunningApplicationsObserver {
         }.flatMap(\.all)
     }
 
+    /// One thread per application, the caller blocked until the last has answered. The threads
+    /// enter `AXWindowEvents` through `start` and `inventory`, each touching one `Application`
+    /// and the locked registry, see `Applications`. Every caller is on the main thread: the
+    /// launch, the unlock, the `NSWorkspace` notifications and the `isFinishedLaunching`
+    /// observation, which is tied to the main run loop. The retries are scheduled on the main
+    /// queue.
     private func scan(
         _ apps: [NSRunningApplication],
         _ attempt: (NSRunningApplication) -> AXWindowEvents.Attempt?

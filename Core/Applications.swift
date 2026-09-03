@@ -2,6 +2,13 @@ import AppKit
 import ApplicationServices
 import CoreGraphics
 
+/// The applications watched, by pid. The registry is the one type of the AX stack that several
+/// threads reach: a scan runs one thread per application (`RunningApplicationsObserver.scan`),
+/// and each thread registers and looks up its own `Application` here, so the dictionary is
+/// locked. `Application` has no lock and needs none: no two threads ever hold the same one,
+/// because the scan blocks the main thread until every thread has returned, and every other
+/// path into the stack, the AX notifications, the retries, the sweep and the focused-window
+/// attach from `WindowSystem`, runs on the main thread.
 final class Applications {
     struct AddedResult {
         let subscription: Subscription.Outcome
@@ -68,6 +75,6 @@ final class Applications {
     }
 
     deinit {
-        applications.values.forEach { $0.invalidate() }
+        all.forEach { $0.invalidate() }
     }
 }
