@@ -377,7 +377,7 @@ sequenceDiagram
     participant TabGroups
 
     Application->>RunningApplicationsObserver: the focused window changed
-    Note over RunningApplicationsObserver: Applications.subscribe hands the window to its application, which attaches it
+    Note over RunningApplicationsObserver: Application.attach registers the window before the event goes on
     RunningApplicationsObserver->>Engine: focused(window)
     Engine->>Workspaces: assign(window)
     Workspaces->>TabGroups: add(window)
@@ -387,7 +387,7 @@ sequenceDiagram
     Note over Engine: a different workspace means the user is followed there
 ```
 
-An application lists only the active tab of a group, and sends no notification when the user switches tabs. A background tab is discovered when it takes the focus, through this event or through the `Applications.subscribe` that `WindowSystem.focused()` reads through.
+An application lists only the active tab of a group, and sends no notification when the user switches tabs. A background tab is discovered when it takes the focus, through this event or through the `Application.attach` that `WindowSystem.focused()` reads through.
 
 ### Membership
 
