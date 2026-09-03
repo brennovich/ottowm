@@ -68,7 +68,7 @@ final class AXWindowEvents {
         applications.remove(by: app.processIdentifier)
     }
 
-    func reconcile(_ app: NSRunningApplication) -> Attempt? {
+    func discover(_ app: NSRunningApplication) -> Attempt? {
         guard let application = applications.find(by: app.processIdentifier) else { return nil }
 
         return attempt(of: applications.add(application))
@@ -77,9 +77,9 @@ final class AXWindowEvents {
     /// Answers with every window the application holds, the ones already attached and the
     /// focused one included. Window events are dropped while the screen is locked, so the
     /// registry and the workspaces drift apart behind the login window, and only a full
-    /// read closes the gap. An application not known yet is started.
-    func resync(_ app: NSRunningApplication) -> Attempt? {
-        guard let application = applications.find(by: app.processIdentifier) else { return start(app) }
+    /// read closes the gap.
+    func inventory(_ app: NSRunningApplication) -> Attempt? {
+        guard let application = applications.find(by: app.processIdentifier) else { return nil }
 
         let added = applications.add(application)
         return Attempt(

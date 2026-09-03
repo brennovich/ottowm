@@ -50,12 +50,12 @@ final class ApplicationsTests: AXWindowEventsTestCase {
         XCTAssertEqual(applications.findWindow(by: 200)?.id, 200)
     }
 
-    func testRemovedWindowIsFoundAgainByReconciling() {
+    func testRemovedWindowIsFoundAgainByDiscovery() {
         let element = harness.addWindow(pid: 901, id: 100)
         start(app)
         destroy(element)
 
-        XCTAssertEqual(windowEvents.reconcile(app)?.subscription, .active)
+        XCTAssertEqual(windowEvents.discover(app)?.subscription, .active)
         XCTAssertEqual(applications.findWindow(by: 100)?.element, element)
     }
 

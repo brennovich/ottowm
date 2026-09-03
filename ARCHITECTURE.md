@@ -140,7 +140,7 @@ flowchart TB
     Desktop --> HiddenEdge
     Desktop --> Applications
     WindowSystem -->|attach the focused window| Applications
-    AXWindowObserver -->|start, reconcile, resync, stop, runGC| AXWindowEvents
+    AXWindowObserver -->|start, discover, inventory, stop, runGC| AXWindowEvents
     AXWindowEvents -->|WindowEvent| AXWindowObserver
     AXWindowEvents -->|add, remove| Applications
     Applications --> Application
@@ -150,7 +150,7 @@ flowchart TB
     AXWindowEvents --> AXWindow
 ```
 
-`AXWindowEvents` pushes only what nobody asked for: the AX notifications of the watched applications and the sweep. A scan, `start`, `reconcile` or `resync`, answers with what it found, and `AXWindowObserver` decides what to announce.
+`AXWindowEvents` pushes only what nobody asked for: the AX notifications of the watched applications and the sweep. A scan, `start`, `discover` or `inventory`, answers with what it found, and `AXWindowObserver` decides what to announce.
 
 ### Lifecycle
 
@@ -337,7 +337,7 @@ sequenceDiagram
     AXWindowObserver->>AXWindowEvents: runGC()
     AXWindowEvents->>Engine: destroyed(windowId), for each window that stopped answering
     loop each running application
-        AXWindowObserver->>AXWindowEvents: resync(app)
+        AXWindowObserver->>AXWindowEvents: inventory(app), or start(app) for one not watched yet
         AXWindowEvents-->>AXWindowObserver: every window the application holds
     end
     AXWindowObserver-->>Lifecycle: the windows of every application
@@ -349,7 +349,7 @@ The sweep runs first: a window it drops must not come back in the answer as one 
 
 The answer holds every window, not only the ones this pass attached. A window created behind the login window was attached by the notification that announced it, and only the engine dropped the event, so it reaches the workspaces solely because `Engine.resync` reads the full set and keeps what no workspace knows.
 
-An application that appeared behind the login window is not in the registry, so `resync(app)` starts it the way a launch does, and one that does not answer is retried until the grace period runs out.
+An application that appeared behind the login window is not watched yet, so `AXWindowObserver` starts it the way a launch does, and one that does not answer is retried until the grace period runs out.
 
 ### Window lifecycle
 

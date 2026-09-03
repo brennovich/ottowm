@@ -74,11 +74,13 @@ final class AXWindowObserver {
     /// Answers with every window of every running application, so the engine can adopt
     /// the ones no workspace knows. The sweep runs first: a window it drops must not come
     /// back in the answer as one to adopt again. An application that appeared while the
-    /// screen was locked is subscribed like a launch, retries included.
+    /// screen was locked is not watched yet and is started like a launch, retries included.
     func resync() -> [WindowSnapshot] {
         windowEvents.runGC()
 
-        return scan(runningApplications().filter(canSubscribe), windowEvents.resync).flatMap(\.all)
+        return scan(runningApplications().filter(canSubscribe)) {
+            windowEvents.inventory($0) ?? windowEvents.start($0)
+        }.flatMap(\.all)
     }
 
     /// Each application is a group of its own: subscribing costs a handful of round trips
@@ -133,7 +135,7 @@ final class AXWindowObserver {
         }
 
         scheduleRetry(min(delay, deadline.timeIntervalSince(now()))) { [weak self] in
-            guard let self, let attempt = windowEvents.reconcile(app) else { return }
+            guard let self, let attempt = windowEvents.discover(app) else { return }
 
             announce(attempt)
             if attempt.subscription == .unreachable {
@@ -177,7 +179,7 @@ final class AXWindowObserver {
         guard let app = app(from: notification), canSubscribe(app) else { return }
 
         windowEvents.runGC()
-        if let attempt = windowEvents.reconcile(app) { announce(attempt) }
+        if let attempt = windowEvents.discover(app) { announce(attempt) }
     }
 
     deinit {

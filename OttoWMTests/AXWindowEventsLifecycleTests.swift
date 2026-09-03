@@ -102,12 +102,12 @@ final class AXWindowEventsLifecycleTests: AXWindowEventsTestCase {
         XCTAssertEqual(events, [])
     }
 
-    func testReconcileReportsAndSubscribesTheWindowsOpenedSinceTheLastAttempt() {
+    func testDiscoverReportsAndSubscribesTheWindowsOpenedSinceTheLastAttempt() {
         harness.addWindow(pid: 901, id: 100)
         start(app)
         let discovered = harness.addWindow(pid: 901, id: 200)
 
-        let result = windowEvents.reconcile(app)
+        let result = windowEvents.discover(app)
 
         XCTAssertEqual(result?.subscription, .active)
         XCTAssertEqual(result?.windows.map(\.id), [200])
@@ -115,23 +115,23 @@ final class AXWindowEventsLifecycleTests: AXWindowEventsTestCase {
         XCTAssertEqual(harness.subscribed[901]?.suffix(3).map(\.notification), windowNotifications)
     }
 
-    func testReconcileOfAnApplicationWithNothingNewAnswersWithNoWindow() {
+    func testDiscoverOfAnApplicationWithNothingNewAnswersWithNoWindow() {
         harness.addWindow(pid: 901, id: 100)
         start(app)
 
-        let result = windowEvents.reconcile(app)
+        let result = windowEvents.discover(app)
 
         XCTAssertEqual(result?.windows.map(\.id), [])
         XCTAssertNil(result?.focused)
     }
 
-    func testReconcileSubscribesTheApplicationAgainWhileItDoesNotAnswer() {
+    func testDiscoverSubscribesTheApplicationAgainWhileItDoesNotAnswer() {
         harness.unreadyPids = [901]
         start(app)
         harness.unreadyPids = []
         let window = harness.addWindow(pid: 901, id: 100)
 
-        let result = windowEvents.reconcile(app)
+        let result = windowEvents.discover(app)
 
         XCTAssertEqual(result?.subscription, .active)
         XCTAssertEqual(result?.windows.map(\.id), [100])
@@ -139,69 +139,69 @@ final class AXWindowEventsLifecycleTests: AXWindowEventsTestCase {
         XCTAssertEqual(harness.appNotificationCount(pid: 901), 2)
     }
 
-    func testReconcileReportsTheApplicationThatStillDoesNotAnswerAsUnreachable() {
+    func testDiscoverReportsTheApplicationThatStillDoesNotAnswerAsUnreachable() {
         harness.unreadyPids = [901]
         start(app)
 
-        XCTAssertEqual(windowEvents.reconcile(app)?.subscription, .unreachable)
+        XCTAssertEqual(windowEvents.discover(app)?.subscription, .unreachable)
     }
 
-    func testReconcileLeavesTheSubscriptionOfAnApplicationThatAnsweredAlone() {
+    func testDiscoverLeavesTheSubscriptionOfAnApplicationThatAnsweredAlone() {
         harness.addWindow(pid: 901, id: 100)
         start(app)
 
-        windowEvents.reconcile(app)
+        _ = windowEvents.discover(app)
 
         XCTAssertEqual(harness.appNotificationCount(pid: 901), 1)
     }
 
-    func testReconcileOfAnUnwatchedApplicationReturnsNil() {
+    func testDiscoverOfAnUnwatchedApplicationReturnsNil() {
         harness.addWindow(pid: 901, id: 100)
 
-        XCTAssertNil(windowEvents.reconcile(app))
+        XCTAssertNil(windowEvents.discover(app))
     }
 
     // A window that is not the active tab of its group is absent from the window list,
     // so listing misses it: attaching the focused window is what registers it.
-    func testReconcileAttachesAndReportsTheFocusedWindow() {
+    func testDiscoverAttachesAndReportsTheFocusedWindow() {
         start(app)
         let tab = harness.makeElement(id: 300)
         harness.focusedElements[901] = tab
 
-        XCTAssertEqual(windowEvents.reconcile(app)?.focused?.id, 300)
+        XCTAssertEqual(windowEvents.discover(app)?.focused?.id, 300)
         XCTAssertEqual(applications.findWindow(by: 300)?.element, tab)
     }
 
-    func testReconcileOfAFocusedWindowWithoutAnIdReportsNothing() {
+    func testDiscoverOfAFocusedWindowWithoutAnIdReportsNothing() {
         start(app)
         harness.focusedElements[901] = harness.makeElement(id: 0)
 
-        let result = windowEvents.reconcile(app)
+        let result = windowEvents.discover(app)
 
         XCTAssertEqual(result?.windows.map(\.id), [])
         XCTAssertNil(result?.focused)
     }
 
     // The focused window of an application that is not the active one is not what has
-    // focus, so a reconcile driven by the retry loop must not report it.
-    func testReconcileLeavesTheFocusedWindowOfAnInactiveApplicationAlone() {
+    // focus, so a discover scan driven by the retry loop must not report it.
+    func testDiscoverLeavesTheFocusedWindowOfAnInactiveApplicationAlone() {
         start(app)
         harness.focusedElements[901] = harness.makeElement(id: 300)
         app.activated = false
 
-        let result = windowEvents.reconcile(app)
+        let result = windowEvents.discover(app)
 
         XCTAssertEqual(result?.windows.map(\.id), [])
         XCTAssertNil(result?.focused)
         XCTAssertNil(applications.findWindow(by: 300))
     }
 
-    func testReconcileReportsNoEvent() {
+    func testDiscoverReportsNoEvent() {
         start(app)
         harness.addWindow(pid: 901, id: 100)
         harness.focusedElements[901] = harness.makeElement(id: 300)
 
-        _ = windowEvents.reconcile(app)
+        _ = windowEvents.discover(app)
 
         XCTAssertEqual(events, [])
     }
@@ -271,16 +271,16 @@ final class AXWindowEventsLifecycleTests: AXWindowEventsTestCase {
         XCTAssertNotNil(applications.findWindow(by: 100))
     }
 
-    // Resync answers with every window the application holds, the ones already attached
-    // included: a window attached while the screen was locked reached no workspace, and
+    // An inventory answers with every window the application holds, the ones already
+    // attached included: a window attached while the screen was locked reached no workspace, and
     // reporting only what is new would leave it out.
-    func testResyncReportsEveryWindowOfAKnownApplication() {
+    func testInventoryReportsEveryWindowOfTheApplication() {
         harness.addWindow(pid: 901, id: 100)
         start(app)
         harness.addWindow(pid: 901, id: 200)
         harness.focusedElements[901] = harness.makeElement(id: 300)
 
-        let result = windowEvents.resync(app)
+        let result = windowEvents.inventory(app)
 
         XCTAssertEqual(Set(result?.windows.map(\.id) ?? []), [100, 200, 300])
         XCTAssertNil(result?.focused)
@@ -288,29 +288,17 @@ final class AXWindowEventsLifecycleTests: AXWindowEventsTestCase {
         XCTAssertEqual(events, [])
     }
 
-    func testResyncReportsTheKnownApplicationThatStillDoesNotAnswerAsUnreachable() {
+    func testInventoryReportsTheApplicationThatStillDoesNotAnswerAsUnreachable() {
         harness.unreadyPids = [901]
         start(app)
 
-        XCTAssertEqual(windowEvents.resync(app)?.subscription, .unreachable)
+        XCTAssertEqual(windowEvents.inventory(app)?.subscription, .unreachable)
     }
 
-    func testResyncSubscribesAnApplicationThatIsNotKnownYet() {
+    func testInventoryOfAnUnwatchedApplicationReturnsNil() {
         harness.addWindow(pid: 901, id: 100)
 
-        let result = windowEvents.resync(app)
-
-        XCTAssertEqual(result?.windows.map(\.id), [100])
-        XCTAssertNotNil(harness.callbacks[901])
-    }
-
-    func testResyncReportsHowAnApplicationThatIsNotKnownYetAnswered() {
-        harness.unreadyPids = [901]
-        harness.addWindow(pid: 901, id: 100)
-
-        let result = windowEvents.resync(app)
-
-        XCTAssertEqual(result?.subscription, .unreachable)
-        XCTAssertEqual(result?.windows.map(\.id), [])
+        XCTAssertNil(windowEvents.inventory(app))
+        XCTAssertNil(harness.callbacks[901])
     }
 }
