@@ -3,9 +3,14 @@ import ApplicationServices
 import CoreGraphics
 
 final class AXWindowEvents {
+    /// What a scan answers with. `windows` are the snapshots it hands over and `focused`
+    /// the window that took the focus, kept apart so the caller can announce it as such.
     struct Attempt {
         let windows: [WindowSnapshot]
+        let focused: WindowSnapshot?
         let subscription: Subscription.Outcome
+
+        var all: [WindowSnapshot] { windows + (focused.map { [$0] } ?? []) }
     }
 
     var onEvent: ((WindowEvent) -> Void)?
@@ -52,41 +57,36 @@ final class AXWindowEvents {
 
         let application = Application(app, channel: notifications)
 
-        let added = applications.add(application)
-        var windows = added.windows.map { $0.snapshot() }
-        if let focused = added.focused { windows.append(focused.snapshot()) }
+        let attempt = attempt(of: applications.add(application))
         Log.windows.info("started pid=\(pid) app=\(application.name) "
-            + "windows=\(windows.count) subscription=\(added.subscription.rawValue)")
+            + "windows=\(attempt.all.count) subscription=\(attempt.subscription.rawValue)")
 
-        return Attempt(windows: windows, subscription: added.subscription)
+        return attempt
     }
 
     func stop(_ app: NSRunningApplication) {
         applications.remove(by: app.processIdentifier)
     }
 
-    @discardableResult
-    func reconcile(_ app: NSRunningApplication) -> Subscription.Outcome? {
+    func reconcile(_ app: NSRunningApplication) -> Attempt? {
         guard let application = applications.find(by: app.processIdentifier) else { return nil }
 
-        let added = applications.add(application)
-        report(added.windows.map { $0.snapshot() })
-
-        if let focused = added.focused { onEvent?(.focused(focused.snapshot())) }
-
-        return added.subscription
+        return attempt(of: applications.add(application))
     }
 
-    /// Answers with every window the application holds, the ones already attached included.
-    /// Window events are dropped while the screen is locked, so the registry and the
-    /// workspaces drift apart behind the login window, and only a full read closes the gap.
-    func resync(_ app: NSRunningApplication) -> [WindowSnapshot] {
-        guard let application = applications.find(by: app.processIdentifier) else {
-            return start(app)?.windows ?? []
-        }
+    /// Answers with every window the application holds, the ones already attached and the
+    /// focused one included. Window events are dropped while the screen is locked, so the
+    /// registry and the workspaces drift apart behind the login window, and only a full
+    /// read closes the gap. An application not known yet is started.
+    func resync(_ app: NSRunningApplication) -> Attempt? {
+        guard let application = applications.find(by: app.processIdentifier) else { return start(app) }
 
-        applications.add(application)
-        return application.windows.map { $0.snapshot() }
+        let added = applications.add(application)
+        return Attempt(
+            windows: application.windows.map { $0.snapshot() },
+            focused: nil,
+            subscription: added.subscription
+        )
     }
 
     /// A window is reported dead only after two passes without an answer. A single read
@@ -150,10 +150,11 @@ final class AXWindowEvents {
         }
     }
 
-    private func report(_ windows: [WindowSnapshot]) {
-        for snapshot in windows {
-            Log.windows.info("reconcile found window \(snapshot.logDescription)")
-            onEvent?(.created(snapshot))
-        }
+    private func attempt(of added: Applications.AddedResult) -> Attempt {
+        Attempt(
+            windows: added.windows.map { $0.snapshot() },
+            focused: added.focused?.snapshot(),
+            subscription: added.subscription
+        )
     }
 }

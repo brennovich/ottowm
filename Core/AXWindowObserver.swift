@@ -62,11 +62,35 @@ final class AXWindowObserver {
         self.handler = handler
         windowEvents.onEvent = { [weak self] in self?.handler?($0) }
 
-        // Each application is a group of its own: subscribing costs a handful of round
-        // trips into that process, and one that does not answer holds its thread for the
-        // messaging timeout instead of holding up every application behind it.
-        let attempts = Concurrently.map(over: runningApplications().filter(canSubscribe).map { [$0] }) {
-            $0.compactMap { app in windowEvents.start(app).map { (app: app, attempt: $0) } }
+        let windows = scan(runningApplications().filter(canSubscribe), windowEvents.start).flatMap(\.all)
+
+        for n in Self.workspaceNotifications {
+            notificationCenter.addObserver(self, selector: n.selector, name: n.name, object: nil)
+        }
+
+        return windows
+    }
+
+    /// Answers with every window of every running application, so the engine can adopt
+    /// the ones no workspace knows. The sweep runs first: a window it drops must not come
+    /// back in the answer as one to adopt again. An application that appeared while the
+    /// screen was locked is subscribed like a launch, retries included.
+    func resync() -> [WindowSnapshot] {
+        windowEvents.runGC()
+
+        return scan(runningApplications().filter(canSubscribe), windowEvents.resync).flatMap(\.all)
+    }
+
+    /// Each application is a group of its own: subscribing costs a handful of round trips
+    /// into that process, and one that does not answer holds its thread for the messaging
+    /// timeout instead of holding up every application behind it. One that answers
+    /// unreachable is retried until the grace period runs out.
+    private func scan(
+        _ apps: [NSRunningApplication],
+        _ attempt: (NSRunningApplication) -> AXWindowEvents.Attempt?
+    ) -> [AXWindowEvents.Attempt] {
+        let attempts = Concurrently.map(over: apps.map { [$0] }) {
+            $0.compactMap { app in attempt(app).map { (app: app, attempt: $0) } }
         }
 
         let deadline = now().addingTimeInterval(Self.subscriptionGracePeriod)
@@ -74,22 +98,7 @@ final class AXWindowObserver {
             retry(started.app, after: initialRetryDelay, until: deadline)
         }
 
-        for n in Self.workspaceNotifications {
-            notificationCenter.addObserver(self, selector: n.selector, name: n.name, object: nil)
-        }
-
-        return attempts.flatMap { $0.attempt.windows }
-    }
-
-    /// Answers with every window of every running application, so the engine can adopt
-    /// the ones no workspace knows. The sweep runs first: a window it drops must not come
-    /// back in the answer as one to adopt again.
-    func resync() -> [WindowSnapshot] {
-        windowEvents.runGC()
-
-        return Concurrently.map(over: runningApplications().filter(canSubscribe).map { [$0] }) {
-            $0.flatMap { windowEvents.resync($0) }
-        }
+        return attempts.map(\.attempt)
     }
 
     private func canSubscribe(_ app: NSRunningApplication) -> Bool {
@@ -112,16 +121,6 @@ final class AXWindowObserver {
         return true
     }
 
-    private func subscribe(_ app: NSRunningApplication) -> [WindowSnapshot] {
-        guard let attempt = windowEvents.start(app) else { return [] }
-
-        if attempt.subscription == .unreachable {
-            retry(app, after: initialRetryDelay, until: now().addingTimeInterval(Self.subscriptionGracePeriod))
-        }
-
-        return attempt.windows
-    }
-
     // Exponential backoff retry, this is necessary because some apps take
     // a while to finish launching and become reachable via AX.
     private func retry(_ app: NSRunningApplication, after delay: TimeInterval, until deadline: Date) {
@@ -134,9 +133,12 @@ final class AXWindowObserver {
         }
 
         scheduleRetry(min(delay, deadline.timeIntervalSince(now()))) { [weak self] in
-            guard let self, windowEvents.reconcile(app) == .unreachable else { return }
+            guard let self, let attempt = windowEvents.reconcile(app) else { return }
 
-            retry(app, after: delay * 2, until: deadline)
+            announce(attempt)
+            if attempt.subscription == .unreachable {
+                retry(app, after: delay * 2, until: deadline)
+            }
         }
     }
 
@@ -155,9 +157,15 @@ final class AXWindowObserver {
     }
 
     private func announceWindows(of app: NSRunningApplication) {
-        for snapshot in subscribe(app) {
-            handler?(.created(snapshot))
+        scan([app], windowEvents.start).forEach(announce)
+    }
+
+    private func announce(_ attempt: AXWindowEvents.Attempt) {
+        for window in attempt.windows {
+            Log.observer.info("announcing \(window.logDescription)")
+            handler?(.created(window))
         }
+        if let focused = attempt.focused { handler?(.focused(focused)) }
     }
 
     @objc private func applicationTerminated(_ notification: Notification) {
@@ -169,7 +177,7 @@ final class AXWindowObserver {
         guard let app = app(from: notification), canSubscribe(app) else { return }
 
         windowEvents.runGC()
-        windowEvents.reconcile(app)
+        if let attempt = windowEvents.reconcile(app) { announce(attempt) }
     }
 
     deinit {

@@ -55,7 +55,7 @@ final class ApplicationsTests: AXWindowEventsTestCase {
         start(app)
         destroy(element)
 
-        XCTAssertEqual(windowEvents.reconcile(app), .active)
+        XCTAssertEqual(windowEvents.reconcile(app)?.subscription, .active)
         XCTAssertEqual(applications.findWindow(by: 100)?.element, element)
     }
 
