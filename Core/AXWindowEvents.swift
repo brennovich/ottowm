@@ -92,7 +92,7 @@ final class AXWindowEvents {
     /// A window is reported dead only after two passes without an answer. A single read
     /// fails for a window that is alive: the sweep runs the moment the screen unlocks,
     /// where an application still coming back from sleep answers for none of its windows.
-    func runGC() {
+    func sweepDeadWindows() {
         guard !screenIsLocked() else { return }
 
         var confirmed: [CGWindowID] = []

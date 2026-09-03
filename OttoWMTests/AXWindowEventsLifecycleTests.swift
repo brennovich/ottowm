@@ -206,37 +206,37 @@ final class AXWindowEventsLifecycleTests: AXWindowEventsTestCase {
         XCTAssertEqual(events, [])
     }
 
-    func testDropDeadForgetsAndReportsTheWindowsThatNoLongerAnswer() {
+    func testSweepDeadWindowsForgetsAndReportsTheWindowsThatNoLongerAnswer() {
         let alive = harness.addWindow(pid: 901, id: 100)
         let dead = harness.addWindow(pid: 901, id: 200)
         start(app)
         harness.deadElements = [dead]
 
-        windowEvents.runGC()
-        windowEvents.runGC()
+        windowEvents.sweepDeadWindows()
+        windowEvents.sweepDeadWindows()
 
         XCTAssertEqual(events.descriptions, ["destroyed(200)"])
         XCTAssertNil(applications.findWindow(by: 200))
         XCTAssertEqual(applications.findWindow(by: 100)?.element, alive)
     }
 
-    func testDropDeadKeepsEveryWindowThatStillAnswers() {
+    func testSweepDeadWindowsKeepsEveryWindowThatStillAnswers() {
         harness.addWindow(pid: 901, id: 100)
         start(app)
 
-        windowEvents.runGC()
+        windowEvents.sweepDeadWindows()
 
         XCTAssertEqual(events, [])
     }
 
-    func testDropDeadReportsNothingWhileTheScreenIsLocked() {
+    func testSweepDeadWindowsReportsNothingWhileTheScreenIsLocked() {
         let window = harness.addWindow(pid: 901, id: 100)
         start(app)
         harness.deadElements = [window]
         harness.screenIsLocked = true
 
-        windowEvents.runGC()
-        windowEvents.runGC()
+        windowEvents.sweepDeadWindows()
+        windowEvents.sweepDeadWindows()
 
         XCTAssertEqual(events, [])
         XCTAssertNotNil(applications.findWindow(by: 100))
@@ -245,27 +245,27 @@ final class AXWindowEventsLifecycleTests: AXWindowEventsTestCase {
     // A window reads as invalid while its application is still coming back from sleep,
     // and the sweep runs the moment the screen unlocks. One silent pass is a bad moment,
     // not a dead window.
-    func testDropDeadKeepsAWindowThatFailsASinglePass() {
+    func testSweepDeadWindowsKeepsAWindowThatFailsASinglePass() {
         let window = harness.addWindow(pid: 901, id: 100)
         start(app)
         harness.deadElements = [window]
 
-        windowEvents.runGC()
+        windowEvents.sweepDeadWindows()
 
         XCTAssertEqual(events, [])
         XCTAssertNotNil(applications.findWindow(by: 100))
     }
 
-    func testDropDeadClearsTheSuspicionOnAWindowThatAnswersAgain() {
+    func testSweepDeadWindowsClearsTheSuspicionOnAWindowThatAnswersAgain() {
         let window = harness.addWindow(pid: 901, id: 100)
         start(app)
         harness.deadElements = [window]
-        windowEvents.runGC()
+        windowEvents.sweepDeadWindows()
         harness.deadElements = []
-        windowEvents.runGC()
+        windowEvents.sweepDeadWindows()
 
         harness.deadElements = [window]
-        windowEvents.runGC()
+        windowEvents.sweepDeadWindows()
 
         XCTAssertEqual(events, [])
         XCTAssertNotNil(applications.findWindow(by: 100))

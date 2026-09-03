@@ -140,7 +140,7 @@ flowchart TB
     Desktop --> HiddenEdge
     Desktop --> Applications
     WindowSystem -->|attach the focused window| Applications
-    AXWindowObserver -->|start, discover, inventory, stop, runGC| AXWindowEvents
+    AXWindowObserver -->|start, discover, inventory, stop, sweepDeadWindows| AXWindowEvents
     AXWindowEvents -->|WindowEvent| AXWindowObserver
     AXWindowEvents -->|add, remove| Applications
     Applications --> Application
@@ -334,7 +334,7 @@ Window events are dropped while the screen is locked, and a sweep run behind the
 sequenceDiagram
     ScreenLock->>Lifecycle: unlocked
     Lifecycle->>AXWindowObserver: resync()
-    AXWindowObserver->>AXWindowEvents: runGC()
+    AXWindowObserver->>AXWindowEvents: sweepDeadWindows()
     AXWindowEvents->>Engine: destroyed(windowId), for each window that stopped answering
     loop each running application
         AXWindowObserver->>AXWindowEvents: inventory(app), or start(app) for one not watched yet

@@ -76,7 +76,7 @@ final class AXWindowObserver {
     /// back in the answer as one to adopt again. An application that appeared while the
     /// screen was locked is not watched yet and is started like a launch, retries included.
     func resync() -> [WindowSnapshot] {
-        windowEvents.runGC()
+        windowEvents.sweepDeadWindows()
 
         return scan(runningApplications().filter(canSubscribe)) {
             windowEvents.inventory($0) ?? windowEvents.start($0)
@@ -178,7 +178,7 @@ final class AXWindowObserver {
     @objc private func applicationActivated(_ notification: Notification) {
         guard let app = app(from: notification), canSubscribe(app) else { return }
 
-        windowEvents.runGC()
+        windowEvents.sweepDeadWindows()
         if let attempt = windowEvents.discover(app) { announce(attempt) }
     }
 
