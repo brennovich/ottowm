@@ -90,10 +90,12 @@ flowchart LR
 | `RoundTrips`                | macOS     | Prices an operation in the calls it makes out of the process: how many, of what, cost.  |
 | `Signposts`                 | macOS     | The operation and round-trip intervals Instruments records.                             |
 | `AppDelegate`               | Lifecycle | The startup order.                                                                      |
+| `ConfigGate`                | Lifecycle | The config startup gate: the error alert, and whether to relaunch or quit.              |
 | `AccessibilityPermission`   | Lifecycle | The startup gate, and the watch on the accessibility trust.                             |
 | `ScreenLock`                | Lifecycle | Reports whether the login window covers the session, and when it is uncovered.          |
 | `Lifecycle`                 | Lifecycle | The transitions once it owns windows: `quit`, SIGTERM, relaunch, resync on unlock.      |
 | `AccessibilityAlert`        | UI        | The accessibility permission alerts: what they say and how they show.                   |
+| `ConfigAlert`               | UI        | The config error alert: what it says and how it shows.                                  |
 
 `Window` is a protocol; `AXWindow` is the implementation the app runs.
 
@@ -152,6 +154,8 @@ flowchart TB
 
 ```mermaid
 flowchart LR
+    AppDelegate --> ConfigGate
+    ConfigGate --> ConfigAlert
     AppDelegate --> AccessibilityPermission
     AccessibilityPermission --> AccessibilityAlert
     AppDelegate --> Engine
@@ -164,6 +168,7 @@ flowchart LR
     Lifecycle -->|screenIsLocked| AXWindowEvents
     Lifecycle -->|resync| AXWindowObserver
     AccessibilityPermission -->|relaunch| Lifecycle
+    ConfigGate -->|relaunch| Lifecycle
 ```
 
 ## Flows
@@ -172,8 +177,10 @@ flowchart LR
 
 ```mermaid
 sequenceDiagram
-    AppDelegate->>ConfigFile: load()
-    ConfigFile-->>AppDelegate: Config, or ConfigError and exit
+    AppDelegate->>ConfigGate: load()
+    ConfigGate->>ConfigFile: load()
+    ConfigFile-->>ConfigGate: Config, or a ConfigError
+    ConfigGate-->>AppDelegate: Config, quit, or relaunch once the user fixed the file
     AppDelegate->>AccessibilityPermission: request()
     AccessibilityPermission-->>AppDelegate: granted, quit, or relaunch after the grant
     AppDelegate->>AXWindowObserver: start(handler)

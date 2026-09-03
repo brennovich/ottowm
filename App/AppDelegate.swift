@@ -15,7 +15,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var engine: Engine?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        guard case let .success(config) = ConfigFile.load() else {
+        let config: Config
+        switch ConfigGate(relaunch: lifecycle.relaunch).load() {
+        case let .loaded(loaded):
+            config = loaded
+        case .relaunching:
+            return
+        case .quit:
             Log.app.error("unable to load a valid config, exiting")
             exit(EXIT_FAILURE)
         }
