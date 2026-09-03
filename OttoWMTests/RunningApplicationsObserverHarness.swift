@@ -2,7 +2,7 @@ import AppKit
 import ApplicationServices
 import CoreGraphics
 
-final class AXWindowObserverHarness {
+final class RunningApplicationsObserverHarness {
     let windows = AXWindowEventsHarness()
     let center = NotificationCenter()
     var apps: [NSRunningApplication] = []
@@ -16,7 +16,7 @@ final class AXWindowObserverHarness {
     private(set) var retryDelays: [TimeInterval] = []
     private(set) var pendingLaunches: [() -> Void] = []
 
-    lazy var observer = AXWindowObserver(
+    lazy var observer = RunningApplicationsObserver(
         windowEvents: windows.windowEvents,
         scheduleRetry: { delay, work in
             self.retryDelays.append(delay)

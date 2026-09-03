@@ -13,7 +13,7 @@ private let webKitServiceBundleIds: Set<String> = [
     "com.apple.WebKit.GPU",
 ]
 
-final class AXWindowObserver {
+final class RunningApplicationsObserver {
     private let windowEvents: AXWindowEvents
     private let scheduleRetry: (TimeInterval, @escaping () -> Void) -> Void
     private let whenFinishedLaunching: (NSRunningApplication, @escaping () -> Void) -> Void
@@ -71,10 +71,6 @@ final class AXWindowObserver {
         return windows
     }
 
-    /// Answers with every window of every running application, so the engine can adopt
-    /// the ones no workspace knows. The sweep runs first: a window it drops must not come
-    /// back in the answer as one to adopt again. An application that appeared while the
-    /// screen was locked is not watched yet and is started like a launch, retries included.
     func resync() -> [WindowSnapshot] {
         windowEvents.sweepDeadWindows()
 
@@ -83,10 +79,6 @@ final class AXWindowObserver {
         }.flatMap(\.all)
     }
 
-    /// Each application is a group of its own: subscribing costs a handful of round trips
-    /// into that process, and one that does not answer holds its thread for the messaging
-    /// timeout instead of holding up every application behind it. One that answers
-    /// unreachable is retried until the grace period runs out.
     private func scan(
         _ apps: [NSRunningApplication],
         _ attempt: (NSRunningApplication) -> AXWindowEvents.Attempt?

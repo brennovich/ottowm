@@ -59,43 +59,43 @@ flowchart LR
 
 ## Level 3 — Components
 
-| Component                   | Category  | Description                                                                             |
-|-----------------------------|-----------|-----------------------------------------------------------------------------------------|
-| `ConfigFile`                | Input     | Reads the user's config file, or the bundled one.                                       |
-| `Config`                    | Input     | The `KeyCombo → Action` table, indexed by key code.                                     |
-| `Bindings`                  | Input     | The bindings currently up: `start`, `stop`, `reload`.                                   |
-| `Hotkeys`                   | Input     | A session `CGEventTap` on keyDown, running on a thread of its own.                      |
-| `Engine`                    | Engine    | Turns window events and actions into model updates and window moves.                    |
-| `Workspaces`                | Model     | Window → workspace, focus history, current workspace.                                   |
-| `Workspace`                 | Model     | The windows of one workspace and the order they were focused in.                        |
-| `TabGroups`                 | Model     | Infers which windows are tabs of one another. Reads a window's tab count on demand.     |
-| `Neighbors`                 | Model     | The windows around one frame, and which of them a focus move lands on.                  |
-| `Step`                      | Model     | One move of a window in points, and where it lands within the screen.                   |
-| `AwaitedFocus`              | Model     | The focus requests `Engine` made and has not seen answered.                             |
-| `WorkspaceBeforeFullScreen` | Model     | The workspace each full screen window returns to.                                       |
-| `ParkedWindows`             | Model     | The windows parked at the hidden edge, and the frame each one is owed back.             |
-| `Desktop`                   | macOS     | Parks a window at the hidden edge, restores the frame it is owed, and steps it around.  |
-| `HiddenEdge`                | macOS     | The corner sliver a parked window sits in, and the frame one is recovered to.           |
-| `WindowSystem`              | macOS     | The focused window, the on-screen window frames, and the tab count of a window.         |
-| `AXWindowObserver`          | macOS     | Which applications count, and the `NSWorkspace` notifications of their lifecycle.       |
-| `AXWindowEvents`            | macOS     | The AX notifications of the watched applications, as `WindowEvent`s.                    |
-| `Applications`              | macOS     | The applications watched, and the window each `CGWindowID` belongs to.                  |
-| `Application`               | macOS     | One watched application: its windows and their ids, its channel, and its subscription.  |
-| `Subscription`              | macOS     | The AX notifications one element is subscribed to, and whether the attempt succeeded.   |
-| `AXNotifications`           | macOS     | The AX notification channel of one process: subscribe an element, invalidate the lot.   |
-| `Window`                    | macOS     | The window operations the placement layer needs: snapshot, frames, moves, focus, tabs.  |
-| `AXWindow`                  | macOS     | One window: snapshot, frame writes, focus, tab count.                                   |
-| `MainScreen`                | macOS     | The geometry of the main display, in top-left coordinates.                              |
-| `OperationCache`            | macOS     | Holds one AX or CG read for the length of an operation.                                 |
-| `RoundTrips`                | macOS     | Prices an operation in the calls it makes out of the process: how many, of what, cost.  |
-| `Signposts`                 | macOS     | The operation and round-trip intervals Instruments records.                             |
-| `AppDelegate`               | Lifecycle | The startup order.                                                                      |
-| `ConfigGate`                | Lifecycle | The config startup gate: the error alert, and whether to relaunch or quit.              |
-| `AccessibilityPermission`   | Lifecycle | The startup gate, and the watch on the accessibility trust.                             |
-| `ScreenLock`                | Lifecycle | Reports whether the login window covers the session, and when it is uncovered.          |
-| `Lifecycle`                 | Lifecycle | The transitions once it owns windows: `quit`, SIGTERM, relaunch, resync on unlock.      |
-| `AccessibilityAlert`        | UI        | The accessibility permission alerts: what they say and how they show.                   |
-| `ConfigAlert`               | UI        | The config error alert: what it says and how it shows.                                  |
+| Component                     | Category  | Description                                                                             |
+|-------------------------------|-----------|-----------------------------------------------------------------------------------------|
+| `ConfigFile`                  | Input     | Reads the user's config file, or the bundled one.                                       |
+| `Config`                      | Input     | The `KeyCombo → Action` table, indexed by key code.                                     |
+| `Bindings`                    | Input     | The bindings currently up: `start`, `stop`, `reload`.                                   |
+| `Hotkeys`                     | Input     | A session `CGEventTap` on keyDown, running on a thread of its own.                      |
+| `Engine`                      | Engine    | Turns window events and actions into model updates and window moves.                    |
+| `Workspaces`                  | Model     | Window → workspace, focus history, current workspace.                                   |
+| `Workspace`                   | Model     | The windows of one workspace and the order they were focused in.                        |
+| `TabGroups`                   | Model     | Infers which windows are tabs of one another. Reads a window's tab count on demand.     |
+| `Neighbors`                   | Model     | The windows around one frame, and which of them a focus move lands on.                  |
+| `Step`                        | Model     | One move of a window in points, and where it lands within the screen.                   |
+| `AwaitedFocus`                | Model     | The focus requests `Engine` made and has not seen answered.                             |
+| `WorkspaceBeforeFullScreen`   | Model     | The workspace each full screen window returns to.                                       |
+| `ParkedWindows`               | Model     | The windows parked at the hidden edge, and the frame each one is owed back.             |
+| `Desktop`                     | macOS     | Parks a window at the hidden edge, restores the frame it is owed, and steps it around.  |
+| `HiddenEdge`                  | macOS     | The corner sliver a parked window sits in, and the frame one is recovered to.           |
+| `WindowSystem`                | macOS     | The focused window, the on-screen window frames, and the tab count of a window.         |
+| `RunningApplicationsObserver` | macOS     | Which applications count, and the `NSWorkspace` notifications of their lifecycle.       |
+| `AXWindowEvents`              | macOS     | The AX notifications of the watched applications, as `WindowEvent`s.                    |
+| `Applications`                | macOS     | The applications watched, and the window each `CGWindowID` belongs to.                  |
+| `Application`                 | macOS     | One watched application: its windows and their ids, its channel, and its subscription.  |
+| `Subscription`                | macOS     | The AX notifications one element is subscribed to, and whether the attempt succeeded.   |
+| `AXNotifications`             | macOS     | The AX notification channel of one process: subscribe an element, invalidate the lot.   |
+| `Window`                      | macOS     | The window operations the placement layer needs: snapshot, frames, moves, focus, tabs.  |
+| `AXWindow`                    | macOS     | One window: snapshot, frame writes, focus, tab count.                                   |
+| `MainScreen`                  | macOS     | The geometry of the main display, in top-left coordinates.                              |
+| `OperationCache`              | macOS     | Holds one AX or CG read for the length of an operation.                                 |
+| `RoundTrips`                  | macOS     | Prices an operation in the calls it makes out of the process: how many, of what, cost.  |
+| `Signposts`                   | macOS     | The operation and round-trip intervals Instruments records.                             |
+| `AppDelegate`                 | Lifecycle | The startup order.                                                                      |
+| `ConfigGate`                  | Lifecycle | The config startup gate: the error alert, and whether to relaunch or quit.              |
+| `AccessibilityPermission`     | Lifecycle | The startup gate, and the watch on the accessibility trust.                             |
+| `ScreenLock`                  | Lifecycle | Reports whether the login window covers the session, and when it is uncovered.          |
+| `Lifecycle`                   | Lifecycle | The transitions once it owns windows: `quit`, SIGTERM, relaunch, resync on unlock.      |
+| `AccessibilityAlert`          | UI        | The accessibility permission alerts: what they say and how they show.                   |
+| `ConfigAlert`                 | UI        | The config error alert: what it says and how it shows.                                  |
 
 `Window` is a protocol; `AXWindow` is the implementation the app runs.
 
@@ -135,13 +135,13 @@ flowchart TB
     Engine -->|recover, place, focus| Desktop
     Engine -->|focused, shows, frames| WindowSystem
     TabGroups -->|tabCount| WindowSystem
-    AXWindowObserver -->|WindowEvent| Engine
+    RunningApplicationsObserver -->|WindowEvent| Engine
     Desktop --> MainScreen
     Desktop --> HiddenEdge
     Desktop --> Applications
     WindowSystem -->|attach the focused window| Applications
-    AXWindowObserver -->|start, discover, inventory, stop, sweepDeadWindows| AXWindowEvents
-    AXWindowEvents -->|WindowEvent| AXWindowObserver
+    RunningApplicationsObserver -->|start, discover, inventory, stop, sweepDeadWindows| AXWindowEvents
+    AXWindowEvents -->|WindowEvent| RunningApplicationsObserver
     AXWindowEvents -->|add, remove| Applications
     Applications --> Application
     Application --> Subscription
@@ -150,7 +150,7 @@ flowchart TB
     AXWindowEvents --> AXWindow
 ```
 
-`AXWindowEvents` pushes only what nobody asked for: the AX notifications of the watched applications and the sweep. A scan, `start`, `discover` or `inventory`, answers with what it found, and `AXWindowObserver` decides what to announce.
+`AXWindowEvents` pushes only what nobody asked for: the AX notifications of the watched applications and the sweep. A scan, `start`, `discover` or `inventory`, answers with what it found, and `RunningApplicationsObserver` decides what to announce.
 
 ### Lifecycle
 
@@ -168,7 +168,7 @@ flowchart LR
     Lifecycle -->|stop, resync| Engine
     Lifecycle -->|screenIsLocked| Engine
     Lifecycle -->|screenIsLocked| AXWindowEvents
-    Lifecycle -->|resync| AXWindowObserver
+    Lifecycle -->|resync| RunningApplicationsObserver
     AccessibilityPermission -->|relaunch| Lifecycle
     ConfigGate -->|relaunch| Lifecycle
 ```
@@ -185,8 +185,8 @@ sequenceDiagram
     ConfigGate-->>AppDelegate: Config, quit, or relaunch once the user fixed the file
     AppDelegate->>AccessibilityPermission: request()
     AccessibilityPermission-->>AppDelegate: granted, quit, or relaunch after the grant
-    AppDelegate->>AXWindowObserver: start(handler)
-    AXWindowObserver-->>AppDelegate: the windows found while subscribing
+    AppDelegate->>RunningApplicationsObserver: start(handler)
+    RunningApplicationsObserver-->>AppDelegate: the windows found while subscribing
     AppDelegate->>Engine: start(windows:)
     Engine->>Desktop: recover(windows)
     Desktop-->>Engine: the same windows, parked ones back on screen
@@ -255,14 +255,14 @@ The user can reach a parked window without OttoWM, through Cmd-Tab, the Dock or 
 
 ```mermaid
 sequenceDiagram
-    participant AXWindowObserver
+    participant RunningApplicationsObserver
     participant Desktop
     participant Engine
     participant WindowSystem
     participant Workspaces
 
     alt on the same native Space
-        AXWindowObserver->>Engine: focused(a parked window)
+        RunningApplicationsObserver->>Engine: focused(a parked window)
         Engine->>WindowSystem: focused()
         Note over Engine: dropped unless the OS reports that window focused now,<br/>and the event is not the answer to a focus OttoWM requested
     else from another native Space
@@ -285,7 +285,7 @@ sequenceDiagram
     Engine->>Workspaces: remove(id)
     Engine->>WorkspaceBeforeFullScreen: record(id, in: the workspace it was in)
     Note over Engine: the window leaves full screen
-    AXWindowObserver->>Engine: focused(window)
+    RunningApplicationsObserver->>Engine: focused(window)
     Engine->>WorkspaceBeforeFullScreen: workspace(of: id)
     WorkspaceBeforeFullScreen-->>Engine: the recorded workspace
     Engine->>Workspaces: switchTo(it), then assign(window) there
@@ -333,14 +333,14 @@ Window events are dropped while the screen is locked, and a sweep run behind the
 ```mermaid
 sequenceDiagram
     ScreenLock->>Lifecycle: unlocked
-    Lifecycle->>AXWindowObserver: resync()
-    AXWindowObserver->>AXWindowEvents: sweepDeadWindows()
+    Lifecycle->>RunningApplicationsObserver: resync()
+    RunningApplicationsObserver->>AXWindowEvents: sweepDeadWindows()
     AXWindowEvents->>Engine: destroyed(windowId), for each window that stopped answering
     loop each running application
-        AXWindowObserver->>AXWindowEvents: inventory(app), or start(app) for one not watched yet
-        AXWindowEvents-->>AXWindowObserver: every window the application holds
+        RunningApplicationsObserver->>AXWindowEvents: inventory(app), or start(app) for one not watched yet
+        AXWindowEvents-->>RunningApplicationsObserver: every window the application holds
     end
-    AXWindowObserver-->>Lifecycle: the windows of every application
+    RunningApplicationsObserver-->>Lifecycle: the windows of every application
     Lifecycle->>Engine: resync(windows:)
     Engine->>Engine: assign the ones no workspace knows to the current workspace
 ```
@@ -349,7 +349,7 @@ The sweep runs first: a window it drops must not come back in the answer as one 
 
 The answer holds every window, not only the ones this pass attached. A window created behind the login window was attached by the notification that announced it, and only the engine dropped the event, so it reaches the workspaces solely because `Engine.resync` reads the full set and keeps what no workspace knows.
 
-An application that appeared behind the login window is not watched yet, so `AXWindowObserver` starts it the way a launch does, and one that does not answer is retried until the grace period runs out.
+An application that appeared behind the login window is not watched yet, so `RunningApplicationsObserver` starts it the way a launch does, and one that does not answer is retried until the grace period runs out.
 
 ### Window lifecycle
 
@@ -371,14 +371,14 @@ macOS reports no tab membership, so OttoWM infers it. A tab group is one window 
 ```mermaid
 sequenceDiagram
     participant Application
-    participant AXWindowObserver
+    participant RunningApplicationsObserver
     participant Engine
     participant Workspaces
     participant TabGroups
 
-    Application->>AXWindowObserver: the focused window changed
-    Note over AXWindowObserver: Applications.subscribe hands the window to its application, which attaches it
-    AXWindowObserver->>Engine: focused(window)
+    Application->>RunningApplicationsObserver: the focused window changed
+    Note over RunningApplicationsObserver: Applications.subscribe hands the window to its application, which attaches it
+    RunningApplicationsObserver->>Engine: focused(window)
     Engine->>Workspaces: assign(window)
     Workspaces->>TabGroups: add(window)
     Note over TabGroups: reads how many tabs the window shows

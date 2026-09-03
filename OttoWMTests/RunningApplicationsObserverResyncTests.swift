@@ -1,7 +1,7 @@
 import XCTest
 
-final class AXWindowObserverResyncTests: XCTestCase {
-    private let harness = AXWindowObserverHarness()
+final class RunningApplicationsObserverResyncTests: XCTestCase {
+    private let harness = RunningApplicationsObserverHarness()
 
     func testResyncAnswersWithTheWindowsOfEveryRunningApplication() {
         harness.apps = [StubRunningApplication(pid: 901), StubRunningApplication(pid: 902)]

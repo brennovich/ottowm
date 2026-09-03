@@ -3,8 +3,8 @@ import ApplicationServices
 import CoreGraphics
 import XCTest
 
-final class AXWindowObserverTests: XCTestCase {
-    private let harness = AXWindowObserverHarness()
+final class RunningApplicationsObserverTests: XCTestCase {
+    private let harness = RunningApplicationsObserverHarness()
 
     func testStartReturnsTheWindowsOfRunningApps() {
         harness.apps = [StubRunningApplication(pid: 901)]
@@ -231,8 +231,8 @@ final class AXWindowObserverTests: XCTestCase {
         }
 
         let spent = harness.clock.timeIntervalSince(started)
-        XCTAssertGreaterThanOrEqual(spent, AXWindowObserver.subscriptionGracePeriod)
-        XCTAssertLessThan(spent, AXWindowObserver.subscriptionGracePeriod + harness.retryStep * 2)
+        XCTAssertGreaterThanOrEqual(spent, RunningApplicationsObserver.subscriptionGracePeriod)
+        XCTAssertLessThan(spent, RunningApplicationsObserver.subscriptionGracePeriod + harness.retryStep * 2)
         XCTAssertLessThanOrEqual(attempts, 10)
     }
 

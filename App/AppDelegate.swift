@@ -2,15 +2,18 @@ import Cocoa
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     private let applications = Applications()
-    private lazy var lifecycle = Lifecycle(
+    private lazy var lifecycle: Lifecycle = Lifecycle(
         stop: { [weak self] in self?.engine?.stop() },
-        resume: { [weak self] in self?.resync() }
+        resume: { [weak self] in
+            guard let self else { return }
+            engine?.resync(windows: applicationsObserver.resync())
+        }
     )
     private lazy var windowEvents = AXWindowEvents(
         applications: applications,
         screenIsLocked: { [lifecycle] in lifecycle.screenIsLocked }
     )
-    private lazy var windowObserver = AXWindowObserver(windowEvents: windowEvents)
+    private lazy var applicationsObserver = RunningApplicationsObserver(windowEvents: windowEvents)
     private var bindings: Bindings?
     private var engine: Engine?
 
@@ -80,7 +83,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             quit: lifecycle.quit,
             restart: { [weak self] in self?.bindings?.reload() }
         )
-        engine.start(windows: windowObserver.start { engine.handle($0) })
+        engine.start(windows: applicationsObserver.start { engine.handle($0) })
         self.engine = engine
 
         let bindings = Bindings.system(config: config, handler: engine.handle)
@@ -94,9 +97,5 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             lost: { [weak self] in self?.bindings?.stop() },
             regained: { [weak self] in self?.bindings?.start() }
         )
-    }
-
-    private func resync() {
-        engine?.resync(windows: windowObserver.resync())
     }
 }
