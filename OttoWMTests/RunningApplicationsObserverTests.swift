@@ -369,16 +369,3 @@ final class RunningApplicationsObserverTests: XCTestCase {
         XCTAssertFalse(harness.scheduledRetries.isEmpty)
     }
 }
-
-extension WindowEvent: Equatable {
-    public static func == (lhs: WindowEvent, rhs: WindowEvent) -> Bool {
-        switch (lhs, rhs) {
-        case let (.created(a), .created(b)): a == b
-        case let (.focused(a), .focused(b)): a == b
-        case let (.destroyed(a), .destroyed(b)): a == b
-        case let (.minimized(a), .minimized(b)): a == b
-        case let (.unminimized(a), .unminimized(b)): a == b
-        default: false
-        }
-    }
-}

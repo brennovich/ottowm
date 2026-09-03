@@ -25,7 +25,7 @@ final class Subscription {
     private let channel: AXNotifications
     private let notifications: [String]
 
-    private(set) var isActive = false
+    private var isActive = false
 
     private init(_ element: AXUIElement, channel: AXNotifications, notifications: [String]) {
         self.element = element

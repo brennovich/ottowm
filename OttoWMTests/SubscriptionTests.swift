@@ -36,7 +36,6 @@ final class SubscriptionTests: XCTestCase {
         let subscription = Subscription.application(pid: 901, channel: channel)
 
         XCTAssertEqual(subscription.activate(), .unreachable)
-        XCTAssertFalse(subscription.isActive)
     }
 
     func testActivateReportsAProcessWithoutNotificationSupportAsUnsupported() {
@@ -44,7 +43,6 @@ final class SubscriptionTests: XCTestCase {
         let subscription = Subscription.application(pid: 901, channel: channel)
 
         XCTAssertEqual(subscription.activate(), .unsupported)
-        XCTAssertFalse(subscription.isActive)
     }
 
     func testActivateDoesNotRegisterAgainAfterAnAttemptThatSucceeded() {
