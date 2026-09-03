@@ -139,7 +139,7 @@ flowchart TB
     Desktop --> MainScreen
     Desktop --> HiddenEdge
     Desktop --> Applications
-    WindowSystem -->|attach the focused window| Applications
+    WindowSystem -->|adoptFocusedWindow| AXWindowEvents
     RunningApplicationsObserver -->|start, discover, inventory, stop, sweepDeadWindows| AXWindowEvents
     AXWindowEvents -->|WindowEvent| RunningApplicationsObserver
     AXWindowEvents -->|add, find, remove| Applications
@@ -388,7 +388,7 @@ sequenceDiagram
     Note over Engine: a different workspace means the user is followed there
 ```
 
-An application lists only the active tab of a group, and sends no notification when the user switches tabs. A background tab is discovered when it takes the focus, through this event or through the `Application.attach` that `WindowSystem.focused()` reads through.
+An application lists only the active tab of a group, and sends no notification when the user switches tabs. A background tab is discovered when it takes the focus, through this event or through `AXWindowEvents.adoptFocusedWindow`, which `WindowSystem.focused()` reads through.
 
 ### Membership
 

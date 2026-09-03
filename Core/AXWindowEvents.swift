@@ -18,6 +18,7 @@ final class AXWindowEvents {
     private let applications: Applications
     private let makeNotifications: (pid_t, @escaping (AXUIElement, String) -> Void) -> AXNotifications?
     private let makeWindow: (AXUIElement, NSRunningApplication) -> AXWindow
+    private let frontmostWindow: () -> AXWindow?
     private let focusedWindow: (NSRunningApplication) -> AXWindow?
     private let listedWindows: (NSRunningApplication) -> [AXWindow]
     private let isAlive: (AXWindow) -> Bool
@@ -30,6 +31,7 @@ final class AXWindowEvents {
             = AXNotifications.of,
         makeWindow: @escaping (AXUIElement, NSRunningApplication) -> AXWindow
             = AXWindow.init(element:application:),
+        frontmostWindow: @escaping () -> AXWindow? = AXWindow.focused,
         focusedWindow: @escaping (NSRunningApplication) -> AXWindow? = AXWindow.focused(of:),
         listedWindows: @escaping (NSRunningApplication) -> [AXWindow] = AXWindow.all(of:),
         isAlive: @escaping (AXWindow) -> Bool = { window in
@@ -43,6 +45,7 @@ final class AXWindowEvents {
         self.applications = applications
         self.makeNotifications = makeNotifications
         self.makeWindow = makeWindow
+        self.frontmostWindow = frontmostWindow
         self.focusedWindow = focusedWindow
         self.listedWindows = listedWindows
         self.isAlive = isAlive
@@ -96,6 +99,18 @@ final class AXWindowEvents {
             focused: nil,
             subscription: subscription
         )
+    }
+
+    /// The window in front, attached to its application if it was not yet: an application lists
+    /// only the active tab of a group, so a background tab is first met here or through the
+    /// focus notification. Nothing for a window without an id or of an application not watched,
+    /// which the registry could not reach afterwards anyway.
+    func adoptFocusedWindow() -> WindowSnapshot? {
+        guard let window = frontmostWindow(), let application = applications.find(by: window.pid) else {
+            return nil
+        }
+
+        return application.attach(window).window?.snapshot()
     }
 
     /// A window is reported dead only after two passes without an answer. A single read

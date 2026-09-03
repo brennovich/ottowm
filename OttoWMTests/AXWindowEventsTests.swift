@@ -94,6 +94,40 @@ final class AXWindowEventsTests: AXWindowEventsTestCase {
         XCTAssertEqual(events, [])
     }
 
+    func testAdoptFocusedWindowAttachesTheWindowInFrontAndAnswersIt() {
+        start()
+        let tab = harness.makeElement(id: 300)
+        harness.frontmost = harness.window(tab, of: app)
+
+        XCTAssertEqual(windowEvents.adoptFocusedWindow()?.id, 300)
+        XCTAssertEqual(applications.findWindow(by: 300)?.element, tab)
+        XCTAssertEqual(events, [])
+    }
+
+    func testAdoptFocusedWindowOfAKnownWindowDoesNotSubscribeItAgain() {
+        let element = harness.addWindow(pid: 901, id: 100)
+        start()
+        let count = harness.subscribed[901]?.count
+        harness.frontmost = harness.window(element, of: app)
+
+        XCTAssertEqual(windowEvents.adoptFocusedWindow()?.id, 100)
+        XCTAssertEqual(harness.subscribed[901]?.count, count)
+    }
+
+    func testAdoptFocusedWindowOfAnUnwatchedApplicationAnswersNil() {
+        harness.frontmost = harness.window(harness.makeElement(id: 300), of: app)
+
+        XCTAssertNil(windowEvents.adoptFocusedWindow())
+        XCTAssertNil(applications.findWindow(by: 300))
+    }
+
+    func testAdoptFocusedWindowWithoutAnIdAnswersNil() {
+        start()
+        harness.frontmost = harness.window(harness.makeElement(id: 0), of: app)
+
+        XCTAssertNil(windowEvents.adoptFocusedWindow())
+    }
+
     /// Sends one notification against a fixture of its own, so a table row never sees the
     /// windows another row registered.
     private func descriptions(

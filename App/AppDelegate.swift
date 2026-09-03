@@ -45,12 +45,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Log.app.notice("OttoWM (\(AppInfo.version())) launched")
 
         let windowSystem = WindowSystem(
-            focusedWindow: OperationCache { [applications] in
-                guard let window = AXWindow.focused() else { return nil }
-
-                applications.find(by: window.pid)?.attach(window)
-                return window.snapshot()
-            },
+            focusedWindow: OperationCache(windowEvents.adoptFocusedWindow),
             onScreenWindows: OperationCache {
                 let onScreen = trace(.read, "CGWindowList") {
                     CGWindowListCopyWindowInfo(

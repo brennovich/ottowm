@@ -11,6 +11,7 @@ final class AXWindowEventsHarness {
     var unsupportedPids: Set<pid_t> = []
     var deadElements: Set<AXUIElement> = []
     var screenIsLocked = false
+    var frontmost: AXWindow?
     var onSubscribe: (() -> Void)?
 
     // The start scan subscribes the applications on several threads at once, so what it
@@ -51,6 +52,7 @@ final class AXWindowEventsHarness {
             self.locked { self.built.append(element) }
             return self.window(element, of: app)
         },
+        frontmostWindow: { self.frontmost },
         focusedWindow: { self.focusedWindow(of: $0) },
         listedWindows: { app in
             let pid = app.processIdentifier
