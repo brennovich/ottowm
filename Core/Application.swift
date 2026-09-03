@@ -17,10 +17,20 @@ final class Application {
         }
     }
 
+    /// What a scan answers with: the windows it attached, the focused one apart, and how the
+    /// application answered the subscription.
+    struct Scan {
+        let subscription: Subscription.Outcome
+        let windows: [AXWindow]
+        let focused: AXWindow?
+    }
+
     let running: NSRunningApplication
 
     private let channel: AXNotifications
     private let subscription: Subscription
+    private let focusedWindow: (NSRunningApplication) -> AXWindow?
+    private let listedWindows: (NSRunningApplication) -> [AXWindow]
     private var attached: [AXUIElement: AXWindow] = [:]
     private var windowsById: [CGWindowID: AXWindow] = [:]
 
@@ -28,14 +38,30 @@ final class Application {
     var name: String { running.localizedName ?? "" }
     var windows: [AXWindow] { Array(attached.values) }
 
-    init(_ running: NSRunningApplication, channel: AXNotifications) {
+    init(
+        _ running: NSRunningApplication,
+        channel: AXNotifications,
+        focusedWindow: @escaping (NSRunningApplication) -> AXWindow? = AXWindow.focused(of:),
+        listedWindows: @escaping (NSRunningApplication) -> [AXWindow] = AXWindow.all(of:)
+    ) {
         self.running = running
         self.channel = channel
         self.subscription = .application(pid: running.processIdentifier, channel: channel)
+        self.focusedWindow = focusedWindow
+        self.listedWindows = listedWindows
     }
 
-    func subscribe() -> Subscription.Outcome {
-        subscription.activate()
+    func scan() -> Scan {
+        let outcome = subscription.activate()
+        guard outcome == .active else { return Scan(subscription: outcome, windows: [], focused: nil) }
+
+        let focused = attachFocusedWindow()
+        let windows = listedWindows(running).compactMap { window -> AXWindow? in
+            guard case let .attached(attached) = attach(window) else { return nil }
+            return attached
+        }
+
+        return Scan(subscription: outcome, windows: windows, focused: focused)
     }
 
     @discardableResult
@@ -71,5 +97,11 @@ final class Application {
 
     func invalidate() {
         channel.invalidate()
+    }
+
+    private func attachFocusedWindow() -> AXWindow? {
+        guard running.isActive, let window = focusedWindow(running) else { return nil }
+
+        return attach(window).window
     }
 }

@@ -8,17 +8,88 @@ final class ApplicationTests: XCTestCase {
     private var watched: [(element: AXUIElement, notification: String)] = []
     private var invalidated = false
     private var answer = AXError.success
+    private var listed: [AXWindow] = []
+    private var focused: AXWindow?
+    private var listings = 0
+    private var focusedReads = 0
 
-    private lazy var application = Application(app, channel: AXNotifications(
-        subscribe: { element, notification in
-            self.watched.append((element, notification))
-            return self.answer
+    private lazy var application = Application(
+        app,
+        channel: AXNotifications(
+            subscribe: { element, notification in
+                self.watched.append((element, notification))
+                return self.answer
+            },
+            invalidate: { self.invalidated = true }
+        ),
+        focusedWindow: { _ in
+            self.focusedReads += 1
+            return self.focused
         },
-        invalidate: { self.invalidated = true }
-    ))
+        listedWindows: { _ in
+            self.listings += 1
+            return self.listed
+        }
+    )
 
     private func window(id: CGWindowID, element: AXUIElement = AXUIElementCreateApplication(5000)) -> AXWindow {
         AXWindow(element: element, application: app, id: id)
+    }
+
+    func testScanSubscribesTheApplicationAndAttachesTheListedWindowsItDoesNotHold() {
+        let held = window(id: 42, element: AXUIElementCreateApplication(5000))
+        let new = window(id: 43, element: AXUIElementCreateApplication(5001))
+        application.attach(held)
+        listed = [held, new]
+
+        let scan = application.scan()
+
+        XCTAssertEqual(scan.subscription, .active)
+        XCTAssertEqual(scan.windows, [new])
+        XCTAssertNil(scan.focused)
+        XCTAssertEqual(
+            watched.map(\.notification), windowNotifications + applicationNotifications + windowNotifications
+        )
+        XCTAssertEqual(application.windows.map(\.id).sorted(), [42, 43])
+    }
+
+    func testScanOfAnApplicationThatDoesNotAnswerReadsNoWindow() {
+        answer = .cannotComplete
+        listed = [window(id: 42)]
+        focused = window(id: 300, element: AXUIElementCreateApplication(5002))
+
+        let scan = application.scan()
+
+        XCTAssertEqual(scan.subscription, .unreachable)
+        XCTAssertEqual(scan.windows, [])
+        XCTAssertNil(scan.focused)
+        XCTAssertEqual(listings, 0)
+        XCTAssertEqual(focusedReads, 0)
+        XCTAssertEqual(application.windows, [])
+    }
+
+    func testScanAttachesTheFocusedWindowOfTheActiveApplicationFirstAndAnswersItApart() {
+        let tab = window(id: 300, element: AXUIElementCreateApplication(5002))
+        let other = window(id: 42, element: AXUIElementCreateApplication(5000))
+        focused = tab
+        listed = [tab, other]
+
+        let scan = application.scan()
+
+        XCTAssertIdentical(scan.focused, tab)
+        XCTAssertEqual(scan.windows, [other])
+        XCTAssertIdentical(application.findWindow(by: 300), tab)
+    }
+
+    func testScanLeavesTheFocusedWindowOfAnInactiveApplicationUnread() {
+        app.activated = false
+        focused = window(id: 300, element: AXUIElementCreateApplication(5002))
+
+        let scan = application.scan()
+
+        XCTAssertNil(scan.focused)
+        XCTAssertEqual(focusedReads, 0)
+        XCTAssertEqual(application.windows, [])
     }
 
     func testAttachSubscribesTheWindowNotificationsAndAnswersAttached() {

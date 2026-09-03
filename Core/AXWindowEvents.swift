@@ -18,6 +18,8 @@ final class AXWindowEvents {
     private let applications: Applications
     private let makeNotifications: (pid_t, @escaping (AXUIElement, String) -> Void) -> AXNotifications?
     private let makeWindow: (AXUIElement, NSRunningApplication) -> AXWindow
+    private let focusedWindow: (NSRunningApplication) -> AXWindow?
+    private let listedWindows: (NSRunningApplication) -> [AXWindow]
     private let isAlive: (AXWindow) -> Bool
     private let screenIsLocked: () -> Bool
     private var suspected: Set<AXWindow> = []
@@ -28,6 +30,8 @@ final class AXWindowEvents {
             = AXNotifications.of,
         makeWindow: @escaping (AXUIElement, NSRunningApplication) -> AXWindow
             = AXWindow.init(element:application:),
+        focusedWindow: @escaping (NSRunningApplication) -> AXWindow? = AXWindow.focused(of:),
+        listedWindows: @escaping (NSRunningApplication) -> [AXWindow] = AXWindow.all(of:),
         isAlive: @escaping (AXWindow) -> Bool = { window in
             var value: CFTypeRef?
             return trace(.read, AXAttribute.role.rawValue) {
@@ -39,6 +43,8 @@ final class AXWindowEvents {
         self.applications = applications
         self.makeNotifications = makeNotifications
         self.makeWindow = makeWindow
+        self.focusedWindow = focusedWindow
+        self.listedWindows = listedWindows
         self.isAlive = isAlive
         self.screenIsLocked = screenIsLocked
     }
@@ -55,9 +61,12 @@ final class AXWindowEvents {
             return nil
         }
 
-        let application = Application(app, channel: notifications)
+        let application = Application(
+            app, channel: notifications, focusedWindow: focusedWindow, listedWindows: listedWindows
+        )
+        applications.add(application)
 
-        let attempt = attempt(of: applications.add(application))
+        let attempt = attempt(of: application.scan())
         Log.windows.info("started pid=\(pid) app=\(application.name) "
             + "windows=\(attempt.all.count) subscription=\(attempt.subscription.rawValue)")
 
@@ -71,7 +80,7 @@ final class AXWindowEvents {
     func discover(_ app: NSRunningApplication) -> Attempt? {
         guard let application = applications.find(by: app.processIdentifier) else { return nil }
 
-        return attempt(of: applications.add(application))
+        return attempt(of: application.scan())
     }
 
     /// Answers with every window the application holds, the ones already attached and the
@@ -81,11 +90,11 @@ final class AXWindowEvents {
     func inventory(_ app: NSRunningApplication) -> Attempt? {
         guard let application = applications.find(by: app.processIdentifier) else { return nil }
 
-        let added = applications.add(application)
+        let subscription = application.scan().subscription
         return Attempt(
             windows: application.windows.map { $0.snapshot() },
             focused: nil,
-            subscription: added.subscription
+            subscription: subscription
         )
     }
 
@@ -150,11 +159,11 @@ final class AXWindowEvents {
         }
     }
 
-    private func attempt(of added: Applications.AddedResult) -> Attempt {
+    private func attempt(of scan: Application.Scan) -> Attempt {
         Attempt(
-            windows: added.windows.map { $0.snapshot() },
-            focused: added.focused?.snapshot(),
-            subscription: added.subscription
+            windows: scan.windows.map { $0.snapshot() },
+            focused: scan.focused?.snapshot(),
+            subscription: scan.subscription
         )
     }
 }

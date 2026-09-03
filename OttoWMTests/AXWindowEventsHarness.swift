@@ -30,14 +30,7 @@ final class AXWindowEventsHarness {
     var listedPids: [pid_t] { locked { listings } }
     var builtElements: [AXUIElement] { locked { built } }
 
-    lazy var applications = Applications(
-        focusedWindow: { self.focusedWindow(of: $0) },
-        listedWindows: { app in
-            let pid = app.processIdentifier
-            self.locked { self.listings.append(pid) }
-            return (self.elements[pid] ?? []).map { self.window($0, of: app) }
-        }
-    )
+    lazy var applications = Applications()
 
     lazy var windowEvents = AXWindowEvents(
         applications: applications,
@@ -57,6 +50,12 @@ final class AXWindowEventsHarness {
         makeWindow: { element, app in
             self.locked { self.built.append(element) }
             return self.window(element, of: app)
+        },
+        focusedWindow: { self.focusedWindow(of: $0) },
+        listedWindows: { app in
+            let pid = app.processIdentifier
+            self.locked { self.listings.append(pid) }
+            return (self.elements[pid] ?? []).map { self.window($0, of: app) }
         },
         isAlive: { !self.deadElements.contains($0.element) },
         screenIsLocked: { self.screenIsLocked }

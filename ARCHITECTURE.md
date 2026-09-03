@@ -80,7 +80,7 @@ flowchart LR
 | `RunningApplicationsObserver` | macOS     | Which applications count, and the `NSWorkspace` notifications of their lifecycle.       |
 | `AXWindowEvents`              | macOS     | The AX notifications of the watched applications, as `WindowEvent`s.                    |
 | `Applications`                | macOS     | The applications watched, and the window each `CGWindowID` belongs to.                  |
-| `Application`                 | macOS     | One watched application: its windows and their ids, its channel, and its subscription.  |
+| `Application`                 | macOS     | One watched application: its channel and subscription, the windows it reads, their ids. |
 | `Subscription`                | macOS     | The AX notifications one element is subscribed to, and whether the attempt succeeded.   |
 | `AXNotifications`             | macOS     | The AX notification channel of one process: subscribe an element, invalidate the lot.   |
 | `Window`                      | macOS     | The window operations the placement layer needs: snapshot, frames, moves, focus, tabs.  |
@@ -142,10 +142,11 @@ flowchart TB
     WindowSystem -->|attach the focused window| Applications
     RunningApplicationsObserver -->|start, discover, inventory, stop, sweepDeadWindows| AXWindowEvents
     AXWindowEvents -->|WindowEvent| RunningApplicationsObserver
-    AXWindowEvents -->|add, remove| Applications
+    AXWindowEvents -->|add, find, remove| Applications
     Applications --> Application
     Application --> Subscription
     Application --> AXNotifications
+    Application --> AXWindow
     Subscription --> AXNotifications
     AXWindowEvents --> AXWindow
 ```

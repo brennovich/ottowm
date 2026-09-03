@@ -83,15 +83,16 @@ final class ApplicationsTests: AXWindowEventsTestCase {
         XCTAssertEqual(start(app)?.windows.map(\.id), [100])
     }
 
-    func testAddSubscribesTheApplicationsNotifications() {
+    func testAddRegistersTheApplicationWithoutSubscribingIt() {
         var notifications: [String] = []
         let application = Application(app, channel: AXNotifications(
             subscribe: { notifications.append($1); return .success },
             invalidate: {}
         ))
 
-        XCTAssertEqual(applications.add(application).subscription, .active)
-        XCTAssertEqual(notifications, applicationNotifications)
+        applications.add(application)
+
         XCTAssertNotNil(applications.find(by: 901))
+        XCTAssertEqual(notifications, [])
     }
 }
