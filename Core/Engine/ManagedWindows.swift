@@ -23,7 +23,7 @@ final class ManagedWindows {
         return workspaces.hasTabGroup(for: focused)
     }
 
-    func canManage(_ win: WindowSnapshot) -> Bool {
+    private func canManage(_ win: WindowSnapshot) -> Bool {
         guard isDesktopInFront else {
             Log.engine.debug("\(win.logDescription) ignored: another native Space is in front")
             return false

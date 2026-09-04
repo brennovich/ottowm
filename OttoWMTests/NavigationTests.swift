@@ -153,6 +153,19 @@ final class NavigationTests: EngineTestCase {
         XCTAssertEqual(workspaces.workspace(for: 300), 1)
     }
 
+    func testRestoreLeavesTheFocusOnAFullScreenWindowOfTheCurrentWorkspace() {
+        let win1 = add(StubWindow(id: 100))
+        let win2 = add(StubWindow(id: 200))
+        managed.assign(win1.snapshot(), to: 1)
+        managed.assign(win2.snapshot(), to: 1)
+        win1.isFullScreen = true
+        focused = win1
+
+        XCTAssertTrue(navigation.restore())
+        XCTAssertEqual(win1.focusCount, 0)
+        XCTAssertEqual(win2.focusCount, 0)
+    }
+
     func testReturnToDesktopBringsAManagedWindowFrontAndIgnoresTheNavigationItCauses() {
         let parked = [72, 88, 187].map { add(StubWindow(id: $0)) }
         parked.forEach { managed.assign($0.snapshot(), to: 1) }

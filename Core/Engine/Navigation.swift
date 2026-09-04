@@ -37,11 +37,6 @@ final class Navigation {
             return
         }
 
-        guard managed.canManage(win) else {
-            enrollment.enrollLater(win)
-            return
-        }
-
         switch workspaces.membership(of: win, whenNew: workspaces.current) {
         case let .fullScreen(workspace):
             guard !managed.followBackFromFullScreen(win, to: workspace) else { return }
@@ -85,7 +80,7 @@ final class Navigation {
     func restore() -> Bool {
         let currentWorkspace = workspaces.current
 
-        if let osFocused = windowSystem.focused(), managed.canManage(osFocused) {
+        if let osFocused = windowSystem.focused() {
             switch workspaces.membership(of: osFocused, whenNew: currentWorkspace) {
             case let .fullScreen(workspace):
                 if managed.followBackFromFullScreen(osFocused, to: workspace) { return true }
@@ -133,7 +128,7 @@ final class Navigation {
     }
 
     private func enroll(_ win: WindowSnapshot, into workspace: Int) {
-        guard let assigned = managed.assign(win, to: workspace), assigned != workspaces.current else { return }
+        guard let assigned = enrollment.enroll(win, to: workspace), assigned != workspaces.current else { return }
         navigate(to: win.id)
     }
 }
