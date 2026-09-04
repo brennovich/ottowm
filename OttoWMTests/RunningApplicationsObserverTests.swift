@@ -48,6 +48,7 @@ final class RunningApplicationsObserverTests: XCTestCase {
             StubRunningApplication(pid: 905, bundleId: "com.apple.WebKit.WebContent"),
             StubRunningApplication(pid: 906, bundleId: "com.apple.WebKit.Networking"),
             StubRunningApplication(pid: 907, bundleId: "com.apple.WebKit.GPU"),
+            StubRunningApplication(pid: 908, bundleId: "com.apple.universalcontrol"),
         ]
         for app in harness.apps {
             harness.addWindow(pid: app.processIdentifier, id: CGWindowID(app.processIdentifier))

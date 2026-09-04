@@ -7,10 +7,13 @@ private let lockScreenBundleId = "com.apple.loginwindow"
 // context, so a browser accounts for dozens of them. None owns a window and none
 // answers the Accessibility API: every subscription attempt costs a full messaging
 // timeout, and the retries spend it again until the grace period runs out.
-private let webKitServiceBundleIds: Set<String> = [
+// Universal Control is in the same shape: it runs whether or not a second
+// device is around, owns no window, and answers no accessibility call.
+private let silentBundleIds: Set<String> = [
     "com.apple.WebKit.WebContent",
     "com.apple.WebKit.Networking",
     "com.apple.WebKit.GPU",
+    "com.apple.universalcontrol",
 ]
 
 final class RunningApplicationsObserver {
@@ -113,8 +116,8 @@ final class RunningApplicationsObserver {
             Log.observer.debug("skipping pid=\(pid) app=\(app.localizedName ?? ""): lock screen")
             return false
         }
-        guard !webKitServiceBundleIds.contains(bundleId) else {
-            Log.observer.debug("skipping pid=\(pid) app=\(app.localizedName ?? ""): WebKit service")
+        guard !silentBundleIds.contains(bundleId) else {
+            Log.observer.debug("skipping pid=\(pid) app=\(app.localizedName ?? ""): answers no accessibility call")
             return false
         }
 
