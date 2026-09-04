@@ -14,6 +14,8 @@ final class Engine {
 
     private static let firstReturnFromFullScreenDelay: TimeInterval = 0.1
     private static let lastReturnFromFullScreenDelay: TimeInterval = 1.6
+    private static let firstLateArrivalDelay: TimeInterval = 0.1
+    private static let lastLateArrivalDelay: TimeInterval = 0.8
 
     init(
         desktop: any Desktop,
@@ -80,7 +82,9 @@ final class Engine {
 
             switch event {
             case let .created(win):
-                assign(win, to: workspaces.current)
+                if assign(win, to: workspaces.current) == nil, win.isAdmissible {
+                    adoptLater(win.id, retryingIn: Self.firstLateArrivalDelay)
+                }
             case let .focused(win):
                 if parkedWindows.placement(of: win.id) == .parked {
                     guard windowSystem.focused()?.id == win.id else {
@@ -91,7 +95,10 @@ final class Engine {
                     return
                 }
 
-                guard canManage(win) else { return }
+                guard canManage(win) else {
+                    if win.isAdmissible { adoptLater(win.id, retryingIn: Self.firstLateArrivalDelay) }
+                    return
+                }
 
                 switch workspaces.membership(of: win, whenNew: workspaces.current) {
                 case let .fullScreen(workspace):
@@ -206,9 +213,7 @@ final class Engine {
 
     func focusWindow(_ direction: Direction) {
         windowSystem.duringOperation("focus-direction") {
-            guard let reference = windowSystem.focused(),
-                  workspaces.workspace(for: reference.id) == workspaces.current
-            else {
+            guard let reference = focusedWindowOfCurrentWorkspace() else {
                 Log.engine.info("focus \(direction.rawValue) dropped: no reference in workspace \(self.workspaces.current)")
                 return
             }
@@ -229,9 +234,7 @@ final class Engine {
 
     func moveFocusedWindow(_ step: Step) {
         windowSystem.duringOperation("move-window") {
-            guard let win = windowSystem.focused(),
-                  workspaces.workspace(for: win.id) == workspaces.current
-            else {
+            guard let win = focusedWindowOfCurrentWorkspace() else {
                 Log.engine.info("move \(step.direction.rawValue) dropped: no window of workspace \(self.workspaces.current) focused")
                 return
             }
@@ -243,6 +246,39 @@ final class Engine {
             Log.engine.info("moving \(win.logDescription) \(step.direction.rawValue) by \(step.points)")
             if !desktop.move(win.id, step) {
                 unmanage(win.id, reason: "gone")
+            }
+        }
+    }
+
+    /// The focused window when the current workspace holds it, adopted first when no
+    /// workspace does. See `adoptLater` for how a live window ends up in no workspace.
+    private func focusedWindowOfCurrentWorkspace() -> WindowSnapshot? {
+        guard let focused = windowSystem.focused() else { return nil }
+
+        switch workspaces.workspace(for: focused.id) {
+        case workspaces.current: return focused
+        case nil: return assign(focused, to: workspaces.current) == workspaces.current ? focused : nil
+        default: return nil
+        }
+    }
+
+    /// macOS posts the focus and creation notifications of a new window before the window is
+    /// in the on-screen list, so the on-screen check drops both, and no later notification
+    /// names the window. The read is repeated for a moment to adopt it once it shows.
+    private func adoptLater(_ windowId: CGWindowID, retryingIn delay: TimeInterval) {
+        guard delay <= Self.lastLateArrivalDelay else { return }
+
+        scheduleRetry(delay) { [weak self] in
+            guard let self else { return }
+
+            self.windowSystem.duringOperation("late-arrival") {
+                guard self.workspaces.workspace(for: windowId) == nil,
+                      let win = self.windowSystem.snapshot(of: windowId)
+                else { return }
+
+                if self.assign(win, to: self.workspaces.current) == nil {
+                    self.adoptLater(windowId, retryingIn: delay * 2)
+                }
             }
         }
     }

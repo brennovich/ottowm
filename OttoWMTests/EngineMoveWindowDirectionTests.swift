@@ -15,12 +15,21 @@ final class EngineMoveWindowDirectionTests: EngineTestCase {
         XCTAssertEqual(desktop.moveCalls.map(\.windowId), [win.id])
     }
 
+    func testUnassignedFocusedWindowIsAdoptedAndMoved() {
+        let win = add(StubWindow(id: 900, frame: frame))
+        focused = win
+
+        engine.moveFocusedWindow(step)
+
+        XCTAssertEqual(workspaces.workspace(for: 900), 1)
+        XCTAssertEqual(win.frame, frame.offsetBy(dx: 15, dy: 0))
+    }
+
     func testWindowOutsideTheCurrentWorkspaceMovesNothing() {
-        let unmanaged = add(StubWindow(id: 900, frame: frame))
         let elsewhere = create(StubWindow(id: 200, frame: frame))
         moveFocusedWindow(elsewhere, to: 2)
 
-        for reference in [nil, unmanaged, elsewhere] {
+        for reference in [nil, elsewhere] {
             focused = reference
 
             engine.moveFocusedWindow(step)

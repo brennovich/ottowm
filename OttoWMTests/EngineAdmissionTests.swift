@@ -53,4 +53,50 @@ final class EngineAdmissionTests: EngineTestCase {
         XCTAssertTrue(desktop.placeCalls.isEmpty)
         XCTAssertEqual(workspaces.current, 1)
     }
+
+    func testWindowNotYetOnScreenIsAdoptedByARetry() {
+        offScreenWindowIds = [100]
+        create(StubWindow(id: 100))
+
+        XCTAssertEqual(workspaces.allWindowIds, [])
+
+        offScreenWindowIds = []
+        runScheduledRetries()
+
+        XCTAssertEqual(workspaces.workspace(for: 100), workspaces.current)
+        XCTAssertEqual(parkedWindows.placement(of: 100), .active)
+    }
+
+    func testFocusedWindowNotYetOnScreenIsAdoptedByARetry() {
+        offScreenWindowIds = [100]
+        let win = add(StubWindow(id: 100))
+        engine.handle(.focused(win.snapshot()))
+
+        XCTAssertEqual(workspaces.allWindowIds, [])
+
+        offScreenWindowIds = []
+        runScheduledRetries()
+
+        XCTAssertEqual(workspaces.workspace(for: 100), workspaces.current)
+    }
+
+    func testRetryStopsWhenTheWindowStaysOffScreen() {
+        offScreenWindowIds = [100]
+        create(StubWindow(id: 100))
+
+        XCTAssertEqual(runScheduledRetries(), [0.1, 0.2, 0.4, 0.8])
+        XCTAssertTrue(scheduledRetries.isEmpty)
+        XCTAssertEqual(workspaces.allWindowIds, [])
+    }
+
+    func testRetryLeavesAWindowAssignedMeanwhileWhereItIs() {
+        offScreenWindowIds = [100]
+        let win = create(StubWindow(id: 100))
+        offScreenWindowIds = []
+        moveFocusedWindow(win, to: 2)
+
+        runScheduledRetries()
+
+        XCTAssertEqual(workspaces.workspace(for: 100), 2)
+    }
 }
