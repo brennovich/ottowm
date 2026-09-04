@@ -17,8 +17,6 @@ final class Application {
         }
     }
 
-    /// What a scan answers with: the windows it attached, the focused one apart, and how the
-    /// application answered the subscription.
     struct Scan {
         let subscription: Subscription.Outcome
         let windows: [AXWindow]

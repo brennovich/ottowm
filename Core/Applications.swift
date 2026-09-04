@@ -1,13 +1,9 @@
 import AppKit
 import CoreGraphics
 
-/// The applications watched, by pid. The registry is the one type of the AX stack that several
-/// threads reach: a scan runs one thread per application (`RunningApplicationsObserver.scan`),
-/// and each thread registers and looks up its own `Application` here, so the dictionary is
-/// locked. `Application` has no lock and needs none: no two threads ever hold the same one,
-/// because the scan blocks the main thread until every thread has returned, and every other
-/// path into the stack, the AX notifications, the retries, the sweep and the focused-window
-/// attach from `WindowSystem`, runs on the main thread.
+/// The open and valid applications being managed, by pid. Thread safe registry that the AX stack
+/// reaches several times: a scan runs one thread per application (`RunningApplicationsObserver.scan`),
+/// and each thread registers and looks up its own `Application`.
 final class Applications {
     private var applications: [pid_t: Application] = [:]
     private let lock = NSLock()
