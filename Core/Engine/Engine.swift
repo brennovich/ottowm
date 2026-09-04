@@ -222,10 +222,32 @@ extension Engine {
         quit: @escaping () -> Void = {},
         restart: @escaping () -> Void = {}
     ) -> Engine {
-        let managed = ManagedWindows(desktop: desktop, windowSystem: windowSystem, workspaces: workspaces, parkedWindows: ParkedWindows())
-        let enrollment = WindowEnrollment(windowSystem: windowSystem, workspaces: workspaces, managed: managed, scheduleRetry: scheduleRetry)
-        let navigation = Navigation(desktop: desktop, windowSystem: windowSystem, workspaces: workspaces, managed: managed, enrollment: enrollment)
-        let fullScreenReturns = FullScreenReturns(windowSystem: windowSystem, workspaces: workspaces, managed: managed, navigation: navigation, scheduleRetry: scheduleRetry)
+        let managed = ManagedWindows(
+            desktop: desktop,
+            windowSystem: windowSystem,
+            workspaces: workspaces,
+            parkedWindows: ParkedWindows()
+        )
+        let enrollment = WindowEnrollment(
+            windowSystem: windowSystem,
+            workspaces: workspaces,
+            managed: managed,
+            scheduleRetry: scheduleRetry
+        )
+        let navigation = Navigation(
+            desktop: desktop,
+            windowSystem: windowSystem,
+            workspaces: workspaces,
+            managed: managed,
+            enrollment: enrollment
+        )
+        let fullScreenReturns = FullScreenReturns(
+            windowSystem: windowSystem,
+            workspaces: workspaces,
+            managed: managed,
+            navigation: navigation,
+            scheduleRetry: scheduleRetry
+        )
 
         return Engine(
             desktop: desktop,

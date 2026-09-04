@@ -2,12 +2,13 @@
 
 Shared machinery for the acceptance run in `Acceptance/` and the benchmark in `Benchmark/`. Both drive the app installed in `/Applications` the way a user does: real hotkeys through the event tap, real frames read back through the accessibility API. Nothing here imports the app's own code on purpose, the bundle under test is the one shipped in the release zip.
 
-| File            | What it holds                                                                                           |
-| --------------- | ------------------------------------------------------------------------------------------------------- |
-| `Session.swift` | Stages the desk, launches the app, hands back the windows to drive, and undoes all of it on the way out |
-| `AX.swift`      | The accessibility reads: a window's frame, an application's windows, a window's title, a menu item      |
-| `Hotkeys.swift` | Posts the bundled key combos as real key events into the session event tap                              |
-| `Report.swift`  | Output, failure, and the wait every check is built on                                                   |
+| File            | What it holds                                                                                      |
+| --------------- | -------------------------------------------------------------------------------------------------- |
+| `Session.swift` | Launches the app, hands back the windows to drive, and undoes all of it on the way out             |
+| `Desk.swift`    | Stages the configuration a run is bound to and the windows it drives, and opens each one           |
+| `AX.swift`      | The accessibility reads: a window's frame, an application's windows, a window's title, a menu item |
+| `Hotkeys.swift` | Posts the bundled key combos as real key events into the session event tap                         |
+| `Report.swift`  | Output, failure, and the wait every check is built on                                              |
 
 There is no target of its own to build. Each run compiles the harness into its own binary, `make build/acceptance` and `make build/benchmark`, which is also how CI builds the one it is about to run before it grants permissions to anything.
 
