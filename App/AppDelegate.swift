@@ -45,26 +45,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         Log.app.notice("OttoWM (\(AppInfo.version())) launched")
 
-        let windowSystem = WindowSystem(
-            focusedWindow: OperationCache(windowEvents.adoptFocusedWindow),
-            onScreenWindows: OperationCache {
-                let onScreen = trace(.read, "CGWindowList") {
-                    CGWindowListCopyWindowInfo(
-                        [.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID
-                    ) as? [[String: Any]] ?? []
-                }
-
-                return onScreen.reduce(into: [CGWindowID: CGRect]()) { frames, info in
-                    guard let number = info[kCGWindowNumber as String] as? NSNumber,
-                          let bounds = info[kCGWindowBounds as String] as? NSDictionary,
-                          let frame = CGRect(dictionaryRepresentation: bounds)
-                    else { return }
-
-                    frames[CGWindowID(number.uint32Value)] = frame
-                }
-            },
-            window: applications.findWindow(by:)
-        )
+        let windowSystem = WindowSystem.system(windowEvents: windowEvents, applications: applications)
 
         let engine = Engine.system(
             desktop: OffscreenParkingDesktop(

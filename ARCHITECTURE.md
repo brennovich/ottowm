@@ -159,6 +159,7 @@ flowchart TB
     Desktop --> HiddenEdge
     Desktop --> Applications
     WindowSystem -->|adoptFocusedWindow| AXWindowEvents
+    WindowSystem -->|findWindow| Applications
     RunningApplicationsObserver -->|start, discover, inventory, stop, sweepDeadWindows| AXWindowEvents
     AXWindowEvents -->|WindowEvent| RunningApplicationsObserver
     AXWindowEvents -->|add, find, remove| Applications
