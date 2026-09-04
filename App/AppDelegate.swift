@@ -66,15 +66,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             window: applications.findWindow(by:)
         )
 
-        let parkedWindows = ParkedWindows()
-        let engine = Engine(
+        let engine = Engine.system(
             desktop: OffscreenParkingDesktop(
                 screen: MainScreen(),
                 window: applications.findWindow(by:)
             ),
             windowSystem: windowSystem,
             workspaces: Workspaces(tabCount: windowSystem.tabCount(of:)),
-            parkedWindows: parkedWindows,
             screenIsLocked: { [lifecycle] in lifecycle.screenIsLocked },
             quit: lifecycle.quit,
             restart: { [lifecycle] in lifecycle.reload() }

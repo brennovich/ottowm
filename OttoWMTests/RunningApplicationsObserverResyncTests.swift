@@ -39,7 +39,7 @@ final class RunningApplicationsObserverResyncTests: XCTestCase {
     }
 
     // The sweep runs before the scan, so a window it drops is not handed back as one to
-    // adopt again.
+    // enroll again.
     func testResyncSweepsTheWindowsThatNoLongerAnswerBeforeScanning() {
         harness.apps = [StubRunningApplication(pid: 901)]
         let dead = harness.addWindow(pid: 901, id: 100)

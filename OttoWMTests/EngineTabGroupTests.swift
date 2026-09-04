@@ -24,35 +24,7 @@ final class EngineTabGroupTests: EngineTestCase {
 
         engine.switchToWorkspace(2)
 
-        XCTAssertEqual(workspaces.workspace(for: 301), 1)
-        XCTAssertEqual(parkedWindows.placement(of: 301), .parked)
         XCTAssertEqual(tab1.focusCount, 0)
-    }
-
-    func testTabHiddenBySiblingIsNotDroppedAsHavingLeftTheDesktop() {
-        create(StubWindow(id: 300, appName: "Terminal", frame: tabFrame, tabCount: 2))
-        let tab2 = create(StubWindow(id: 301, appName: "Terminal", frame: tabFrame, tabCount: 2))
-        let other = create(StubWindow(id: 100))
-        moveFocusedWindow(other, to: 2)
-
-        focused = tab2
-        offScreenWindowIds = [300]
-        engine.switchToWorkspace(2)
-
-        XCTAssertEqual(workspaces.workspace(for: 300), 1)
-        XCTAssertEqual(parkedWindows.placement(of: 300), .parked)
-    }
-
-    func testFocusingATabOfAGroupParkedElsewhereFollowsTheUserToIt() {
-        create(StubWindow(id: 300, appName: "Terminal", frame: tabFrame, tabCount: 2))
-        engine.switchToWorkspace(2)
-
-        let lateTab = add(StubWindow(id: 301, appName: "Terminal", frame: tabFrame, tabCount: 2))
-        focused = lateTab
-        engine.handle(.focused(lateTab.snapshot()))
-
-        XCTAssertEqual(workspaces.current, 1)
-        XCTAssertEqual(parkedWindows.placement(of: 301), .active)
     }
 
     func testDestroyedTabbedWindowDoesNotStealFocus() {

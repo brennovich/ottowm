@@ -22,26 +22,64 @@ class EngineTestCase: XCTestCase {
 
     lazy var desktop = StubDesktop(window: { [weak self] id in self?.windows[id] })
 
+    private lazy var scheduleRetry: (TimeInterval, @escaping () -> Void) -> Void = { [weak self] delay, work in
+        self?.scheduledRetries.append((delay, work))
+    }
+
+    lazy var windowSystem = WindowSystem(
+        focusedWindow: OperationCache { [weak self] in
+            guard let self else { return nil }
+            self.focusedReadCount += 1
+            return self.focused?.snapshot()
+        },
+        onScreenWindows: OperationCache { [weak self] in
+            guard let self else { return [:] }
+            self.onScreenReadCount += 1
+            return self.windows.values
+                .filter { !self.offScreenWindowIds.contains($0.id) }
+                .reduce(into: [CGWindowID: CGRect]()) { $0[$1.id] = $1.frame }
+        },
+        window: { [weak self] id in self?.windows[id] }
+    )
+
+    lazy var managed = ManagedWindows(
+        desktop: desktop,
+        windowSystem: windowSystem,
+        workspaces: workspaces,
+        parkedWindows: parkedWindows
+    )
+
+    lazy var enrollment = WindowEnrollment(
+        windowSystem: windowSystem,
+        workspaces: workspaces,
+        managed: managed,
+        scheduleRetry: scheduleRetry
+    )
+
+    lazy var navigation = Navigation(
+        desktop: desktop,
+        windowSystem: windowSystem,
+        workspaces: workspaces,
+        managed: managed,
+        enrollment: enrollment
+    )
+
+    lazy var fullScreenReturns = FullScreenReturns(
+        windowSystem: windowSystem,
+        workspaces: workspaces,
+        managed: managed,
+        navigation: navigation,
+        scheduleRetry: scheduleRetry
+    )
+
     lazy var engine = Engine(
         desktop: desktop,
-        windowSystem: WindowSystem(
-            focusedWindow: OperationCache { [weak self] in
-                guard let self else { return nil }
-                self.focusedReadCount += 1
-                return self.focused?.snapshot()
-            },
-            onScreenWindows: OperationCache { [weak self] in
-                guard let self else { return [:] }
-                self.onScreenReadCount += 1
-                return self.windows.values
-                    .filter { !self.offScreenWindowIds.contains($0.id) }
-                    .reduce(into: [CGWindowID: CGRect]()) { $0[$1.id] = $1.frame }
-            },
-            window: { [weak self] id in self?.windows[id] }
-        ),
+        windowSystem: windowSystem,
         workspaces: workspaces,
-        parkedWindows: parkedWindows,
-        scheduleRetry: { [weak self] delay, work in self?.scheduledRetries.append((delay, work)) },
+        managed: managed,
+        enrollment: enrollment,
+        navigation: navigation,
+        fullScreenReturns: fullScreenReturns,
         screenIsLocked: { [weak self] in self?.screenIsLocked ?? false },
         quit: { [weak self] in self?.quit() },
         restart: { [weak self] in self?.restartCount += 1 }

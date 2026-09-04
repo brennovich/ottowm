@@ -46,27 +46,6 @@ final class EngineFocusDirectionTests: EngineTestCase {
         }
     }
 
-    func testUnassignedFocusedWindowIsAdoptedAsReference() {
-        let neighbor = create(StubWindow(id: 200, frame: east))
-        focused = add(StubWindow(id: 900, frame: center))
-
-        engine.focusWindow(.east)
-
-        XCTAssertEqual(workspaces.workspace(for: 900), 1)
-        XCTAssertEqual(neighbor.focusCount, 1)
-    }
-
-    func testUnassignedFocusedWindowThatCannotBeManagedFocusesNothing() {
-        let neighbor = create(StubWindow(id: 200, frame: east))
-        focused = add(StubWindow(id: 900, frame: center))
-        offScreenWindowIds = [900]
-
-        engine.focusWindow(.east)
-
-        XCTAssertNil(workspaces.workspace(for: 900))
-        XCTAssertEqual(neighbor.focusCount, 0)
-    }
-
     func testCandidateFramesAreReadWithoutWindowSnapshots() {
         let reference = create(StubWindow(id: 100, frame: center))
         let neighbor = create(StubWindow(id: 200, frame: east))

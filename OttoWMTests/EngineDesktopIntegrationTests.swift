@@ -14,23 +14,20 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         return self.windows.reduce(into: [CGWindowID: CGRect]()) { $0[$1.key] = $1.value.frame }
     }
 
-    private let parkedWindows = ParkedWindows()
-
     private lazy var desktop: OffscreenParkingDesktop = OffscreenParkingDesktop(
         screen: StubScreen.standard,
         window: { [weak self] in self?.windows[$0] },
         notificationCenter: center
     )
 
-    private lazy var engine: Engine = Engine(
+    private lazy var engine: Engine = Engine.system(
         desktop: desktop,
         windowSystem: WindowSystem(
             focusedWindow: OperationCache { [weak self] in self?.focused?.snapshot() },
             onScreenWindows: onScreenWindows,
             window: { [weak self] in self?.windows[$0] }
         ),
-        workspaces: workspaces,
-        parkedWindows: parkedWindows
+        workspaces: workspaces
     )
 
     private func addWindow(_ id: CGWindowID, frame: CGRect) -> StubWindow {
