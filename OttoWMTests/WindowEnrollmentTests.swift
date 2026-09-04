@@ -26,18 +26,6 @@ final class WindowEnrollmentTests: EngineTestCase {
         XCTAssertEqual(workspaces.allWindowIds, [])
     }
 
-    func testARetryLeavesAWindowAssignedMeanwhileWhereItIs() {
-        offScreenWindowIds = [100]
-        let win = add(StubWindow(id: 100))
-        enrollment.enrollLater(win.snapshot())
-
-        offScreenWindowIds = []
-        managed.assign(win.snapshot(), to: 2)
-        runScheduledRetries()
-
-        XCTAssertEqual(workspaces.workspace(for: 100), 2)
-    }
-
     func testNothingIsScheduledForAnInadmissibleWindow() {
         let win = add(StubWindow(id: 100, isFullScreen: true))
 

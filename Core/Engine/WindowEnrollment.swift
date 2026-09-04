@@ -44,9 +44,7 @@ final class WindowEnrollment {
             guard let self else { return }
 
             self.windowSystem.duringOperation("enroll-retry") {
-                guard self.workspaces.workspace(for: windowId) == nil,
-                      let win = self.windowSystem.snapshot(of: windowId)
-                else { return }
+                guard let win = self.windowSystem.snapshot(of: windowId) else { return }
 
                 if self.managed.assign(win, to: self.workspaces.current) == nil {
                     self.retry(windowId, in: delay * 2)

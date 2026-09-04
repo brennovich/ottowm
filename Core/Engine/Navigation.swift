@@ -120,11 +120,7 @@ final class Navigation {
     func focusedWindowOfCurrentWorkspace() -> WindowSnapshot? {
         guard let focused = windowSystem.focused() else { return nil }
 
-        switch workspaces.workspace(for: focused.id) {
-        case workspaces.current: return focused
-        case nil: return managed.assign(focused, to: workspaces.current) == workspaces.current ? focused : nil
-        default: return nil
-        }
+        return managed.assign(focused, to: workspaces.current) == workspaces.current ? focused : nil
     }
 
     private func enroll(_ win: WindowSnapshot, into workspace: Int) {

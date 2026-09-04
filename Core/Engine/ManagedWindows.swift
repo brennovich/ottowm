@@ -50,6 +50,7 @@ final class ManagedWindows {
 
     @discardableResult
     func assign(_ win: WindowSnapshot, to workspace: Int) -> Int? {
+        if let known = workspaces.workspace(for: win.id) { return known }
         guard canManage(win) else { return nil }
 
         let assigned = workspaces.assign(win, to: workspace)

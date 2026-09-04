@@ -12,6 +12,16 @@ final class ManagedWindowsTests: EngineTestCase {
         XCTAssertEqual(workspaces.allWindowIds, [600])
     }
 
+    func testAssignReportsTheWorkspaceOfAKnownWindowAndLeavesItThere() {
+        let win = add(StubWindow(id: 100))
+        managed.assign(win.snapshot(), to: 2)
+        desktop.clearPlaceCalls()
+
+        XCTAssertEqual(managed.assign(win.snapshot(), to: 1), 2)
+        XCTAssertEqual(workspaces.workspace(for: 100), 2)
+        XCTAssertTrue(desktop.placeCalls.isEmpty)
+    }
+
     func testNothingIsAssignedWhileAnotherNativeSpaceIsInFront() {
         let win = add(StubWindow(id: 100))
         managed.assign(win.snapshot(), to: 1)

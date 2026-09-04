@@ -116,7 +116,7 @@ final class Engine {
     /// locked, so a window that appeared behind the login window reached no workspace.
     func resync(windows: [WindowSnapshot]) {
         windowSystem.duringOperation("resync") {
-            for win in windows where workspaces.workspace(for: win.id) == nil {
+            for win in windows {
                 managed.assign(win, to: workspaces.current)
             }
         }
@@ -131,7 +131,7 @@ final class Engine {
 
             managed.dropWindowsThatLeftTheDesktop()
 
-            if let focused = windowSystem.focused(), workspaces.workspace(for: focused.id) == nil {
+            if let focused = windowSystem.focused() {
                 managed.assign(focused, to: workspaces.current)
             }
 
