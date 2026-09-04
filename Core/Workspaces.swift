@@ -15,8 +15,8 @@ final class Workspaces {
 
     private var tabGroups: TabGroups
 
-    init(tabCount: @escaping (CGWindowID) -> Int) {
-        tabGroups = TabGroups(tabCount: tabCount)
+    init(tabGroups: TabGroups) {
+        self.tabGroups = tabGroups
     }
 
     var allWindowIds: Set<CGWindowID> {

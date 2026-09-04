@@ -16,7 +16,9 @@ class EngineTestCase: XCTestCase {
     var restartCount = 0
     let tabFrame = CGRect(x: 400, y: 0, width: 800, height: 600)
 
-    lazy var workspaces = Workspaces(tabCount: { [weak self] id in self?.windows[id]?.tabCount() ?? 1 })
+    lazy var workspaces = Workspaces(
+        tabGroups: TabGroups(tabCount: { [weak self] id in self?.windows[id]?.tabCount() ?? 1 })
+    )
 
     let parkedWindows = ParkedWindows()
 

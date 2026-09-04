@@ -53,7 +53,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 window: applications.findWindow(by:)
             ),
             windowSystem: windowSystem,
-            workspaces: Workspaces(tabCount: windowSystem.tabCount(of:)),
+            workspaces: Workspaces(tabGroups: TabGroups(tabCount: windowSystem.tabCount(of:))),
             screenIsLocked: { [lifecycle] in lifecycle.screenIsLocked },
             quit: lifecycle.quit,
             restart: { [lifecycle] in lifecycle.reload() }
