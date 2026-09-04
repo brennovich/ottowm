@@ -13,7 +13,7 @@ struct ConfigGate {
     }
 
     var read: () -> Result<Config, ConfigError> = { ConfigFile.load() }
-    var ask: (ConfigError) -> ConfigAlert.Response = ConfigAlert.ask
+    var ask: (ConfigError) -> ConfigAlert.Response = { ConfigAlert.ask($0, .boot) }
     let relaunch: () -> Void
 
     func load() -> Outcome {

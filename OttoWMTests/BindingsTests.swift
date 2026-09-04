@@ -38,20 +38,21 @@ final class BindingsTests: XCTestCase {
         let bindings = makeBindings(try makeConfig(["hyper-q": .quit]))
 
         bindings.start()
-        bindings.reload()
 
+        XCTAssertNil(bindings.reload())
         XCTAssertEqual(built.last, reloaded)
         XCTAssertEqual(events, ["start 0", "stop 0", "start 1"])
     }
 
-    func testReloadKeepsTheBindingsAlreadyUpWhenTheConfigDoesNotParse() throws {
-        loads = [.failure(ConfigError(line: 2, reason: .unknownAction("relaunch")))]
+    func testReloadReportsTheErrorAndKeepsTheBindingsAlreadyUpWhenTheConfigDoesNotParse() throws {
+        let error = ConfigError(line: 2, reason: .unknownAction("relaunch"))
+        loads = [.failure(error)]
         let config = try makeConfig(["hyper-q": .quit])
         let bindings = makeBindings(config)
 
         bindings.start()
-        bindings.reload()
 
+        XCTAssertEqual(bindings.reload(), error)
         XCTAssertEqual(built, [config])
         XCTAssertEqual(events, ["start 0"])
     }

@@ -28,16 +28,22 @@ final class Bindings {
         current.stop()
     }
 
-    func reload() {
-        guard case let .success(config) = load() else {
-            Log.app.error("unable to load a valid config, keeping the bindings already up")
-            return
-        }
+    /// - Returns: the error that kept the bindings already up in place, or `nil` once the
+    /// tap is over the config just read.
+    func reload() -> ConfigError? {
+        switch load() {
+        case let .success(config):
+            current.stop()
+            current = tap(config)
+            start()
+            Log.app.notice("config reloaded")
 
-        current.stop()
-        current = tap(config)
-        start()
-        Log.app.notice("config reloaded")
+            return nil
+        case let .failure(error):
+            Log.app.error("unable to load a valid config, keeping the bindings already up")
+
+            return error
+        }
     }
 }
 

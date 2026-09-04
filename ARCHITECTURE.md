@@ -50,7 +50,8 @@ flowchart LR
 ```mermaid
 flowchart LR
     Input -->|Action| Engine
-    Engine -->|restart| Input
+    Engine -->|restart| Lifecycle
+    Lifecycle -->|reload| Input
     macOS["macOS boundary"] -->|WindowEvent| Engine
     Engine -->|place, focus, read| macOS
     Engine -->|assign, switch| Model
@@ -93,9 +94,9 @@ flowchart LR
 | `ConfigGate`                  | Lifecycle | The config startup gate: the error alert, and whether to relaunch or quit.              |
 | `AccessibilityPermission`     | Lifecycle | The startup gate, and the watch on the accessibility trust.                             |
 | `ScreenLock`                  | Lifecycle | Reports whether the login window covers the session, and when it is uncovered.          |
-| `Lifecycle`                   | Lifecycle | The transitions once it owns windows: `quit`, SIGTERM, relaunch, resync on unlock.      |
+| `Lifecycle`                   | Lifecycle | The transitions once it owns windows: `quit`, SIGTERM, relaunch, reload, unlock.        |
 | `AccessibilityAlert`          | UI        | The accessibility permission alerts: what they say and how they show.                   |
-| `ConfigAlert`                 | UI        | The config error alert: what it says and how it shows.                                  |
+| `ConfigAlert`                 | UI        | The config error alert UI.                                                              |
 
 `Window` is a protocol; `AXWindow` is the implementation the app runs.
 
@@ -108,7 +109,8 @@ flowchart LR
     ConfigFile -->|Config| Bindings
     Bindings -->|"(keyCode, flags) → Action?"| Hotkeys
     Hotkeys -->|Action| Engine
-    Engine -->|restart| Bindings
+    Engine -->|restart| Lifecycle
+    Lifecycle -->|reload| Bindings
 ```
 
 The tap thread matches the key and dispatches the action to the main queue, the only thread the accessibility writes are allowed on.
@@ -172,6 +174,8 @@ flowchart LR
     Lifecycle -->|resync| RunningApplicationsObserver
     AccessibilityPermission -->|relaunch| Lifecycle
     ConfigGate -->|relaunch| Lifecycle
+    Lifecycle -->|reload| Bindings
+    Lifecycle --> ConfigAlert
 ```
 
 ## Flows
@@ -299,11 +303,23 @@ The record is taken after the removal, which clears every other trace of the win
 ```mermaid
 sequenceDiagram
     Hotkeys->>Engine: handle(restart)
-    Engine->>Bindings: reload()
+    Engine->>Lifecycle: reload()
+    Lifecycle->>Bindings: reload()
     Bindings->>ConfigFile: load()
-    ConfigFile-->>Bindings: Config, or the bindings already up stay
-    Bindings->>Hotkeys: stop()
-    Bindings->>Hotkeys: start() a new tap over the new Config
+    ConfigFile-->>Bindings: Config, or a ConfigError
+    alt the config parses
+        Bindings->>Hotkeys: stop()
+        Bindings->>Hotkeys: start() a new tap over the new Config
+    else it does not
+        Bindings-->>Lifecycle: the error that kept the bindings already up
+        Lifecycle->>ConfigAlert: ask(error)
+        alt the user restarts
+            ConfigAlert-->>Lifecycle: restart
+            Lifecycle->>Lifecycle: relaunch()
+        else the user keeps the bindings already up
+            ConfigAlert-->>Lifecycle: dismiss
+        end
+    end
 ```
 
 The matcher is read on the tap thread, so it is replaced with the tap rather than written under it. The engine, the workspaces and the parked windows are untouched.

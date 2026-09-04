@@ -5,17 +5,22 @@ import Dispatch
 final class Lifecycle {
     private let stop: () -> Void
     private let resume: () -> Void
+    private let reloadBindings: () -> ConfigError?
+    private let ask: (ConfigError) -> ConfigAlert.Response
     private let screenLock: ScreenLock
     private let exit: (Int32) -> Void
     private let launchNewInstance: (@escaping () -> Void) -> Void
     private let observeSIGTERM: (@escaping () -> Void) -> (any DispatchSourceSignal)?
     private var termination: (any DispatchSourceSignal)?
+    private var awaitingUserInput = false
 
     var screenIsLocked: Bool { screenLock.isLocked }
 
     init(
         stop: @escaping () -> Void,
         resume: @escaping () -> Void,
+        reloadBindings: @escaping () -> ConfigError?,
+        ask: @escaping (ConfigError) -> ConfigAlert.Response = { ConfigAlert.ask($0, .reload) },
         screenLock: ScreenLock = ScreenLock(),
         exit: @escaping (Int32) -> Void = { Darwin.exit($0) },
         launchNewInstance: @escaping (@escaping () -> Void) -> Void = Lifecycle.newInstance,
@@ -23,6 +28,8 @@ final class Lifecycle {
     ) {
         self.stop = stop
         self.resume = resume
+        self.reloadBindings = reloadBindings
+        self.ask = ask
         self.screenLock = screenLock
         self.exit = exit
         self.launchNewInstance = launchNewInstance
@@ -33,6 +40,24 @@ final class Lifecycle {
         Log.app.notice("quit action received, restoring window frames")
         stop()
         exit(EXIT_SUCCESS)
+    }
+
+    /// The event tap stays live while the alert is up, and the main queue is drained in
+    /// `NSModalPanelRunLoopMode`, so another restart press reaches reload during the modal.
+    ///
+    /// Without the guard it stacks a second alert on the first.
+    func reload() {
+        guard !awaitingUserInput else { return }
+        guard let error = reloadBindings() else { return }
+
+        awaitingUserInput = true
+        let response = ask(error)
+        awaitingUserInput = false
+
+        guard response == .restart else { return }
+
+        Log.app.notice("config rejected, relaunching")
+        relaunch()
     }
 
     func relaunch() {

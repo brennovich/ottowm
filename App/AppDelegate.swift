@@ -7,7 +7,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         resume: { [weak self] in
             guard let self else { return }
             engine?.resync(windows: applicationsObserver.resync())
-        }
+        },
+        reloadBindings: { [weak self] in self?.bindings?.reload() }
     )
     private lazy var windowEvents = AXWindowEvents(
         applications: applications,
@@ -76,7 +77,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             parkedWindows: parkedWindows,
             screenIsLocked: { [lifecycle] in lifecycle.screenIsLocked },
             quit: lifecycle.quit,
-            restart: { [weak self] in self?.bindings?.reload() }
+            restart: { [lifecycle] in lifecycle.reload() }
         )
         engine.start(windows: applicationsObserver.start { engine.handle($0) })
         self.engine = engine
