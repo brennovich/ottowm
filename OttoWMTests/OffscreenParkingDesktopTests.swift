@@ -73,6 +73,37 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(oversized.frame, CGRect(x: -104, y: -21, width: 2000, height: 1200))
     }
 
+    func testMaximizeFillsTheVisibleFrameInsetOnEveryEdge() {
+        XCTAssertEqual(reframe(100, .maximize(restoring: nil)), [.maximized(100, from: originalFrame)])
+        XCTAssertEqual(win.frame, CGRect(x: 15, y: 53, width: 1762, height: 1052))
+        XCTAssertEqual(win.animatedWriteCount, 0)
+    }
+
+    func testMaximizeShrinksAWindowLargerThanTheVisibleFrame() {
+        let oversized = addWindow(101, frame: CGRect(x: 0, y: 0, width: 2000, height: 1200))
+
+        reframe(oversized.id, .maximize(restoring: nil))
+
+        XCTAssertEqual(oversized.frame, CGRect(x: 15, y: 53, width: 1762, height: 1052))
+    }
+
+    func testMaximizeTakesAFilledWindowBackToTheFrameHandedIn() {
+        reframe(100, .maximize(restoring: nil))
+
+        XCTAssertEqual(reframe(100, .maximize(restoring: originalFrame)), [.active(100)])
+        XCTAssertEqual(win.frame, originalFrame)
+    }
+
+    /// A window the user filled the screen with by hand has no frame to go back to, and the
+    /// frame it is at is not one worth recording.
+    func testMaximizeLeavesAFilledWindowAloneWithNothingToRestore() {
+        reframe(100, .maximize(restoring: nil))
+        let filled = win.frame
+
+        XCTAssertEqual(reframe(100, .maximize(restoring: nil)), [.active(100)])
+        XCTAssertEqual(win.frame, filled)
+    }
+
     func testReportsAWindowThatNoLongerExists() {
         XCTAssertEqual(reframe(999, .step(Step(direction: .east, points: 15))), [.gone(999)])
     }

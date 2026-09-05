@@ -7,12 +7,20 @@ final class ManagedWindows {
     private let windowSystem: WindowSystem
     private let workspaces: Workspaces
     private let parkedWindows: ParkedWindows
+    private let maximizedWindows: MaximizedWindows
 
-    init(desktop: any Desktop, windowSystem: WindowSystem, workspaces: Workspaces, parkedWindows: ParkedWindows) {
+    init(
+        desktop: any Desktop,
+        windowSystem: WindowSystem,
+        workspaces: Workspaces,
+        parkedWindows: ParkedWindows,
+        maximizedWindows: MaximizedWindows
+    ) {
         self.desktop = desktop
         self.windowSystem = windowSystem
         self.workspaces = workspaces
         self.parkedWindows = parkedWindows
+        self.maximizedWindows = maximizedWindows
     }
 
     var isDesktopInFront: Bool {
@@ -79,6 +87,7 @@ final class ManagedWindows {
 
         let focusSettled = workspaces.remove(windowId)
         parkedWindows.forget(windowId)
+        maximizedWindows.forget(windowId)
         return focusSettled || workspace == nil
     }
 

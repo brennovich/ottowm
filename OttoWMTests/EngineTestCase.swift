@@ -21,6 +21,7 @@ class EngineTestCase: XCTestCase {
     )
 
     let parkedWindows = ParkedWindows()
+    let maximizedWindows = MaximizedWindows()
 
     lazy var desktop = StubDesktop(window: { [weak self] id in self?.windows[id] })
 
@@ -48,7 +49,8 @@ class EngineTestCase: XCTestCase {
         desktop: desktop,
         windowSystem: windowSystem,
         workspaces: workspaces,
-        parkedWindows: parkedWindows
+        parkedWindows: parkedWindows,
+        maximizedWindows: maximizedWindows
     )
 
     lazy var enrollment = WindowEnrollment(
@@ -79,6 +81,7 @@ class EngineTestCase: XCTestCase {
         windowSystem: windowSystem,
         workspaces: workspaces,
         managed: managed,
+        maximizedWindows: maximizedWindows,
         enrollment: enrollment,
         navigation: navigation,
         fullScreenReturns: fullScreenReturns,

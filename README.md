@@ -22,7 +22,7 @@ Some important features:
   - Fullscreen apps are ignored
 
 Some important foundations:
-- Headless agent: no Dock icon, no menu bar item, no UI
+- Headless agent: no Dock icon, no menu bar item
 - No dependency on third-party libraries or frameworks
 - Rely on macOS public APIs only
 
@@ -36,6 +36,8 @@ Out of the box (bundled config):
 | left&nbsp;Option + Shift + 1–4 | Move focused window to workspace |
 | left&nbsp;Option + H/J/K/L | Focus the window to the west/south/north/east |
 | left&nbsp;Option + Shift + H/J/K/L | Move the focused window west/south/north/east |
+| left&nbsp;Option + Ctrl + C | Center the focused window, keeping its size |
+| left&nbsp;Option + Ctrl + M | Fill the screen with the focused window, or put it back |
 | Cmd + Ctrl + Option + Shift + Q | Quit OttoWM |
 | Cmd + Ctrl + Option + Shift + R | Reload the config |
 
@@ -82,6 +84,7 @@ Workspaces are created on demand:
 | `focus D`                    | Focus the window `D` leads to: `north`, `east`, `south` or `west`                |
 | `move-window D [N]`          | Move the focused window N points `D`, 15 by default, stopping at the screen edge |
 | `center-window`              | Center the focused window on the screen, keeping its size                        |
+| `toggle-maximize`            | Fill the screen with the focused window, or put it back where it was             |
 | `quit`                       | Quit OttoWM, putting every parked window back                                    |
 | `restart`                    | Read the config file again and rebind the keys                                   |
 

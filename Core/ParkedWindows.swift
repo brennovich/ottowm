@@ -20,7 +20,7 @@ final class ParkedWindows {
             switch outcome {
             case let .parked(windowId, parkedFrom): park(windowId, from: parkedFrom)
             case let .active(windowId): forget(windowId)
-            case .gone: continue
+            case .maximized, .gone: continue
             }
         }
     }

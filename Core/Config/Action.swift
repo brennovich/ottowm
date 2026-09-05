@@ -6,6 +6,7 @@ enum Action: Equatable {
     case focus(Direction)
     case moveWindow(Step)
     case centerWindow
+    case toggleMaximize
     case quit
     case restart
 
@@ -30,6 +31,7 @@ enum Action: Equatable {
 
     private static let actionsByVerb: [String: Action] = [
         "center-window": .centerWindow,
+        "toggle-maximize": .toggleMaximize,
         "quit": .quit,
         "restart": .restart,
     ]

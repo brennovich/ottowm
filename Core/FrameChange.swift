@@ -5,6 +5,7 @@ enum FrameChange: Equatable {
     case center
     case park
     case unpark(CGRect?)
+    case maximize(restoring: CGRect?)
 
     var logDescription: String {
         switch self {
@@ -12,12 +13,14 @@ enum FrameChange: Equatable {
         case .center: "center"
         case .park: "park"
         case .unpark: "unpark"
+        case let .maximize(restoring): restoring == nil ? "maximize" : "restore from maximize"
         }
     }
 }
 
 enum FrameOutcome: Hashable {
     case parked(CGWindowID, from: CGRect)
+    case maximized(CGWindowID, from: CGRect)
     case active(CGWindowID)
     case gone(CGWindowID)
 }

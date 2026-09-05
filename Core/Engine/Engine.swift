@@ -6,6 +6,7 @@ final class Engine {
     private let windowSystem: WindowSystem
     private let workspaces: Workspaces
     private let managed: ManagedWindows
+    private let maximizedWindows: MaximizedWindows
     private let enrollment: WindowEnrollment
     private let navigation: Navigation
     private let fullScreenReturns: FullScreenReturns
@@ -18,6 +19,7 @@ final class Engine {
         windowSystem: WindowSystem,
         workspaces: Workspaces,
         managed: ManagedWindows,
+        maximizedWindows: MaximizedWindows,
         enrollment: WindowEnrollment,
         navigation: Navigation,
         fullScreenReturns: FullScreenReturns,
@@ -29,6 +31,7 @@ final class Engine {
         self.windowSystem = windowSystem
         self.workspaces = workspaces
         self.managed = managed
+        self.maximizedWindows = maximizedWindows
         self.enrollment = enrollment
         self.navigation = navigation
         self.fullScreenReturns = fullScreenReturns
@@ -108,6 +111,10 @@ final class Engine {
         case let .focus(direction): focusWindow(direction)
         case let .moveWindow(step): reframeFocusedWindow(.step(step), operation: "move-window")
         case .centerWindow: reframeFocusedWindow(.center, operation: "center-window")
+        case .toggleMaximize:
+            reframeFocusedWindow(operation: "toggle-maximize") {
+                .maximize(restoring: self.maximizedWindows.restoringFrame(of: $0.id))
+            }
         case .quit: quit()
         case .restart: restart()
         }
@@ -195,18 +202,28 @@ final class Engine {
     /// - Parameter operation: one name per action, so the round-trip cost of a step and of a
     ///   centering stay separate operations.
     func reframeFocusedWindow(_ change: FrameChange, operation: StaticString) {
+        reframeFocusedWindow(operation: operation) { _ in change }
+    }
+
+    /// The variant for a change that needs the window it applies to, which is known only
+    /// once the guards below have passed.
+    func reframeFocusedWindow(operation: StaticString, _ change: (WindowSnapshot) -> FrameChange) {
         windowSystem.duringOperation(operation) {
             guard let win = navigation.focusedWindowOfCurrentWorkspace() else {
-                Log.engine.info("\(change.logDescription) dropped: no window of workspace \(self.workspaces.current) focused")
+                Log.engine.info("\(operation) dropped: no window of workspace \(self.workspaces.current) focused")
                 return
             }
             guard !managed.isParked(win.id) else {
-                Log.engine.info("\(change.logDescription) dropped: id=\(win.id) is parked")
+                Log.engine.info("\(operation) dropped: id=\(win.id) is parked")
                 return
             }
 
-            Log.engine.info("\(change.logDescription) \(win.logDescription)")
-            if desktop.reframe([(windowId: win.id, change: change)]).contains(.gone(win.id)) {
+            let requested = change(win)
+            Log.engine.info("\(requested.logDescription) \(win.logDescription)")
+
+            let outcomes = desktop.reframe([(windowId: win.id, change: requested)])
+            maximizedWindows.record(outcomes)
+            if outcomes.contains(.gone(win.id)) {
                 managed.unmanage(win.id, reason: "gone")
             }
         }
@@ -225,11 +242,13 @@ extension Engine {
         quit: @escaping () -> Void = {},
         restart: @escaping () -> Void = {}
     ) -> Engine {
+        let maximizedWindows = MaximizedWindows()
         let managed = ManagedWindows(
             desktop: desktop,
             windowSystem: windowSystem,
             workspaces: workspaces,
-            parkedWindows: ParkedWindows()
+            parkedWindows: ParkedWindows(),
+            maximizedWindows: maximizedWindows
         )
         let enrollment = WindowEnrollment(
             windowSystem: windowSystem,
@@ -257,6 +276,7 @@ extension Engine {
             windowSystem: windowSystem,
             workspaces: workspaces,
             managed: managed,
+            maximizedWindows: maximizedWindows,
             enrollment: enrollment,
             navigation: navigation,
             fullScreenReturns: fullScreenReturns,

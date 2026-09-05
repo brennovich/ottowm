@@ -9,6 +9,7 @@ final class OffscreenParkingDesktop: Desktop {
     }
 
     private let screen: ScreenGeometry
+    private let inset: CGFloat
     private let hiddenEdge: HiddenEdge
     private let window: (CGWindowID) -> (any Window)?
     private let notificationCenter: NotificationCenter
@@ -18,9 +19,11 @@ final class OffscreenParkingDesktop: Desktop {
     init(
         screen: ScreenGeometry,
         window: @escaping (CGWindowID) -> (any Window)?,
+        inset: CGFloat = 15,
         notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter
     ) {
         self.screen = screen
+        self.inset = inset
         hiddenEdge = HiddenEdge(screen: screen)
         self.window = window
         self.notificationCenter = notificationCenter
@@ -117,6 +120,10 @@ final class OffscreenParkingDesktop: Desktop {
             return (step.frame(moving: current, within: screen.visibleFrame), .active(requested.windowId))
         case .center:
             return (centered(current.size), .active(requested.windowId))
+        case let .maximize(restoring):
+            let filled = screen.visibleFrame.insetBy(dx: inset, dy: inset)
+            guard current != filled else { return (restoring ?? current, .active(requested.windowId)) }
+            return (filled, .maximized(requested.windowId, from: current))
         }
     }
 
