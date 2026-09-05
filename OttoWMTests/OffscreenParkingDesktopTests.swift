@@ -43,27 +43,41 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         return outcomes
     }
 
-    func testMoveStepsTheWindowWithoutAnimating() {
-        XCTAssertTrue(desktop.move(100, Step(direction: .east, points: 15)))
+    func testStepMovesTheWindowWithoutAnimating() {
+        XCTAssertTrue(desktop.reframe(100, .step(Step(direction: .east, points: 15))))
 
         XCTAssertEqual(win.frame, originalFrame.offsetBy(dx: 15, dy: 0))
         XCTAssertEqual(win.animatedWriteCount, 0)
     }
 
-    func testMoveStopsAtTheVisibleFrame() {
-        desktop.move(100, Step(direction: .north, points: 500))
+    func testStepStopsAtTheVisibleFrame() {
+        desktop.reframe(100, .step(Step(direction: .north, points: 500)))
 
         XCTAssertEqual(win.frame.minY, StubScreen.standard.visibleFrame.minY)
     }
 
-    func testMoveReportsAWindowThatNoLongerExists() {
-        XCTAssertFalse(desktop.move(999, Step(direction: .east, points: 15)))
+    func testCenterPutsTheWindowInTheMiddleOfTheVisibleFrame() {
+        XCTAssertTrue(desktop.reframe(100, .center))
+
+        XCTAssertEqual(win.frame, CGRect(x: 496, y: 279, width: 800, height: 600))
     }
 
-    func testMoveLeavesAMinimizedWindowAlone() {
+    func testCenterPushesAWindowLargerThanTheVisibleFrameOffscreen() {
+        let oversized = addWindow(101, frame: CGRect(x: 0, y: 0, width: 2000, height: 1200))
+
+        desktop.reframe(oversized.id, .center)
+
+        XCTAssertEqual(oversized.frame, CGRect(x: -104, y: -21, width: 2000, height: 1200))
+    }
+
+    func testReframeReportsAWindowThatNoLongerExists() {
+        XCTAssertFalse(desktop.reframe(999, .step(Step(direction: .east, points: 15))))
+    }
+
+    func testReframeLeavesAMinimizedWindowAlone() {
         win.isMinimized = true
 
-        XCTAssertTrue(desktop.move(100, Step(direction: .east, points: 15)))
+        XCTAssertTrue(desktop.reframe(100, .step(Step(direction: .east, points: 15))))
 
         XCTAssertEqual(win.frame, originalFrame)
     }
@@ -106,7 +120,7 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         let strandedFrame = nubFrame(size: originalFrame.size)
         addWindow(200, frame: strandedFrame)
 
-        XCTAssertEqual(place(200, at: .parked), [.parked(200, owing: hiddenEdge.recovered(from: strandedFrame))])
+        XCTAssertEqual(place(200, at: .parked), [.parked(200, owing: CGRect(x: 496, y: 279, width: 800, height: 600))])
     }
 
     func testPlaceRecoversAStrandedWindowItNeverParked() {
@@ -114,7 +128,7 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         let stranded = addWindow(200, frame: strandedFrame)
 
         XCTAssertEqual(place(200, at: .active), [.activated(200)])
-        XCTAssertEqual(stranded.frame, hiddenEdge.recovered(from: strandedFrame))
+        XCTAssertEqual(stranded.frame, CGRect(x: 496, y: 279, width: 800, height: 600))
     }
 
     func testPlaceLeavesAnUnparkedWindowOnScreenAlone() {

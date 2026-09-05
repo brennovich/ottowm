@@ -26,6 +26,9 @@ lopt-shift-j = move-window south
 lopt-shift-k = move-window north
 lopt-shift-l = move-window east
 
+# Center the focused window on the screen, keeping its size
+lopt-ctrl-c = center-window
+
 # Quit OttoWM, putting every parked window back where it was
 hyper-q = quit
 

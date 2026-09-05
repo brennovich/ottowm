@@ -22,16 +22,4 @@ final class HiddenEdgeTests: XCTestCase {
             XCTAssertEqual(hiddenEdge.holds(frame), testCase.expected, testCase.name)
         }
     }
-
-    func testRecoveredCentersWithinVisibleFrame() {
-        let recovered = hiddenEdge.recovered(from: CGRect(x: 1791, y: 1119, width: 800, height: 600))
-
-        XCTAssertEqual(recovered, CGRect(x: 496, y: 279, width: 800, height: 600))
-    }
-
-    func testRecoveredClampsToVisibleFrame() {
-        let recovered = hiddenEdge.recovered(from: CGRect(x: 1791, y: 1119, width: 2000, height: 1200))
-
-        XCTAssertEqual(recovered, CGRect(x: 0, y: 38, width: 1792, height: 1082))
-    }
 }

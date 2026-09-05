@@ -106,7 +106,8 @@ final class Engine {
         case let .switchToWorkspace(workspace): switchToWorkspace(workspace)
         case let .moveWindowToWorkspace(workspace): moveFocusedWindow(toWorkspace: workspace)
         case let .focus(direction): focusWindow(direction)
-        case let .moveWindow(step): moveFocusedWindow(step)
+        case let .moveWindow(step): reframeFocusedWindow(.step(step))
+        case .centerWindow: reframeFocusedWindow(.center)
         case .quit: quit()
         case .restart: restart()
         }
@@ -191,19 +192,19 @@ final class Engine {
         }
     }
 
-    func moveFocusedWindow(_ step: Step) {
-        windowSystem.duringOperation("move-window") {
+    func reframeFocusedWindow(_ change: FrameChange) {
+        windowSystem.duringOperation(change.operation) {
             guard let win = navigation.focusedWindowOfCurrentWorkspace() else {
-                Log.engine.info("move \(step.direction.rawValue) dropped: no window of workspace \(self.workspaces.current) focused")
+                Log.engine.info("\(change.logDescription) dropped: no window of workspace \(self.workspaces.current) focused")
                 return
             }
             guard managed.placement(of: win.id) == .active else {
-                Log.engine.info("move \(step.direction.rawValue) dropped: id=\(win.id) is parked")
+                Log.engine.info("\(change.logDescription) dropped: id=\(win.id) is parked")
                 return
             }
 
-            Log.engine.info("moving \(win.logDescription) \(step.direction.rawValue) by \(step.points)")
-            if !desktop.move(win.id, step) {
+            Log.engine.info("\(change.logDescription) \(win.logDescription)")
+            if !desktop.reframe(win.id, change) {
                 managed.unmanage(win.id, reason: "gone")
             }
         }

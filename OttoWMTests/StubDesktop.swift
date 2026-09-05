@@ -5,7 +5,7 @@ final class StubDesktop: Desktop {
 
     private(set) var placeCalls: [(windowId: CGWindowID, placement: Placement)] = []
     private(set) var placeBatches: [[CGWindowID]] = []
-    private(set) var moveCalls: [(windowId: CGWindowID, step: Step)] = []
+    private(set) var reframeCalls: [(windowId: CGWindowID, change: FrameChange)] = []
     private(set) var recoveredWindowIds: [CGWindowID] = []
     private(set) var nativeSpaceChangeCallback: (() -> Void)?
 
@@ -38,15 +38,13 @@ final class StubDesktop: Desktop {
         }
     }
 
-    /// Applies the step without bounds, which is `Step`'s and the real desktop's job.
+    /// Records the request only: every frame the change resolves to needs the screen bounds,
+    /// which the real desktop owns.
     @discardableResult
-    func move(_ windowId: CGWindowID, _ step: Step) -> Bool {
-        guard let win = window(windowId) else { return false }
+    func reframe(_ windowId: CGWindowID, _ change: FrameChange) -> Bool {
+        guard window(windowId) != nil else { return false }
 
-        moveCalls.append((windowId: windowId, step: step))
-        win.withoutAnimations {
-            win.setPosition(step.frame(moving: win.snapshot().frame, within: .infinite).origin)
-        }
+        reframeCalls.append((windowId: windowId, change: change))
         return true
     }
 

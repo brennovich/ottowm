@@ -9,6 +9,7 @@ final class OffscreenParkingDesktop: Desktop {
         let parkedFrom: CGRect?
     }
 
+    private let screen: ScreenGeometry
     private let hiddenEdge: HiddenEdge
     private let window: (CGWindowID) -> (any Window)?
     private let notificationCenter: NotificationCenter
@@ -20,6 +21,7 @@ final class OffscreenParkingDesktop: Desktop {
         window: @escaping (CGWindowID) -> (any Window)?,
         notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter
     ) {
+        self.screen = screen
         hiddenEdge = HiddenEdge(screen: screen)
         self.window = window
         self.notificationCenter = notificationCenter
@@ -32,7 +34,7 @@ final class OffscreenParkingDesktop: Desktop {
             else { return snapshot }
 
             Log.desktop.info("recovering \(snapshot.logDescription) stuck at hidden edge")
-            let recovered = hiddenEdge.recovered(from: snapshot.frame)
+            let recovered = centered(snapshot.frame.size)
             move(win, from: snapshot.frame, to: recovered)
             return snapshot.moved(to: recovered)
         }
@@ -81,19 +83,19 @@ final class OffscreenParkingDesktop: Desktop {
     }
 
     @discardableResult
-    func move(_ windowId: CGWindowID, _ step: Step) -> Bool {
+    func reframe(_ windowId: CGWindowID, _ change: FrameChange) -> Bool {
         guard let win = window(windowId) else {
-            Log.desktop.info("cannot move id=\(windowId) \(step.direction.rawValue): window not found")
+            Log.desktop.info("cannot \(change.logDescription) id=\(windowId): window not found")
             return false
         }
         guard let current = win.movableFrame() else {
-            Log.desktop.info("cannot move id=\(windowId) \(step.direction.rawValue): window not movable")
+            Log.desktop.info("cannot \(change.logDescription) id=\(windowId): window not movable")
             return true
         }
 
-        let target = step.frame(moving: current, within: hiddenEdge.screen.visibleFrame)
+        let target = frame(current, after: change)
         move(win, from: current, to: target)
-        Log.desktop.debug("moved id=\(windowId) \(step.direction.rawValue) from=\(current) to=\(target)")
+        Log.desktop.debug("\(change.logDescription) id=\(windowId) from=\(current) to=\(target)")
         return true
     }
 
@@ -130,10 +132,28 @@ final class OffscreenParkingDesktop: Desktop {
         }
     }
 
+    private func frame(_ current: CGRect, after change: FrameChange) -> CGRect {
+        switch change {
+        case let .step(step): step.frame(moving: current, within: screen.visibleFrame)
+        case .center: centered(current.size)
+        }
+    }
+
+    private func centered(_ size: CGSize) -> CGRect {
+        let bounds = screen.visibleFrame
+
+        return CGRect(
+            x: bounds.minX + (bounds.width - size.width) / 2,
+            y: bounds.minY + (bounds.height - size.height) / 2,
+            width: size.width,
+            height: size.height
+        )
+    }
+
     private func onScreenFrame(for windowId: CGWindowID, replacing frame: CGRect) -> CGRect {
         guard hiddenEdge.holds(frame) else { return frame }
 
-        let recovered = hiddenEdge.recovered(from: frame)
+        let recovered = centered(frame.size)
         Log.desktop.info("id=\(windowId) frame \(frame) sits at the hidden edge, taking \(recovered) instead")
         return recovered
     }

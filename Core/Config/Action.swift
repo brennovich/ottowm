@@ -5,6 +5,7 @@ enum Action: Equatable {
     case moveWindowToWorkspace(Int)
     case focus(Direction)
     case moveWindow(Step)
+    case centerWindow
     case quit
     case restart
 
@@ -28,6 +29,7 @@ enum Action: Equatable {
     private static let defaultStep: CGFloat = 15
 
     private static let actionsByVerb: [String: Action] = [
+        "center-window": .centerWindow,
         "quit": .quit,
         "restart": .restart,
     ]

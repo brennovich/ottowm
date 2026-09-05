@@ -21,7 +21,7 @@ OttoWM is a headless agent that offers several workspaces on one native macOS Sp
 
 ```
 WindowEvent  = created(WindowSnapshot) | focused(WindowSnapshot) | destroyed(id) | minimized(id) | unminimized(WindowSnapshot)
-Action       = switchToWorkspace(n) | moveWindowToWorkspace(n) | focus(direction) | moveWindow(step) | quit | restart
+Action       = switchToWorkspace(n) | moveWindowToWorkspace(n) | focus(direction) | moveWindow(step) | centerWindow | quit | restart
 Direction    = north | east | south | west                       // "focus east" in the config
 Step         = (direction, points)                               // "move-window east 15" in the config
 KeyCombo     = (keyCode, [ModifierKey: ModifierSide])            // "lopt-shift-1"
@@ -76,9 +76,10 @@ flowchart LR
 | `TabGroups`                   | Model     | Infers which windows are tabs of one another. Reads a window's tab count on demand.     |
 | `Neighbors`                   | Model     | The windows around one frame, and which of them a focus move lands on.                  |
 | `Step`                        | Model     | One move of a window in points, and where it lands within the screen.                   |
+| `FrameChange`                 | Model     | What reframing does to a window: a step in a direction, or centering it.                |
 | `ParkedWindows`               | Model     | The windows parked at the hidden edge, and the frame each one is owed back.             |
-| `Desktop`                     | macOS     | Parks a window at the hidden edge, restores the frame it is owed, and steps it around.  |
-| `HiddenEdge`                  | macOS     | The corner sliver a parked window sits in, and the frame one is recovered to.           |
+| `Desktop`                     | macOS     | Parks a window at the hidden edge, restores the frame it is owed, and reframes one.     |
+| `HiddenEdge`                  | macOS     | The corner sliver a parked window sits in, and whether a frame sits there.              |
 | `WindowSystem`                | macOS     | The focused window, the on-screen window frames, and the tab count of a window.         |
 | `RunningApplicationsObserver` | macOS     | Which applications count, and the `NSWorkspace` notifications of their lifecycle.       |
 | `AXWindowEvents`              | macOS     | The AX notifications of the watched applications, as `WindowEvent`s.                    |
@@ -147,7 +148,7 @@ Every window event, and every action that touches windows, runs inside `WindowSy
 
 ```mermaid
 flowchart TB
-    Engine -->|recover, move, focus, repark| Desktop
+    Engine -->|recover, reframe, focus, repark| Desktop
     ManagedWindows -->|place| Desktop
     Navigation -->|focus| Desktop
     Engine -->|focused, frames| WindowSystem

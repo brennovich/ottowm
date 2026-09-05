@@ -16,6 +16,7 @@ final class ConfigFileParserTests: XCTestCase {
         lopt-h = focus west
         lopt-shift-h = move-window west
         lopt-shift-l = move-window east 100
+        lopt-ctrl-c = center-window
         """
 
         XCTAssertEqual(
@@ -29,6 +30,7 @@ final class ConfigFileParserTests: XCTestCase {
                 "lopt-h": .focus(.west),
                 "lopt-shift-h": .moveWindow(Step(direction: .west, points: 15)),
                 "lopt-shift-l": .moveWindow(Step(direction: .east, points: 100)),
+                "lopt-ctrl-c": .centerWindow,
             ]))
         )
     }

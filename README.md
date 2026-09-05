@@ -81,6 +81,7 @@ Workspaces are created on demand:
 | `move-window-to-workspace N` | Move the focused window to workspace N                                           |
 | `focus D`                    | Focus the window `D` leads to: `north`, `east`, `south` or `west`                |
 | `move-window D [N]`          | Move the focused window N points `D`, 15 by default, stopping at the screen edge |
+| `center-window`              | Center the focused window on the screen, keeping its size                        |
 | `quit`                       | Quit OttoWM, putting every parked window back                                    |
 | `restart`                    | Read the config file again and rebind the keys                                   |
 
