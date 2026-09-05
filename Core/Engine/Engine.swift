@@ -242,7 +242,7 @@ extension Engine {
         quit: @escaping () -> Void = {},
         restart: @escaping () -> Void = {}
     ) -> Engine {
-        let maximizedWindows = MaximizedWindows()
+        let maximizedWindows = MaximizedWindows(tabs: workspaces.tabGroupMembers(of:))
         let managed = ManagedWindows(
             desktop: desktop,
             windowSystem: windowSystem,

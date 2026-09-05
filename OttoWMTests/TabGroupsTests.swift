@@ -17,10 +17,15 @@ final class TabGroupsTests: XCTestCase {
     }
 
     private var tabCounts: [CGWindowID: Int] = [:]
+    private var frames: [CGWindowID: CGRect] = [:]
 
     private func makeTabGroups(_ windows: [TabbedWindow]) -> TabGroups {
         tabCounts = [:]
-        var tabGroups = TabGroups(tabCount: { [weak self] in self?.tabCounts[$0] ?? 1 })
+        frames = [:]
+        var tabGroups = TabGroups(
+            tabCount: { [weak self] in self?.tabCounts[$0] ?? 1 },
+            frame: { [weak self] in self?.frames[$0] }
+        )
         for window in windows {
             add(window, to: &tabGroups)
         }
@@ -29,6 +34,7 @@ final class TabGroupsTests: XCTestCase {
 
     private func add(_ window: TabbedWindow, to tabGroups: inout TabGroups) {
         tabCounts[window.snapshot.id] = window.tabCount
+        frames[window.snapshot.id] = window.snapshot.frame
         tabGroups.add(window.snapshot)
     }
 
@@ -85,6 +91,18 @@ final class TabGroupsTests: XCTestCase {
         for testCase in cases {
             XCTAssertEqual(makeTabGroups(testCase.windows).members(of: testCase.subject), testCase.expected, testCase.name)
         }
+    }
+
+    /// A tab opens where its window stands now, which a maximize since the group was first
+    /// seen has moved.
+    func testATabOpenedAfterItsWindowMovedJoinsTheGroup() {
+        var tabGroups = makeTabGroups([tabbed(100, tabCount: 2)])
+        let maximized = CGRect(x: 15, y: 15, width: 1762, height: 1090)
+        frames[100] = maximized
+
+        add(tabbed(200, frame: maximized, tabCount: 2), to: &tabGroups)
+
+        XCTAssertEqual(tabGroups.members(of: 100), [100, 200])
     }
 
     func testSiblings() {

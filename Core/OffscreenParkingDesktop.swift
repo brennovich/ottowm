@@ -121,8 +121,9 @@ final class OffscreenParkingDesktop: Desktop {
         case .center:
             return (centered(current.size), .active(requested.windowId))
         case let .maximize(restoring):
+            if let restoring { return (restoring, .active(requested.windowId)) }
             let filled = screen.visibleFrame.insetBy(dx: inset, dy: inset)
-            guard current != filled else { return (restoring ?? current, .active(requested.windowId)) }
+            guard current != filled else { return (current, .active(requested.windowId)) }
             return (filled, .maximized(requested.windowId, from: current))
         }
     }

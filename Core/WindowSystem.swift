@@ -48,6 +48,10 @@ final class WindowSystem {
         window(windowId)?.snapshot()
     }
 
+    func frame(of windowId: CGWindowID) -> CGRect? {
+        window(windowId)?.movableFrame()
+    }
+
     func tabCount(of windowId: CGWindowID) -> Int {
         window(windowId)?.tabCount() ?? 1
     }

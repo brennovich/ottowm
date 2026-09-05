@@ -17,11 +17,16 @@ class EngineTestCase: XCTestCase {
     let tabFrame = CGRect(x: 400, y: 0, width: 800, height: 600)
 
     lazy var workspaces = Workspaces(
-        tabGroups: TabGroups(tabCount: { [weak self] id in self?.windows[id]?.tabCount() ?? 1 })
+        tabGroups: TabGroups(
+            tabCount: { [weak self] id in self?.windows[id]?.tabCount() ?? 1 },
+            frame: { [weak self] id in self?.windows[id]?.movableFrame() }
+        )
     )
 
     let parkedWindows = ParkedWindows()
-    let maximizedWindows = MaximizedWindows()
+    lazy var maximizedWindows = MaximizedWindows(
+        tabs: { [weak self] id in self?.workspaces.tabGroupMembers(of: id) ?? [id] }
+    )
 
     lazy var desktop = StubDesktop(window: { [weak self] id in self?.windows[id] })
 

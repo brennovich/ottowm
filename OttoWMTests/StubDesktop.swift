@@ -14,10 +14,18 @@ final class StubDesktop: Desktop {
         self.window = window
     }
 
+    /// Moves the window as the real desktop does, so what is read back afterwards is where
+    /// the recovery put it.
     func recover(_ windows: [WindowSnapshot]) -> [WindowSnapshot] {
         recoveredWindowIds = windows.map(\.id)
         return windows.map { win in
-            recoveredFrames[win.id].map { win.moved(to: $0) } ?? win
+            guard let recovered = recoveredFrames[win.id], let target = window(win.id) else { return win }
+
+            target.withoutAnimations {
+                target.setPosition(recovered.origin)
+                target.setSize(recovered.size)
+            }
+            return win.moved(to: recovered)
         }
     }
 

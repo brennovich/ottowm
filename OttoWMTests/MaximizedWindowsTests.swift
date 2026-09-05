@@ -4,7 +4,8 @@ import XCTest
 final class MaximizedWindowsTests: XCTestCase {
     private let original = CGRect(x: 100, y: 100, width: 800, height: 600)
     private let filled = CGRect(x: 15, y: 53, width: 1762, height: 1052)
-    private let maximized = MaximizedWindows()
+    private var tabs: [CGWindowID: [CGWindowID]] = [:]
+    private lazy var maximized = MaximizedWindows(tabs: { [weak self] in self?.tabs[$0] ?? [$0] })
 
     func testKnowsNoFrameForAWindowItNeverRecorded() {
         XCTAssertNil(maximized.restoringFrame(of: 100))
@@ -28,6 +29,24 @@ final class MaximizedWindowsTests: XCTestCase {
     func testAnyOtherFrameChangeDropsTheFrame() {
         maximized.record([.maximized(100, from: original)])
         maximized.record([.active(100)])
+
+        XCTAssertNil(maximized.restoringFrame(of: 100))
+    }
+
+    /// Tabs of one window share the frame the maximize took them from: a tab opened after
+    /// it lands at the filled frame with them.
+    func testATabOfAMaximizedWindowGoesBackToTheSameFrame() {
+        tabs = [100: [100, 200], 200: [100, 200]]
+        maximized.record([.maximized(100, from: original)])
+
+        XCTAssertEqual(maximized.restoringFrame(of: 200), original)
+    }
+
+    func testRestoringOneTabEndsTheMaximizeForTheWholeWindow() {
+        tabs = [100: [100, 200], 200: [100, 200]]
+        maximized.record([.maximized(100, from: original)])
+
+        maximized.record([.active(200)])
 
         XCTAssertNil(maximized.restoringFrame(of: 100))
     }

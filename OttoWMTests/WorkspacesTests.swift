@@ -5,7 +5,12 @@ final class WorkspacesTests: XCTestCase {
     private typealias Assignments = [(window: CGWindowID, workspace: Int)]
 
     private func makeWorkspaces(tabbed: Set<CGWindowID> = []) -> Workspaces {
-        Workspaces(tabGroups: TabGroups(tabCount: { tabbed.contains($0) ? 2 : 1 }))
+        Workspaces(
+            tabGroups: TabGroups(
+                tabCount: { tabbed.contains($0) ? 2 : 1 },
+                frame: { makeSnapshot($0).frame }
+            )
+        )
     }
 
     private func makeWorkspaces(assigning assignments: Assignments) -> Workspaces {

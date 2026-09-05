@@ -8,7 +8,10 @@ final class EngineDesktopIntegrationTests: XCTestCase {
     private var focused: StubWindow?
     private let center = NotificationCenter()
     private lazy var workspaces = Workspaces(
-        tabGroups: TabGroups(tabCount: { [weak self] id in self?.windows[id]?.tabCount() ?? 1 })
+        tabGroups: TabGroups(
+            tabCount: { [weak self] id in self?.windows[id]?.tabCount() ?? 1 },
+            frame: { [weak self] id in self?.windows[id]?.movableFrame() }
+        )
     )
 
     private lazy var onScreenWindows = OperationCache { [weak self] () -> [CGWindowID: CGRect] in

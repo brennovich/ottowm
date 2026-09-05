@@ -4,18 +4,20 @@ struct TabGroups {
     private static let yTolerance: CGFloat = 10
 
     private struct Group {
-        let representative: WindowSnapshot
+        let appName: String
         var windowIds: [CGWindowID]
     }
 
     private let tabCount: (CGWindowID) -> Int
+    private let frame: (CGWindowID) -> CGRect?
     private var groups: [Int: Group] = [:]
     private var windowToGroup: [CGWindowID: Int] = [:]
 
     private var nextGroupId = 1
 
-    init(tabCount: @escaping (CGWindowID) -> Int) {
+    init(tabCount: @escaping (CGWindowID) -> Int, frame: @escaping (CGWindowID) -> CGRect?) {
         self.tabCount = tabCount
+        self.frame = frame
     }
 
     mutating func add(_ window: WindowSnapshot) {
@@ -27,7 +29,7 @@ struct TabGroups {
         } else {
             groupId = nextGroupId
             nextGroupId += 1
-            groups[groupId] = Group(representative: window, windowIds: [])
+            groups[groupId] = Group(appName: window.appName, windowIds: [])
         }
 
         groups[groupId]?.windowIds.append(window.id)
@@ -60,17 +62,21 @@ struct TabGroups {
         groups[groupId] = group.windowIds.isEmpty ? nil : group
     }
 
+    /// A tab opens where its window stands now, so the group is matched on where a member
+    /// is rather than where the group was first seen: a maximize between the two moves
+    /// every tab of the window.
     private func group(representing window: WindowSnapshot) -> Int? {
         guard tabCount(window.id) > 1 else { return nil }
 
         return groups.first { entry in
-            let representative = entry.value.representative
+            guard entry.value.appName == window.appName,
+                  let occupied = entry.value.windowIds.lazy.compactMap(frame).first
+            else { return false }
 
-            return window.appName == representative.appName
-                && window.frame.origin.x == representative.frame.origin.x
-                && abs(window.frame.origin.y - representative.frame.origin.y) <= Self.yTolerance
-                && window.frame.width == representative.frame.width
-                && window.frame.height == representative.frame.height
+            return window.frame.origin.x == occupied.origin.x
+                && abs(window.frame.origin.y - occupied.origin.y) <= Self.yTolerance
+                && window.frame.width == occupied.width
+                && window.frame.height == occupied.height
         }?.key
     }
 }

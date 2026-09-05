@@ -30,6 +30,18 @@ final class EngineMaximizeTests: EngineTestCase {
         XCTAssertEqual(desktop.reframeCalls.map(\.change), [.maximize(restoring: frame)])
     }
 
+    func testATabOpenedWhileMaximizedGoesBackToTheFrameItsWindowCameFrom() {
+        focus(100)
+        engine.handle(.toggleMaximize)
+
+        let tab = create(StubWindow(id: 101, frame: frame, tabCount: 2))
+        focused = tab
+        desktop.clearCalls()
+        engine.handle(.toggleMaximize)
+
+        XCTAssertEqual(desktop.reframeCalls.map(\.change), [.maximize(restoring: frame)])
+    }
+
     func testMovingAMaximizedWindowLeavesNothingToRestore() {
         focus(100)
         engine.handle(.toggleMaximize)

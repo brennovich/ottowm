@@ -87,11 +87,13 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(oversized.frame, CGRect(x: 15, y: 53, width: 1762, height: 1052))
     }
 
-    func testMaximizeTakesAFilledWindowBackToTheFrameHandedIn() {
-        reframe(100, .maximize(restoring: nil))
+    /// A window rarely settles at the frame it was given: Terminal quantizes its height to
+    /// whole rows. The frame handed in is what says the window is maximized, not its size.
+    func testMaximizeTakesAWindowBackToTheFrameHandedInWhateverItsSize() {
+        let short = addWindow(101, frame: CGRect(x: 15, y: 53, width: 1762, height: 1051))
 
-        XCTAssertEqual(reframe(100, .maximize(restoring: originalFrame)), [.active(100)])
-        XCTAssertEqual(win.frame, originalFrame)
+        XCTAssertEqual(reframe(short.id, .maximize(restoring: originalFrame)), [.active(short.id)])
+        XCTAssertEqual(short.frame, originalFrame)
     }
 
     /// A window the user filled the screen with by hand has no frame to go back to, and the

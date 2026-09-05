@@ -444,13 +444,13 @@ An application lists only the active tab of a group, and sends no notification w
 ```mermaid
 flowchart LR
     win[window being assigned] --> tabs{more than one tab?}
-    tabs -->|no| own["opens a new group,<br/>and is its representative"]
-    tabs -->|yes| match{"same application, x, width and height,<br/>y within 10 pt of a representative?"}
+    tabs -->|no| own["opens a new group"]
+    tabs -->|yes| match{"same application, x, width and height,<br/>y within 10 pt of where a group stands now?"}
     match -->|yes| join[joins that group]
     match -->|no| own
 ```
 
-A group is keyed by a counter as macOS reuses window ids.
+A group is keyed by a counter as macOS reuses window ids. Where a group stands is read from its members rather than kept from when the group was first seen: a tab opens where its window is now, which a maximize or a move since has changed. A background tab still answers its frame, so whichever member answers places the group.
 
 ### Group events
 
