@@ -43,7 +43,7 @@ Windows the run opened are closed on the way out and applications it launched ar
 
 ## What a run gets
 
-`Session.start` hands back the windows as `Subject`s, each one carrying the frame it read once everything had settled, which is the frame it is owed back after every switch:
+`Session.start` hands back the windows as `Subject`s, each one carrying the frame it read once everything had settled, which is the frame it takes back after every switch:
 
 - `subject.isWhereItWas` — within 2px of that frame.
 - `session.isParked(subject)` — at the hidden edge, allowing the same 10px `HiddenEdge.holds` allows, since macOS clamps a window parked 1px past the right edge back by an unspecified amount.

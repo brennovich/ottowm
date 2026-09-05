@@ -54,11 +54,11 @@ final class EngineDesktopIntegrationTests: XCTestCase {
 
         moveFocusedWindow(win2, to: 2)
 
-        XCTAssertEqual(win2.frame, nubFrame(size: frame2.size))
+        XCTAssertEqual(win2.frame, hiddenEdgeFrame(size: frame2.size))
 
         engine.switchToWorkspace(2)
 
-        XCTAssertEqual(win1.frame, nubFrame(size: frame1.size))
+        XCTAssertEqual(win1.frame, hiddenEdgeFrame(size: frame1.size))
         XCTAssertEqual(win2.frame, frame2)
 
         focused = win2
@@ -66,7 +66,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         engine.switchToWorkspace(1)
 
         XCTAssertEqual(win1.frame, frame1)
-        XCTAssertEqual(win2.frame, nubFrame(size: frame2.size))
+        XCTAssertEqual(win2.frame, hiddenEdgeFrame(size: frame2.size))
     }
 
     func testNativeSpaceChangeWithHiddenWindowFocusedSwitchesToItsWorkspace() {
@@ -80,7 +80,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
 
         XCTAssertEqual(workspaces.current, 2)
         XCTAssertEqual(win2.frame, frame2)
-        XCTAssertEqual(win1.frame, nubFrame(size: frame1.size))
+        XCTAssertEqual(win1.frame, hiddenEdgeFrame(size: frame1.size))
     }
 
     func testNativeSpaceChangeParksAgainTheWindowsItPulledBackOnScreen() {
@@ -94,7 +94,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         focused = win1
         center.postNativeSpaceChange()
 
-        XCTAssertEqual(win2.frame, nubFrame(size: frame2.size))
+        XCTAssertEqual(win2.frame, hiddenEdgeFrame(size: frame2.size))
         XCTAssertEqual(workspaces.current, 1)
     }
 

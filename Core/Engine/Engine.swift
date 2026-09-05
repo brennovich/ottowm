@@ -48,7 +48,7 @@ final class Engine {
 
                 self.windowSystem.duringOperation("native-space-change") {
                     guard let focused = self.windowSystem.focused(),
-                          self.managed.placement(of: focused.id) == .parked
+                          self.managed.isParked(focused.id)
                     else {
                         Log.engine.debug("native space change: no parked window focused")
                         self.fullScreenReturns.followWithRetries()
@@ -106,8 +106,8 @@ final class Engine {
         case let .switchToWorkspace(workspace): switchToWorkspace(workspace)
         case let .moveWindowToWorkspace(workspace): moveFocusedWindow(toWorkspace: workspace)
         case let .focus(direction): focusWindow(direction)
-        case let .moveWindow(step): reframeFocusedWindow(.step(step))
-        case .centerWindow: reframeFocusedWindow(.center)
+        case let .moveWindow(step): reframeFocusedWindow(.step(step), operation: "move-window")
+        case .centerWindow: reframeFocusedWindow(.center, operation: "center-window")
         case .quit: quit()
         case .restart: restart()
         }
@@ -179,7 +179,7 @@ final class Engine {
             }
 
             let candidates = workspaces.windowIds(in: workspaces.current)
-                .filter { $0 != reference.id && managed.placement(of: $0) == .active }
+                .filter { $0 != reference.id && !managed.isParked($0) }
 
             let neighbors = Neighbors(around: reference.frame, among: windowSystem.frames(of: candidates))
             guard let target = neighbors.nearest(to: direction) else {
@@ -192,19 +192,21 @@ final class Engine {
         }
     }
 
-    func reframeFocusedWindow(_ change: FrameChange) {
-        windowSystem.duringOperation(change.operation) {
+    /// - Parameter operation: one name per action, so the round-trip cost of a step and of a
+    ///   centering stay separate operations.
+    func reframeFocusedWindow(_ change: FrameChange, operation: StaticString) {
+        windowSystem.duringOperation(operation) {
             guard let win = navigation.focusedWindowOfCurrentWorkspace() else {
                 Log.engine.info("\(change.logDescription) dropped: no window of workspace \(self.workspaces.current) focused")
                 return
             }
-            guard managed.placement(of: win.id) == .active else {
+            guard !managed.isParked(win.id) else {
                 Log.engine.info("\(change.logDescription) dropped: id=\(win.id) is parked")
                 return
             }
 
             Log.engine.info("\(change.logDescription) \(win.logDescription)")
-            if !desktop.reframe(win.id, change) {
+            if desktop.reframe([(windowId: win.id, change: change)]).contains(.gone(win.id)) {
                 managed.unmanage(win.id, reason: "gone")
             }
         }

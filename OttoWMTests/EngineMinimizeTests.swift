@@ -41,6 +41,6 @@ final class EngineMinimizeTests: EngineTestCase {
 
         engine.switchToWorkspace(2)
 
-        XCTAssertEqual(parkedWindows.placement(of: 100), .parked)
+        XCTAssertTrue(parkedWindows.isParked(100))
     }
 }

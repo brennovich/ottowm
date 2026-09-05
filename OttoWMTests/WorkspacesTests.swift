@@ -54,8 +54,8 @@ final class WorkspacesTests: XCTestCase {
     }
 
     func testSwitchTo() {
-        typealias Placement = (activating: Set<CGWindowID>, parking: Set<CGWindowID>)
-        let cases: [(name: String, assignments: Assignments, target: Int, placement: Placement)] = [
+        typealias Split = (activating: Set<CGWindowID>, parking: Set<CGWindowID>)
+        let cases: [(name: String, assignments: Assignments, target: Int, split: Split)] = [
             ("no windows", [], 2, ([], [])),
             ("only target workspace windows", [(100, 2), (200, 2)], 2, ([100, 200], [])),
             (
@@ -73,8 +73,8 @@ final class WorkspacesTests: XCTestCase {
             let result = model.switchTo(testCase.target, leavingFocusOn: nil)
 
             XCTAssertEqual(model.current, testCase.target, testCase.name)
-            XCTAssertEqual(Set(result.activating), testCase.placement.activating, testCase.name)
-            XCTAssertEqual(Set(result.parking), testCase.placement.parking, testCase.name)
+            XCTAssertEqual(Set(result.activating), testCase.split.activating, testCase.name)
+            XCTAssertEqual(Set(result.parking), testCase.split.parking, testCase.name)
         }
     }
 

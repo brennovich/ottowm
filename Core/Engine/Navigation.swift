@@ -28,7 +28,7 @@ final class Navigation {
     /// The focused event: manual navigation to a parked window, a stale event, a window not
     /// yet on screen, a window back from full screen, a tab of a group parked elsewhere.
     func follow(_ win: WindowSnapshot) {
-        if managed.placement(of: win.id) == .parked {
+        if managed.isParked(win.id) {
             guard windowSystem.focused()?.id == win.id else {
                 Log.engine.debug("ignoring stale focus event id=\(win.id)")
                 return

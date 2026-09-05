@@ -16,11 +16,11 @@ final class EngineSwitchTests: EngineTestCase {
 
     func testSwitchToSameWorkspaceOnFrontmostDesktopIsNoOp() {
         let win = create(StubWindow(id: 100))
-        desktop.clearPlaceCalls()
+        desktop.clearCalls()
 
         engine.switchToWorkspace(1)
 
-        XCTAssertTrue(desktop.placeCalls.isEmpty)
+        XCTAssertTrue(desktop.reframeCalls.isEmpty)
         XCTAssertEqual(win.focusCount, 0)
     }
 
@@ -53,11 +53,11 @@ final class EngineSwitchTests: EngineTestCase {
         engine.switchToWorkspace(2)
 
         XCTAssertEqual(workspaces.windowIds(in: 1), [100, 200])
-        XCTAssertEqual(parkedWindows.placement(of: 200), .parked)
+        XCTAssertTrue(parkedWindows.isParked(200))
 
         engine.switchToWorkspace(1)
 
-        XCTAssertEqual(parkedWindows.placement(of: 200), .active)
+        XCTAssertFalse(parkedWindows.isParked(200))
     }
 
     func testSwitchReadsTheFocusedWindowAndTheScreenOnce() {

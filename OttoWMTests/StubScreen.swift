@@ -13,7 +13,7 @@ extension StubScreen {
     )
 }
 
-func nubFrame(size: CGSize) -> CGRect {
+func hiddenEdgeFrame(size: CGSize) -> CGRect {
     CGRect(origin: CGPoint(x: 1791, y: 1119), size: size)
 }
 

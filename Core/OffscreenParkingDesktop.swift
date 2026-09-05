@@ -5,8 +5,7 @@ final class OffscreenParkingDesktop: Desktop {
     private struct Move {
         let windowId: CGWindowID
         let window: any Window
-        let placement: Placement
-        let parkedFrom: CGRect?
+        let change: FrameChange
     }
 
     private let screen: ScreenGeometry
@@ -40,63 +39,23 @@ final class OffscreenParkingDesktop: Desktop {
         }
     }
 
-    func place(_ placements: [(windowId: CGWindowID, placement: Placement, owedFrame: CGRect?)]) -> [PlacementOutcome] {
-        var outcomes: [PlacementOutcome] = []
+    func reframe(_ changes: [(windowId: CGWindowID, change: FrameChange)]) -> [FrameOutcome] {
+        var outcomes: [FrameOutcome] = []
         var moves: [Move] = []
 
-        for (windowId, placement, owedFrame) in placements {
+        for (windowId, change) in changes {
             guard let win = window(windowId) else {
-                Log.desktop.info("cannot move id=\(windowId) to \(placement): window not found")
+                Log.desktop.info("cannot \(change.logDescription) id=\(windowId): window not found")
                 outcomes.append(.gone(windowId))
                 continue
             }
-            guard placement != .parked || owedFrame == nil else { continue }
 
-            moves.append(Move(windowId: windowId, window: win, placement: placement, parkedFrom: owedFrame))
+            moves.append(Move(windowId: windowId, window: win, change: change))
         }
 
         return outcomes + Concurrently.map(over: Array(Dictionary(grouping: moves, by: \.window.pid).values)) {
-            $0.map { requested -> PlacementOutcome in
-                guard let currentFrame = requested.window.movableFrame() else {
-                    Log.desktop.info("cannot move id=\(requested.windowId) to \(requested.placement): window not movable")
-                    guard let parkedFrom = requested.parkedFrom else { return .activated(requested.windowId) }
-                    return .parked(requested.windowId, owing: parkedFrom)
-                }
-
-                switch requested.placement {
-                case .parked:
-                    let originalFrame = onScreenFrame(for: requested.windowId, replacing: currentFrame)
-                    let hidden = hiddenEdge.frame(parking: originalFrame)
-                    move(requested.window, from: currentFrame, to: hidden)
-                    Log.desktop.debug("hid id=\(requested.windowId) from=\(currentFrame) to=\(hidden)")
-                    return .parked(requested.windowId, owing: originalFrame)
-                case .active:
-                    let target = onScreenFrame(for: requested.windowId, replacing: requested.parkedFrom ?? currentFrame)
-                    if target != currentFrame {
-                        move(requested.window, from: currentFrame, to: target)
-                        Log.desktop.debug("restored id=\(requested.windowId) to=\(target)")
-                    }
-                    return .activated(requested.windowId)
-                }
-            }
+            $0.map(apply)
         }
-    }
-
-    @discardableResult
-    func reframe(_ windowId: CGWindowID, _ change: FrameChange) -> Bool {
-        guard let win = window(windowId) else {
-            Log.desktop.info("cannot \(change.logDescription) id=\(windowId): window not found")
-            return false
-        }
-        guard let current = win.movableFrame() else {
-            Log.desktop.info("cannot \(change.logDescription) id=\(windowId): window not movable")
-            return true
-        }
-
-        let target = frame(current, after: change)
-        move(win, from: current, to: target)
-        Log.desktop.debug("\(change.logDescription) id=\(windowId) from=\(current) to=\(target)")
-        return true
     }
 
     func focus(_ windowId: CGWindowID) -> Bool {
@@ -119,23 +78,45 @@ final class OffscreenParkingDesktop: Desktop {
         }
     }
 
-    func repark(_ parked: [(windowId: CGWindowID, owedFrame: CGRect)]) {
-        for (windowId, owedFrame) in parked {
+    func repark(_ parked: [(windowId: CGWindowID, parkedFrom: CGRect)]) {
+        for (windowId, parkedFrom) in parked {
             guard let win = window(windowId),
                   let frame = win.movableFrame(),
                   !hiddenEdge.holds(frame)
             else { continue }
 
-            let hidden = hiddenEdge.frame(parking: owedFrame)
+            let hidden = hiddenEdge.frame(parking: parkedFrom)
             move(win, from: frame, to: hidden)
             Log.desktop.info("re-hid id=\(windowId) pulled back to \(frame), to=\(hidden)")
         }
     }
 
-    private func frame(_ current: CGRect, after change: FrameChange) -> CGRect {
-        switch change {
-        case let .step(step): step.frame(moving: current, within: screen.visibleFrame)
-        case .center: centered(current.size)
+    private func apply(_ requested: Move) -> FrameOutcome {
+        guard let current = requested.window.movableFrame() else {
+            Log.desktop.info("cannot \(requested.change.logDescription) id=\(requested.windowId): window not movable")
+            if case let .unpark(parkedFrom?) = requested.change { return .parked(requested.windowId, from: parkedFrom) }
+            return .active(requested.windowId)
+        }
+
+        let (target, outcome) = destination(current, for: requested)
+        if target != current {
+            move(requested.window, from: current, to: target)
+            Log.desktop.debug("\(requested.change.logDescription) id=\(requested.windowId) from=\(current) to=\(target)")
+        }
+        return outcome
+    }
+
+    private func destination(_ current: CGRect, for requested: Move) -> (frame: CGRect, outcome: FrameOutcome) {
+        switch requested.change {
+        case .park:
+            let onScreen = onScreenFrame(for: requested.windowId, replacing: current)
+            return (hiddenEdge.frame(parking: onScreen), .parked(requested.windowId, from: onScreen))
+        case let .unpark(parkedFrom):
+            return (onScreenFrame(for: requested.windowId, replacing: parkedFrom ?? current), .active(requested.windowId))
+        case let .step(step):
+            return (step.frame(moving: current, within: screen.visibleFrame), .active(requested.windowId))
+        case .center:
+            return (centered(current.size), .active(requested.windowId))
         }
     }
 

@@ -9,7 +9,7 @@ final class EngineFocusDirectionTests: EngineTestCase {
         let reference = create(StubWindow(id: 100, frame: center))
         let parked = create(StubWindow(id: 200, frame: east))
         let farther = create(StubWindow(id: 300, frame: CGRect(x: 1000, y: 300, width: 200, height: 200)))
-        parkedWindows.park(parked.id, owing: east)
+        parkedWindows.park(parked.id, from: east)
         focused = reference
 
         engine.focusWindow(.east)

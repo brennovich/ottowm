@@ -20,8 +20,8 @@ final class EngineLifecycleTests: EngineTestCase {
 
         engine.handle(.quit)
 
-        XCTAssertEqual(parkedWindows.placement(of: 100), .active)
-        XCTAssertEqual(parkedWindows.placement(of: 200), .active)
+        XCTAssertFalse(parkedWindows.isParked(100))
+        XCTAssertFalse(parkedWindows.isParked(200))
         XCTAssertEqual(quitCount, 1)
     }
 
@@ -32,8 +32,8 @@ final class EngineLifecycleTests: EngineTestCase {
 
         engine.handle(.restart)
 
-        XCTAssertEqual(parkedWindows.placement(of: 100), .parked)
-        XCTAssertEqual(parkedWindows.placement(of: 200), .active)
+        XCTAssertTrue(parkedWindows.isParked(100))
+        XCTAssertFalse(parkedWindows.isParked(200))
         XCTAssertEqual(restartCount, 1)
     }
 
@@ -47,6 +47,7 @@ final class EngineLifecycleTests: EngineTestCase {
 
         XCTAssertEqual(neighbor.focusCount, 1)
 
+        desktop.clearCalls()
         let step = Step(direction: .south, points: 40)
         engine.handle(.moveWindow(step))
         engine.handle(.centerWindow)
@@ -72,7 +73,7 @@ final class EngineLifecycleTests: EngineTestCase {
         engine.handle(.created(add(StubWindow(id: 200)).snapshot()))
 
         XCTAssertEqual(workspaces.allWindowIds, [100])
-        XCTAssertEqual(parkedWindows.placement(of: win.id), .parked)
+        XCTAssertTrue(parkedWindows.isParked(win.id))
 
         screenIsLocked = false
         engine.handle(.destroyed(100))
@@ -87,12 +88,12 @@ final class EngineLifecycleTests: EngineTestCase {
         moveFocusedWindow(known, to: 2)
         let missed = add(StubWindow(id: 200))
         engine.switchToWorkspace(3)
-        desktop.clearPlaceCalls()
+        desktop.clearCalls()
 
         engine.resync(windows: [known.snapshot(), missed.snapshot()])
 
         XCTAssertEqual(workspaces.workspace(for: 100), 2)
         XCTAssertEqual(workspaces.workspace(for: 200), 3)
-        XCTAssertEqual(desktop.placeCalls.map(\.windowId), [200])
+        XCTAssertEqual(desktop.reframeCalls.map(\.windowId), [200])
     }
 }

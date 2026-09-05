@@ -23,7 +23,7 @@ final class NavigationTests: EngineTestCase {
         navigation.follow(win2.snapshot())
 
         XCTAssertEqual(workspaces.current, 1)
-        XCTAssertEqual(managed.placement(of: 200), .parked)
+        XCTAssertTrue(managed.isParked(200))
     }
 
     func testFollowingAParkedWindowDoesNotSwitchWhenACurrentWorkspaceWindowLeftTheScreen() {
@@ -37,7 +37,7 @@ final class NavigationTests: EngineTestCase {
         navigation.follow(win2.snapshot())
 
         XCTAssertEqual(workspaces.current, 1)
-        XCTAssertEqual(managed.placement(of: 200), .parked)
+        XCTAssertTrue(managed.isParked(200))
         XCTAssertEqual(workspaces.allWindowIds, [200])
     }
 
@@ -70,7 +70,7 @@ final class NavigationTests: EngineTestCase {
         navigation.follow(win2.snapshot())
 
         XCTAssertEqual(workspaces.current, 2)
-        XCTAssertEqual(managed.placement(of: 200), .active)
+        XCTAssertFalse(managed.isParked(200))
     }
 
     func testFollowingAnUnknownWindowAssignsItToTheCurrentWorkspace() {
@@ -116,7 +116,7 @@ final class NavigationTests: EngineTestCase {
         navigation.follow(lateTab.snapshot())
 
         XCTAssertEqual(workspaces.current, 1)
-        XCTAssertEqual(managed.placement(of: 301), .active)
+        XCTAssertFalse(managed.isParked(301))
     }
 
     func testRestoreFocusesTheWindowFocusedLastInTheCurrentWorkspace() {

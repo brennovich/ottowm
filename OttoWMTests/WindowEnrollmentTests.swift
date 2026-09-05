@@ -13,7 +13,7 @@ final class WindowEnrollmentTests: EngineTestCase {
         runScheduledRetries()
 
         XCTAssertEqual(workspaces.workspace(for: 100), workspaces.current)
-        XCTAssertEqual(managed.placement(of: 100), .active)
+        XCTAssertFalse(managed.isParked(100))
     }
 
     func testTheRetriesStopWhenTheWindowStaysOffScreen() {

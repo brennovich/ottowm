@@ -3,9 +3,8 @@ import CoreGraphics
 final class StubDesktop: Desktop {
     private let window: (CGWindowID) -> (any Window)?
 
-    private(set) var placeCalls: [(windowId: CGWindowID, placement: Placement)] = []
-    private(set) var placeBatches: [[CGWindowID]] = []
     private(set) var reframeCalls: [(windowId: CGWindowID, change: FrameChange)] = []
+    private(set) var reframeBatches: [[CGWindowID]] = []
     private(set) var recoveredWindowIds: [CGWindowID] = []
     private(set) var nativeSpaceChangeCallback: (() -> Void)?
 
@@ -22,35 +21,25 @@ final class StubDesktop: Desktop {
         }
     }
 
-    func place(_ placements: [(windowId: CGWindowID, placement: Placement, owedFrame: CGRect?)]) -> [PlacementOutcome] {
-        placeBatches.append(placements.map(\.windowId))
-        placeCalls.append(contentsOf: placements.map { (windowId: $0.windowId, placement: $0.placement) })
+    /// Records the request, and answers a park with a frame: every other frame a change
+    /// resolves to needs the screen bounds, which the real desktop owns.
+    func reframe(_ changes: [(windowId: CGWindowID, change: FrameChange)]) -> [FrameOutcome] {
+        reframeBatches.append(changes.map(\.windowId))
+        reframeCalls.append(contentsOf: changes)
 
-        return placements.map { request in
+        return changes.map { request in
             guard let win = window(request.windowId) else { return .gone(request.windowId) }
 
-            switch request.placement {
-            case .parked:
-                return .parked(request.windowId, owing: request.owedFrame ?? win.snapshot().frame)
-            case .active:
-                return .activated(request.windowId)
+            switch request.change {
+            case .park: return .parked(request.windowId, from: win.snapshot().frame)
+            case .unpark, .step, .center: return .active(request.windowId)
             }
         }
     }
 
-    /// Records the request only: every frame the change resolves to needs the screen bounds,
-    /// which the real desktop owns.
-    @discardableResult
-    func reframe(_ windowId: CGWindowID, _ change: FrameChange) -> Bool {
-        guard window(windowId) != nil else { return false }
-
-        reframeCalls.append((windowId: windowId, change: change))
-        return true
-    }
-
-    func clearPlaceCalls() {
-        placeCalls = []
-        placeBatches = []
+    func clearCalls() {
+        reframeCalls = []
+        reframeBatches = []
     }
 
     func focus(_ windowId: CGWindowID) -> Bool {
@@ -63,5 +52,5 @@ final class StubDesktop: Desktop {
         nativeSpaceChangeCallback = callback
     }
 
-    func repark(_: [(windowId: CGWindowID, owedFrame: CGRect)]) {}
+    func repark(_: [(windowId: CGWindowID, parkedFrom: CGRect)]) {}
 }

@@ -24,7 +24,7 @@ final class FullScreenReturnsTests: EngineTestCase {
 
         XCTAssertEqual(workspaces.workspace(for: 200), 1)
         XCTAssertEqual(workspaces.current, 1)
-        XCTAssertEqual(managed.placement(of: 200), .active)
+        XCTAssertFalse(managed.isParked(200))
     }
 
     func testTheRetriesStopAfterTheLastDelay() {

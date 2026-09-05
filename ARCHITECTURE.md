@@ -10,8 +10,7 @@ OttoWM is a headless agent that offers several workspaces on one native macOS Sp
 | Desktop        | The native Space OttoWM controls, and the component that moves windows on it.                                 |
 | Workspace      | A numbered set of windows. It exists as soon as an action names it.                                           |
 | Managed window | A window that belongs to a workspace.                                                                         |
-| Placement      | Where a managed window sits: `active` on screen, or `parked` at the hidden edge.                              |
-| Hidden edge    | The bottom-right corner of the display. A parked window sits there.                                           |
+| Hidden edge    | A 1pt sliver at the bottom right of the display. A window not in the current workspace is parked there.       |
 | Tab group      | The windows macOS shows as tabs of one window. See [Tabbed windows](#tabbed-windows).                         |
 | Window id      | The `CGWindowID` of a window. It identifies the window for as long as the window lives.                       |
 | Frame          | A rect in top-left coordinates.                                                                               |
@@ -25,7 +24,7 @@ Action       = switchToWorkspace(n) | moveWindowToWorkspace(n) | focus(direction
 Direction    = north | east | south | west                       // "focus east" in the config
 Step         = (direction, points)                               // "move-window east 15" in the config
 KeyCombo     = (keyCode, [ModifierKey: ModifierSide])            // "lopt-shift-1"
-Placement    = active | parked
+FrameChange  = step(Step) | center | park | unpark(frame?)       // what a window's frame is asked to become
 WindowSnapshot(id, appName, isStandard, hasCloseButton, hasMinimizeButton, isFullScreen, isMinimized, frame)
 ```
 
@@ -76,10 +75,10 @@ flowchart LR
 | `TabGroups`                   | Model     | Infers which windows are tabs of one another. Reads a window's tab count on demand.     |
 | `Neighbors`                   | Model     | The windows around one frame, and which of them a focus move lands on.                  |
 | `Step`                        | Model     | One move of a window in points, and where it lands within the screen.                   |
-| `FrameChange`                 | Model     | What reframing does to a window: a step in a direction, or centering it.                |
-| `ParkedWindows`               | Model     | The windows parked at the hidden edge, and the frame each one is owed back.             |
-| `Desktop`                     | macOS     | Parks a window at the hidden edge, restores the frame it is owed, and reframes one.     |
-| `HiddenEdge`                  | macOS     | The corner sliver a parked window sits in, and whether a frame sits there.              |
+| `FrameChange`                 | Model     | What a window's frame is asked to become: a step, a centering, a park, an unpark.       |
+| `ParkedWindows`               | Model     | The windows parked at the hidden edge, and the frame each one was parked from.          |
+| `Desktop`                     | macOS     | Manipulates the current workspace's windows.                                            |
+| `HiddenEdge`                  | macOS     | Where a parked window sits, and whether a frame sits there.                             |
 | `WindowSystem`                | macOS     | The focused window, the on-screen window frames, and the tab count of a window.         |
 | `RunningApplicationsObserver` | macOS     | Which applications count, and the `NSWorkspace` notifications of their lifecycle.       |
 | `AXWindowEvents`              | macOS     | The AX notifications of the watched applications, as `WindowEvent`s.                    |
@@ -103,7 +102,7 @@ flowchart LR
 
 `Window` is a protocol; `AXWindow` is the implementation the app runs.
 
-`Desktop` is a protocol; `OffscreenParkingDesktop` is the implementation the app runs. It holds no state of its own: `ManagedWindows` hands it the frame each window is owed, and records what the placement reports back in `ParkedWindows`, which it reads to tell an active window from a parked one.
+`Desktop` is a protocol; `OffscreenParkingDesktop` is the implementation the app runs. It holds no state of its own: `ManagedWindows` hands it one `FrameChange` per window, carrying the frame an unpark restores, and records what comes back in `ParkedWindows`, which it reads to tell an active window from a parked one.
 
 ### Input
 
@@ -142,14 +141,14 @@ flowchart LR
 
 Every window event, and every action that touches windows, runs inside `WindowSystem.duringOperation`. Only an entry point opens an operation: an `Engine` method, the native Space change callback, or a retry closure of `WindowEnrollment` and `FullScreenReturns`. The parts never open one. Events are dropped while the screen is locked, where every window reads as closed.
 
-`ManagedWindows` owns the placement verbs: every change of a window's workspace goes through it and is paired with a `Desktop.place`. `Navigation` decides where the focus goes after a change and which workspace to show when the user focuses a window. `WindowEnrollment` and `FullScreenReturns` repeat a read macOS sent no notification for.
+`ManagedWindows` owns the placement verbs: every change of a window's workspace goes through it and is paired with a park or an unpark on the `Desktop`. `Navigation` decides where the focus goes after a change and which workspace to show when the user focuses a window. `WindowEnrollment` and `FullScreenReturns` repeat a read macOS sent no notification for.
 
 ### macOS boundary
 
 ```mermaid
 flowchart TB
     Engine -->|recover, reframe, focus, repark| Desktop
-    ManagedWindows -->|place| Desktop
+    ManagedWindows -->|reframe| Desktop
     Navigation -->|focus| Desktop
     Engine -->|focused, frames| WindowSystem
     ManagedWindows & Navigation -->|focused, shows, snapshot| WindowSystem
@@ -229,8 +228,8 @@ sequenceDiagram
     Engine->>ManagedWindows: switchTo(n)
     ManagedWindows->>Workspaces: switchTo(n, leavingFocusOn: focused)
     Workspaces-->>ManagedWindows: (activating, parking)
-    ManagedWindows->>Desktop: place(each window, at its placement, owing the frame recorded for it)
-    Desktop-->>ManagedWindows: parked owing a frame, activated, or gone, per window
+    ManagedWindows->>Desktop: reframe(park or unpark per window, an unpark carrying the frame recorded for it)
+    Desktop-->>ManagedWindows: parked from a frame, active, or gone, per window
     ManagedWindows->>ParkedWindows: record(what came back)
     alt the desktop is in front
         Engine->>Navigation: restore()
@@ -251,7 +250,7 @@ sequenceDiagram
     Engine->>WindowSystem: focused()
     WindowSystem-->>Engine: the window, or nothing to move
     Engine->>ManagedWindows: move(window, to: n)
-    ManagedWindows->>Desktop: place(id, at: .active if n is current, else .parked)
+    ManagedWindows->>Desktop: reframe(id, unpark if n is current, else park)
     ManagedWindows->>ParkedWindows: record(what came back)
     ManagedWindows->>Workspaces: move(id, to: n), which drops any full screen record of it
     Engine->>Navigation: restore()
@@ -267,9 +266,9 @@ sequenceDiagram
     Engine->>Navigation: focusedWindowOfCurrentWorkspace()
     Note over Navigation: nothing unless the focused window is in the current workspace,<br/>enrolled first when no workspace holds it
     Engine->>Workspaces: windowIds(in: the current workspace)
-    Engine->>ManagedWindows: placement(of: id)
-    Engine->>WindowSystem: frames(of: the windows placed active)
-    Note over Engine: keeps the on-screen windows that are placed active
+    Engine->>ManagedWindows: isParked(id)
+    Engine->>WindowSystem: frames(of: the windows that are not parked)
+    Note over Engine: keeps the on-screen windows that are not parked
     Engine->>Neighbors: nearest(to: direction)
     Neighbors-->>Engine: the window that way, or nothing
     Engine->>Desktop: focus(id)
@@ -303,7 +302,7 @@ sequenceDiagram
     end
     Note over Navigation: dropped by the one-shot ignore flag,<br/>or when every window of the current workspace is already gone
     Navigation->>ManagedWindows: switchTo(that window's workspace)
-    ManagedWindows->>Desktop: place(id, at: .active) and place(id, at: .parked)
+    ManagedWindows->>Desktop: reframe(unpark for one, park for the other)
 ```
 
 A Space change also pulls a parked window back on screen when its full screen instance exits. With no parked window focused, `Engine` answers the change with `repark`, which puts the parked windows found on screen back at the hidden edge.

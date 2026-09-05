@@ -15,24 +15,24 @@ final class ManagedWindowsTests: EngineTestCase {
     func testAssignReportsTheWorkspaceOfAKnownWindowAndLeavesItThere() {
         let win = add(StubWindow(id: 100))
         managed.assign(win.snapshot(), to: 2)
-        desktop.clearPlaceCalls()
+        desktop.clearCalls()
 
         XCTAssertEqual(managed.assign(win.snapshot(), to: 1), 2)
         XCTAssertEqual(workspaces.workspace(for: 100), 2)
-        XCTAssertTrue(desktop.placeCalls.isEmpty)
+        XCTAssertTrue(desktop.reframeCalls.isEmpty)
     }
 
     func testNothingIsAssignedWhileAnotherNativeSpaceIsInFront() {
         let win = add(StubWindow(id: 100))
         managed.assign(win.snapshot(), to: 1)
         offScreenWindowIds = [100]
-        desktop.clearPlaceCalls()
+        desktop.clearCalls()
 
         let other = add(StubWindow(id: 200))
 
         XCTAssertFalse(managed.isDesktopInFront)
         XCTAssertNil(managed.assign(other.snapshot(), to: 1))
-        XCTAssertTrue(desktop.placeCalls.isEmpty)
+        XCTAssertTrue(desktop.reframeCalls.isEmpty)
     }
 
     func testTheDesktopIsInFrontWhenTheFocusedWindowBelongsToAManagedTabGroup() {
@@ -57,7 +57,7 @@ final class ManagedWindowsTests: EngineTestCase {
         let tab2 = add(StubWindow(id: 301, appName: "Terminal", frame: tabFrame, tabCount: 2))
 
         XCTAssertEqual(managed.assign(tab2.snapshot(), to: 2), 1)
-        XCTAssertEqual(managed.placement(of: 301), .parked)
+        XCTAssertTrue(managed.isParked(301))
     }
 
     func testUnmanageHandsAParkedWindowBackToTheDesktop() {
@@ -65,18 +65,18 @@ final class ManagedWindowsTests: EngineTestCase {
         let onDesk = add(StubWindow(id: 200))
         managed.assign(parked.snapshot(), to: 2)
         managed.assign(onDesk.snapshot(), to: 1)
-        desktop.clearPlaceCalls()
+        desktop.clearCalls()
 
         managed.unmanage(100, reason: "test")
 
-        XCTAssertEqual(desktop.placeCalls.map(\.windowId), [100])
-        XCTAssertEqual(desktop.placeCalls.map(\.placement), [.active])
-        XCTAssertEqual(managed.placement(of: 100), .active)
+        XCTAssertEqual(desktop.reframeCalls.map(\.windowId), [100])
+        XCTAssertEqual(desktop.reframeCalls.map(\.change), [.unpark(parked.frame)])
+        XCTAssertFalse(managed.isParked(100))
 
-        desktop.clearPlaceCalls()
+        desktop.clearCalls()
         managed.unmanage(200, reason: "test")
 
-        XCTAssertTrue(desktop.placeCalls.isEmpty)
+        XCTAssertTrue(desktop.reframeCalls.isEmpty)
         XCTAssertEqual(workspaces.allWindowIds, [])
     }
 
@@ -87,7 +87,7 @@ final class ManagedWindowsTests: EngineTestCase {
         windows[200] = nil
         managed.unmanage(200, reason: "test")
 
-        XCTAssertEqual(managed.placement(of: 200), .active)
+        XCTAssertFalse(managed.isParked(200))
     }
 
     func testUnmanageReportsTheFocusSettledForAWindowItNeverManaged() {
@@ -103,14 +103,14 @@ final class ManagedWindowsTests: EngineTestCase {
         let win2 = add(StubWindow(id: 200))
         managed.assign(win1.snapshot(), to: 1)
         managed.assign(win2.snapshot(), to: 2)
-        desktop.clearPlaceCalls()
+        desktop.clearCalls()
 
         managed.switchTo(2)
 
         XCTAssertEqual(workspaces.current, 2)
-        XCTAssertEqual(managed.placement(of: 100), .parked)
-        XCTAssertEqual(managed.placement(of: 200), .active)
-        XCTAssertEqual(desktop.placeBatches.map(Set.init), [[100, 200]])
+        XCTAssertTrue(managed.isParked(100))
+        XCTAssertFalse(managed.isParked(200))
+        XCTAssertEqual(desktop.reframeBatches.map(Set.init), [[100, 200]])
     }
 
     func testSwitchToUnmanagesTheWindowsTheDesktopReportsGone() {
@@ -123,7 +123,7 @@ final class ManagedWindowsTests: EngineTestCase {
         managed.switchTo(2)
 
         XCTAssertNil(workspaces.workspace(for: 300))
-        XCTAssertEqual(managed.placement(of: 300), .active)
+        XCTAssertFalse(managed.isParked(300))
     }
 
     func testSwitchToRecordsTheFocusOnTheManageableWindowFocusedWhenLeaving() {
@@ -152,17 +152,28 @@ final class ManagedWindowsTests: EngineTestCase {
 
         XCTAssertTrue(managed.move(win.snapshot(), to: 2))
         XCTAssertEqual(workspaces.workspace(for: 100), 2)
-        XCTAssertEqual(managed.placement(of: 100), .parked)
+        XCTAssertTrue(managed.isParked(100))
 
         XCTAssertTrue(managed.move(win.snapshot(), to: 1))
-        XCTAssertEqual(managed.placement(of: 100), .active)
+        XCTAssertFalse(managed.isParked(100))
+    }
+
+    func testAParkedWindowIsNotParkedAgain() {
+        let win = add(StubWindow(id: 100))
+        managed.assign(win.snapshot(), to: 2)
+        desktop.clearCalls()
+
+        XCTAssertTrue(managed.move(win.snapshot(), to: 3))
+
+        XCTAssertTrue(managed.isParked(100))
+        XCTAssertTrue(desktop.reframeCalls.isEmpty)
     }
 
     func testMoveRefusesAWindowItCannotManage() {
         let win = add(StubWindow(id: 200, isFullScreen: true))
 
         XCTAssertFalse(managed.move(win.snapshot(), to: 2))
-        XCTAssertTrue(desktop.placeCalls.isEmpty)
+        XCTAssertTrue(desktop.reframeCalls.isEmpty)
         XCTAssertEqual(workspaces.allWindowIds, [])
     }
 
@@ -174,8 +185,8 @@ final class ManagedWindowsTests: EngineTestCase {
 
         managed.restoreParkedWindows()
 
-        XCTAssertEqual(managed.placement(of: 100), .active)
-        XCTAssertEqual(managed.placement(of: 200), .active)
+        XCTAssertFalse(managed.isParked(100))
+        XCTAssertFalse(managed.isParked(200))
         XCTAssertEqual(workspaces.workspace(for: 100), 2)
     }
 
@@ -251,7 +262,7 @@ final class ManagedWindowsTests: EngineTestCase {
         XCTAssertTrue(managed.followBackFromFullScreen(win.snapshot(), to: 1))
         XCTAssertEqual(workspaces.current, 1)
         XCTAssertEqual(workspaces.workspace(for: 100), 1)
-        XCTAssertEqual(managed.placement(of: 100), .active)
+        XCTAssertFalse(managed.isParked(100))
     }
 
     func testFollowBackFromFullScreenLeavesTheWorkspaceForAWindowItCannotManage() {

@@ -1,35 +1,35 @@
 import CoreGraphics
 
 final class ParkedWindows {
-    private var owedFrames: [CGWindowID: CGRect] = [:]
+    private var parked: [CGWindowID: CGRect] = [:]
 
-    var all: [(windowId: CGWindowID, owedFrame: CGRect)] {
-        owedFrames.sorted { $0.key < $1.key }.map { (windowId: $0.key, owedFrame: $0.value) }
+    var all: [(windowId: CGWindowID, parkedFrom: CGRect)] {
+        parked.sorted { $0.key < $1.key }.map { (windowId: $0.key, parkedFrom: $0.value) }
     }
 
-    func placement(of windowId: CGWindowID) -> Placement {
-        owedFrames[windowId] != nil ? .parked : .active
+    func isParked(_ windowId: CGWindowID) -> Bool {
+        parked[windowId] != nil
     }
 
-    func owedFrame(of windowId: CGWindowID) -> CGRect? {
-        owedFrames[windowId]
+    func parkedFrom(of windowId: CGWindowID) -> CGRect? {
+        parked[windowId]
     }
 
-    func record(_ outcomes: [PlacementOutcome]) {
+    func record(_ outcomes: [FrameOutcome]) {
         for outcome in outcomes {
             switch outcome {
-            case let .parked(windowId, owedFrame): park(windowId, owing: owedFrame)
-            case let .activated(windowId): forget(windowId)
+            case let .parked(windowId, parkedFrom): park(windowId, from: parkedFrom)
+            case let .active(windowId): forget(windowId)
             case .gone: continue
             }
         }
     }
 
-    func park(_ windowId: CGWindowID, owing frame: CGRect) {
-        owedFrames[windowId] = frame
+    func park(_ windowId: CGWindowID, from frame: CGRect) {
+        parked[windowId] = frame
     }
 
     func forget(_ windowId: CGWindowID) {
-        owedFrames[windowId] = nil
+        parked[windowId] = nil
     }
 }

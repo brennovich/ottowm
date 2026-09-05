@@ -40,11 +40,11 @@ final class ManagedWindows {
         return true
     }
 
-    func placement(of windowId: CGWindowID) -> Placement {
-        parkedWindows.placement(of: windowId)
+    func isParked(_ windowId: CGWindowID) -> Bool {
+        parkedWindows.isParked(windowId)
     }
 
-    var parked: [(windowId: CGWindowID, owedFrame: CGRect)] {
+    var parked: [(windowId: CGWindowID, parkedFrom: CGRect)] {
         parkedWindows.all
     }
 
@@ -56,7 +56,7 @@ final class ManagedWindows {
         let assigned = workspaces.assign(win, to: workspace)
         Log.engine.info("assigned \(win.logDescription) → workspace \(assigned)")
 
-        place(win.id, at: assigned == workspaces.current ? .active : .parked)
+        place(win.id, parked: assigned != workspaces.current)
         return assigned
     }
 
@@ -73,8 +73,8 @@ final class ManagedWindows {
 
         // Forgetting a parked window leaves it at the hidden edge with nothing left to
         // bring it back.
-        if parkedWindows.placement(of: windowId) == .parked {
-            place(windowId, at: .active)
+        if parkedWindows.isParked(windowId) {
+            place(windowId, parked: false)
         }
 
         let focusSettled = workspaces.remove(windowId)
@@ -86,9 +86,9 @@ final class ManagedWindows {
     func move(_ win: WindowSnapshot, to workspace: Int) -> Bool {
         guard canManage(win) else { return false }
 
-        let placement: Placement = workspace == workspaces.current ? .active : .parked
-        Log.engine.info("moving window \(win.logDescription) to workspace \(workspace) placement=\(placement)")
-        place(win.id, at: placement)
+        let parked = workspace != workspaces.current
+        Log.engine.info("moving window \(win.logDescription) to workspace \(workspace) parked=\(parked)")
+        place(win.id, parked: parked)
         workspaces.move(win.id, to: workspace)
         return true
     }
@@ -114,8 +114,8 @@ final class ManagedWindows {
         let placements = workspaces.switchTo(workspace, leavingFocusOn: focusToKeep)
         Log.engine.info("switching to \(workspace) activating=\(placements.activating) parking=\(placements.parking)")
 
-        let batch = placements.activating.map { (windowId: $0, placement: Placement.active) }
-            + placements.parking.map { (windowId: $0, placement: Placement.parked) }
+        let batch = placements.activating.map { (windowId: $0, parked: false) }
+            + placements.parking.map { (windowId: $0, parked: true) }
         place(batch).forEach { unmanage($0, reason: "gone") }
     }
 
@@ -123,7 +123,7 @@ final class ManagedWindows {
     /// active windows the screen no longer shows are the ones that left it. A tab hidden by
     /// its sibling and a window gone full screen are still there.
     func dropWindowsThatLeftTheDesktop() {
-        let parked = workspaces.allWindowIds.filter { parkedWindows.placement(of: $0) == .parked }
+        let parked = workspaces.allWindowIds.filter { parkedWindows.isParked($0) }
         guard windowSystem.showsAny(parked) else { return }
 
         for windowId in workspaces.allWindowIds.subtracting(parked)
@@ -134,20 +134,28 @@ final class ManagedWindows {
     }
 
     func restoreParkedWindows() {
-        let parked = parkedWindows.all.map { (windowId: $0.windowId, placement: Placement.active) }
-        Log.engine.info("restoring \(parked.count) parked windows")
-        place(parked)
+        let restoring = parkedWindows.all.map { (windowId: $0.windowId, parked: false) }
+        Log.engine.info("restoring \(restoring.count) parked windows")
+        place(restoring)
     }
 
-    private func place(_ windowId: CGWindowID, at placement: Placement) {
-        place([(windowId: windowId, placement: placement)])
+    /// Nothing to do for a window already parked: parking it again would record the hidden
+    /// edge as the frame it was parked from.
+    private func change(
+        for request: (windowId: CGWindowID, parked: Bool)
+    ) -> (windowId: CGWindowID, change: FrameChange)? {
+        let parkedFrom = parkedWindows.parkedFrom(of: request.windowId)
+        guard request.parked else { return (windowId: request.windowId, change: .unpark(parkedFrom)) }
+        return parkedFrom == nil ? (windowId: request.windowId, change: .park) : nil
+    }
+
+    private func place(_ windowId: CGWindowID, parked: Bool) {
+        place([(windowId: windowId, parked: parked)])
     }
 
     @discardableResult
-    private func place(_ placements: [(windowId: CGWindowID, placement: Placement)]) -> [CGWindowID] {
-        let outcomes = desktop.place(placements.map {
-            (windowId: $0.windowId, placement: $0.placement, owedFrame: parkedWindows.owedFrame(of: $0.windowId))
-        })
+    private func place(_ requests: [(windowId: CGWindowID, parked: Bool)]) -> [CGWindowID] {
+        let outcomes = desktop.reframe(requests.compactMap(change(for:)))
         parkedWindows.record(outcomes)
 
         return outcomes.compactMap { outcome -> CGWindowID? in

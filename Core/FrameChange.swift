@@ -1,19 +1,23 @@
+import CoreGraphics
+
 enum FrameChange: Equatable {
     case step(Step)
     case center
-
-    /// Kept apart so the round-trip cost of a step and of a centering stay separate operations.
-    var operation: StaticString {
-        switch self {
-        case .step: "move-window"
-        case .center: "center-window"
-        }
-    }
+    case park
+    case unpark(CGRect?)
 
     var logDescription: String {
         switch self {
         case let .step(step): "move \(step.direction.rawValue) by \(step.points)"
         case .center: "center"
+        case .park: "park"
+        case .unpark: "unpark"
         }
     }
+}
+
+enum FrameOutcome: Hashable {
+    case parked(CGWindowID, from: CGRect)
+    case active(CGWindowID)
+    case gone(CGWindowID)
 }

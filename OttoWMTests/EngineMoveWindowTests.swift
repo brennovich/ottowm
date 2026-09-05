@@ -19,7 +19,7 @@ final class EngineMoveWindowTests: EngineTestCase {
         focused = add(StubWindow(id: 100))
         engine.moveFocusedWindow(toWorkspace: 0)
 
-        XCTAssertTrue(desktop.placeCalls.isEmpty)
+        XCTAssertTrue(desktop.reframeCalls.isEmpty)
         XCTAssertEqual(workspaces.allWindowIds, [])
     }
 }

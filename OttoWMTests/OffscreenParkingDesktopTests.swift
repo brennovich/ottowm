@@ -28,36 +28,39 @@ final class OffscreenParkingDesktopTests: XCTestCase {
     }
 
     @discardableResult
-    private func place(_ windowId: CGWindowID, at placement: Placement) -> [PlacementOutcome] {
-        place([(windowId: windowId, placement: placement)])
+    private func reframe(_ windowId: CGWindowID, _ change: FrameChange) -> [FrameOutcome] {
+        reframe([(windowId: windowId, change: change)])
     }
 
-    /// Mirrors what `Engine` does around a placement: hands the desktop the frames the
-    /// windows are owed, and records what comes back.
+    /// Mirrors what `ManagedWindows` does around an unpark: hands the desktop the frame the
+    /// window was parked from.
     @discardableResult
-    private func place(_ placements: [(windowId: CGWindowID, placement: Placement)]) -> [PlacementOutcome] {
-        let outcomes = desktop.place(placements.map {
-            (windowId: $0.windowId, placement: $0.placement, owedFrame: parkedWindows.owedFrame(of: $0.windowId))
-        })
+    private func unpark(_ windowId: CGWindowID) -> [FrameOutcome] {
+        reframe(windowId, .unpark(parkedWindows.parkedFrom(of: windowId)))
+    }
+
+    @discardableResult
+    private func reframe(_ changes: [(windowId: CGWindowID, change: FrameChange)]) -> [FrameOutcome] {
+        let outcomes = desktop.reframe(changes)
         parkedWindows.record(outcomes)
         return outcomes
     }
 
     func testStepMovesTheWindowWithoutAnimating() {
-        XCTAssertTrue(desktop.reframe(100, .step(Step(direction: .east, points: 15))))
+        reframe(100, .step(Step(direction: .east, points: 15)))
 
         XCTAssertEqual(win.frame, originalFrame.offsetBy(dx: 15, dy: 0))
         XCTAssertEqual(win.animatedWriteCount, 0)
     }
 
     func testStepStopsAtTheVisibleFrame() {
-        desktop.reframe(100, .step(Step(direction: .north, points: 500)))
+        reframe(100, .step(Step(direction: .north, points: 500)))
 
         XCTAssertEqual(win.frame.minY, StubScreen.standard.visibleFrame.minY)
     }
 
     func testCenterPutsTheWindowInTheMiddleOfTheVisibleFrame() {
-        XCTAssertTrue(desktop.reframe(100, .center))
+        reframe(100, .center)
 
         XCTAssertEqual(win.frame, CGRect(x: 496, y: 279, width: 800, height: 600))
     }
@@ -65,124 +68,110 @@ final class OffscreenParkingDesktopTests: XCTestCase {
     func testCenterPushesAWindowLargerThanTheVisibleFrameOffscreen() {
         let oversized = addWindow(101, frame: CGRect(x: 0, y: 0, width: 2000, height: 1200))
 
-        desktop.reframe(oversized.id, .center)
+        reframe(oversized.id, .center)
 
         XCTAssertEqual(oversized.frame, CGRect(x: -104, y: -21, width: 2000, height: 1200))
     }
 
-    func testReframeReportsAWindowThatNoLongerExists() {
-        XCTAssertFalse(desktop.reframe(999, .step(Step(direction: .east, points: 15))))
+    func testReportsAWindowThatNoLongerExists() {
+        XCTAssertEqual(reframe(999, .step(Step(direction: .east, points: 15))), [.gone(999)])
     }
 
-    func testReframeLeavesAMinimizedWindowAlone() {
+    func testStepLeavesAMinimizedWindowAlone() {
         win.isMinimized = true
 
-        XCTAssertTrue(desktop.reframe(100, .step(Step(direction: .east, points: 15))))
+        XCTAssertEqual(reframe(100, .step(Step(direction: .east, points: 15))), [.active(100)])
 
         XCTAssertEqual(win.frame, originalFrame)
     }
 
-    func testPlaceCapturesFrameAndHidesThenRestores() {
-        XCTAssertEqual(place(100, at: .parked), [.parked(100, owing: originalFrame)])
-        XCTAssertEqual(win.frame, nubFrame(size: originalFrame.size))
+    func testParkingCapturesTheFrameAndUnparkingRestoresIt() {
+        XCTAssertEqual(reframe(100, .park), [.parked(100, from: originalFrame)])
+        XCTAssertEqual(win.frame, hiddenEdgeFrame(size: originalFrame.size))
 
-        XCTAssertEqual(place(100, at: .active), [.activated(100)])
+        XCTAssertEqual(unpark(100), [.active(100)])
         XCTAssertEqual(win.frame, originalFrame)
         XCTAssertEqual(win.sizeSetCount, 0)
     }
 
-    func testPlaceIsIdempotent() {
-        place(100, at: .parked)
-        place(100, at: .parked)
+    func testUnparkingRestoresAWindowResizedWhileParkedWithoutAnimating() {
+        reframe(100, .park)
+        win.moveTo(hiddenEdgeFrame(size: CGSize(width: 400, height: 300)))
 
-        XCTAssertEqual(win.positionSetCount, 1)
-        XCTAssertEqual(win.movableFrameCount, 1)
-
-        place(100, at: .active)
-        place(100, at: .active)
-
-        XCTAssertEqual(win.positionSetCount, 2)
-        XCTAssertEqual(win.frame, originalFrame)
-    }
-
-    func testPlaceRestoresAWindowResizedWhileParkedWithAnimationsDisabled() {
-        place(100, at: .parked)
-        win.moveTo(nubFrame(size: CGSize(width: 400, height: 300)))
-
-        place(100, at: .active)
+        unpark(100)
 
         XCTAssertEqual(win.sizeSetCount, 1)
         XCTAssertEqual(win.frame, originalFrame)
         XCTAssertEqual(win.animatedWriteCount, 0)
     }
 
-    func testPlaceNeverRecordsAHiddenEdgeFrameAsTheFrameOwed() {
-        let strandedFrame = nubFrame(size: originalFrame.size)
+    func testParkingNeverRecordsAHiddenEdgeFrameAsTheFrameParkedFrom() {
+        let strandedFrame = hiddenEdgeFrame(size: originalFrame.size)
         addWindow(200, frame: strandedFrame)
 
-        XCTAssertEqual(place(200, at: .parked), [.parked(200, owing: CGRect(x: 496, y: 279, width: 800, height: 600))])
+        XCTAssertEqual(reframe(200, .park), [.parked(200, from: CGRect(x: 496, y: 279, width: 800, height: 600))])
     }
 
-    func testPlaceRecoversAStrandedWindowItNeverParked() {
-        let strandedFrame = nubFrame(size: originalFrame.size)
+    func testUnparkingRecoversAStrandedWindowItNeverParked() {
+        let strandedFrame = hiddenEdgeFrame(size: originalFrame.size)
         let stranded = addWindow(200, frame: strandedFrame)
 
-        XCTAssertEqual(place(200, at: .active), [.activated(200)])
+        XCTAssertEqual(unpark(200), [.active(200)])
         XCTAssertEqual(stranded.frame, CGRect(x: 496, y: 279, width: 800, height: 600))
     }
 
-    func testPlaceLeavesAnUnparkedWindowOnScreenAlone() {
-        XCTAssertEqual(place(100, at: .active), [.activated(100)])
+    func testUnparkingLeavesAWindowOnScreenAlone() {
+        XCTAssertEqual(unpark(100), [.active(100)])
         XCTAssertEqual(win.positionSetCount, 0)
         XCTAssertEqual(win.frame, originalFrame)
     }
 
-    func testPlaceLeavesAMinimizedWindowWhereItIsOwingNothing() {
+    func testParkingAMinimizedWindowRecordsNothing() {
         win.isMinimized = true
 
-        XCTAssertEqual(place(100, at: .parked), [.activated(100)])
+        XCTAssertEqual(reframe(100, .park), [.active(100)])
         XCTAssertEqual(win.positionSetCount, 0)
     }
 
-    func testPlaceKeepsAParkedWindowThatWasMinimizedOwingItsFrame() {
-        place(100, at: .parked)
+    func testUnparkingAMinimizedWindowKeepsTheFrameItWasParkedFrom() {
+        reframe(100, .park)
         win.isMinimized = true
 
-        XCTAssertEqual(place(100, at: .active), [.parked(100, owing: originalFrame)])
-        XCTAssertEqual(parkedWindows.owedFrame(of: 100), originalFrame)
+        XCTAssertEqual(unpark(100), [.parked(100, from: originalFrame)])
+        XCTAssertEqual(parkedWindows.parkedFrom(of: 100), originalFrame)
         XCTAssertEqual(win.positionSetCount, 1)
     }
 
-    func testPlaceReportsAMissingWindowWhetherItWasParkedOrNeverSeen() {
-        place(100, at: .parked)
+    func testReportsAMissingWindowWhetherItWasParkedOrNeverSeen() {
+        reframe(100, .park)
         windows[100] = nil
 
-        for placement in [Placement.parked, .active] {
-            XCTAssertEqual(place(100, at: placement), [.gone(100)])
-            XCTAssertEqual(place(999, at: placement), [.gone(999)])
+        for change in [FrameChange.park, .unpark(nil)] {
+            XCTAssertEqual(reframe(100, change), [.gone(100)])
+            XCTAssertEqual(reframe(999, change), [.gone(999)])
         }
     }
 
-    func testPlaceParksAndRestoresEveryWindowOfABatchReportingTheOnesThatAreGone() {
+    func testParksAndRestoresEveryWindowOfABatchReportingTheOnesThatAreGone() {
         let other = addWindow(200, frame: pulledBackFrame)
 
-        let outcomes = place([
-            (windowId: 100, placement: .parked), (windowId: 200, placement: .parked), (windowId: 999, placement: .parked),
+        let outcomes = reframe([
+            (windowId: 100, change: .park), (windowId: 200, change: .park), (windowId: 999, change: .park),
         ])
 
         XCTAssertEqual(
-            Set(outcomes), [.parked(100, owing: originalFrame), .parked(200, owing: pulledBackFrame), .gone(999)]
+            Set(outcomes), [.parked(100, from: originalFrame), .parked(200, from: pulledBackFrame), .gone(999)]
         )
-        XCTAssertEqual(win.frame, nubFrame(size: originalFrame.size))
-        XCTAssertEqual(other.frame, nubFrame(size: pulledBackFrame.size))
+        XCTAssertEqual(win.frame, hiddenEdgeFrame(size: originalFrame.size))
+        XCTAssertEqual(other.frame, hiddenEdgeFrame(size: pulledBackFrame.size))
 
-        place([(windowId: 100, placement: .active), (windowId: 200, placement: .active)])
+        reframe([100, 200].map { (windowId: $0, change: .unpark(parkedWindows.parkedFrom(of: $0))) })
 
         XCTAssertEqual(win.frame, originalFrame)
         XCTAssertEqual(other.frame, pulledBackFrame)
     }
 
-    func testPlaceOverlapsTheMovesOfDifferentApplications() {
+    func testOverlapsTheMovesOfDifferentApplications() {
         let batch = (1...8).map { addWindow(CGWindowID($0) * 10, frame: originalFrame, pid: pid_t($0)) }
         let firstMove = DispatchSemaphore(value: 1)
         let anotherMove = DispatchSemaphore(value: 0)
@@ -196,15 +185,15 @@ final class OffscreenParkingDesktopTests: XCTestCase {
             }
         }
 
-        place(batch.map { (windowId: $0.id, placement: .parked) })
+        reframe(batch.map { (windowId: $0.id, change: .park) })
 
-        XCTAssertEqual(Set(batch.map(\.frame)), [nubFrame(size: originalFrame.size)])
+        XCTAssertEqual(Set(batch.map(\.frame)), [hiddenEdgeFrame(size: originalFrame.size)])
     }
 
-    func testPlaceKeepsTheWindowsOfOneApplicationOnOneThread() {
+    func testKeepsTheWindowsOfOneApplicationOnOneThread() {
         let batch = (1...8).map { addWindow(CGWindowID($0) * 10, frame: originalFrame, pid: 42) }
 
-        place(batch.map { (windowId: $0.id, placement: .parked) })
+        reframe(batch.map { (windowId: $0.id, change: .park) })
 
         XCTAssertEqual(Set(batch.compactMap(\.positionSetThread)).count, 1)
     }
@@ -216,7 +205,7 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertFalse(desktop.focus(200))
     }
 
-    func testRecoverUnparksWindowsStuckInHiddenCornerWithoutAnimating() {
+    func testRecoverUnparksWindowsStuckAtTheHiddenEdgeWithoutAnimating() {
         let stuck = addWindow(200, frame: CGRect(x: 1791, y: 100, width: 800, height: 600))
 
         _ = desktop.recover([stuck.snapshot(), win.snapshot()])
@@ -249,21 +238,21 @@ final class OffscreenParkingDesktopTests: XCTestCase {
     }
 
     func testReparkParksAWindowPulledBackOnScreenWithoutAnimations() {
-        place(100, at: .parked)
+        reframe(100, .park)
         win.moveTo(pulledBackFrame)
 
         desktop.repark(parkedWindows.all)
 
-        XCTAssertEqual(win.frame, nubFrame(size: originalFrame.size))
+        XCTAssertEqual(win.frame, hiddenEdgeFrame(size: originalFrame.size))
         XCTAssertEqual(win.animatedWriteCount, 0)
 
-        place(100, at: .active)
+        unpark(100)
 
         XCTAssertEqual(win.frame, originalFrame)
     }
 
     func testReparkLeavesAWindowAtTheHiddenEdgeAlone() {
-        place(100, at: .parked)
+        reframe(100, .park)
 
         desktop.repark(parkedWindows.all)
 

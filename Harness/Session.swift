@@ -14,7 +14,7 @@ let windowSettleSeconds: TimeInterval = 2
 let hiddenEdgeMargin: CGFloat = 10
 let restoreTolerance: CGFloat = 2
 
-// A window the run drives, and the frame it is owed whenever it is not parked.
+// A window the run drives, and the frame it was parked from, which it takes back whenever it is not parked.
 struct Subject {
     let name: String
     let bundleId: String
@@ -122,7 +122,7 @@ struct Session {
         if arranged { arrange(windows) }
 
         // Everything is up, nothing else is about to move on its own, so what the windows
-        // read now is what they are owed back after every switch.
+        // read now is what they take back after every switch.
         Thread.sleep(forTimeInterval: windowSettleSeconds)
 
         let hiddenEdgeX = CGDisplayBounds(CGMainDisplayID()).maxX - 1
