@@ -62,6 +62,7 @@ final class ManagedWindows {
         guard canManage(win) else { return nil }
 
         let assigned = workspaces.assign(win, to: workspace)
+        maximizedWindows.shareFrame(with: win.id)
         Log.engine.info("assigned \(win.logDescription) → workspace \(assigned)")
 
         place(win.id, parked: assigned != workspaces.current)

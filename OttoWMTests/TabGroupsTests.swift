@@ -105,6 +105,18 @@ final class TabGroupsTests: XCTestCase {
         XCTAssertEqual(tabGroups.members(of: 100), [100, 200])
     }
 
+    /// A background tab answers the frame it had when it was last active, so a maximize
+    /// through one tab leaves the others reporting where they were.
+    func testATabJoinsThroughAnyMemberThatIsWhereTheWindowStands() {
+        var tabGroups = makeTabGroups([tabbed(100, tabCount: 2), tabbed(200, tabCount: 2)])
+        let maximized = CGRect(x: 15, y: 15, width: 1762, height: 1090)
+        frames[200] = maximized
+
+        add(tabbed(300, frame: maximized, tabCount: 3), to: &tabGroups)
+
+        XCTAssertEqual(tabGroups.members(of: 100), [100, 200, 300])
+    }
+
     func testSiblings() {
         let cases: [(name: String, windows: [TabbedWindow], subject: CGWindowID, expected: [CGWindowID])] = [
             ("an unknown window has no siblings", [], 999, []),

@@ -64,19 +64,23 @@ struct TabGroups {
 
     /// A tab opens where its window stands now, so the group is matched on where a member
     /// is rather than where the group was first seen: a maximize between the two moves
-    /// every tab of the window.
+    /// every tab of the window. A background tab answers the frame it had when it was last
+    /// active, so every member is tried and the one that is where the window stands places
+    /// the group.
     private func group(representing window: WindowSnapshot) -> Int? {
         guard tabCount(window.id) > 1 else { return nil }
 
         return groups.first { entry in
-            guard entry.value.appName == window.appName,
-                  let occupied = entry.value.windowIds.lazy.compactMap(frame).first
-            else { return false }
+            guard entry.value.appName == window.appName else { return false }
 
-            return window.frame.origin.x == occupied.origin.x
-                && abs(window.frame.origin.y - occupied.origin.y) <= Self.yTolerance
-                && window.frame.width == occupied.width
-                && window.frame.height == occupied.height
+            return entry.value.windowIds.lazy.compactMap(frame).contains { stands(window, at: $0) }
         }?.key
+    }
+
+    private func stands(_ window: WindowSnapshot, at occupied: CGRect) -> Bool {
+        window.frame.origin.x == occupied.origin.x
+            && abs(window.frame.origin.y - occupied.origin.y) <= Self.yTolerance
+            && window.frame.width == occupied.width
+            && window.frame.height == occupied.height
     }
 }

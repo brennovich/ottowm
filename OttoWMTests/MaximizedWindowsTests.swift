@@ -51,6 +51,32 @@ final class MaximizedWindowsTests: XCTestCase {
         XCTAssertNil(maximized.restoringFrame(of: 100))
     }
 
+    /// The tab a maximize went through can close while its siblings stay maximized, so the
+    /// frame cannot live with that tab alone.
+    func testTheFrameOutlivesTheTabTheMaximizeWentThrough() {
+        tabs = [100: [100, 200], 200: [100, 200]]
+        maximized.record([.maximized(200, from: original)])
+
+        tabs = [100: [100], 200: [200]]
+        maximized.forget(200)
+
+        XCTAssertEqual(maximized.restoringFrame(of: 100), original)
+    }
+
+    /// A tab opened while the window is maximized outlives the tabs the maximize recorded,
+    /// so it takes the frame when it joins.
+    func testATabThatJoinsAMaximizedWindowTakesItsFrame() {
+        maximized.record([.maximized(100, from: original)])
+
+        tabs = [100: [100, 200], 200: [100, 200]]
+        maximized.shareFrame(with: 200)
+
+        tabs = [200: [200]]
+        maximized.forget(100)
+
+        XCTAssertEqual(maximized.restoringFrame(of: 200), original)
+    }
+
     func testAWindowThatIsGoneKeepsItsFrameUntilItIsForgotten() {
         maximized.record([.maximized(100, from: original)])
         maximized.record([.gone(100)])

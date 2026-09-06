@@ -450,7 +450,7 @@ flowchart LR
     match -->|no| own
 ```
 
-A group is keyed by a counter as macOS reuses window ids. Where a group stands is read from its members rather than kept from when the group was first seen: a tab opens where its window is now, which a maximize or a move since has changed. A background tab still answers its frame, so whichever member answers places the group.
+A group is keyed by a counter as macOS reuses window ids. Where a group stands is read from its members rather than kept from when the group was first seen: a tab opens where its window is now, which a maximize or a move since has changed. A background tab answers the frame it had when it was last active, so every member is tried and the one that is where the window stands places the group.
 
 ### Group events
 

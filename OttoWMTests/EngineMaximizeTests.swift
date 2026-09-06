@@ -42,6 +42,33 @@ final class EngineMaximizeTests: EngineTestCase {
         XCTAssertEqual(desktop.reframeCalls.map(\.change), [.maximize(restoring: frame)])
     }
 
+    func testClosingTheTabAMaximizeWentThroughLeavesItsSiblingsTheFrame() {
+        focus(100)
+        let tab = create(StubWindow(id: 101, frame: frame, tabCount: 2))
+        focused = tab
+        engine.handle(.toggleMaximize)
+
+        engine.handle(.destroyed(tab.id))
+        focused = windows[100]
+        desktop.clearCalls()
+        engine.handle(.toggleMaximize)
+
+        XCTAssertEqual(desktop.reframeCalls.map(\.change), [.maximize(restoring: frame)])
+    }
+
+    func testATabOpenedWhileMaximizedKeepsTheFrameOnceTheOthersClose() {
+        let win = focus(100)
+        engine.handle(.toggleMaximize)
+        let tab = create(StubWindow(id: 101, frame: frame, tabCount: 2))
+
+        engine.handle(.destroyed(win.id))
+        focused = tab
+        desktop.clearCalls()
+        engine.handle(.toggleMaximize)
+
+        XCTAssertEqual(desktop.reframeCalls.map(\.change), [.maximize(restoring: frame)])
+    }
+
     func testMovingAMaximizedWindowLeavesNothingToRestore() {
         focus(100)
         engine.handle(.toggleMaximize)
