@@ -8,6 +8,8 @@ final class OffscreenParkingDesktop: Desktop {
         let change: FrameChange
     }
 
+    private static let filledTolerance: CGFloat = 30
+
     private let screen: ScreenGeometry
     private let inset: CGFloat
     private let hiddenEdge: HiddenEdge
@@ -123,9 +125,23 @@ final class OffscreenParkingDesktop: Desktop {
         case let .maximize(restoring):
             if let restoring { return (restoring, .active(requested.windowId)) }
             let filled = screen.visibleFrame.insetBy(dx: inset, dy: inset)
-            guard current != filled else { return (current, .active(requested.windowId)) }
+            guard !fills(current, filled) else {
+                Log.desktop.info("id=\(requested.windowId) already fills the screen, no frame to go back to")
+                return (current, .active(requested.windowId))
+            }
             return (filled, .maximized(requested.windowId, from: current))
         }
+    }
+
+    /// A window rarely settles at the size it was given: Terminal quantizes its height to
+    /// whole rows, which at a large font size is tens of points. A window this close to the
+    /// filled frame is maximized, and the frame it stands at must not be recorded as the
+    /// one to go back to: taking it there would leave it filled.
+    private func fills(_ current: CGRect, _ filled: CGRect) -> Bool {
+        abs(current.minX - filled.minX) <= Self.filledTolerance
+            && abs(current.minY - filled.minY) <= Self.filledTolerance
+            && abs(current.maxX - filled.maxX) <= Self.filledTolerance
+            && abs(current.maxY - filled.maxY) <= Self.filledTolerance
     }
 
     private func centered(_ size: CGSize) -> CGRect {

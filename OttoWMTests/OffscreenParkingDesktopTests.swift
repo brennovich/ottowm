@@ -96,14 +96,15 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(short.frame, originalFrame)
     }
 
-    /// A window the user filled the screen with by hand has no frame to go back to, and the
-    /// frame it is at is not one worth recording.
+    /// A window that already fills the screen has no frame to go back to, and the frame it
+    /// is at is not one worth recording: taking it back there would leave it filled. The
+    /// window settles a few points short of the filled frame, which still counts as filled.
     func testMaximizeLeavesAFilledWindowAloneWithNothingToRestore() {
-        reframe(100, .maximize(restoring: nil))
-        let filled = win.frame
+        let shortOfFilled = CGRect(x: 15, y: 53, width: 1762, height: 1045)
+        let filled = addWindow(101, frame: shortOfFilled)
 
-        XCTAssertEqual(reframe(100, .maximize(restoring: nil)), [.active(100)])
-        XCTAssertEqual(win.frame, filled)
+        XCTAssertEqual(reframe(filled.id, .maximize(restoring: nil)), [.active(filled.id)])
+        XCTAssertEqual(filled.frame, shortOfFilled)
     }
 
     func testReportsAWindowThatNoLongerExists() {
