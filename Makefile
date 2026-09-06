@@ -14,14 +14,13 @@ NEXT_VERSION = $(shell awk -v version=$(VERSION) -v part=$(PART) 'BEGIN { \
 	else if (part == "patch") { v[3]++ } \
 	else exit 1; \
 	print v[1] "." v[2] "." v[3] }')
+
 RESOURCES := $(shell find App/Assets.xcassets -type f) App/AppIcon.icon/icon.json
 SOURCES := $(shell find App Core -name '*.swift') $(RESOURCES) $(SCHEME).entitlements $(PROJECT)
 
 BUILD_DIR = build
 RELEASE_DIR = $(BUILD_DIR)/Release
 APP = $(RELEASE_DIR)/$(SCHEME).app
-# The bundle directory keeps its timestamp when only the binary inside it is rebuilt,
-# so the binary is what the archive is allowed to depend on.
 APP_BINARY = $(APP)/Contents/MacOS/$(SCHEME)
 ZIP = $(BUILD_DIR)/$(SCHEME)-$(VERSION).zip
 
@@ -65,6 +64,33 @@ bump/%:
 
 build:
 	set -o pipefail; $(XCODEBUILD) build 2>&1 | $(XCBEAUTIFY)
+
+release: $(ZIP)
+
+$(ZIP): $(APP_BINARY)
+	ditto -c -k --keepParent $(APP) $@
+
+$(APP_BINARY): $(SOURCES)
+	set -o pipefail; xcodebuild -scheme $(SCHEME) -configuration Release \
+		CONFIGURATION_BUILD_DIR=$(CURDIR)/$(RELEASE_DIR) \
+		CODE_SIGNING_ALLOWED=YES \
+		CODE_SIGN_STYLE=Manual \
+		CODE_SIGN_IDENTITY=$(CODE_SIGN_IDENTITY) \
+		CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
+		CURRENT_PROJECT_VERSION=$(BUILD_NUMBER) \
+		DEVELOPMENT_TEAM= \
+		PROVISIONING_PROFILE_SPECIFIER= \
+		ARCHS="arm64 x86_64" \
+		ONLY_ACTIVE_ARCH=NO \
+		build 2>&1 | $(XCBEAUTIFY)
+	codesign --verify --strict --verbose=2 $(APP)
+
+install: $(INSTALLED)
+
+$(INSTALLED): $(ZIP)
+	rm -rf $@
+	ditto -x -k $(ZIP) $(INSTALL_DIR)
+	xattr -cr $@
 
 test:
 	set -o pipefail; $(XCODEBUILD) test 2>&1 | $(XCBEAUTIFY)
@@ -116,33 +142,6 @@ roundtrips:
 		--predicate 'subsystem == "$(BUNDLE_ID)" AND category == "roundtrips"'
 roundtrips/pretty:
 	$(MAKE) roundtrips | Tools/roundtrips-pretty.sh
-
-release: $(ZIP)
-
-$(ZIP): $(APP_BINARY)
-	ditto -c -k --keepParent $(APP) $@
-
-$(APP_BINARY): $(SOURCES)
-	set -o pipefail; xcodebuild -scheme $(SCHEME) -configuration Release \
-		CONFIGURATION_BUILD_DIR=$(CURDIR)/$(RELEASE_DIR) \
-		CODE_SIGNING_ALLOWED=YES \
-		CODE_SIGN_STYLE=Manual \
-		CODE_SIGN_IDENTITY=$(CODE_SIGN_IDENTITY) \
-		CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
-		CURRENT_PROJECT_VERSION=$(BUILD_NUMBER) \
-		DEVELOPMENT_TEAM= \
-		PROVISIONING_PROFILE_SPECIFIER= \
-		ARCHS="arm64 x86_64" \
-		ONLY_ACTIVE_ARCH=NO \
-		build 2>&1 | $(XCBEAUTIFY)
-	codesign --verify --strict --verbose=2 $(APP)
-
-install: $(INSTALLED)
-
-$(INSTALLED): $(ZIP)
-	rm -rf $@
-	ditto -x -k $(ZIP) $(INSTALL_DIR)
-	xattr -cr $@
 
 clean:
 	rm -rf $(BUILD_DIR)
