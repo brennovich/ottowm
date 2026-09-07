@@ -53,6 +53,13 @@ struct Subject {
         stands(at: originalFrame, sizedWithin: refitTolerance)
     }
 
+    // Brings this window's tab to the front, so what a check reads next is the frame the
+    // window stands at rather than the one it had when the tab was last in front. A window
+    // that is not a tab is already the one its application lists.
+    func bringToFront() {
+        bringTabToFront(window, ofApplication: bundleId, named: name)
+    }
+
     // The hotkeys act on the focused window, and a workspace switch hands the focus to
     // whichever window it pleases, so whoever wants this one moved says so first.
     func focus() {
