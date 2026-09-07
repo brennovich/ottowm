@@ -76,7 +76,7 @@ final class EngineMaximizeTests: EngineTestCase {
         XCTAssertEqual(desktop.reframeCalls.map(\.change), [.maximize(restoring: frame)])
     }
 
-    func testUnmanagingAWindowDropsTheFrameToRestore() {
+    func testDroppingAWindowForgetsTheFrameToRestore() {
         let win = focus(100)
         engine.handle(.toggleMaximize)
 

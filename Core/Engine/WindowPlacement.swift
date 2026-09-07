@@ -31,7 +31,7 @@ final class WindowPlacement {
         return workspaces.hasTabGroup(for: focused)
     }
 
-    private func canManage(_ win: WindowSnapshot) -> Bool {
+    private func canAdmit(_ win: WindowSnapshot) -> Bool {
         guard isDesktopInFront else {
             Log.engine.debug("\(win.logDescription) ignored: another native Space is in front")
             return false
@@ -59,7 +59,7 @@ final class WindowPlacement {
     @discardableResult
     func assign(_ win: WindowSnapshot, to workspace: Int) -> Int? {
         if let known = workspaces.workspace(for: win.id) { return known }
-        guard canManage(win) else { return nil }
+        guard canAdmit(win) else { return nil }
 
         let assigned = workspaces.assign(win, to: workspace)
         filledWindows.shareFrame(with: win.id)
@@ -75,7 +75,7 @@ final class WindowPlacement {
     ///   for a dialog, or a window of another native Space, pulls the focus into the current
     ///   workspace.
     @discardableResult
-    func unmanage(_ windowId: CGWindowID, reason: String) -> Bool {
+    func drop(_ windowId: CGWindowID, reason: String) -> Bool {
         let workspace = workspaces.workspace(for: windowId)
         let from = workspace.map { String($0) } ?? "none"
         Log.engine.info("\(reason) id=\(windowId), dropped from workspace \(from)")
@@ -94,7 +94,7 @@ final class WindowPlacement {
 
     @discardableResult
     func move(_ win: WindowSnapshot, to workspace: Int) -> Bool {
-        guard canManage(win) else { return false }
+        guard canAdmit(win) else { return false }
 
         let parked = workspace != workspaces.current
         Log.engine.info("moving window \(win.logDescription) to workspace \(workspace) parked=\(parked)")
@@ -105,12 +105,12 @@ final class WindowPlacement {
 
     /// The record is taken after the removal, which clears every other trace of the window.
     func releaseToFullScreen(_ windowId: CGWindowID, from workspace: Int) {
-        unmanage(windowId, reason: "fullscreen")
+        drop(windowId, reason: "fullscreen")
         workspaces.recordFullScreen(windowId, leaving: workspace)
     }
 
     func followBackFromFullScreen(_ win: WindowSnapshot, to workspace: Int) -> Bool {
-        guard canManage(win) else { return false }
+        guard canAdmit(win) else { return false }
 
         Log.engine.info("\(win.logDescription) is back from full screen → workspace \(workspace)")
         if workspace != workspaces.current {
@@ -120,13 +120,13 @@ final class WindowPlacement {
     }
 
     func switchTo(_ workspace: Int) {
-        let focusToKeep = windowSystem.focused().flatMap { canManage($0) ? $0.id : nil }
+        let focusToKeep = windowSystem.focused().flatMap { canAdmit($0) ? $0.id : nil }
         let placements = workspaces.switchTo(workspace, leavingFocusOn: focusToKeep)
         Log.engine.info("switching to \(workspace) activating=\(placements.activating) parking=\(placements.parking)")
 
         let batch = placements.activating.map { (windowId: $0, parked: false) }
             + placements.parking.map { (windowId: $0, parked: true) }
-        place(batch).forEach { unmanage($0, reason: "gone") }
+        place(batch).forEach { drop($0, reason: "gone") }
     }
 
     /// A parked window on screen proves the native Space in front is OttoWM's own, so the
@@ -139,7 +139,7 @@ final class WindowPlacement {
         for windowId in workspaces.allWindowIds.subtracting(parked)
         where !windowSystem.showsAny(Set(workspaces.tabGroupMembers(of: windowId))) {
             guard let snapshot = windowSystem.snapshot(of: windowId), !snapshot.isFullScreen else { continue }
-            unmanage(windowId, reason: "left the desktop")
+            drop(windowId, reason: "left the desktop")
         }
     }
 

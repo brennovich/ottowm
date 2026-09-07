@@ -85,14 +85,14 @@ final class Engine {
             case let .focused(win):
                 navigation.follow(win)
             case let .destroyed(windowId):
-                if !placement.unmanage(windowId, reason: "destroyed") {
+                if !placement.drop(windowId, reason: "destroyed") {
                     navigation.restore()
                 }
             case let .minimized(windowId):
                 guard workspaces.workspace(for: windowId) != nil else { return }
 
                 for memberId in workspaces.tabGroupMembers(of: windowId) {
-                    placement.unmanage(memberId, reason: "minimized")
+                    placement.drop(memberId, reason: "minimized")
                 }
 
                 navigation.restore()
@@ -224,7 +224,7 @@ final class Engine {
             let outcomes = desktop.reframe([(windowId: win.id, change: requested)])
             filledWindows.record(outcomes)
             if outcomes.contains(.gone(win.id)) {
-                placement.unmanage(win.id, reason: "gone")
+                placement.drop(win.id, reason: "gone")
             }
         }
     }

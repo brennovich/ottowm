@@ -125,7 +125,7 @@ final class NavigationTests: EngineTestCase {
         placement.assign(win1.snapshot(), to: 1)
         navigation.follow(win1.snapshot())
         placement.assign(win2.snapshot(), to: 1)
-        placement.unmanage(200, reason: "test")
+        placement.drop(200, reason: "test")
 
         XCTAssertTrue(navigation.restore())
         XCTAssertEqual(win1.focusCount, 1)
@@ -197,16 +197,16 @@ final class NavigationTests: EngineTestCase {
         }
     }
 
-    func testFocusedWindowOfCurrentWorkspaceEnrollsAnUnknownWindowItCanManage() {
+    func testFocusedWindowOfCurrentWorkspaceEnrollsAnUnknownWindowItCanAdmit() {
         let win = add(StubWindow(id: 900))
         focused = win
 
         XCTAssertEqual(navigation.focusedWindowOfCurrentWorkspace()?.id, 900)
         XCTAssertEqual(workspaces.workspace(for: 900), 1)
 
-        let unmanageable = add(StubWindow(id: 901))
+        let inadmissible = add(StubWindow(id: 901))
         offScreenWindowIds = [901]
-        focused = unmanageable
+        focused = inadmissible
 
         XCTAssertNil(navigation.focusedWindowOfCurrentWorkspace())
         XCTAssertNil(workspaces.workspace(for: 901))

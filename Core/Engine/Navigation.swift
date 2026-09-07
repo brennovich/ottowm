@@ -62,7 +62,7 @@ final class Navigation {
         if !closed.isEmpty {
             var focusSettled = false
             for closedId in closed {
-                focusSettled = placement.unmanage(closedId, reason: "closed") || focusSettled
+                focusSettled = placement.drop(closedId, reason: "closed") || focusSettled
             }
 
             if !focusSettled {

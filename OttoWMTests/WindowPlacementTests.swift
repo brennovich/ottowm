@@ -60,42 +60,42 @@ final class WindowPlacementTests: EngineTestCase {
         XCTAssertTrue(placement.isParked(301))
     }
 
-    func testUnmanageHandsAParkedWindowBackToTheDesktop() {
+    func testDropHandsAParkedWindowBackToTheDesktop() {
         let parked = add(StubWindow(id: 100))
         let onDesk = add(StubWindow(id: 200))
         placement.assign(parked.snapshot(), to: 2)
         placement.assign(onDesk.snapshot(), to: 1)
         desktop.clearCalls()
 
-        placement.unmanage(100, reason: "test")
+        placement.drop(100, reason: "test")
 
         XCTAssertEqual(desktop.reframeCalls.map(\.windowId), [100])
         XCTAssertEqual(desktop.reframeCalls.map(\.change), [.unpark(parked.frame)])
         XCTAssertFalse(placement.isParked(100))
 
         desktop.clearCalls()
-        placement.unmanage(200, reason: "test")
+        placement.drop(200, reason: "test")
 
         XCTAssertTrue(desktop.reframeCalls.isEmpty)
         XCTAssertEqual(workspaces.allWindowIds, [])
     }
 
-    func testUnmanageForgetsTheParkedFrameOfAWindowTheDesktopReportsGone() {
+    func testDropForgetsTheParkedFrameOfAWindowTheDesktopReportsGone() {
         let win = add(StubWindow(id: 200))
         placement.assign(win.snapshot(), to: 2)
 
         windows[200] = nil
-        placement.unmanage(200, reason: "test")
+        placement.drop(200, reason: "test")
 
         XCTAssertFalse(placement.isParked(200))
     }
 
-    func testUnmanageReportsTheFocusSettledForAWindowItNeverManaged() {
+    func testDropReportsTheFocusSettledForAWindowItNeverManaged() {
         let win = add(StubWindow(id: 100))
         placement.assign(win.snapshot(), to: 1)
 
-        XCTAssertTrue(placement.unmanage(900, reason: "test"))
-        XCTAssertFalse(placement.unmanage(100, reason: "test"))
+        XCTAssertTrue(placement.drop(900, reason: "test"))
+        XCTAssertFalse(placement.drop(100, reason: "test"))
     }
 
     func testSwitchToParksTheWindowsLeftAndActivatesTheTargetsInOneBatch() {
@@ -113,7 +113,7 @@ final class WindowPlacementTests: EngineTestCase {
         XCTAssertEqual(desktop.reframeBatches.map(Set.init), [[100, 200]])
     }
 
-    func testSwitchToUnmanagesTheWindowsTheDesktopReportsGone() {
+    func testSwitchToDropsTheWindowsTheDesktopReportsGone() {
         let win1 = add(StubWindow(id: 100))
         let doomed = add(StubWindow(id: 300))
         placement.assign(win1.snapshot(), to: 1)
@@ -126,7 +126,7 @@ final class WindowPlacementTests: EngineTestCase {
         XCTAssertFalse(placement.isParked(300))
     }
 
-    func testSwitchToRecordsTheFocusOnTheManageableWindowFocusedWhenLeaving() {
+    func testSwitchToRecordsTheFocusOnTheAdmissibleWindowFocusedWhenLeaving() {
         let win1 = add(StubWindow(id: 100))
         let win2 = add(StubWindow(id: 200))
         placement.assign(win1.snapshot(), to: 1)
@@ -169,7 +169,7 @@ final class WindowPlacementTests: EngineTestCase {
         XCTAssertTrue(desktop.reframeCalls.isEmpty)
     }
 
-    func testMoveRefusesAWindowItCannotManage() {
+    func testMoveRefusesAWindowItCannotAdmit() {
         let win = add(StubWindow(id: 200, isFullScreen: true))
 
         XCTAssertFalse(placement.move(win.snapshot(), to: 2))
@@ -265,7 +265,7 @@ final class WindowPlacementTests: EngineTestCase {
         XCTAssertFalse(placement.isParked(100))
     }
 
-    func testFollowBackFromFullScreenLeavesTheWorkspaceForAWindowItCannotManage() {
+    func testFollowBackFromFullScreenLeavesTheWorkspaceForAWindowItCannotAdmit() {
         let win = add(StubWindow(id: 100))
         placement.assign(win.snapshot(), to: 1)
         placement.releaseToFullScreen(100, from: 1)
