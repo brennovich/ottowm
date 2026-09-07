@@ -101,7 +101,7 @@ final class OffscreenParkingDesktop: Desktop {
             Log.desktop.info("cannot \(requested.change.logDescription) id=\(requested.windowId): window not movable")
             switch requested.change {
             case let .unpark(parkedFrom?): return .parked(requested.windowId, from: parkedFrom)
-            case let .maximize(restoring?): return .maximized(requested.windowId, from: restoring)
+            case let .maximize(restoring?), let .fill(_, restoring?): return .filled(requested.windowId, from: restoring)
             default: return .active(requested.windowId)
             }
         }
@@ -126,25 +126,43 @@ final class OffscreenParkingDesktop: Desktop {
         case .center:
             return (centered(current.size), .active(requested.windowId))
         case let .maximize(restoring):
-            if let restoring { return (restoring, .active(requested.windowId)) }
-            let filled = screen.visibleFrame.insetBy(dx: inset, dy: inset)
-            guard !fills(current, filled) else {
-                Log.desktop.info("id=\(requested.windowId) already fills the screen, no frame to go back to")
-                return (current, .active(requested.windowId))
-            }
-            return (filled, .maximized(requested.windowId, from: current))
+            return destination(current, filling: filled, restoring: restoring, of: requested.windowId)
+        case let .fill(direction, restoring):
+            let half = Half(direction: direction).frame(within: filled, gap: inset)
+            return destination(current, filling: half, restoring: restoring, of: requested.windowId)
         }
+    }
+
+    /// A window already at the target has nowhere further to go and takes the frame it came
+    /// from instead. Every target shares one record of that frame, so what says the window
+    /// is filled is where it stands, not that a record exists.
+    private func destination(
+        _ current: CGRect,
+        filling target: CGRect,
+        restoring: CGRect?,
+        of windowId: CGWindowID
+    ) -> (frame: CGRect, outcome: FrameOutcome) {
+        guard fills(current, target) else { return (target, .filled(windowId, from: current)) }
+        guard let restoring else {
+            Log.desktop.info("id=\(windowId) already fills \(target), no frame to go back to")
+            return (current, .active(windowId))
+        }
+        return (restoring, .active(windowId))
+    }
+
+    private var filled: CGRect {
+        screen.visibleFrame.insetBy(dx: inset, dy: inset)
     }
 
     /// A window rarely settles at the size it was given: Terminal quantizes its height to
     /// whole rows, which at a large font size is tens of points. A window this close to the
-    /// filled frame is maximized, and the frame it stands at must not be recorded as the
-    /// one to go back to: taking it there would leave it filled.
-    private func fills(_ current: CGRect, _ filled: CGRect) -> Bool {
-        abs(current.minX - filled.minX) <= Self.filledTolerance
-            && abs(current.minY - filled.minY) <= Self.filledTolerance
-            && abs(current.maxX - filled.maxX) <= Self.filledTolerance
-            && abs(current.maxY - filled.maxY) <= Self.filledTolerance
+    /// target fills it, and the frame it stands at must not be recorded as the one to go
+    /// back to: taking it there would leave it filled.
+    private func fills(_ current: CGRect, _ target: CGRect) -> Bool {
+        abs(current.minX - target.minX) <= Self.filledTolerance
+            && abs(current.minY - target.minY) <= Self.filledTolerance
+            && abs(current.maxX - target.maxX) <= Self.filledTolerance
+            && abs(current.maxY - target.maxY) <= Self.filledTolerance
     }
 
     private func centered(_ size: CGSize) -> CGRect {

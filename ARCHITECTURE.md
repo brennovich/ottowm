@@ -20,12 +20,13 @@ OttoWM is a headless agent that offers several workspaces on one native macOS Sp
 
 ```
 WindowEvent  = created(WindowSnapshot) | focused(WindowSnapshot) | destroyed(id) | minimized(id) | unminimized(WindowSnapshot)
-Action       = switchToWorkspace(n) | moveWindowToWorkspace(n) | focus(direction) | moveWindow(step) | centerWindow | toggleMaximize | quit | restart
+Action       = switchToWorkspace(n) | moveWindowToWorkspace(n) | focus(direction) | moveWindow(step)
+             | centerWindow | toggleMaximize | fill(direction) | quit | restart
 Direction    = north | east | south | west                       // "focus east" in the config
 Step         = (direction, points)                               // "move-window east 15" in the config
 KeyCombo     = (keyCode, [ModifierKey: ModifierSide])            // "lopt-shift-1"
-FrameChange  = step(Step) | center | maximize(restoring: frame?) | park | unpark(frame?)
-FrameOutcome = parked(id, from: frame) | maximized(id, from: frame) | active(id) | gone(id)
+FrameChange  = step(Step) | center | park | unpark(frame?)       // what a window's frame is asked to become
+             | maximize(frame?) | fill(direction, frame?)        // carrying the frame to go back to
 WindowSnapshot(id, appName, isStandard, hasCloseButton, hasMinimizeButton, isFullScreen, isMinimized, frame)
 ```
 
@@ -76,9 +77,10 @@ flowchart LR
 | `TabGroups`                   | Model     | Infers which windows are tabs of one another. Reads tab counts and frames on demand.    |
 | `Neighbors`                   | Model     | The windows around one frame, and which of them a focus move lands on.                  |
 | `Step`                        | Model     | One move of a window in points, and where it lands within the screen.                   |
-| `FrameChange`                 | Model     | What a window's frame is asked to become: step, center, maximize, park or unpark.       |
+| `Half`                        | Model     | One side of a rect, taking half of it, with the gap kept between the two halves.        |
+| `FrameChange`                 | Model     | What a window's frame is asked to become: step, center, maximize, fill, park or unpark. |
 | `ParkedWindows`               | Model     | The windows parked at the hidden edge, and the frame each one was parked from.          |
-| `MaximizedWindows`            | Model     | The frame each maximized window goes back to, shared by the tabs of one window.         |
+| `FilledWindows`               | Model     | The frame each filled window goes back to, shared by the tabs of one window.            |
 | `Desktop`                     | macOS     | Manipulates the current workspace's windows.                                            |
 | `HiddenEdge`                  | macOS     | Where a parked window sits, and whether a frame sits there.                             |
 | `WindowSystem`                | macOS     | The focused window, the on-screen window frames, and the tab count of a window.         |
@@ -104,7 +106,7 @@ flowchart LR
 
 `Window` is a protocol; `AXWindow` is the implementation the app runs.
 
-`Desktop` is a protocol; `OffscreenParkingDesktop` is the implementation the app runs. It holds no state of its own. `ManagedWindows` hands it a park or an unpark per window, the unpark carrying the frame the window was parked from, and records what comes back in `ParkedWindows`. `Engine` hands it a step, a centering or a maximize of the focused window, the maximize carrying the frame to go back to, and records what comes back in `MaximizedWindows`.
+`Desktop` is a protocol; `OffscreenParkingDesktop` is the implementation the app runs. It holds no state of its own. `ManagedWindows` hands it a park or an unpark per window, the unpark carrying the frame the window was parked from, and records what comes back in `ParkedWindows`. `Engine` hands it a step, a centering, a maximize or a fill of the focused window, the maximize and the fill carrying the frame to go back to, and records what comes back in `FilledWindows`.
 
 ### Input
 
@@ -129,7 +131,7 @@ flowchart LR
     Engine --> FullScreenReturns
     Engine --> Workspaces
     Engine --> Neighbors
-    Engine --> MaximizedWindows
+    Engine --> FilledWindows
     WindowEnrollment --> ManagedWindows
     Navigation --> WindowEnrollment
     Navigation --> ManagedWindows
@@ -137,8 +139,8 @@ flowchart LR
     FullScreenReturns --> ManagedWindows
     ManagedWindows --> Workspaces
     ManagedWindows --> ParkedWindows
-    ManagedWindows --> MaximizedWindows
-    MaximizedWindows --> Workspaces
+    ManagedWindows --> FilledWindows
+    FilledWindows --> Workspaces
     Navigation --> Workspaces
     Workspaces --> Workspace
     Workspaces --> TabGroups
@@ -278,20 +280,20 @@ sequenceDiagram
     Engine->>Desktop: focus(id)
 ```
 
-### Move, center or maximize the focused window
+### Move, center, maximize or fill the focused window
 
 ```mermaid
 sequenceDiagram
-    Hotkeys->>Engine: handle(moveWindow(step), centerWindow or toggleMaximize)
+    Hotkeys->>Engine: handle(moveWindow(step), centerWindow, toggleMaximize or fill(direction))
     Engine->>Navigation: focusedWindowOfCurrentWorkspace()
     Note over Engine: nothing for a parked window
-    Engine->>MaximizedWindows: restoringFrame(of: id), for a toggle
-    Engine->>Desktop: reframe(id, step, center or maximize(restoring))
-    Desktop-->>Engine: maximized from a frame, active, or gone
-    Engine->>MaximizedWindows: record(what came back)
+    Engine->>FilledWindows: restoringFrame(of: id), for a maximize or a fill
+    Engine->>Desktop: reframe(id, step, center, maximize(restoring) or fill(direction, restoring))
+    Desktop-->>Engine: filled from a frame, active, or gone
+    Engine->>FilledWindows: record(what came back)
 ```
 
-A maximize with no frame to go back to fills the visible frame inset by 15pt and reports the frame it left; one with a frame puts the window back there. A window within 30pt of the filled frame on every edge is read as filled and left alone: a window settles short of the frame it was given, Terminal by whole rows. A step or a centering ends the maximize; a park does not, so the frame survives a workspace switch. The tabs of one window share the frame, and a tab that joins a maximized window takes it, so the frame outlives the tab the maximize went through.
+A maximize targets the visible frame inset by 15pt, a fill one half of that frame, the two halves of an axis leaving the same gap between them. A window not already at the target takes it and reports the frame it left; one already there goes back to the frame handed in, and with none it is left alone. A window within 30pt of the target on every edge is read as standing there: a window settles short of the frame it was given, Terminal by whole rows. One record serves every target, so filling west and then maximizing moves the window on rather than restoring it, and the frame recorded stays the one from before the first fill. A step or a centering ends the fill; a park does not, so the frame survives a workspace switch. The tabs of one window share the frame, and a tab that joins a filled window takes it, so the frame outlives the tab the fill went through.
 
 ### Manual navigation
 

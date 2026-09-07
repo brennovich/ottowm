@@ -85,6 +85,7 @@ Workspaces are created on demand:
 | `move-window D [N]`          | Move the focused window N points `D`, 15 by default, stopping at the screen edge |
 | `center-window`              | Center the focused window on the screen, keeping its size                        |
 | `toggle-maximize`            | Fill the screen with the focused window, or put it back where it was             |
+| `fill D`                     | Fill the half of the screen `D` leads to, or put the window back where it was    |
 | `quit`                       | Quit OttoWM, putting every parked window back                                    |
 | `restart`                    | Read the config file again and rebind the keys                                   |
 

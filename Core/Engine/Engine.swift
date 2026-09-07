@@ -6,7 +6,7 @@ final class Engine {
     private let windowSystem: WindowSystem
     private let workspaces: Workspaces
     private let managed: ManagedWindows
-    private let maximizedWindows: MaximizedWindows
+    private let filledWindows: FilledWindows
     private let enrollment: WindowEnrollment
     private let navigation: Navigation
     private let fullScreenReturns: FullScreenReturns
@@ -19,7 +19,7 @@ final class Engine {
         windowSystem: WindowSystem,
         workspaces: Workspaces,
         managed: ManagedWindows,
-        maximizedWindows: MaximizedWindows,
+        filledWindows: FilledWindows,
         enrollment: WindowEnrollment,
         navigation: Navigation,
         fullScreenReturns: FullScreenReturns,
@@ -31,7 +31,7 @@ final class Engine {
         self.windowSystem = windowSystem
         self.workspaces = workspaces
         self.managed = managed
-        self.maximizedWindows = maximizedWindows
+        self.filledWindows = filledWindows
         self.enrollment = enrollment
         self.navigation = navigation
         self.fullScreenReturns = fullScreenReturns
@@ -113,7 +113,11 @@ final class Engine {
         case .centerWindow: reframeFocusedWindow(operation: "center-window") { _ in .center }
         case .toggleMaximize:
             reframeFocusedWindow(operation: "toggle-maximize") {
-                .maximize(restoring: self.maximizedWindows.restoringFrame(of: $0.id))
+                .maximize(restoring: self.filledWindows.restoringFrame(of: $0.id))
+            }
+        case let .fill(direction):
+            reframeFocusedWindow(operation: "fill") {
+                .fill(direction, restoring: self.filledWindows.restoringFrame(of: $0.id))
             }
         case .quit: quit()
         case .restart: restart()
@@ -218,7 +222,7 @@ final class Engine {
             Log.engine.info("\(requested.logDescription) \(win.logDescription)")
 
             let outcomes = desktop.reframe([(windowId: win.id, change: requested)])
-            maximizedWindows.record(outcomes)
+            filledWindows.record(outcomes)
             if outcomes.contains(.gone(win.id)) {
                 managed.unmanage(win.id, reason: "gone")
             }
@@ -238,13 +242,13 @@ extension Engine {
         quit: @escaping () -> Void = {},
         restart: @escaping () -> Void = {}
     ) -> Engine {
-        let maximizedWindows = MaximizedWindows(tabs: workspaces.tabGroupMembers(of:))
+        let filledWindows = FilledWindows(tabs: workspaces.tabGroupMembers(of:))
         let managed = ManagedWindows(
             desktop: desktop,
             windowSystem: windowSystem,
             workspaces: workspaces,
             parkedWindows: ParkedWindows(),
-            maximizedWindows: maximizedWindows
+            filledWindows: filledWindows
         )
         let enrollment = WindowEnrollment(
             windowSystem: windowSystem,
@@ -272,7 +276,7 @@ extension Engine {
             windowSystem: windowSystem,
             workspaces: workspaces,
             managed: managed,
-            maximizedWindows: maximizedWindows,
+            filledWindows: filledWindows,
             enrollment: enrollment,
             navigation: navigation,
             fullScreenReturns: fullScreenReturns,

@@ -7,6 +7,7 @@ enum Action: Equatable {
     case moveWindow(Step)
     case centerWindow
     case toggleMaximize
+    case fill(Direction)
     case quit
     case restart
 
@@ -43,6 +44,7 @@ enum Action: Equatable {
         "switch-to-workspace": (1 ... 1, { workspace($0[0]).map(Action.switchToWorkspace) }),
         "move-window-to-workspace": (1 ... 1, { workspace($0[0]).map(Action.moveWindowToWorkspace) }),
         "focus": (1 ... 1, { direction($0[0]).map(Action.focus) }),
+        "fill": (1 ... 1, { direction($0[0]).map(Action.fill) }),
         "move-window": (1 ... 2, moveWindow),
     ]
 

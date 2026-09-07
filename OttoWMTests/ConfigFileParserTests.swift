@@ -18,6 +18,7 @@ final class ConfigFileParserTests: XCTestCase {
         lopt-shift-l = move-window east 100
         lopt-ctrl-c = center-window
         lopt-m = toggle-maximize
+        lopt-ctrl-h = fill west
         """
 
         XCTAssertEqual(
@@ -33,6 +34,7 @@ final class ConfigFileParserTests: XCTestCase {
                 "lopt-shift-l": .moveWindow(Step(direction: .east, points: 100)),
                 "lopt-ctrl-c": .centerWindow,
                 "lopt-m": .toggleMaximize,
+                "lopt-ctrl-h": .fill(.west),
             ]))
         )
     }

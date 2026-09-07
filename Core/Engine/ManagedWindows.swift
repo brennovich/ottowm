@@ -7,20 +7,20 @@ final class ManagedWindows {
     private let windowSystem: WindowSystem
     private let workspaces: Workspaces
     private let parkedWindows: ParkedWindows
-    private let maximizedWindows: MaximizedWindows
+    private let filledWindows: FilledWindows
 
     init(
         desktop: any Desktop,
         windowSystem: WindowSystem,
         workspaces: Workspaces,
         parkedWindows: ParkedWindows,
-        maximizedWindows: MaximizedWindows
+        filledWindows: FilledWindows
     ) {
         self.desktop = desktop
         self.windowSystem = windowSystem
         self.workspaces = workspaces
         self.parkedWindows = parkedWindows
-        self.maximizedWindows = maximizedWindows
+        self.filledWindows = filledWindows
     }
 
     var isDesktopInFront: Bool {
@@ -62,7 +62,7 @@ final class ManagedWindows {
         guard canManage(win) else { return nil }
 
         let assigned = workspaces.assign(win, to: workspace)
-        maximizedWindows.shareFrame(with: win.id)
+        filledWindows.shareFrame(with: win.id)
         Log.engine.info("assigned \(win.logDescription) → workspace \(assigned)")
 
         place(win.id, parked: assigned != workspaces.current)
@@ -88,7 +88,7 @@ final class ManagedWindows {
 
         let focusSettled = workspaces.remove(windowId)
         parkedWindows.forget(windowId)
-        maximizedWindows.forget(windowId)
+        filledWindows.forget(windowId)
         return focusSettled || workspace == nil
     }
 

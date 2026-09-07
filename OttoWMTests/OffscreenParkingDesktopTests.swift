@@ -74,7 +74,7 @@ final class OffscreenParkingDesktopTests: XCTestCase {
     }
 
     func testMaximizeFillsTheVisibleFrameInsetOnEveryEdge() {
-        XCTAssertEqual(reframe(100, .maximize(restoring: nil)), [.maximized(100, from: originalFrame)])
+        XCTAssertEqual(reframe(100, .maximize(restoring: nil)), [.filled(100, from: originalFrame)])
         XCTAssertEqual(win.frame, CGRect(x: 15, y: 53, width: 1762, height: 1052))
         XCTAssertEqual(win.animatedWriteCount, 0)
     }
@@ -102,8 +102,33 @@ final class OffscreenParkingDesktopTests: XCTestCase {
     func testRestoringAWindowThatIsNotMovableKeepsTheFrameToGoBackTo() {
         win.isMinimized = true
 
-        XCTAssertEqual(reframe(100, .maximize(restoring: originalFrame)), [.maximized(100, from: originalFrame)])
+        XCTAssertEqual(reframe(100, .maximize(restoring: originalFrame)), [.filled(100, from: originalFrame)])
         XCTAssertEqual(win.positionSetCount, 0)
+    }
+
+    func testFillTakesTheHalfOfTheFrameAMaximizeFills() {
+        XCTAssertEqual(reframe(100, .fill(.west, restoring: nil)), [.filled(100, from: originalFrame)])
+        XCTAssertEqual(win.frame, CGRect(x: 15, y: 53, width: 873.5, height: 1052))
+        XCTAssertEqual(win.animatedWriteCount, 0)
+    }
+
+    func testFillTakesAWindowAlreadyInThatHalfBackToTheFrameHandedIn() {
+        let west = addWindow(101, frame: CGRect(x: 15, y: 53, width: 873.5, height: 1052))
+
+        XCTAssertEqual(reframe(west.id, .fill(.west, restoring: originalFrame)), [.active(west.id)])
+        XCTAssertEqual(west.frame, originalFrame)
+    }
+
+    /// One record serves every target, so a window standing in one half still fills the
+    /// screen rather than going back to the frame that record holds.
+    func testFillingAcrossTargetsMovesOnRatherThanRestoring() {
+        let west = addWindow(101, frame: CGRect(x: 15, y: 53, width: 873.5, height: 1052))
+
+        XCTAssertEqual(
+            reframe(west.id, .maximize(restoring: originalFrame)),
+            [.filled(west.id, from: CGRect(x: 15, y: 53, width: 873.5, height: 1052))]
+        )
+        XCTAssertEqual(west.frame, CGRect(x: 15, y: 53, width: 1762, height: 1052))
     }
 
     func testReportsAWindowThatNoLongerExists() {

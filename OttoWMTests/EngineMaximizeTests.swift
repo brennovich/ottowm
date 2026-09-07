@@ -82,6 +82,6 @@ final class EngineMaximizeTests: EngineTestCase {
 
         engine.handle(.destroyed(win.id))
 
-        XCTAssertNil(maximizedWindows.restoringFrame(of: win.id))
+        XCTAssertNil(filledWindows.restoringFrame(of: win.id))
     }
 }

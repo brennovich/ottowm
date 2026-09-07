@@ -32,6 +32,12 @@ lopt-ctrl-c = center-window
 # Fill the screen with the focused window, and put it back where it was on the next press
 lopt-ctrl-m = toggle-maximize
 
+# Fill half the screen with the focused window, and put it back on the next press
+lopt-ctrl-h = fill west
+lopt-ctrl-j = fill south
+lopt-ctrl-k = fill north
+lopt-ctrl-l = fill east
+
 # Quit OttoWM, putting every parked window back where it was
 hyper-q = quit
 
