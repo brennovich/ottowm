@@ -5,10 +5,9 @@ private let lockScreenBundleId = "com.apple.loginwindow"
 
 // WebKit runs one of these XPC services per tab, per network session and per GPU
 // context, so a browser accounts for dozens of them. None owns a window and none
-// answers the Accessibility API: every subscription attempt costs a full messaging
-// timeout, and the retries spend it again until the grace period runs out.
-// Universal Control is in the same shape: it runs whether or not a second
-// device is around, owns no window, and answers no accessibility call.
+// replies to the Accessibility API: every subscription attempt costs a full messaging
+// timeout, and the retries spend it again until the grace period runs out. Universal
+// Control behaves the same: it runs with or without a second device and owns no window.
 private let silentBundleIds: Set<String> = [
     "com.apple.WebKit.WebContent",
     "com.apple.WebKit.Networking",
@@ -82,11 +81,11 @@ final class RunningApplicationsObserver {
         }.flatMap(\.all)
     }
 
-    /// One thread per application, the caller blocked until the last has answered. The threads
+    /// One thread per application, the caller blocked until the last returns. The threads
     /// enter `AXWindowEvents` through `start` and `inventory`, each touching one `Application`
     /// and the locked registry, see `Applications`. Every caller is on the main thread: the
     /// launch, the unlock, the `NSWorkspace` notifications and the `isFinishedLaunching`
-    /// observation, which is tied to the main run loop. The retries are scheduled on the main
+    /// observation, which is tied to the main run loop. Retries are scheduled on the main
     /// queue.
     private func scan(
         _ apps: [NSRunningApplication],
@@ -117,15 +116,15 @@ final class RunningApplicationsObserver {
             return false
         }
         guard !silentBundleIds.contains(bundleId) else {
-            Log.observer.debug("skipping pid=\(pid) app=\(app.localizedName ?? ""): answers no accessibility call")
+            Log.observer.debug("skipping pid=\(pid) app=\(app.localizedName ?? ""): replies to no accessibility call")
             return false
         }
 
         return true
     }
 
-    // Exponential backoff retry, this is necessary because some apps take
-    // a while to finish launching and become reachable via AX.
+    // Some applications take a while to finish launching and become reachable through AX,
+    // so the attempts back off exponentially.
     private func retry(_ app: NSRunningApplication, after delay: TimeInterval, until deadline: Date) {
         guard now() < deadline else {
             let waited = Int(Self.subscriptionGracePeriod)

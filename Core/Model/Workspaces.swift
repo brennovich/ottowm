@@ -61,8 +61,8 @@ final class Workspaces {
         recordFocus(on: windowId, in: workspace)
     }
 
-    /// Settles the tab group of a window already assigned, for the windows merged into
-    /// tabs of one after each was seen on its own. See `TabGroups.add`.
+    /// Re-matches the tab group of a window already assigned, for windows merged into tabs
+    /// after each was seen on its own. See `TabGroups.add`.
     func regroupTabs(of window: WindowSnapshot) {
         tabGroups.add(window)
     }
@@ -94,21 +94,17 @@ final class Workspaces {
     }
 
     func switchTo(_ targetWorkspace: Int, leavingFocusOn windowId: CGWindowID?) -> (activating: [CGWindowID], parking: [CGWindowID]) {
-        let placement = (activating: [CGWindowID](), parking: [CGWindowID]())
-        guard targetWorkspace != current else { return placement }
+        guard targetWorkspace != current else { return (activating: [], parking: []) }
 
         if let windowId {
             recordFocus(on: windowId, in: current)
         }
         current = targetWorkspace
 
-        return workspaces.reduce(into: placement) { p, e in
-            if e.key == targetWorkspace {
-                p.activating.append(contentsOf: e.value.windowIds)
-            } else {
-                p.parking.append(contentsOf: e.value.windowIds)
-            }
-        }
+        return (
+            activating: windowIds(in: targetWorkspace),
+            parking: workspaces.filter { $0.key != targetWorkspace }.flatMap(\.value.windowIds)
+        )
     }
 
     var nextWindowToFocus: CGWindowID? {

@@ -28,8 +28,8 @@ final class Bindings {
         current.stop()
     }
 
-    /// - Returns: the error that kept the bindings already up in place, or `nil` once the
-    /// tap is over the config just read.
+    /// - Returns: the error that left the bindings in place, or `nil` once the tap is over
+    ///   the config just read.
     func reload() -> ConfigError? {
         switch load() {
         case let .success(config):

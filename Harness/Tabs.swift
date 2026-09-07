@@ -1,11 +1,10 @@
 import AppKit
 
 // Terminal shows the tab bar only while a window has more than one tab, and the bar takes
-// the height it needs out of the window: a window merged into tabs stands tens of points
-// from where it was, and a window read before the merge is not where it is read after.
-// Shown up front, every window the run stages keeps its frame through the merge. The menu
-// item is named `Hide Tab Bar` once the bar is up, so a session that already shows it finds
-// nothing to press and there is nothing to undo.
+// the height it needs out of the window: a window merged into tabs ends up tens of points
+// from where it was read before the merge. With the bar already up, every window the run
+// stages keeps its frame through the merge. The menu item is named `Hide Tab Bar` once the
+// bar is up, so a session that already shows it finds nothing to press and nothing to undo.
 func showTabBar(ofApplication bundleId: String, named name: String) {
     guard let application = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first else {
         fail("\(name) is not running, its tab bar cannot be shown")
@@ -22,10 +21,10 @@ func showTabBar(ofApplication bundleId: String, named name: String) {
 }
 
 // A tabbed window is made by merging windows that are already open rather than by asking
-// for a new tab. Terminal answers `Shell > New Tab` with a submenu of profiles, and
-// pressing either the parent or its first entry adds no tab; whether a new document opens
-// as a tab at all is a system setting the run does not own. `Window > Merge All Windows`
-// is a flat item in every application that tabs its windows, and it takes what is open.
+// for a new tab. Terminal's `Shell > New Tab` opens a submenu of profiles, and pressing
+// either the parent or its first entry adds no tab; whether a new document opens as a tab
+// at all is a system setting the run does not own. `Window > Merge All Windows` is a flat
+// item in every application that tabs its windows, and it merges what is already open.
 //
 // Merging takes every window the application has, so a desk staging more than one instance
 // would merge across instances.
@@ -55,7 +54,7 @@ func mergeIntoTabs(ofApplication bundleId: String, named name: String) {
 }
 
 // The tab bar's buttons, one per tab. Only the tab in front carries the tab group, so a
-// window read in the background answers none of them.
+// window read in the background reports none of them.
 func tabButtons(of window: AXUIElement) -> [AXUIElement] {
     let children = attribute(window, kAXChildrenAttribute) as? [AXUIElement] ?? []
 
@@ -68,16 +67,16 @@ func tabButtons(of window: AXUIElement) -> [AXUIElement] {
 }
 
 // Brings a tab to the front so a scene can read its frame. A tab that is not in front
-// answers the frame the window had when that tab last was, and is not listed among the
+// reports the frame the window had when that tab last was, and is not listed among the
 // application's windows at all, so a check made on it without this reads a value that
-// cannot change and passes on nothing. A frame written to a tab that is not in front is
-// answered by that tab while the window stays where it is, so staging goes through this
-// too, not only reading.
+// cannot change. A frame written to a tab that is not in front is reported back by that
+// tab while the window stays where it is, so staging goes through this too, not only
+// reading.
 //
 // The tab bar's buttons are pressed in turn rather than the one belonging to this window
 // picked out of them: Terminal titles its buttons after the process running in each tab,
-// which is `-zsh` for every tab of a desk this run staged. What says the right tab is in
-// front is the application listing this window, not anything the bar says.
+// which is `-zsh` for every tab of a desk this run staged. The right tab is in front when
+// the application lists this window, not when the bar says so.
 //
 // Pressed rather than a key combo posted: the run's own hotkeys go to whichever application
 // is frontmost, and the scriptable way needs an Automation grant a machine with nobody at
@@ -119,7 +118,7 @@ private func isListed(_ window: AXUIElement, of pid: pid_t) -> Bool {
     windows(ofApplication: pid).contains { CFEqual($0, window) }
 }
 
-// Polls for a tab switch to land, and says whether it did rather than ending the run: the
+// Polls for a tab switch, and reports whether it landed rather than ending the run: the
 // caller has other tabs to try.
 private func waitUntilListed(_ window: AXUIElement, of pid: pid_t) -> Bool {
     let deadline = Date().addingTimeInterval(tabSwitchTimeout)

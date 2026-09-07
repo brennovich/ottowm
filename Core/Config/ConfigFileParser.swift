@@ -2,7 +2,7 @@ import Foundation
 
 enum ConfigFileParser {
     static func parse(_ text: String) -> Result<Config, ConfigError> {
-        return text
+        text
             .split(separator: "\n", omittingEmptySubsequences: false)
             .enumerated()
             .map { (number: $0.offset + 1, text: $0.element.prefix { $0 != "#" }.trimmed) }

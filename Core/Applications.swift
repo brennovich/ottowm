@@ -1,9 +1,9 @@
 import AppKit
 import CoreGraphics
 
-/// The open and valid applications being managed, by pid. Thread safe registry that the AX stack
-/// reaches several times: a scan runs one thread per application (`RunningApplicationsObserver.scan`),
-/// and each thread registers and looks up its own `Application`.
+/// The applications being watched, by pid. Thread safe because a scan runs one thread per
+/// application (`RunningApplicationsObserver.scan`), and each thread registers and looks up
+/// its own `Application`.
 final class Applications {
     private var applications: [pid_t: Application] = [:]
     private let lock = NSLock()

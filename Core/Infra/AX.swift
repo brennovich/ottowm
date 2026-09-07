@@ -40,12 +40,11 @@ struct AXRole: Hashable, RawRepresentable {
     }
 }
 
-/// The AX notification channel of one process. `AXObserver` delivers every
-/// notification subscribed through it to one callback, so the AX machinery is not
-/// leaked to the callers.
+/// The AX notification channel of one process. `AXObserver` delivers every notification
+/// subscribed through it to one callback, so callers do not deal with the AX types.
 ///
-/// The callback is held by a `CallbackBox`, the only way to pass it to the C
-/// callback function AX calls when a notification arrives.
+/// The callback is held by a `CallbackBox`, the only way to pass it through the C callback
+/// AX calls when a notification arrives.
 struct AXNotifications {
     let subscribe: (AXUIElement, String) -> AXError
     let invalidate: () -> Void
@@ -93,7 +92,6 @@ private func axObserverCallback(
 ) {
     guard let refcon else { return }
 
-    // Rebuilds the Unmanaged from the raw pointer
     let box = Unmanaged<CallbackBox>.fromOpaque(refcon).takeUnretainedValue()
     box.callback(element, notification as String)
 }

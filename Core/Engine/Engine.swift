@@ -207,7 +207,7 @@ final class Engine {
     }
 
     /// - Parameter operation: one name per action, so the round-trip cost of a step and of a
-    ///   centering stay separate operations.
+    ///   centering are reported separately.
     /// - Parameter change: takes the window it applies to, which is known only once the
     ///   guards below have passed.
     private func reframeFocusedWindow(operation: StaticString, _ change: (WindowSnapshot) -> FrameChange) {

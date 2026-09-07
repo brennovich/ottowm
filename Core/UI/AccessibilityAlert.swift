@@ -1,11 +1,7 @@
 import AppKit
 
-/// Displays to the user that OttoWM requires accessibility permissions, there
-/// are three interactions: 1. Open Settings, 2. Restart and 3. Quit.
-///
-/// - Returns:
-///   - `.confirm`: proceed with action.
-///   - `.quit`: alert was dismissed.
+/// The alerts asking for the Accessibility permission: open System Settings, or restart.
+/// `.confirm` is the button of the request, `.quit` the dismissal.
 enum AccessibilityAlert {
     enum Request {
         case openSettings

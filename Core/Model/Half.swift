@@ -1,7 +1,7 @@
 import CoreGraphics
 
-/// One side of a rect, taking half of it. The two halves of an axis leave `gap` between
-/// them, so a window taken to each in turn covers exactly `bounds`.
+/// One side of a rect, taking half of it. The two halves of an axis leave `gap` between them,
+/// so two windows, one in each half, cover exactly `bounds`.
 struct Half {
     let direction: Direction
 

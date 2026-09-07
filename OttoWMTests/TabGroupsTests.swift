@@ -99,7 +99,7 @@ final class TabGroupsTests: XCTestCase {
         }
     }
 
-    /// A tab opens where its window stands now, which a maximize since the group was first
+    /// A tab opens at the frame of its window, which a maximize since the group was first
     /// seen has moved.
     func testATabOpenedAfterItsWindowMovedJoinsTheGroup() {
         var tabGroups = makeTabGroups([tabbed(100, tabCount: 2)])
@@ -111,8 +111,8 @@ final class TabGroupsTests: XCTestCase {
         XCTAssertEqual(tabGroups.members(of: 100), [100, 200])
     }
 
-    /// A background tab answers the frame it had when it was last active, so a maximize
-    /// through one tab leaves the others reporting where they were.
+    /// A background tab reports the frame it had when it was last active, so a maximize
+    /// through one tab leaves the others reporting their old frame.
     func testATabJoinsThroughAnyMemberThatIsWhereTheWindowStands() {
         var tabGroups = makeTabGroups([tabbed(100, tabCount: 2), tabbed(200, tabCount: 2)])
         let maximized = CGRect(x: 15, y: 15, width: 1762, height: 1090)
@@ -123,7 +123,7 @@ final class TabGroupsTests: XCTestCase {
         XCTAssertEqual(tabGroups.members(of: 100), [100, 200, 300])
     }
 
-    /// Two maximized windows stand at one frame, so the frame alone matches either group.
+    /// Two maximized windows share one frame, so the frame alone matches either group.
     /// A group holding as many windows as the tab reports tabs has no room for it.
     func testATabDoesNotJoinAGroupHoldingAsManyWindowsAsItReportsTabs() {
         var tabGroups = makeTabGroups([tabbed(100, tabCount: 2), tabbed(200, tabCount: 2)])
@@ -139,8 +139,8 @@ final class TabGroupsTests: XCTestCase {
     }
 
     /// Merging windows into tabs opens no window and posts no notification: two windows
-    /// each holding a group of its own become one window showing a tab of each, and the
-    /// tab acted on stands where the window it was merged into stands.
+    /// each holding a group of its own become one window showing a tab of each, and the tab
+    /// acted on is at the frame of the window it was merged into.
     func testAWindowMergedIntoAnotherJoinsItsGroup() {
         let apart = CGRect(x: 900, y: 0, width: 800, height: 600)
         var tabGroups = makeTabGroups([tabbed(100), tabbed(200, frame: apart)])

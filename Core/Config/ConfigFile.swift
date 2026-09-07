@@ -25,10 +25,15 @@ enum ConfigFile {
             return read(bundledPath)
         }()
 
-        return text
-            .map(ConfigFileParser.parse)?
-            .map { Log.config.notice("loaded \(path.path)"); return $0 }
-            .mapError { Log.config.error("\(path.path): \($0)"); return $0 }
-            ?? .success(Config([:]))
+        guard let text else { return .success(Config([:])) }
+
+        switch ConfigFileParser.parse(text) {
+        case let .success(config):
+            Log.config.notice("loaded \(path.path)")
+            return .success(config)
+        case let .failure(error):
+            Log.config.error("\(path.path): \(error)")
+            return .failure(error)
+        }
     }
 }

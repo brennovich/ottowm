@@ -1,9 +1,11 @@
 import CoreGraphics
 import Foundation
 
-/// macOS posts the focus and creation notifications of a new window before the window is
-/// in the on-screen list, so the on-screen check drops both, and no later notification
-/// names the window. The read is repeated for a moment to enroll it once it shows.
+/// Enrolls a window announced before it was on screen.
+///
+/// macOS posts the focus and creation notifications of a new window before the window is in
+/// the on-screen list, so the on-screen check drops both and no later notification names the
+/// window. The read is repeated for a moment to enroll it once it shows.
 final class WindowEnrollment {
     private let windowSystem: WindowSystem
     private let workspaces: Workspaces

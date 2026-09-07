@@ -65,7 +65,7 @@ final class AXWindowEventsLifecycleTests: AXWindowEventsTestCase {
     }
 
     // A window reads as invalid while its application is still coming back from sleep,
-    // and the sweep runs the moment the screen unlocks. One silent pass is a bad moment,
+    // and the sweep runs the moment the screen unlocks. One failed pass is a bad moment,
     // not a dead window.
     func testSweepDeadWindowsForgetsAndReportsTheWindowsThatFailTwoPasses() {
         let alive = harness.addWindow(pid: 901, id: 100)
@@ -98,7 +98,7 @@ final class AXWindowEventsLifecycleTests: AXWindowEventsTestCase {
         XCTAssertNotNil(applications.findWindow(by: 100))
     }
 
-    func testSweepDeadWindowsClearsTheSuspicionOnAWindowThatAnswersAgain() {
+    func testSweepDeadWindowsClearsTheSuspicionOnAWindowThatRepliesAgain() {
         let window = harness.addWindow(pid: 901, id: 100)
         start(app)
         harness.deadElements = [window]
@@ -113,8 +113,8 @@ final class AXWindowEventsLifecycleTests: AXWindowEventsTestCase {
         XCTAssertNotNil(applications.findWindow(by: 100))
     }
 
-    // An inventory answers with every window the application holds, the ones already
-    // attached included: a window attached while the screen was locked reached no workspace, and
+    // An inventory returns every window the application holds, the ones already attached
+    // included: a window attached while the screen was locked reached no workspace, and
     // reporting only what is new would leave it out.
     func testInventoryReportsEveryWindowOfTheApplication() {
         harness.addWindow(pid: 901, id: 100)

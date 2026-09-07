@@ -8,8 +8,8 @@ enum FrameChange: Equatable {
     case maximize(restoring: CGRect?)
     case fill(Direction, restoring: CGRect?)
 
-    /// A frame to go back to does not say the window will take it: the desktop goes back only
-    /// when the window already stands at the target, which it alone knows.
+    /// The suffix reports that a frame to restore is on record, not that the window will take
+    /// it: the desktop restores only when the window already fills the target.
     var logDescription: String {
         switch self {
         case let .step(step): "move \(step.direction.rawValue) by \(step.points)"
@@ -22,7 +22,7 @@ enum FrameChange: Equatable {
     }
 
     private static func suffix(_ restoring: CGRect?) -> String {
-        restoring == nil ? "" : " with a frame to go back to"
+        restoring == nil ? "" : " with a frame to restore"
     }
 }
 

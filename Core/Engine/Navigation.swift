@@ -25,8 +25,9 @@ final class Navigation {
         self.enrollment = enrollment
     }
 
-    /// The focused event: manual navigation to a parked window, a stale event, a window not
-    /// yet on screen, a window back from full screen, a tab of a group parked elsewhere.
+    /// What a focus event can mean: manual navigation to a parked window, a stale event, a
+    /// window not yet on screen, a window back from full screen, a tab of a group parked
+    /// elsewhere.
     func follow(_ win: WindowSnapshot) {
         if placement.isParked(win.id) {
             guard windowSystem.focused()?.id == win.id else {

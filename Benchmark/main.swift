@@ -111,14 +111,13 @@ func append(_ text: String, to path: String) {
 
 let options = parseOptions()
 // Arranged in the four quarters of the screen, because a focus move is only measurable
-// against a desk whose geometry the run knows: it has to name the window the move is
-// owed to land on.
+// against a desk whose geometry the run knows: it has to name the window the move should
+// land on.
 let session = Session.start(instances: options.instances, arranged: true)
 
 // Waits out whatever the previous operation is still doing, so the hotkey below is timed
-// against a desk that is standing still rather than one that is on its way somewhere. A
-// fixed sleep was a guess at how long that takes: longer than needed on a good day, and
-// no guarantee on a bad one.
+// against a desk at rest rather than one still moving. A fixed sleep was a guess at how
+// long that takes: longer than needed on a good day, and no guarantee on a bad one.
 func settleDesk() {
     var previous: [CGRect?] = []
     var quiet = 0
@@ -179,8 +178,8 @@ func movedAway() -> Bool {
     session.isParked(session.movable)
 }
 
-// The switch is done when the workspace being entered is on screen and the one being
-// left is out of the way, whichever of the two the desktop gets to last.
+// The switch is done when the workspace being entered is on screen and the one being left
+// is parked, whichever of the two the desktop finishes last.
 func swapped() -> Bool {
     session.movable.isWhereItWas && session.others.allSatisfy(session.isParked)
 }
@@ -193,8 +192,8 @@ var move = Latency("move-window-to-workspace")
 var switchTo = Latency("switch-to-workspace")
 var focusMove = Latency("focus-direction")
 
-// Two desk instances stand two Safari windows in the same quarter, and a focus move north
-// lands on whichever of them the rule picks, which the run cannot name.
+// Two desk instances put two Safari windows in the same quarter, and a focus move north
+// lands on whichever of them the rule picks, which the run cannot predict.
 let measuresFocus = options.instances == 1
 
 report("measuring \(options.iterations) iterations after \(options.warmup) warmup ones, "
@@ -217,9 +216,9 @@ for iteration in 1...(options.warmup + options.iterations) {
     _ = measure("the desk came back", { switchToWorkspace(1) }, until: deskIsBack)
 
     // Measured last, on the whole desk the return leg just restored. The focus is put back
-    // on the movable window first rather than taken to be there: a switch hands it to
-    // whichever window it pleases, and the move north is only owed to Safari from the
-    // bottom right quarter.
+    // on the movable window first rather than assumed to be there: a switch moves it to an
+    // arbitrary window, and the move north lands on Safari only from the bottom right
+    // quarter.
     var focused: Observation?
     if measuresFocus {
         session.movable.focus()

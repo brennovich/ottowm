@@ -1,10 +1,11 @@
 import CoreGraphics
 import Foundation
 
-/// A window leaving full screen comes back to the desktop without a notification that
-/// names it. The focus event macOS does send can arrive while the window is still in
-/// transition, and it is dropped then, so every later event is another chance to notice
-/// the window is back.
+/// Takes a window that left full screen back into the workspace it came from.
+///
+/// macOS sends no notification naming the window. The focus event it does send can arrive
+/// while the window is still in transition and is dropped then, so every later event is
+/// another chance to notice the window is back.
 final class FullScreenReturns {
     private let windowSystem: WindowSystem
     private let workspaces: Workspaces
@@ -44,8 +45,8 @@ final class FullScreenReturns {
     }
 
     /// The window can still read as full screen when the Space change announcing its return
-    /// arrives, and macOS sends no notification once it settles: the desktop can stay quiet
-    /// until the user acts. The check is repeated for a few seconds to catch that.
+    /// arrives, and macOS sends no notification once it settles, so nothing would report the
+    /// return until the user acts. The check is repeated for a few seconds.
     func followWithRetries() {
         followWithRetries(in: Self.firstDelay)
     }

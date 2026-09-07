@@ -5,8 +5,8 @@
   </h3>
   <p>
     A tiny virtual workspace manager for macOS<br>
-    <i>Inspired on <a href="https://github.com/venam/2bwm">2bwm</a> and <a href="https://github.com/wmutils/core">wmutils</a>,<br>
-    and on <a href="https://github.com/nikitabobko/AeroSpace">AeroSpace</a> technical aspects</i>.
+    <i>Inspired by <a href="https://github.com/venam/2bwm">2bwm</a> and <a href="https://github.com/wmutils/core">wmutils</a>,<br>
+    and by the technical approach of <a href="https://github.com/nikitabobko/AeroSpace">AeroSpace</a></i>.
   </p>
 </div>
 
@@ -17,14 +17,14 @@ OttoWM fakes multiple workspaces on a **single native macOS Space**. No native S
 Some important features:
 - Native Tabbed windows (Terminal, Ghostty, Finder, …) support
 - Plays nice with macOS features:
-  - You can create native macOS Spaces, OttoWM just ignore them
+  - You can create native macOS Spaces, OttoWM just ignores them
   - Compatible with native interaction: if you reach a hidden window via Cmd-Tab, the Dock, or Mission Control, OttoWM autoswitches to that window's workspace
   - Fullscreen apps are ignored
 
 Some important foundations:
 - Headless agent: no Dock icon, no menu bar item
 - No dependency on third-party libraries or frameworks
-- Rely on macOS public APIs only
+- Relies on macOS public APIs only
 
 ### Hotkeys
 
@@ -48,7 +48,8 @@ Out of the box (bundled config):
 Download the latest `OttoWM-<version>.zip` from [Releases](https://github.com/brennovich/ottowm/releases):
 
 ```sh
-unzip OttoWM-0.1.0.zip -d /Applications
+curl -fsSL "$(curl -fsSL https://api.github.com/repos/brennovich/ottowm/releases/latest | grep -o 'https://[^"]*\.zip')" -o OttoWM.zip
+unzip OttoWM.zip -d /Applications
 xattr -cr /Applications/OttoWM.app
 open /Applications/OttoWM.app
 ```
@@ -57,14 +58,14 @@ The app is ad-hoc signed, so Gatekeeper refuses it as coming from an unidentifie
 
 ## Configuration
 
-OttoWM reads `~/.config/ottowm/ottowm` (or `$XDG_CONFIG_HOME/ottowm/ottowm`. The defaults ship inside the app, so start from those:
+OttoWM reads `~/.config/ottowm/ottowm` (or `$XDG_CONFIG_HOME/ottowm/ottowm`). The defaults ship inside the app, so start from those:
 
 ```sh
 mkdir -p ~/.config/ottowm
 cp /Applications/OttoWM.app/Contents/Resources/ottowm ~/.config/ottowm/
 ```
 
-One `key combo = action` per line. Blank lines are skipped; there is no quoting, no sections and no comments:
+One `key combo = action` per line. Blank lines and anything after a `#` are skipped; there is no quoting and no sections:
 
 ```
 lopt-1 = switch-to-workspace 1
@@ -89,7 +90,7 @@ Workspaces are created on demand:
 | `quit`                       | Quit OttoWM, putting every parked window back                                    |
 | `restart`                    | Read the config file again and rebind the keys                                   |
 
-The `restart` action reload config without a relaunch: the windows stay where they are,. A file that does not parse leaves the bindings already up in place. Errors show up in the log:
+The `restart` action reloads the config without a relaunch: the windows stay where they are. A file that does not parse leaves the bindings already up in place. Errors show up in the log:
 
 ```sh
 log stream --level debug --predicate 'subsystem == "com.github.brennovich.ottowm" && category == "config"'
@@ -97,10 +98,10 @@ log stream --level debug --predicate 'subsystem == "com.github.brennovich.ottowm
 
 ## Limitations
 
-- No Multi-Single screen support (yet)
+- No multi-screen support (yet)
 - No window resize (yet)
-- Activating an workspace from a unmanaged native space or fullscreen app is only possible on workspaces that has applications to activate, if not some other workspace with an application will be activated instead. As macOS has no public API to switch spaces
+- Switching to a workspace from an unmanaged native Space or a full screen app only works when that workspace has a window to activate. When it has none, another workspace that does is activated instead, because macOS has no public API to switch Spaces
 
 <hr>
 
-**Note**: though I've been a software developer for quite some time, this project was built with the assistance of AI tools, undertaking the opportunity to learn Swift and macOS development.
+**Note**: I have been a software developer for a long time, but this project was built with the help of AI tools, as an opportunity to learn Swift and macOS development.

@@ -1,7 +1,7 @@
 import Foundation
 
 // The binary's own name, so the acceptance run and the benchmark label their output
-// without either of them having to say which one it is.
+// without naming themselves.
 let harness = ProcessInfo.processInfo.processName
 
 let pollInterval: TimeInterval = 0.1
@@ -17,9 +17,8 @@ func report(_ message: String) {
     fflush(stdout)
 }
 
-// Something the run went on without. It goes to stderr next to the failures because it
-// is the same kind of news, and a warning buried in the iteration chatter is one nobody
-// reads.
+// Something the run went on without. Written to stderr, next to the failures, so it is
+// not buried in the iteration output.
 func warn(_ message: String) {
     FileHandle.standardError.write(Data("\(harness): WARNING, \(message)\n".utf8))
 }
@@ -30,8 +29,8 @@ func fail(_ message: String) -> Never {
     exit(EXIT_FAILURE)
 }
 
-// The probe returns nil once satisfied, or what it sees right now so an expiry says
-// something more useful than "timed out".
+// The probe returns nil once satisfied, otherwise what it sees now, so a timeout reports
+// more than "timed out".
 func eventually(
     _ description: String,
     timeout: TimeInterval = placementTimeout,
@@ -50,7 +49,7 @@ func eventually(
         }
         // NSWorkspace tracks the frontmost application through notifications delivered to
         // the main run loop, so a probe that only sleeps reads the same stale value until
-        // the deadline. Waiting on the run loop is what lets those arrive.
+        // the deadline. Running the run loop is what delivers them.
         RunLoop.current.run(until: Date().addingTimeInterval(interval))
     } while Date() < deadline
 

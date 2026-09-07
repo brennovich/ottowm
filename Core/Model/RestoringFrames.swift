@@ -1,10 +1,10 @@
 import CoreGraphics
 
-/// The frame each maximized or filled window is to go back to. Recording the frame the window
-/// came from, rather than the one it was given, keeps the original.
+/// The frame each maximized or filled window restores to: the one it came from, not the one it
+/// was given.
 ///
-/// Tabs of one window share the record: they stand at one frame, and every tab holds the frame
-/// so closing the one the change went through leaves the rest with it.
+/// Tabs of one window share the record. Every tab holds the frame, so closing the tab the
+/// change went through leaves the rest with it.
 final class RestoringFrames {
     private let tabs: (CGWindowID) -> [CGWindowID]
 
@@ -18,8 +18,8 @@ final class RestoringFrames {
         tabs(windowId).lazy.compactMap { self.frames[$0] }.first
     }
 
-    /// A tab that joins a filled window takes the frame its siblings go back to: the tabs
-    /// the fill recorded can all close while this one stays.
+    /// A tab that joins a filled window takes the frame its siblings restore to: every tab
+    /// the fill recorded can close while this one stays.
     func shareFrame(with windowId: CGWindowID) {
         frames[windowId] = restoringFrame(of: windowId)
     }

@@ -3,7 +3,7 @@ import XCTest
 final class RunningApplicationsObserverResyncTests: XCTestCase {
     private let harness = RunningApplicationsObserverHarness()
 
-    func testResyncAnswersWithTheWindowsOfEveryRunningApplicationSubscribingTheOnesThatAppeared() {
+    func testResyncReturnsTheWindowsOfEveryRunningApplicationSubscribingTheOnesThatAppeared() {
         harness.apps = [StubRunningApplication(pid: 901), StubRunningApplication(pid: 902)]
         harness.addWindow(pid: 901, id: 100)
         _ = harness.start()
@@ -18,7 +18,7 @@ final class RunningApplicationsObserverResyncTests: XCTestCase {
         XCTAssertNotNil(harness.callbacks[903])
     }
 
-    func testResyncRetriesAnApplicationThatAppearedWhileTheScreenWasLockedAndDoesNotAnswer() {
+    func testResyncRetriesAnApplicationThatAppearedWhileTheScreenWasLockedAndDoesNotReply() {
         _ = harness.start()
         harness.apps = [StubRunningApplication(pid: 901)]
         harness.unreadyPids = [901]
@@ -27,7 +27,7 @@ final class RunningApplicationsObserverResyncTests: XCTestCase {
         XCTAssertFalse(harness.scheduledRetries.isEmpty)
     }
 
-    func testResyncRetriesAKnownApplicationThatStillDoesNotAnswer() {
+    func testResyncRetriesAKnownApplicationThatStillDoesNotReply() {
         harness.apps = [StubRunningApplication(pid: 901)]
         harness.unreadyPids = [901]
         _ = harness.start()
@@ -40,7 +40,7 @@ final class RunningApplicationsObserverResyncTests: XCTestCase {
 
     // The sweep runs before the scan, so a window it drops is not handed back as one to
     // enroll again.
-    func testResyncSweepsTheWindowsThatNoLongerAnswerBeforeScanning() {
+    func testResyncSweepsTheWindowsThatNoLongerReplyBeforeScanning() {
         harness.apps = [StubRunningApplication(pid: 901)]
         let dead = harness.addWindow(pid: 901, id: 100)
         let alive = harness.addWindow(pid: 901, id: 200)

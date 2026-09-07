@@ -72,7 +72,7 @@ final class AXWindowEventsTests: AXWindowEventsTestCase {
         XCTAssertEqual(events, [])
     }
 
-    func testAdoptFocusedWindowAttachesTheWindowInFrontOnceAndAnswersIt() {
+    func testAdoptFocusedWindowAttachesTheWindowInFrontOnceAndReturnsIt() {
         start()
         let tab = harness.makeElement(id: 300)
         harness.frontmost = harness.window(tab, of: app)
@@ -87,7 +87,7 @@ final class AXWindowEventsTests: AXWindowEventsTestCase {
         XCTAssertEqual(harness.subscribed[901]?.count, count)
     }
 
-    func testAdoptFocusedWindowOfAnUnwatchedApplicationAnswersNil() {
+    func testAdoptFocusedWindowOfAnUnwatchedApplicationReturnsNil() {
         harness.frontmost = harness.window(harness.makeElement(id: 300), of: app)
 
         XCTAssertNil(windowEvents.adoptFocusedWindow())

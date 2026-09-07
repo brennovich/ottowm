@@ -17,8 +17,8 @@ final class EngineTabGroupTests: EngineTestCase {
     }
 
     /// Merging opens no window and posts no notification, so the group of the tab acted on
-    /// is settled first: the maximize belongs to the window, and the tab brought to the
-    /// front goes back to the frame the tab it was merged with maximized from.
+    /// is matched first: the maximize applies to the window, and the tab brought to the
+    /// front restores to the frame the tab it was merged with maximized from.
     func testAMaximizeIsUndoneThroughTheTabItsWindowWasMergedWith() {
         let stood = CGRect(x: 400, y: 300, width: 200, height: 200)
         let host = create(StubWindow(id: 300, appName: "Terminal", frame: stood))

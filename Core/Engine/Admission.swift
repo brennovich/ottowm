@@ -1,8 +1,10 @@
 import CoreGraphics
 
-/// Whether OttoWM can take a window into a workspace. The shape of a window is settled, so a
-/// window it rules out is refused for good; the desktop in front and the on-screen list both
-/// change on their own, so a window they rule out is worth reading again.
+/// Whether OttoWM can take a window into a workspace.
+///
+/// The shape of a window does not change, so a window it rules out is refused for good. The
+/// native Space in front and the on-screen list do change, so a window they rule out is worth
+/// reading again.
 final class Admission {
     enum Verdict: Equatable {
         case admit

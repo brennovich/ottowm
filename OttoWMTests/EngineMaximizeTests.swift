@@ -56,9 +56,9 @@ final class EngineMaximizeTests: EngineTestCase {
         XCTAssertEqual(desktop.reframeCalls.map(\.change), [.maximize(restoring: nil)])
     }
 
-    /// Parking and unparking report `.active`, which is what tells the maximize store the
-    /// window left the filled frame. Only the reframe path feeds that store, so a trip to
-    /// another workspace and back does not.
+    /// Parking and unparking report `.active`, which is what tells `RestoringFrames` the
+    /// window left the filled frame. Only the reframe path feeds it, so a trip to another
+    /// workspace and back does not.
     func testAWindowThatVisitedAnotherWorkspaceCanStillBePutBack() {
         let win = focus(100)
         engine.handle(.toggleMaximize)

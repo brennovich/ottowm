@@ -15,7 +15,8 @@ let windowSettleSeconds: TimeInterval = 2
 let hiddenEdgeMargin: CGFloat = 10
 let restoreTolerance: CGFloat = 2
 
-// A window the run drives, and the frame it was parked from, which it takes back whenever it is not parked.
+// A window the run drives, and the frame it was read at, which it goes back to whenever it
+// is not parked.
 struct Subject {
     let name: String
     let bundleId: String
@@ -33,13 +34,12 @@ struct Subject {
             && abs(frame.minY - originalFrame.minY) <= restoreTolerance
     }
 
-    // Whether the window stands at a frame, the size included, for a scene that asserts a
+    // Whether the window is at a frame, the size included, for a scene that asserts a
     // maximize or a fill: isWhereItWas reads the origin alone, which a window still filling
-    // the screen satisfies as readily as one put back.
+    // the screen satisfies as well as one put back.
     //
-    // The size is allowed more room than the origin because an application answers a size
-    // it can take rather than the one it was handed, where the position it is handed it
-    // keeps.
+    // The size is allowed more room than the origin because an application takes the
+    // position it is handed but rounds the size to one it can take.
     func stands(at target: CGRect, sizedWithin sizeTolerance: CGFloat = restoreTolerance) -> Bool {
         guard let frame = frame() else { return false }
 
@@ -55,16 +55,16 @@ struct Subject {
     }
 
     // Brings this window's tab to the front, so what a check reads next is the frame the
-    // window stands at rather than the one it had when the tab was last in front. A window
-    // that is not a tab is already the one its application lists.
+    // window is at rather than the one it had when the tab was last in front. A window that
+    // is not a tab is already the one its application lists.
     func bringToFront() {
         bringTabToFront(window, ofApplication: bundleId, named: name)
     }
 
-    // Puts the window back where it was read, for a scene that leaves it somewhere else and
-    // is followed by one that reads the frame it started from. Written rather than posted:
-    // no action takes a window to a frame of the run's choosing, and OttoWM records nothing
-    // about a window that is only put down.
+    // Puts the window back where it was read, for a scene that leaves it elsewhere and is
+    // followed by one that reads the frame it started from. The frame is written rather than
+    // a hotkey posted: no action takes a window to a frame of the run's choosing, and OttoWM
+    // records nothing about a window that is only moved.
     func putBack() {
         eventually("\(name) is back at \(originalFrame)") {
             setAXFrame(of: window, to: originalFrame)
@@ -73,8 +73,8 @@ struct Subject {
         }
     }
 
-    // The hotkeys act on the focused window, and a workspace switch hands the focus to
-    // whichever window it pleases, so whoever wants this one moved says so first.
+    // The hotkeys act on the focused window, and a workspace switch moves the focus to an
+    // arbitrary window, so a run that wants this one moved focuses it first.
     func focus() {
         AXUIElementSetAttributeValue(window, kAXMainAttribute as CFString, kCFBooleanTrue)
         AXUIElementSetAttributeValue(window, kAXFocusedAttribute as CFString, kCFBooleanTrue)
@@ -110,17 +110,17 @@ struct Subject {
 // tap, real windows read back through the accessibility API. Nothing here imports the
 // app's own code on purpose, the bundle under test is the one shipped in the release zip.
 //
-// The desk it sets up is a plausible one, a file browser, a terminal, a browser and an
-// editor, because a workspace switch costs what the windows standing on it cost.
+// The desk it sets up is a file browser, a terminal, a browser and an editor, because a
+// workspace switch costs what the windows on it cost.
 struct Session {
     let ottowm: Process
     // The window the hotkeys move between workspaces.
     let movable: Subject
-    // The ones that only ever move because the workspace they stand on was left.
+    // The ones that only move because the workspace they are on was left.
     let others: [Subject]
-    // The tab standing behind one of the desk's windows, for a scene that drives a window
-    // its application shows one tab of at a time. Kept out of the desk: a tab that is not in
-    // front answers the frame it had when it last was, so a check made over every subject
+    // The tab behind one of the desk's windows, for a scene that drives a window its
+    // application shows one tab of at a time. Kept out of the desk: a tab that is not in
+    // front reports the frame it had when it last was, so a check made over every subject
     // would read a value that cannot change.
     let backgroundTab: Subject?
 
@@ -128,12 +128,12 @@ struct Session {
 
     var subjects: [Subject] { others + [movable] }
 
-    // Every instance is a whole desk of its own, so a run at two costs what a run at one
-    // costs twice over, and the difference between them is what a window is worth.
+    // Every instance is a whole desk of its own, so a run at two costs twice what a run at
+    // one costs, and the difference between them is what a window adds.
     //
-    // An arranged desk stands in the four quarters of the screen instead of wherever
-    // macOS put it, for a run that asserts which window a focus move lands on and has to
-    // know the geometry to do it.
+    // An arranged desk is put in the four quarters of the screen instead of wherever macOS
+    // placed it, for a run that asserts which window a focus move lands on and has to know
+    // the geometry to do it.
     //
     // A tabbed desk shows a second terminal window merged into the first, so the run drives
     // one window its application shows a tab of at a time.
@@ -158,8 +158,8 @@ struct Session {
         let ottowm = launchOttoWM()
 
         // Each window is claimed as it is found, because two instances of the same desk put
-        // two windows of the same application on screen and the second must not answer to
-        // the first one's title.
+        // two windows of the same application on screen and the second must not be matched
+        // by the first one's title.
         var claimed: [AXUIElement] = []
         let windows = sources.map { source -> (String, String, AXUIElement) in
             let window = openWindow(source, claimed: claimed)
@@ -172,8 +172,8 @@ struct Session {
 
         if arranged { arrange(windows) }
 
-        // Everything is up, nothing else is about to move on its own, so what the windows
-        // read now is what they take back after every switch.
+        // Everything is up and nothing else moves on its own, so the frames read now are
+        // the ones the windows go back to after every switch.
         Thread.sleep(forTimeInterval: windowSettleSeconds)
 
         let hiddenEdgeX = CGDisplayBounds(CGMainDisplayID()).maxX - 1
@@ -193,9 +193,9 @@ struct Session {
 
         guard let movable = subjects.last else { fail("no window to drive") }
 
-        // The two tabs are one window, so the one standing behind takes the frame the desk
-        // window was arranged to rather than the frozen one it answers before it is brought
-        // to the front.
+        // The two tabs are one window, so the one behind takes the frame the desk window
+        // was arranged to rather than the stale one it reports before it is brought to the
+        // front.
         let backgroundTab = tab.map { source, window -> Subject in
             guard let front = subjects.first(where: { $0.bundleId == source.bundleId }) else {
                 fail("the desk shows no \(source.bundleId) window for the tab to stand behind")
@@ -219,7 +219,7 @@ struct Session {
     }
 
     // The subject opened in the named application, for a scene that drives one of the
-    // standing windows rather than the movable one.
+    // desk's other windows rather than the movable one.
     func subject(named name: String) -> Subject {
         guard let subject = subjects.first(where: { $0.name == name }) else {
             fail("no subject named \(name)")
@@ -227,13 +227,13 @@ struct Session {
         return subject
     }
 
-    // Waits for the focus a hotkey was asked to move, and says where it actually is when
-    // it gives up.
+    // Waits for the focus a hotkey was asked to move, and reports where it actually is
+    // when it gives up.
     func expectFocused(_ subject: Subject) {
         eventually("the \(subject.name) window took the focus") { subject.lacksFocus() }
     }
 
-    // Where every window stands right now, for a wait that gives up without one.
+    // Where every window is right now, for the message a wait prints when it gives up.
     var standing: String {
         subjects
             .map { "\($0.name) \(isParked($0) ? "parked" : "at \($0.frame().map { "\($0.origin)" } ?? "nowhere")")" }
@@ -246,8 +246,8 @@ struct Session {
         return frame.minX >= hiddenEdgeX - hiddenEdgeMargin
     }
 
-    // Waits for every subject to satisfy the expectation, and says which ones do not and
-    // where they stand when it gives up.
+    // Waits for every subject to satisfy the expectation, and reports which ones do not
+    // and where they are when it gives up.
     func expect(_ description: String, _ subjects: [Subject], _ satisfies: (Subject) -> Bool) {
         eventually(description) {
             let pending = subjects.filter { !satisfies($0) }
@@ -281,7 +281,8 @@ struct Session {
         Thread.sleep(forTimeInterval: tapSettleSeconds)
     }
 
-    // The desk OttoWM took over is owed back whole when it goes.
+    // OttoWM puts every parked window back on the way out, so a check of the desk waits
+    // for it to exit.
     func waitForExit() {
         eventually("OttoWM exited") { [ottowm] in
             ottowm.isRunning ? "still running" : nil
@@ -296,8 +297,8 @@ struct Session {
 
 // Opens the second terminal window and merges it into the one the desk already shows.
 // Merged before the desk is arranged, and with the desk's own window brought back to the
-// front after: the merge leaves whichever window it pleases in front, and what the run
-// arranges and reads from there has to be the tab it claimed. The tab bar goes up before
+// front after: the merge leaves an arbitrary window in front, and what the run arranges and
+// reads afterwards has to be the tab it claimed. The tab bar goes up before
 // the second window opens so neither of them changes size when they become tabs.
 private func stageTab(
     alongside windows: [(String, String, AXUIElement)], claimed: inout [AXUIElement]
@@ -325,10 +326,10 @@ private func launchOttoWM() -> Process {
 
     guard (try? ottowm.run()) != nil else { fail("cannot launch \(ottowm.executableURL!.path)") }
 
-    // Waited out rather than merely asked to quit, and killed if it will not: the next
+    // Waited out rather than only asked to quit, and killed if it does not go: the next
     // harness run refuses to start while an OttoWM is up, and CI runs them back to back.
-    // A SIGTERM landing while the app is still working through the last events it was
-    // sent is one AppKit takes its time with.
+    // AppKit takes its time with a SIGTERM that lands while the app is still working
+    // through the events it was sent.
     cleanups.append {
         guard ottowm.isRunning else { return }
 
@@ -362,7 +363,7 @@ private func launchOttoWM() -> Process {
     }
 
     // The launch line is logged a few statements before the event tap is created, and a
-    // hotkey posted in between is simply lost.
+    // hotkey posted in between is lost.
     Thread.sleep(forTimeInterval: tapSettleSeconds)
 
     return ottowm

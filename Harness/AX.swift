@@ -24,9 +24,8 @@ func axFrame(of window: AXUIElement) -> CGRect? {
     return CGRect(origin: origin, size: size)
 }
 
-// Puts a window where a scene needs it, for a run that has to know the desk's geometry
-// rather than take whatever macOS chose. The application may clamp or round what it is
-// handed, so whoever cares about the outcome reads the frame back.
+// Puts a window where a run needs it, rather than wherever macOS placed it. The
+// application may clamp or round the frame, so a caller that cares reads it back.
 func setAXFrame(of window: AXUIElement, to frame: CGRect) {
     var origin = frame.origin
     var size = frame.size
@@ -47,8 +46,8 @@ func title(of window: AXUIElement) -> String? {
     attribute(window, kAXTitleAttribute) as? String
 }
 
-// A named item of a named menu, pressable without the menu ever being opened, which is
-// how the harness asks an application for something no command line flag offers.
+// A named item of a named menu, pressable without opening the menu. Used for what no
+// command line flag offers.
 func menuItem(ofApplication pid: pid_t, menu: String, named name: String) -> AXUIElement? {
     guard let bar = attribute(AXUIElementCreateApplication(pid), kAXMenuBarAttribute) else { return nil }
 

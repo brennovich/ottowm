@@ -34,10 +34,10 @@ struct Neighbors {
         return (sharesLane(candidate.value, to: direction) ? 0 : 1, travelled, across, candidate.key)
     }
 
-    /// A window that only clips the reference by an edge does not stand in its lane: one
-    /// wide enough to reach into the next column would rank ahead of the window directly
-    /// below it on a few points of distance. The two line up when either center falls
-    /// within the span of the other.
+    /// A window that only overlaps the reference by an edge is not in its lane: one wide
+    /// enough to reach into the next column would rank ahead of the window directly below it
+    /// on a few points of distance. Two windows share a lane when either center falls within
+    /// the span of the other.
     private func sharesLane(_ candidate: CGRect, to direction: Direction) -> Bool {
         if direction.isVertical {
             return (candidate.midX >= reference.minX && candidate.midX <= reference.maxX)

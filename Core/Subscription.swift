@@ -1,12 +1,12 @@
 import ApplicationServices
 
 final class Subscription {
-    /// What a process answered when its notifications were registered.
+    /// The result of registering a process's notifications.
     enum Outcome: String {
         case active
-        /// The process reports it has no such notification. It will not grow one.
+        /// The process reports it has no such notification. A later attempt returns the same.
         case unsupported
-        /// The process did not answer. It may answer a later attempt.
+        /// The process did not reply. A later attempt may succeed.
         case unreachable
     }
 

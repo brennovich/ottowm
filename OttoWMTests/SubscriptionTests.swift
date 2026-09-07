@@ -31,7 +31,7 @@ final class SubscriptionTests: XCTestCase {
         XCTAssertEqual(Set(registered.map(\.element)), [element])
     }
 
-    func testActivateReportsAChannelThatDoesNotAnswerAsUnreachable() {
+    func testActivateReportsAChannelThatDoesNotReplyAsUnreachable() {
         answer = .cannotComplete
         let subscription = Subscription.application(pid: 901, channel: channel)
 

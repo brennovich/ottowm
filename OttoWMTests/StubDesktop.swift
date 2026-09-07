@@ -29,7 +29,7 @@ final class StubDesktop: Desktop {
         }
     }
 
-    /// Records the request, and answers a park with a frame: every other frame a change
+    /// Records the request, and returns a frame for a park: every other frame a change
     /// resolves to needs the screen bounds, which the real desktop owns.
     func reframe(_ changes: [(windowId: CGWindowID, change: FrameChange)]) -> [FrameOutcome] {
         reframeBatches.append(changes.map(\.windowId))

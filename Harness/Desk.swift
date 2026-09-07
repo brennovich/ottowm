@@ -15,15 +15,15 @@ private func launching(_ application: String) -> (URL) -> Void {
 }
 
 // `open -a Safari` hands the page to the window that is already up rather than putting a
-// new one up, and a tab that is not the active one cannot be read through the
-// accessibility API, so the second desk's page opens and is unfindable at once. Safari is
-// asked for the empty window first and handed the page after, because the page goes to
-// whichever window is frontmost.
+// new one up, and a tab that is not the active one cannot be read through the accessibility
+// API, so the second desk's page opens where it cannot be found. Safari is asked for an
+// empty window first and handed the page after, because the page goes to whichever window
+// is frontmost.
 //
 // Asked through the File menu rather than the scriptable way: pressing a menu item needs
 // only the Accessibility permission this run already holds, where `make new document`
 // needs an Automation grant that a machine with nobody at it never gets, and takes the
-// two minute AppleEvent timeout to say so.
+// two minute AppleEvent timeout to report it.
 private func openSafariPage(_ url: URL) {
     if let safari = NSRunningApplication.runningApplications(withBundleIdentifier: safariBundleId).first {
         openEmptyWindow(of: safari)
@@ -41,8 +41,8 @@ private func openEmptyWindow(of safari: NSRunningApplication) {
     let standing = windows(ofApplication: safari.processIdentifier).count
     AXUIElementPerformAction(newWindow, kAXPressAction as CFString)
 
-    // Waited for rather than pressed and trusted: the page opens in whichever window is
-    // frontmost, and the window this asked for arrives a moment after the press returns.
+    // Waited for rather than assumed: the page opens in whichever window is frontmost, and
+    // the window this asked for arrives a moment after the press returns.
     eventually("Safari puts up an empty window", announce: false) {
         windows(ofApplication: safari.processIdentifier).count > standing ? nil : "still \(standing) windows"
     }
@@ -75,9 +75,9 @@ func stageDesk(instances: Int) -> [WindowSource] {
 }
 
 // One desk: a file browser, a terminal, a browser and an editor, because a workspace
-// switch costs what the windows standing on it cost. Everything it shows is named after
-// this run and this instance, so every window carries a title no other window on the
-// screen, nor any window of another instance, can answer to.
+// switch costs what the windows on it cost. Everything it shows is named after this run and
+// this instance, so no other window on the screen carries the same title, those of another
+// instance included.
 private func deskInstance(_ instance: Int) -> [WindowSource] {
     let stamp = "\(temporaryDirectory.lastPathComponent)-\(instance)"
     let directory = temporaryDirectory.appendingPathComponent(stamp)
@@ -115,7 +115,7 @@ private func deskInstance(_ instance: Int) -> [WindowSource] {
 
 // A second window of the desk's terminal, for a run that merges the two into one window
 // showing a tab of each. Named after a directory of its own so the window the desk already
-// claimed cannot answer to it.
+// claimed cannot be matched by it.
 func stageTabSource() -> WindowSource {
     let stamp = "\(temporaryDirectory.lastPathComponent)-tab"
     let directory = temporaryDirectory.appendingPathComponent(stamp)
@@ -141,9 +141,9 @@ func arrange(_ windows: [(String, String, AXUIElement)]) {
         let target = quarters[index % quarters.count].insetBy(dx: 10, dy: 10)
 
         // Written until it takes rather than once: a window that has just opened drops the
-        // position write while it is still settling, Finder does. Checking only that the
-        // window landed somewhere in its quarter passed over that, and left the run
-        // asserting focus moves against a desk it had not arranged.
+        // position write while it is still settling, as Finder does. Checking only that the
+        // window landed somewhere in its quarter missed that, and left the run asserting
+        // focus moves against a desk it had not arranged.
         eventually("\(name) sits in its quarter", announce: false) {
             setAXFrame(of: window, to: target)
             guard let frame = axFrame(of: window) else { return "\(name) reads no frame" }
@@ -180,8 +180,8 @@ func openWindow(_ source: WindowSource, claimed: [AXUIElement]) -> AXUIElement {
 
     var opened: AXUIElement?
 
-    // An application that was already there belongs to whoever opened it, only the window
-    // this run added goes away. One it launched itself goes away whole.
+    // An application that was already running belongs to whoever opened it, so only the
+    // window this run added is closed. One the run launched itself is quit.
     cleanups.append {
         guard wasRunning else {
             NSRunningApplication.runningApplications(withBundleIdentifier: source.bundleId)

@@ -1,6 +1,6 @@
-# OttoWM's' example configuration
+# OttoWM example configuration
 #
-# This simple declarative file maps out key combos and supported actions.
+# One `key combo = action` per line.
 
 # Go to a workspace: 4 Workspaces example
 lopt-1 = switch-to-workspace 1

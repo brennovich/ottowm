@@ -26,7 +26,7 @@ final class AdmissionTests: EngineTestCase {
     }
 
     /// The shape rules a window out for good, so it is refused rather than retried even
-    /// where the desktop alone would say to read again.
+    /// when the desktop alone would call for another read.
     func testRefusesAWindowItsShapeRulesOutWhileAnotherNativeSpaceIsInFront() {
         let elsewhere = add(StubWindow(id: 100))
         workspaces.assign(elsewhere.snapshot(), to: 1)

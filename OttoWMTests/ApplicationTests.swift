@@ -51,7 +51,7 @@ final class ApplicationTests: XCTestCase {
         XCTAssertEqual(application.windows.map(\.id).sorted(), [42, 43])
     }
 
-    func testScanOfAnApplicationThatDoesNotAnswerReadsNoWindow() {
+    func testScanOfAnApplicationThatDoesNotReplyReadsNoWindow() {
         answer = .cannotComplete
         listed = [window(id: 42)]
         focused = window(id: 300, element: AXUIElementCreateApplication(5002))
@@ -66,7 +66,7 @@ final class ApplicationTests: XCTestCase {
         XCTAssertEqual(application.windows, [])
     }
 
-    func testScanAttachesTheFocusedWindowOfTheActiveApplicationFirstAndAnswersItApart() {
+    func testScanAttachesTheFocusedWindowOfTheActiveApplicationFirstAndReturnsItApart() {
         let tab = window(id: 300, element: AXUIElementCreateApplication(5002))
         let other = window(id: 42, element: AXUIElementCreateApplication(5000))
         focused = tab
@@ -90,7 +90,7 @@ final class ApplicationTests: XCTestCase {
         XCTAssertEqual(application.windows, [])
     }
 
-    func testAttachSubscribesTheWindowNotificationsAndAnswersAttached() {
+    func testAttachSubscribesTheWindowNotificationsAndReturnsAttached() {
         let element = AXUIElementCreateApplication(5000)
         let attached = window(id: 42, element: element)
 
@@ -102,7 +102,7 @@ final class ApplicationTests: XCTestCase {
         XCTAssertEqual(Set(watched.map(\.element)), [element])
     }
 
-    func testAttachOfAKnownWindowAnswersTheRegisteredInstanceWithoutReadingItsIdOrSubscribingItAgain() {
+    func testAttachOfAKnownWindowReturnsTheRegisteredInstanceWithoutReadingItsIdOrSubscribingItAgain() {
         let element = AXUIElementCreateApplication(5000)
         let first = window(id: 42, element: element)
         application.attach(first)
@@ -115,7 +115,7 @@ final class ApplicationTests: XCTestCase {
         XCTAssertEqual(watched.count, count)
     }
 
-    func testAttachOfAWindowWithoutAnIdAnswersRejected() {
+    func testAttachOfAWindowWithoutAnIdReturnsRejected() {
         let attachment = application.attach(window(id: 0))
 
         XCTAssertEqual(attachment, .rejected)
@@ -123,7 +123,7 @@ final class ApplicationTests: XCTestCase {
         XCTAssertEqual(watched.count, 0)
     }
 
-    func testAttachOfAnApplicationThatDoesNotAnswerStillAttachesTheWindow() {
+    func testAttachOfAnApplicationThatDoesNotReplyStillAttachesTheWindow() {
         answer = .cannotComplete
         let attached = window(id: 42)
 

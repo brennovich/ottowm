@@ -1,6 +1,6 @@
 import Foundation
 
-// One timed operation: how long it took, and how closely it was watched while it ran.
+// One timed operation: how long it took, and how often it was read while it ran.
 struct Observation {
     let milliseconds: Double
     let sampling: Sampling
@@ -60,8 +60,7 @@ struct Latency {
     }
 }
 
-// How closely the harness was watching: the mean gap between two reads of the desk is
-// the resolution every number here is quoted at.
+// The mean gap between two reads of the desk, the resolution every latency is quoted at.
 struct Sampling {
     private var polls = 0
     private var nanoseconds: UInt64 = 0
@@ -90,17 +89,17 @@ struct Summary: Codable {
     let p95: Double
     let max: Double
     let mean: Double
-    // What the mean is worth as a rate, the operations a second of nothing but this one
-    // would fit. A latency turned around, not a throughput anyone measured.
+    // The mean as a rate: the operations one second would fit. A latency inverted, not a
+    // throughput anyone measured.
     let perSecond: Double
     // The mean gap between two reads of the desk while this operation was running. Every
-    // latency above is that much coarse, and biased high by about half of it.
+    // latency above is only good to that much, and biased high by about half of it.
     let resolution: Double
     let samples: [Double]
 }
 
-// What a run is worth comparing against: the same numbers from another machine, or from
-// another build on the same one, are only alike when these match.
+// The machine and build a run's numbers came from: numbers from another machine, or from
+// another build on the same one, are comparable only when these match.
 struct Record: Codable {
     let recordedAt: String
     let version: String
@@ -166,7 +165,7 @@ struct Record: Codable {
         String(format: "%.1f", value)
     }
 
-    // Naming every window stops saying anything once there is more than one desk of them.
+    // Listing every window says nothing once there is more than one desk of them.
     private var desk: String {
         var seen: Set<String> = []
         let kinds = windows.filter { seen.insert($0).inserted }.joined(separator: ", ")

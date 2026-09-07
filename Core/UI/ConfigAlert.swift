@@ -1,12 +1,7 @@
 import AppKit
 
-/// Displays the config error that stopped a load, with two interactions:
-/// 1. Restart and 2. dismiss, which quits at boot and keeps the bindings
-/// already up on a reload.
-///
-/// - Returns:
-///   - `.restart`: relaunch OttoWM.
-///   - `.dismiss`: the alert was dismissed.
+/// The alert showing the config error that stopped a load. `.restart` relaunches OttoWM,
+/// `.dismiss` quits at boot and keeps the bindings already up on a reload.
 enum ConfigAlert {
     enum Request {
         case boot

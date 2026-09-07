@@ -123,7 +123,7 @@ report("posting lopt-shift-1 and lopt-1 to take the tabbed window home")
 terminal.focus()
 moveWindowToWorkspace(1)
 switchToWorkspace(1)
-session.expect("the whole desk stands on the workspace it started on", session.subjects) { $0.isWhereItWas }
+session.expect("the whole desk is back on the workspace it started on", session.subjects) { $0.isWhereItWas }
 
 report("posting lopt-shift-2")
 movable.focus()

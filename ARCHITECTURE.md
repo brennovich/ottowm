@@ -82,7 +82,7 @@ flowchart LR
 | `Half`                        | Model     | One side of a rect, taking half of it, with the gap kept between the two halves.        |
 | `FrameChange`                 | Model     | What a window's frame is asked to become: step, center, maximize, fill, park or unpark. |
 | `ParkedWindows`               | Model     | The windows parked at the hidden edge, and the frame each one was parked from.          |
-| `RestoringFrames`             | Model     | The frame each maximized or filled window goes back to, shared by its tabs.             |
+| `RestoringFrames`             | Model     | The frame each maximized or filled window restores to, shared by its tabs.              |
 | `Desktop`                     | macOS     | Manipulates the current workspace's windows.                                            |
 | `HiddenEdge`                  | macOS     | Where a parked window sits, and whether a frame sits there.                             |
 | `WindowSystem`                | macOS     | The focused window, the on-screen window frames, and the tab count of a window.         |
@@ -175,7 +175,7 @@ flowchart TB
     AXWindowEvents --> AXWindow
 ```
 
-`AXWindowEvents` pushes the AX notifications of the watched applications and the sweep. A scan, `start`, `discover` or `inventory`, answers with what it found, and `RunningApplicationsObserver` decides what to announce.
+`AXWindowEvents` pushes the AX notifications of the watched applications and the sweep. A scan (`start`, `discover` or `inventory`) returns what it found, and `RunningApplicationsObserver` decides what to announce.
 
 ### Lifecycle
 
@@ -319,7 +319,7 @@ sequenceDiagram
     WindowPlacement->>Desktop: reframe(unpark for one, park for the other)
 ```
 
-A Space change also pulls a parked window back on screen when its full screen instance exits. 
+A Space change also pulls a parked window back on screen when its full screen instance exits.
 
 ### Full screen round trip
 
@@ -451,12 +451,12 @@ An application lists only the active tab of a group, and sends no notification w
 flowchart LR
     win[window being assigned] --> tabs{more than one tab?}
     tabs -->|no| own["opens a new group"]
-    tabs -->|yes| match{"same application, fewer members than the window has tabs,<br/>same x, y within 10 pt, width and height within 30 pt<br/>of where a group stands now?"}
+    tabs -->|yes| match{"same application, fewer members than the window has tabs,<br/>same x, y within 10 pt, width and height within 30 pt<br/>of where a group is now?"}
     match -->|yes| join[joins that group]
     match -->|no| own
 ```
 
-Merging windows into tabs posts no notification, so a window seen before the merge still holds a group of its own. A window alone in its group is matched again every time it is added, one with siblings is not: it joins the group of the window it was merged into, and the group it leaves is retired. Matching reads the tab count, so it happens when a window is focused for an action or moved, not on a workspace switch.
+Merging windows into tabs posts no notification, so a window seen before the merge still holds a group of its own. A window alone in its group is matched again every time it is added, one with siblings is not: it joins the group of the window it was merged into, and the group it leaves is dropped. Matching reads the tab count, so it happens when a window is focused for an action or moved, not on a workspace switch.
 
 ### Group events
 

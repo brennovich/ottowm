@@ -33,11 +33,11 @@ CI runs it first in the `commit` job as `make lint/report`, which writes `build/
 
 ## Acceptance and benchmark
 
-`Acceptance/` is one scenario, a window sent to another workspace parks at the hidden edge and comes back, and the desk it was standing on goes with the workspace it belongs to. `Benchmark/` times the same hotkeys and prices them; see `Benchmark/README.md`.
+`Acceptance/` is one scenario: a window sent to another workspace parks at the hidden edge and comes back, and the rest of the desk moves with the workspace it belongs to. `Benchmark/` times the same hotkeys; see `Benchmark/README.md`.
 
 Both drive the app installed in `/Applications` through the harness in `Harness/`: real hotkeys through the event tap, real frames read back through the accessibility API. Run `make install` first, and grant Accessibility permission to the terminal running them. `Harness/README.md` covers the desk they run on, the permissions they need and what they leave behind.
 
-CI runs the acceptance scenarios on every push, on each macOS runner in the matrix. The benchmark has a workflow of its own, on a published release and on `workflow_dispatch`, where the runners take their turn one after the other: a measurement taken beside another job prices that job too.
+CI runs the acceptance scenarios on every push, on each macOS runner in the matrix. The benchmark has a workflow of its own, on a published release and on `workflow_dispatch`, where the runners take their turn one after the other: a measurement taken beside another job measures that job too.
 
 ## Profiling
 

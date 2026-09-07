@@ -3,8 +3,8 @@ import ApplicationServices
 import CoreGraphics
 
 final class AXWindowEvents {
-    /// What a scan answers with. `windows` are the snapshots it hands over and `focused`
-    /// the window that took the focus, kept apart so the caller can announce it as such.
+    /// The result of a scan. `focused` is kept out of `windows` so the caller can announce
+    /// it as a focus change.
     struct Attempt {
         let windows: [WindowSnapshot]
         let focused: WindowSnapshot?
@@ -86,10 +86,10 @@ final class AXWindowEvents {
         return attempt(of: application.scan())
     }
 
-    /// Answers with every window the application holds, the ones already attached and the
-    /// focused one included. Window events are dropped while the screen is locked, so the
-    /// registry and the workspaces drift apart behind the login window, and only a full
-    /// read closes the gap.
+    /// Every window the application holds, the ones already attached included.
+    ///
+    /// Window events are dropped while the screen is locked, so the registry and the
+    /// workspaces drift apart behind the login window, and only a full read closes the gap.
     func inventory(_ app: NSRunningApplication) -> Attempt? {
         guard let application = applications.find(by: app.processIdentifier) else { return nil }
 
@@ -101,10 +101,11 @@ final class AXWindowEvents {
         )
     }
 
-    /// The window in front, attached to its application if it was not yet: an application lists
-    /// only the active tab of a group, so a background tab is first met here or through the
-    /// focus notification. Nothing for a window without an id or of an application not watched,
-    /// which the registry could not reach afterwards anyway.
+    /// The window in front, attached to its application if it was not already.
+    ///
+    /// An application lists only the active tab of a group, so a background tab is first seen
+    /// here or through the focus notification. Nil for a window without an id, or of an
+    /// application that is not watched and that the registry could not reach anyway.
     func adoptFocusedWindow() -> WindowSnapshot? {
         guard let window = frontmostWindow(), let application = applications.find(by: window.pid) else {
             return nil
@@ -113,9 +114,11 @@ final class AXWindowEvents {
         return application.attach(window).window?.snapshot()
     }
 
-    /// A window is reported dead only after two passes without an answer. A single read
-    /// fails for a window that is alive: the sweep runs the moment the screen unlocks,
-    /// where an application still coming back from sleep answers for none of its windows.
+    /// Reports as destroyed the windows that failed two consecutive reads.
+    ///
+    /// One failed read does not mean the window is gone: the sweep runs the moment the screen
+    /// unlocks, and an application still coming back from sleep replies for none of its
+    /// windows.
     func sweepDeadWindows() {
         guard !screenIsLocked() else { return }
 
@@ -160,8 +163,8 @@ final class AXWindowEvents {
             guard case let .attached(attached) = app.attach(makeWindow(element, app.running)) else { return nil }
             return .created(attached.snapshot())
         case kAXFocusedWindowChangedNotification:
-            // A window already attached is reported again, from the registry: a repeated
-            // focus is an event, and the stored window has its id without a read.
+            // A window already attached is returned from the registry: a repeated focus is
+            // still an event, and the stored window has its id without a read.
             return app.attach(makeWindow(element, app.running)).window.map { .focused($0.snapshot()) }
         case kAXUIElementDestroyedNotification:
             return app.detach(element: element).map { WindowEvent.destroyed($0.id) }

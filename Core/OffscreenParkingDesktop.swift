@@ -133,9 +133,9 @@ final class OffscreenParkingDesktop: Desktop {
         }
     }
 
-    /// A window already at the target has nowhere further to go and takes the frame it came
-    /// from instead. Every target shares one record of that frame, so what says the window
-    /// is filled is where it stands, not that a record exists.
+    /// A window already at the target is moved back to the frame it came from. Every
+    /// target shares one record of that frame, so whether the window is filled is decided by
+    /// its current frame, not by the presence of a record.
     private func destination(
         _ current: CGRect,
         filling target: CGRect,
@@ -154,10 +154,12 @@ final class OffscreenParkingDesktop: Desktop {
         screen.visibleFrame.insetBy(dx: inset, dy: inset)
     }
 
-    /// A window rarely settles at the size it was given: Terminal quantizes its height to
-    /// whole rows, which at a large font size is tens of points. A window this close to the
-    /// target fills it, and the frame it stands at must not be recorded as the one to go
-    /// back to: taking it there would leave it filled.
+    /// Whether the window covers the target, within a tolerance.
+    ///
+    /// A window rarely settles at the size it was given: Terminal rounds its height to whole
+    /// rows, tens of points at a large font size. The current frame of a window within the
+    /// tolerance must not be recorded as the one to restore: restoring it would leave the
+    /// window filled.
     private func fills(_ current: CGRect, _ target: CGRect) -> Bool {
         abs(current.minX - target.minX) <= Self.filledTolerance
             && abs(current.minY - target.minY) <= Self.filledTolerance
@@ -180,7 +182,7 @@ final class OffscreenParkingDesktop: Desktop {
         guard hiddenEdge.holds(frame) else { return frame }
 
         let recovered = centered(frame.size)
-        Log.desktop.info("id=\(windowId) frame \(frame) sits at the hidden edge, taking \(recovered) instead")
+        Log.desktop.info("id=\(windowId) frame \(frame) is at the hidden edge, taking \(recovered) instead")
         return recovered
     }
 

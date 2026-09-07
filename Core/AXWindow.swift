@@ -8,11 +8,11 @@ import CoreGraphics
 @discardableResult
 private func _AXUIElementGetWindow(_ element: AXUIElement, _ id: inout CGWindowID) -> AXError
 
-/// A live macOS application's window reached driven the Accessibility API.
+/// A window of a running application, driven through the Accessibility API.
 ///
-/// Keeps the element and its application because the interface is split between
-/// them. Attributes, actions and the window id come from the element; activation
-/// and `AXEnhancedUserInterface` are only on the application.
+/// Holds the element and its application because the API is split between them:
+/// attributes, actions and the window id come from the element, activation and
+/// `AXEnhancedUserInterface` only from the application.
 ///
 /// Every read and write is a round trip into the owning process, so attributes are
 /// read in batches and the id is read once.
@@ -75,8 +75,8 @@ final class AXWindow: Window, WindowLogDescribing {
     }
 
     /// An application animates a frame write while `AXEnhancedUserInterface` is on.
-    /// macOS turns that attribute on as soon as an assistive client attaches.
-    /// Also, A read mid animation returns the old position.
+    /// macOS turns that attribute on as soon as an assistive client attaches, and a read
+    /// mid animation returns the old position.
     ///
     /// Credited to yabai and Rectangle, via AeroSpace.
     func withoutAnimations(_ body: () -> Void) {
@@ -139,16 +139,15 @@ final class AXWindow: Window, WindowLogDescribing {
             Log.window.debug("tabCount children read failed \(self.logDescription), assuming 1")
             return 1
         }
-        return children.lazy
+        let tabs = children.lazy
             .compactMap { child -> [AXUIElement]? in
                 let attributes = child.values(of: [.role, .children])
                 guard AXRole(attributes[.role]) == .tabGroup else { return nil }
                 return attributes[.children] as? [AXUIElement]
             }
-            .first
-            .map { tabs in
-                max(tabs.filter { AXRole($0.value(of: .role)) == .radioButton }.count, 1)
-            } ?? 1
+            .first ?? []
+
+        return max(tabs.filter { AXRole($0.value(of: .role)) == .radioButton }.count, 1)
     }
 
     private static var activationOptions: NSApplication.ActivationOptions {
@@ -174,8 +173,7 @@ final class AXWindow: Window, WindowLogDescribing {
     }
 }
 
-/// A window is identified by its element: the id does not tell two windows apart, tabs of
-/// one group share it.
+/// A window is identified by its element: tabs of one group share an id.
 extension AXWindow: Hashable {
     static func == (lhs: AXWindow, rhs: AXWindow) -> Bool {
         lhs.element == rhs.element

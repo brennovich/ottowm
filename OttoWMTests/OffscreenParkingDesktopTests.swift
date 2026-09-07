@@ -79,8 +79,8 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(win.animatedWriteCount, 0)
     }
 
-    /// A window rarely settles at the frame it was given: Terminal quantizes its height to
-    /// whole rows. A window within the tolerance of the target stands at it.
+    /// A window rarely settles at the frame it was given: Terminal rounds its height to
+    /// whole rows. A window within the tolerance counts as filling the target.
     func testMaximizeTakesAWindowShortOfTheFilledFrameBackToTheFrameHandedIn() {
         let short = addWindow(101, frame: CGRect(x: 15, y: 53, width: 1762, height: 1051))
 
@@ -88,9 +88,9 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(short.frame, originalFrame)
     }
 
-    /// A window that already fills the screen has no frame to go back to, and the frame it
-    /// is at is not one worth recording: taking it back there would leave it filled. The
-    /// window settles a few points short of the filled frame, which still counts as filled.
+    /// A window that already fills the screen has no frame to restore to, and its current
+    /// frame must not be recorded: restoring it would leave the window filled. The window
+    /// settles a few points short of the filled frame, which still counts as filled.
     func testMaximizeLeavesAFilledWindowAloneWithNothingToRestore() {
         let shortOfFilled = CGRect(x: 15, y: 53, width: 1762, height: 1045)
         let filled = addWindow(101, frame: shortOfFilled)
@@ -111,8 +111,8 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(win.frame, CGRect(x: 15, y: 53, width: 873.5, height: 1052))
     }
 
-    /// One record serves every target, so a window standing in one half still fills the
-    /// screen rather than going back to the frame that record holds.
+    /// One record serves every target, so a window in one half still fills the screen
+    /// rather than restoring to the frame that record holds.
     func testFillingAcrossTargetsMovesOnRatherThanRestoring() {
         let west = addWindow(101, frame: CGRect(x: 15, y: 53, width: 873.5, height: 1052))
 

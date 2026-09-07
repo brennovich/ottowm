@@ -35,8 +35,8 @@ final class WindowPlacementTests: EngineTestCase {
     }
 
     /// macOS reports no merge, so the group of a window merged into another window's tabs
-    /// since it was assigned is settled before it moves, and the window it stands in goes
-    /// whole.
+    /// since it was assigned is matched before it moves, and every tab of that window moves
+    /// with it.
     func testMoveTakesTheTabsAWindowWasMergedIntoSinceItWasAssigned() {
         let host = add(StubWindow(id: 300, appName: "Terminal", frame: tabFrame))
         let apart = add(StubWindow(id: 301, appName: "Terminal", frame: CGRect(x: 1200, y: 0, width: 800, height: 600)))

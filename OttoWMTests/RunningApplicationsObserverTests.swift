@@ -18,9 +18,9 @@ final class RunningApplicationsObserverTests: XCTestCase {
         XCTAssertEqual(harness.events, [])
     }
 
-    // Subscribing means a handful of round trips into one process, and a process that
-    // does not answer holds its thread for the whole messaging timeout. Serialised, one
-    // silent process delays every application behind it.
+    // Subscribing means a handful of round trips into one process, and a process that does
+    // not reply holds its thread for the whole messaging timeout. Serialised, one silent
+    // process delays every application behind it.
     func testStartOverlapsTheApplicationsItSubscribes() {
         harness.apps = (1...8).map { StubRunningApplication(pid: pid_t(900 + $0)) }
         let firstSubscribe = DispatchSemaphore(value: 1)
@@ -120,7 +120,7 @@ final class RunningApplicationsObserverTests: XCTestCase {
         XCTAssertNotNil(harness.callbacks[901])
     }
 
-    func testApplicationLaunchWithUnreadyAccessibilityIsRetriedUntilItAnswers() {
+    func testApplicationLaunchWithUnreadyAccessibilityIsRetriedUntilItReplies() {
         let app = StubRunningApplication(pid: 901)
         harness.unreadyPids = [901]
         _ = harness.start()
@@ -177,9 +177,8 @@ final class RunningApplicationsObserverTests: XCTestCase {
         XCTAssertLessThanOrEqual(attempts, 10)
     }
 
-    // `notificationUnsupported` is the process answering that it has no notifications
-    // to give, not that it is still waking up. Waiting out the grace period on it only
-    // spends the attempts again.
+    // `notificationUnsupported` means the process has no such notifications, not that it is
+    // still waking up. Waiting out the grace period on it only spends the attempts again.
     func testSubscriptionIsNotRetriedForAProcessWithoutNotificationSupport() {
         harness.apps = [StubRunningApplication(pid: 901)]
         harness.windows.unsupportedPids = [901]

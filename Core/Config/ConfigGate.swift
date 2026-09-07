@@ -1,10 +1,6 @@
-/// ConfigGate reads the config OttoWM boots with, and offers the user to restart
-/// or to quit when it does not parse.
-///
-/// - Returns:
-///   - `.loaded`: the config to bind.
-///   - `.relaunching`: a new instance is on its way up.
-///   - `.quit`: the alert was dismissed.
+/// Reads the config OttoWM boots with, and offers the user a restart or a quit when it does
+/// not parse: `.loaded` carries the config to bind, `.relaunching` means a new instance is
+/// coming up, `.quit` that the alert was dismissed.
 struct ConfigGate {
     enum Outcome: Equatable {
         case loaded(Config)
