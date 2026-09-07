@@ -31,10 +31,20 @@ struct Neighbors {
         let travelled = direction.isVertical ? abs(center.y - reference.midY) : abs(center.x - reference.midX)
         let across = direction.isVertical ? abs(center.x - reference.midX) : abs(center.y - reference.midY)
 
-        let sharesLane = direction.isVertical
-            ? candidate.value.minX < reference.maxX && candidate.value.maxX > reference.minX
-            : candidate.value.minY < reference.maxY && candidate.value.maxY > reference.minY
+        return (sharesLane(candidate.value, to: direction) ? 0 : 1, travelled, across, candidate.key)
+    }
 
-        return (sharesLane ? 0 : 1, travelled, across, candidate.key)
+    /// A window that only clips the reference by an edge does not stand in its lane: one
+    /// wide enough to reach into the next column would rank ahead of the window directly
+    /// below it on a few points of distance. The two line up when either center falls
+    /// within the span of the other.
+    private func sharesLane(_ candidate: CGRect, to direction: Direction) -> Bool {
+        if direction.isVertical {
+            return (candidate.midX >= reference.minX && candidate.midX <= reference.maxX)
+                || (reference.midX >= candidate.minX && reference.midX <= candidate.maxX)
+        }
+
+        return (candidate.midY >= reference.minY && candidate.midY <= reference.maxY)
+            || (reference.midY >= candidate.minY && reference.midY <= candidate.maxY)
     }
 }

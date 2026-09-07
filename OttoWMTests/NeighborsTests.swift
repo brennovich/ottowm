@@ -42,6 +42,15 @@ final class NeighborsTests: XCTestCase {
         XCTAssertEqual(neighbors.nearest(to: .north), 200)
     }
 
+    func testWindowOnlyClippingTheLaneLosesToOneLinedUpWithIt() {
+        let neighbors = Neighbors(around: reference, among: [
+            100: CGRect(x: 1150, y: 700, width: 400, height: 190),
+            200: CGRect(x: 800, y: 700, width: 400, height: 200),
+        ])
+
+        XCTAssertEqual(neighbors.nearest(to: .south), 200)
+    }
+
     func testNearestAlongTheAxisWinsAmongWindowsSharingRows() {
         let neighbors = Neighbors(around: reference, among: [
             100: CGRect(x: 1600, y: 450, width: 400, height: 200),
