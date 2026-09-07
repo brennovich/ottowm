@@ -1,11 +1,12 @@
 import CoreGraphics
 
-/// The windows that belong to a workspace. Keeps each one's membership and its placement on
-/// the desktop in step: a window of the current workspace is active, any other is parked.
+/// Keeps a window's workspace membership and its placement on the desktop in step: a window
+/// of the current workspace is active, any other is parked.
 final class WindowPlacement {
     private let desktop: any Desktop
     private let windowSystem: WindowSystem
     private let workspaces: Workspaces
+    private let admission: Admission
     private let parkedWindows: ParkedWindows
     private let filledWindows: FilledWindows
 
@@ -13,39 +14,16 @@ final class WindowPlacement {
         desktop: any Desktop,
         windowSystem: WindowSystem,
         workspaces: Workspaces,
+        admission: Admission,
         parkedWindows: ParkedWindows,
         filledWindows: FilledWindows
     ) {
         self.desktop = desktop
         self.windowSystem = windowSystem
         self.workspaces = workspaces
+        self.admission = admission
         self.parkedWindows = parkedWindows
         self.filledWindows = filledWindows
-    }
-
-    var isDesktopInFront: Bool {
-        let managed = workspaces.allWindowIds
-        if managed.isEmpty || windowSystem.showsAny(managed) { return true }
-
-        guard let focused = windowSystem.focused(), windowSystem.shows(focused.id) else { return false }
-        return workspaces.hasTabGroup(for: focused)
-    }
-
-    private func canAdmit(_ win: WindowSnapshot) -> Bool {
-        guard isDesktopInFront else {
-            Log.engine.debug("\(win.logDescription) ignored: another native Space is in front")
-            return false
-        }
-        guard win.isAdmissible else {
-            Log.engine.debug("\(win.logDescription) ignored: not admissible")
-            return false
-        }
-        guard windowSystem.shows(win.id) else {
-            Log.engine.debug("\(win.logDescription) ignored: not on screen")
-            return false
-        }
-
-        return true
     }
 
     func isParked(_ windowId: CGWindowID) -> Bool {
@@ -59,7 +37,7 @@ final class WindowPlacement {
     @discardableResult
     func assign(_ win: WindowSnapshot, to workspace: Int) -> Int? {
         if let known = workspaces.workspace(for: win.id) { return known }
-        guard canAdmit(win) else { return nil }
+        guard admission.verdict(for: win) == .admit else { return nil }
 
         let assigned = workspaces.assign(win, to: workspace)
         filledWindows.shareFrame(with: win.id)
@@ -94,7 +72,7 @@ final class WindowPlacement {
 
     @discardableResult
     func move(_ win: WindowSnapshot, to workspace: Int) -> Bool {
-        guard canAdmit(win) else { return false }
+        guard admission.verdict(for: win) == .admit else { return false }
 
         let parked = workspace != workspaces.current
         Log.engine.info("moving window \(win.logDescription) to workspace \(workspace) parked=\(parked)")
@@ -110,7 +88,7 @@ final class WindowPlacement {
     }
 
     func followBackFromFullScreen(_ win: WindowSnapshot, to workspace: Int) -> Bool {
-        guard canAdmit(win) else { return false }
+        guard admission.verdict(for: win) == .admit else { return false }
 
         Log.engine.info("\(win.logDescription) is back from full screen → workspace \(workspace)")
         if workspace != workspaces.current {
@@ -120,7 +98,7 @@ final class WindowPlacement {
     }
 
     func switchTo(_ workspace: Int) {
-        let focusToKeep = windowSystem.focused().flatMap { canAdmit($0) ? $0.id : nil }
+        let focusToKeep = windowSystem.focused().flatMap { admission.verdict(for: $0) == .admit ? $0.id : nil }
         let placements = workspaces.switchTo(workspace, leavingFocusOn: focusToKeep)
         Log.engine.info("switching to \(workspace) activating=\(placements.activating) parking=\(placements.parking)")
 

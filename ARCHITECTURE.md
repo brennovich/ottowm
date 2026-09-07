@@ -67,8 +67,9 @@ flowchart LR
 | `Config`                      | Input     | The `KeyCombo → Action` table, indexed by key code.                                     |
 | `Bindings`                    | Input     | The bindings currently up: `start`, `stop`, `reload`.                                   |
 | `Hotkeys`                     | Input     | A session `CGEventTap` on keyDown, running on a thread of its own.                      |
-| `Engine`                      | Engine    | Runs each window event and action as one operation over the four parts below.           |
-| `WindowPlacement`             | Engine    | Admits a window, and keeps its workspace membership and desktop placement in step.      |
+| `Engine`                      | Engine    | Runs each window event and action as one operation over the five parts below.           |
+| `Admission`                   | Engine    | Whether a window can be taken now, may be worth reading again, or never qualifies.      |
+| `WindowPlacement`             | Engine    | Keeps a window's workspace membership and its desktop placement in step.                |
 | `WindowEnrollment`            | Engine    | Enrolls a window announced before it was on screen, retrying the read for a moment.     |
 | `Navigation`                  | Engine    | Restores the focus after a change, and follows the user to the workspace they focused.  |
 | `FullScreenReturns`           | Engine    | Notices a window back from full screen on every event, and polls after a Space change.  |
@@ -125,6 +126,7 @@ The tap thread matches the key and dispatches the action to the main queue, the 
 
 ```mermaid
 flowchart LR
+    Engine --> Admission
     Engine --> WindowPlacement
     Engine --> WindowEnrollment
     Engine --> Navigation
@@ -133,6 +135,8 @@ flowchart LR
     Engine --> Neighbors
     Engine --> FilledWindows
     WindowEnrollment --> WindowPlacement
+    WindowEnrollment --> Admission
+    WindowPlacement --> Admission
     Navigation --> WindowEnrollment
     Navigation --> WindowPlacement
     FullScreenReturns --> Navigation
@@ -148,7 +152,7 @@ flowchart LR
 
 Every window event, and every action that touches windows, runs inside `WindowSystem.duringOperation`. Only an entry point opens an operation: an `Engine` method, the native Space change callback, or a retry closure of `WindowEnrollment` and `FullScreenReturns`. The parts never open one. Events are dropped while the screen is locked, where every window reads as closed.
 
-`WindowPlacement` owns a window's workspace: every change of it is paired with a park or an unpark on the `Desktop`. `Navigation` decides where the focus goes after a change and which workspace to show when the user focuses a window. `WindowEnrollment` and `FullScreenReturns` repeat a read macOS sent no notification for.
+`Admission` answers whether OttoWM can take a window: refused for good when the window's own shape rules it out, worth reading again when only the desktop in front or the on-screen list does. `WindowPlacement` owns a window's workspace: every change of it is paired with a park or an unpark on the `Desktop`. `Navigation` decides where the focus goes after a change and which workspace to show when the user focuses a window. `WindowEnrollment` and `FullScreenReturns` repeat a read macOS sent no notification for.
 
 ### macOS boundary
 
@@ -158,7 +162,7 @@ flowchart TB
     WindowPlacement -->|reframe| Desktop
     Navigation -->|focus| Desktop
     Engine -->|focused, frames| WindowSystem
-    WindowPlacement & Navigation -->|focused, shows, snapshot| WindowSystem
+    Admission & WindowPlacement & Navigation -->|focused, shows, snapshot| WindowSystem
     WindowEnrollment & FullScreenReturns -->|snapshot| WindowSystem
     TabGroups -->|tabCount, frame| WindowSystem
     RunningApplicationsObserver -->|WindowEvent| Engine

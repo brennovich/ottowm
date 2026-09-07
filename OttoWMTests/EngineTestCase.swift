@@ -50,10 +50,13 @@ class EngineTestCase: XCTestCase {
         window: { [weak self] id in self?.windows[id] }
     )
 
+    lazy var admission = Admission(windowSystem: windowSystem, workspaces: workspaces)
+
     lazy var placement = WindowPlacement(
         desktop: desktop,
         windowSystem: windowSystem,
         workspaces: workspaces,
+        admission: admission,
         parkedWindows: parkedWindows,
         filledWindows: filledWindows
     )
@@ -61,6 +64,7 @@ class EngineTestCase: XCTestCase {
     lazy var enrollment = WindowEnrollment(
         windowSystem: windowSystem,
         workspaces: workspaces,
+        admission: admission,
         placement: placement,
         scheduleRetry: scheduleRetry
     )
@@ -85,6 +89,7 @@ class EngineTestCase: XCTestCase {
         desktop: desktop,
         windowSystem: windowSystem,
         workspaces: workspaces,
+        admission: admission,
         placement: placement,
         filledWindows: filledWindows,
         enrollment: enrollment,

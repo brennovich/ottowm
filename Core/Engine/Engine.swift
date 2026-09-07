@@ -5,6 +5,7 @@ final class Engine {
     private let desktop: any Desktop
     private let windowSystem: WindowSystem
     private let workspaces: Workspaces
+    private let admission: Admission
     private let placement: WindowPlacement
     private let filledWindows: FilledWindows
     private let enrollment: WindowEnrollment
@@ -18,6 +19,7 @@ final class Engine {
         desktop: any Desktop,
         windowSystem: WindowSystem,
         workspaces: Workspaces,
+        admission: Admission,
         placement: WindowPlacement,
         filledWindows: FilledWindows,
         enrollment: WindowEnrollment,
@@ -30,6 +32,7 @@ final class Engine {
         self.desktop = desktop
         self.windowSystem = windowSystem
         self.workspaces = workspaces
+        self.admission = admission
         self.placement = placement
         self.filledWindows = filledWindows
         self.enrollment = enrollment
@@ -147,7 +150,7 @@ final class Engine {
                 placement.assign(focused, to: workspaces.current)
             }
 
-            let onDesktop = placement.isDesktopInFront
+            let onDesktop = admission.isDesktopInFront
             Log.engine.info("switch requested target=\(workspace) current=\(self.workspaces.current) onDesktop=\(onDesktop)")
 
             if workspace == workspaces.current {
@@ -243,16 +246,19 @@ extension Engine {
         restart: @escaping () -> Void = {}
     ) -> Engine {
         let filledWindows = FilledWindows(tabs: workspaces.tabGroupMembers(of:))
+        let admission = Admission(windowSystem: windowSystem, workspaces: workspaces)
         let placement = WindowPlacement(
             desktop: desktop,
             windowSystem: windowSystem,
             workspaces: workspaces,
+            admission: admission,
             parkedWindows: ParkedWindows(),
             filledWindows: filledWindows
         )
         let enrollment = WindowEnrollment(
             windowSystem: windowSystem,
             workspaces: workspaces,
+            admission: admission,
             placement: placement,
             scheduleRetry: scheduleRetry
         )
@@ -275,6 +281,7 @@ extension Engine {
             desktop: desktop,
             windowSystem: windowSystem,
             workspaces: workspaces,
+            admission: admission,
             placement: placement,
             filledWindows: filledWindows,
             enrollment: enrollment,

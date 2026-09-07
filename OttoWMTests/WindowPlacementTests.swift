@@ -2,13 +2,15 @@ import CoreGraphics
 import XCTest
 
 final class WindowPlacementTests: EngineTestCase {
-    func testOnlyAnAdmissibleWindowOnScreenIsAssigned() {
+    func testAssignTakesOnlyAWindowAdmissionAdmits() {
         offScreenWindowIds = [500]
         let offScreen = add(StubWindow(id: 500))
-        let admissible = add(StubWindow(id: 600))
+        let admitted = add(StubWindow(id: 600))
 
         XCTAssertNil(placement.assign(offScreen.snapshot(), to: 1))
-        XCTAssertEqual(placement.assign(admissible.snapshot(), to: 1), 1)
+        XCTAssertTrue(desktop.reframeCalls.isEmpty)
+
+        XCTAssertEqual(placement.assign(admitted.snapshot(), to: 1), 1)
         XCTAssertEqual(workspaces.allWindowIds, [600])
     }
 
@@ -20,34 +22,6 @@ final class WindowPlacementTests: EngineTestCase {
         XCTAssertEqual(placement.assign(win.snapshot(), to: 1), 2)
         XCTAssertEqual(workspaces.workspace(for: 100), 2)
         XCTAssertTrue(desktop.reframeCalls.isEmpty)
-    }
-
-    func testNothingIsAssignedWhileAnotherNativeSpaceIsInFront() {
-        let win = add(StubWindow(id: 100))
-        placement.assign(win.snapshot(), to: 1)
-        offScreenWindowIds = [100]
-        desktop.clearCalls()
-
-        let other = add(StubWindow(id: 200))
-
-        XCTAssertFalse(placement.isDesktopInFront)
-        XCTAssertNil(placement.assign(other.snapshot(), to: 1))
-        XCTAssertTrue(desktop.reframeCalls.isEmpty)
-    }
-
-    func testTheDesktopIsInFrontWhenTheFocusedWindowBelongsToAManagedTabGroup() {
-        let tab1 = add(StubWindow(id: 300, appName: "Terminal", frame: tabFrame, tabCount: 2))
-        placement.assign(tab1.snapshot(), to: 1)
-        let tab2 = add(StubWindow(id: 301, appName: "Terminal", frame: tabFrame, tabCount: 2))
-        offScreenWindowIds = [300]
-
-        focused = add(StubWindow(id: 100))
-
-        XCTAssertFalse(placement.isDesktopInFront)
-
-        focused = tab2
-
-        XCTAssertTrue(placement.isDesktopInFront)
     }
 
     func testAssignPlacesAWindowByTheWorkspaceItsTabGroupHolds() {

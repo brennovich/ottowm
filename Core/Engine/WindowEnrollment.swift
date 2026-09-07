@@ -7,6 +7,7 @@ import Foundation
 final class WindowEnrollment {
     private let windowSystem: WindowSystem
     private let workspaces: Workspaces
+    private let admission: Admission
     private let placement: WindowPlacement
     private let scheduleRetry: (TimeInterval, @escaping () -> Void) -> Void
 
@@ -16,11 +17,13 @@ final class WindowEnrollment {
     init(
         windowSystem: WindowSystem,
         workspaces: Workspaces,
+        admission: Admission,
         placement: WindowPlacement,
         scheduleRetry: @escaping (TimeInterval, @escaping () -> Void) -> Void
     ) {
         self.windowSystem = windowSystem
         self.workspaces = workspaces
+        self.admission = admission
         self.placement = placement
         self.scheduleRetry = scheduleRetry
     }
@@ -33,7 +36,7 @@ final class WindowEnrollment {
     }
 
     func enrollLater(_ win: WindowSnapshot) {
-        guard win.isAdmissible else { return }
+        guard admission.verdict(for: win) == .retry else { return }
         retry(win.id, in: Self.firstDelay)
     }
 
