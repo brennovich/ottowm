@@ -4,6 +4,7 @@ import XCTest
 final class EngineMaximizeTests: EngineTestCase {
     private let frame = CGRect(x: 400, y: 300, width: 200, height: 200)
 
+    @discardableResult
     private func focus(_ id: CGWindowID) -> StubWindow {
         let win = create(StubWindow(id: id, frame: frame))
         focused = win
