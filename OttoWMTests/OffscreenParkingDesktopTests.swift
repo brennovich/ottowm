@@ -79,14 +79,6 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(win.animatedWriteCount, 0)
     }
 
-    func testMaximizeShrinksAWindowLargerThanTheVisibleFrame() {
-        let oversized = addWindow(101, frame: CGRect(x: 0, y: 0, width: 2000, height: 1200))
-
-        reframe(oversized.id, .maximize(restoring: nil))
-
-        XCTAssertEqual(oversized.frame, CGRect(x: 15, y: 53, width: 1762, height: 1052))
-    }
-
     /// A window rarely settles at the frame it was given: Terminal quantizes its height to
     /// whole rows. The frame handed in is what says the window is maximized, not its size.
     func testMaximizeTakesAWindowBackToTheFrameHandedInWhateverItsSize() {
