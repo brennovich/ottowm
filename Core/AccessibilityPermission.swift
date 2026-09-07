@@ -1,9 +1,9 @@
 import AppKit
 import ApplicationServices
 
-/// AccessibilityPermission probes what is a requirement for OttoWM, watching
-/// for the AX permissions status of the process and offering controls to aid the
-/// user to conced the trust to OttoWM.
+/// AccessibilityPermission probes macOS accessibility permissions, a OttoWM
+/// requirement, watching for the AX permissions status of the process and
+/// offering controls to aid the user to conced the trust to OttoWM.
 struct AccessibilityPermission {
     enum Outcome {
         case granted

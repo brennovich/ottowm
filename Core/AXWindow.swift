@@ -12,9 +12,10 @@ private func _AXUIElementGetWindow(_ element: AXUIElement, _ id: inout CGWindowI
 ///
 /// Keeps the element and its application because the interface is split between
 /// them. Attributes, actions and the window id come from the element; activation
-/// and `AXEnhancedUserInterface` are only on the application. Every read
-/// and write is a round trip into the owning process, so attributes are read in
-/// batches and the id is read once.
+/// and `AXEnhancedUserInterface` are only on the application.
+///
+/// Every read and write is a round trip into the owning process, so attributes are
+/// read in batches and the id is read once.
 final class AXWindow: Window, WindowLogDescribing {
     let element: AXUIElement
     let application: NSRunningApplication
