@@ -6,6 +6,9 @@ let harness = ProcessInfo.processInfo.processName
 
 let pollInterval: TimeInterval = 0.1
 let placementTimeout: TimeInterval = 15
+// A tab switch is a press and a redraw, not a window move, and a run that has other tabs to
+// try waits this out once per tab.
+let tabSwitchTimeout: TimeInterval = 3
 
 var cleanups: [() -> Void] = []
 

@@ -53,28 +53,60 @@ func tabButtons(of window: AXUIElement) -> [AXUIElement] {
 // answered by that tab while the window stays where it is, so staging goes through this
 // too, not only reading.
 //
-// The tab bar's button is pressed rather than a key combo posted: the run's own hotkeys go
-// to whichever application is frontmost, and the scriptable way needs an Automation grant
-// a machine with nobody at it never gets.
+// The tab bar's buttons are pressed in turn rather than the one belonging to this window
+// picked out of them: Terminal titles its buttons after the process running in each tab,
+// which is `-zsh` for every tab of a desk this run staged. What says the right tab is in
+// front is the application listing this window, not anything the bar says.
+//
+// Pressed rather than a key combo posted: the run's own hotkeys go to whichever application
+// is frontmost, and the scriptable way needs an Automation grant a machine with nobody at
+// it never gets.
 func bringTabToFront(_ window: AXUIElement, ofApplication bundleId: String, named name: String) {
     guard let application = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first else {
         fail("\(name) is not running, its tab cannot be brought to the front")
     }
-    guard let wanted = title(of: window) else { fail("the \(name) tab answers no title to find it in the tab bar by") }
 
-    eventually("the \(name) tab \(wanted) is in front", announce: false) {
-        let listed = windows(ofApplication: application.processIdentifier)
-        guard !listed.contains(where: { CFEqual($0, window) }) else { return nil }
+    let pid = application.processIdentifier
+    guard !isListed(window, of: pid) else { return }
 
-        guard let front = listed.first(where: { !tabButtons(of: $0).isEmpty }) else {
-            return "\(name) shows no tabbed window"
-        }
-        guard let button = tabButtons(of: front).first(where: { title(of: $0) == wanted }) else {
-            return "no tab titled \(wanted), the bar shows \(tabButtons(of: front).compactMap(title(of:)))"
-        }
-
-        AXUIElementPerformAction(button, kAXPressAction as CFString)
-
-        return "pressed the \(wanted) tab"
+    guard let tabbed = windows(ofApplication: pid).first(where: { !tabButtons(of: $0).isEmpty }) else {
+        fail("\(name) shows no tabbed window to bring the \(name) tab out of")
     }
+
+    // Read again on every press: the tab group belongs to the window in front, and the one
+    // that goes behind takes its own tab bar with it.
+    for index in 0 ..< tabButtons(of: tabbed).count {
+        guard let front = windows(ofApplication: pid).first(where: { !tabButtons(of: $0).isEmpty }) else { break }
+
+        let buttons = tabButtons(of: front)
+        guard index < buttons.count else { break }
+
+        AXUIElementPerformAction(buttons[index], kAXPressAction as CFString)
+
+        if waitUntilListed(window, of: pid) {
+            report("ok, \(name) is the tab in front")
+            return
+        }
+    }
+
+    fail("none of \(name)'s tabs brought the window the run claimed to the front")
+}
+
+// Whether this window is the one its application lists, which for a tabbed window is the
+// tab in front.
+private func isListed(_ window: AXUIElement, of pid: pid_t) -> Bool {
+    windows(ofApplication: pid).contains { CFEqual($0, window) }
+}
+
+// Polls for a tab switch to land, and says whether it did rather than ending the run: the
+// caller has other tabs to try.
+private func waitUntilListed(_ window: AXUIElement, of pid: pid_t) -> Bool {
+    let deadline = Date().addingTimeInterval(tabSwitchTimeout)
+
+    repeat {
+        if isListed(window, of: pid) { return true }
+        RunLoop.current.run(until: Date().addingTimeInterval(pollInterval))
+    } while Date() < deadline
+
+    return false
 }

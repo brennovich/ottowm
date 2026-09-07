@@ -3,6 +3,7 @@ import AppKit
 let appPath = "/Applications/OttoWM.app"
 let bundleId = "com.github.brennovich.ottowm"
 let safariBundleId = "com.apple.Safari"
+let terminalBundleId = "com.apple.Terminal"
 
 let readyTimeout: TimeInterval = 30
 let terminationTimeout: TimeInterval = 5
@@ -60,6 +61,18 @@ struct Subject {
         bringTabToFront(window, ofApplication: bundleId, named: name)
     }
 
+    // Puts the window back where it was read, for a scene that leaves it somewhere else and
+    // is followed by one that reads the frame it started from. Written rather than posted:
+    // no action takes a window to a frame of the run's choosing, and OttoWM records nothing
+    // about a window that is only put down.
+    func putBack() {
+        eventually("\(name) is back at \(originalFrame)") {
+            setAXFrame(of: window, to: originalFrame)
+
+            return isAsItWas ? nil : "\(name) at \(frame().map { "\($0)" } ?? "nowhere")"
+        }
+    }
+
     // The hotkeys act on the focused window, and a workspace switch hands the focus to
     // whichever window it pleases, so whoever wants this one moved says so first.
     func focus() {
@@ -105,6 +118,11 @@ struct Session {
     let movable: Subject
     // The ones that only ever move because the workspace they stand on was left.
     let others: [Subject]
+    // The tab standing behind one of the desk's windows, for a scene that drives a window
+    // its application shows one tab of at a time. Kept out of the desk: a tab that is not in
+    // front answers the frame it had when it last was, so a check made over every subject
+    // would read a value that cannot change.
+    let backgroundTab: Subject?
 
     private let hiddenEdgeX: CGFloat
 
@@ -116,7 +134,10 @@ struct Session {
     // An arranged desk stands in the four quarters of the screen instead of wherever
     // macOS put it, for a run that asserts which window a focus move lands on and has to
     // know the geometry to do it.
-    static func start(instances: Int = 1, arranged: Bool = false) -> Session {
+    //
+    // A tabbed desk shows a second terminal window merged into the first, so the run drives
+    // one window its application shows a tab of at a time.
+    static func start(instances: Int = 1, arranged: Bool = false, tabbed: Bool = false) -> Session {
         guard AXIsProcessTrusted() else {
             fail("""
             the harness itself has no Accessibility permission, it cannot post events nor read \
@@ -147,6 +168,8 @@ struct Session {
             return (source.name, source.bundleId, window)
         }
 
+        let tab = tabbed ? stageTab(alongside: windows, claimed: &claimed) : nil
+
         if arranged { arrange(windows) }
 
         // Everything is up, nothing else is about to move on its own, so what the windows
@@ -170,10 +193,24 @@ struct Session {
 
         guard let movable = subjects.last else { fail("no window to drive") }
 
+        // The two tabs are one window, so the one standing behind takes the frame the desk
+        // window was arranged to rather than the frozen one it answers before it is brought
+        // to the front.
+        let backgroundTab = tab.map { source, window -> Subject in
+            guard let front = subjects.first(where: { $0.bundleId == source.bundleId }) else {
+                fail("the desk shows no \(source.bundleId) window for the tab to stand behind")
+            }
+
+            return Subject(
+                name: source.name, bundleId: source.bundleId, window: window, originalFrame: front.originalFrame
+            )
+        }
+
         let session = Session(
             ottowm: ottowm,
             movable: movable,
             others: subjects.dropLast(),
+            backgroundTab: backgroundTab,
             hiddenEdgeX: hiddenEdgeX
         )
         session.movable.focus()
@@ -255,6 +292,26 @@ struct Session {
         for cleanup in cleanups.reversed() { cleanup() }
         cleanups = []
     }
+}
+
+// Opens the second terminal window and merges it into the one the desk already shows.
+// Merged before the desk is arranged, and with the desk's own window brought back to the
+// front after: the merge leaves whichever window it pleases in front, and what the run
+// arranges and reads from there has to be the tab it claimed.
+private func stageTab(
+    alongside windows: [(String, String, AXUIElement)], claimed: inout [AXUIElement]
+) -> (WindowSource, AXUIElement) {
+    let source = stageTabSource()
+    let window = openWindow(source, claimed: claimed)
+    claimed.append(window)
+
+    mergeIntoTabs(ofApplication: source.bundleId, named: source.name)
+
+    for (name, bundleId, deskWindow) in windows where bundleId == source.bundleId {
+        bringTabToFront(deskWindow, ofApplication: bundleId, named: name)
+    }
+
+    return (source, window)
 }
 
 private func launchOttoWM() -> Process {

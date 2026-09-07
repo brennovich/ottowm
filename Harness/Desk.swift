@@ -98,7 +98,7 @@ private func deskInstance(_ instance: Int) -> [WindowSource] {
             $0 == stamp
         },
         WindowSource(
-            name: "Terminal", bundleId: "com.apple.Terminal", opens: directory, open: launching("Terminal")
+            name: "Terminal", bundleId: terminalBundleId, opens: directory, open: launching("Terminal")
         ) {
             $0.contains(stamp)
         },
@@ -111,6 +111,23 @@ private func deskInstance(_ instance: Int) -> [WindowSource] {
             $0 == document.lastPathComponent
         },
     ]
+}
+
+// A second window of the desk's terminal, for a run that merges the two into one window
+// showing a tab of each. Named after a directory of its own so the window the desk already
+// claimed cannot answer to it.
+func stageTabSource() -> WindowSource {
+    let stamp = "\(temporaryDirectory.lastPathComponent)-tab"
+    let directory = temporaryDirectory.appendingPathComponent(stamp)
+
+    guard (try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)) != nil
+    else { fail("cannot stage the tab directory \(directory.path)") }
+
+    return WindowSource(
+        name: "Terminal tab", bundleId: terminalBundleId, opens: directory, open: launching("Terminal")
+    ) {
+        $0.contains(stamp)
+    }
 }
 
 // Each desk instance across the four quarters of the screen: Finder top left, Terminal

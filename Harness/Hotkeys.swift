@@ -20,6 +20,10 @@ let leftOptionControl = CGEventFlags(rawValue: leftOption.rawValue | CGEventFlag
 let keyCodesByWorkspace: [Int: CGKeyCode] = [1: 18, 2: 19, 3: 20, 4: 21, 5: 23]
 let quitKeyCode: CGKeyCode = 12
 let restartKeyCode: CGKeyCode = 15
+// Core/Config/Action.swift moves a window 15 points when the binding names no distance,
+// which the bundled move-window bindings do not.
+let moveWindowStep: CGFloat = 15
+
 let centerKeyCode: CGKeyCode = 8
 let maximizeKeyCode: CGKeyCode = 46
 
