@@ -35,7 +35,7 @@ final class WindowEnrollment {
         return assigned
     }
 
-    func enrollLater(_ win: WindowSnapshot) {
+    private func enrollLater(_ win: WindowSnapshot) {
         guard admission.verdict(for: win) == .retry else { return }
         retry(win.id, in: Self.firstDelay)
     }

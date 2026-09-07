@@ -19,7 +19,7 @@ final class WindowEnrollmentTests: EngineTestCase {
     func testTheRetriesStopWhenTheWindowStaysOffScreen() {
         offScreenWindowIds = [100]
         let win = add(StubWindow(id: 100))
-        enrollment.enrollLater(win.snapshot())
+        XCTAssertNil(enrollment.enroll(win.snapshot(), to: 1))
 
         XCTAssertEqual(runScheduledRetries(), [0.1, 0.2, 0.4, 0.8])
         XCTAssertTrue(scheduledRetries.isEmpty)
@@ -30,8 +30,6 @@ final class WindowEnrollmentTests: EngineTestCase {
         let win = add(StubWindow(id: 100, isFullScreen: true))
 
         XCTAssertNil(enrollment.enroll(win.snapshot(), to: 1))
-        enrollment.enrollLater(win.snapshot())
-
         XCTAssertTrue(scheduledRetries.isEmpty)
     }
 }
