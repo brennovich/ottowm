@@ -21,6 +21,8 @@ SOURCES := $(shell find App Core -name '*.swift') $(RESOURCES) $(SCHEME).entitle
 BUILD_DIR = build
 RELEASE_DIR = $(BUILD_DIR)/Release
 APP = $(RELEASE_DIR)/$(SCHEME).app
+# The bundle directory keeps its timestamp when only the binary inside it is rebuilt,
+# so the binary is what the archive is allowed to depend on.
 APP_BINARY = $(APP)/Contents/MacOS/$(SCHEME)
 ZIP = $(BUILD_DIR)/$(SCHEME)-$(VERSION).zip
 

@@ -20,15 +20,16 @@ OttoWM is a headless agent that offers several workspaces on one native macOS Sp
 
 ```
 WindowEvent  = created(WindowSnapshot) | focused(WindowSnapshot) | destroyed(id) | minimized(id) | unminimized(WindowSnapshot)
-Action       = switchToWorkspace(n) | moveWindowToWorkspace(n) | focus(direction) | moveWindow(step) | centerWindow | quit | restart
+Action       = switchToWorkspace(n) | moveWindowToWorkspace(n) | focus(direction) | moveWindow(step) | centerWindow | toggleMaximize | quit | restart
 Direction    = north | east | south | west                       // "focus east" in the config
 Step         = (direction, points)                               // "move-window east 15" in the config
 KeyCombo     = (keyCode, [ModifierKey: ModifierSide])            // "lopt-shift-1"
-FrameChange  = step(Step) | center | park | unpark(frame?)       // what a window's frame is asked to become
+FrameChange  = step(Step) | center | maximize(restoring: frame?) | park | unpark(frame?)
+FrameOutcome = parked(id, from: frame) | maximized(id, from: frame) | active(id) | gone(id)
 WindowSnapshot(id, appName, isStandard, hasCloseButton, hasMinimizeButton, isFullScreen, isMinimized, frame)
 ```
 
-## Level 1 — Context
+## Level 1: Context
 
 ```mermaid
 flowchart LR
@@ -44,7 +45,7 @@ flowchart LR
     macos -->|window events| otto
 ```
 
-## Level 2 — Subsystems
+## Level 2: Subsystems
 
 ```mermaid
 flowchart LR
@@ -52,12 +53,12 @@ flowchart LR
     Engine -->|restart| Lifecycle
     Lifecycle -->|reload| Input
     macOS["macOS boundary"] -->|WindowEvent| Engine
-    Engine -->|place, focus, read| macOS
+    Engine -->|reframe, focus, read| macOS
     Engine -->|assign, switch| Model
     Lifecycle -->|start, stop, screen lock| Engine
 ```
 
-## Level 3 — Components
+## Level 3: Components
 
 | Component                     | Category  | Description                                                                             |
 |-------------------------------|-----------|-----------------------------------------------------------------------------------------|
@@ -72,11 +73,12 @@ flowchart LR
 | `FullScreenReturns`           | Engine    | Notices a window back from full screen on every event, and polls after a Space change.  |
 | `Workspaces`                  | Model     | Window → workspace, focus history, current workspace.                                   |
 | `Workspace`                   | Model     | The windows of one workspace and the order they were focused in.                        |
-| `TabGroups`                   | Model     | Infers which windows are tabs of one another. Reads a window's tab count on demand.     |
+| `TabGroups`                   | Model     | Infers which windows are tabs of one another. Reads tab counts and frames on demand.    |
 | `Neighbors`                   | Model     | The windows around one frame, and which of them a focus move lands on.                  |
 | `Step`                        | Model     | One move of a window in points, and where it lands within the screen.                   |
-| `FrameChange`                 | Model     | What a window's frame is asked to become: a step, a centering, a park, an unpark.       |
+| `FrameChange`                 | Model     | What a window's frame is asked to become: step, center, maximize, park or unpark.       |
 | `ParkedWindows`               | Model     | The windows parked at the hidden edge, and the frame each one was parked from.          |
+| `MaximizedWindows`            | Model     | The frame each maximized window goes back to, shared by the tabs of one window.         |
 | `Desktop`                     | macOS     | Manipulates the current workspace's windows.                                            |
 | `HiddenEdge`                  | macOS     | Where a parked window sits, and whether a frame sits there.                             |
 | `WindowSystem`                | macOS     | The focused window, the on-screen window frames, and the tab count of a window.         |
@@ -86,7 +88,7 @@ flowchart LR
 | `Application`                 | macOS     | One watched application: its channel and subscription, the windows it reads, their ids. |
 | `Subscription`                | macOS     | The AX notifications one element is subscribed to, and whether the attempt succeeded.   |
 | `AXNotifications`             | macOS     | The AX notification channel of one process: subscribe an element, invalidate the lot.   |
-| `Window`                      | macOS     | The window operations the placement layer needs: snapshot, frames, moves, focus, tabs.  |
+| `Window`                      | macOS     | The window operations the desktop needs: snapshot, frames, moves, focus, tabs.          |
 | `AXWindow`                    | macOS     | One window: snapshot, frame writes, focus, tab count.                                   |
 | `MainScreen`                  | macOS     | The geometry of the main display, in top-left coordinates.                              |
 | `OperationCache`              | macOS     | Holds one AX or CG read for the length of an operation.                                 |
@@ -102,7 +104,7 @@ flowchart LR
 
 `Window` is a protocol; `AXWindow` is the implementation the app runs.
 
-`Desktop` is a protocol; `OffscreenParkingDesktop` is the implementation the app runs. It holds no state of its own: `ManagedWindows` hands it one `FrameChange` per window, carrying the frame an unpark restores, and records what comes back in `ParkedWindows`, which it reads to tell an active window from a parked one.
+`Desktop` is a protocol; `OffscreenParkingDesktop` is the implementation the app runs. It holds no state of its own. `ManagedWindows` hands it a park or an unpark per window, the unpark carrying the frame the window was parked from, and records what comes back in `ParkedWindows`. `Engine` hands it a step, a centering or a maximize of the focused window, the maximize carrying the frame to go back to, and records what comes back in `MaximizedWindows`.
 
 ### Input
 
@@ -127,6 +129,7 @@ flowchart LR
     Engine --> FullScreenReturns
     Engine --> Workspaces
     Engine --> Neighbors
+    Engine --> MaximizedWindows
     WindowEnrollment --> ManagedWindows
     Navigation --> WindowEnrollment
     Navigation --> ManagedWindows
@@ -134,6 +137,8 @@ flowchart LR
     FullScreenReturns --> ManagedWindows
     ManagedWindows --> Workspaces
     ManagedWindows --> ParkedWindows
+    ManagedWindows --> MaximizedWindows
+    MaximizedWindows --> Workspaces
     Navigation --> Workspaces
     Workspaces --> Workspace
     Workspaces --> TabGroups
@@ -141,7 +146,7 @@ flowchart LR
 
 Every window event, and every action that touches windows, runs inside `WindowSystem.duringOperation`. Only an entry point opens an operation: an `Engine` method, the native Space change callback, or a retry closure of `WindowEnrollment` and `FullScreenReturns`. The parts never open one. Events are dropped while the screen is locked, where every window reads as closed.
 
-`ManagedWindows` owns the placement verbs: every change of a window's workspace goes through it and is paired with a park or an unpark on the `Desktop`. `Navigation` decides where the focus goes after a change and which workspace to show when the user focuses a window. `WindowEnrollment` and `FullScreenReturns` repeat a read macOS sent no notification for.
+`ManagedWindows` owns a window's workspace: every change of it is paired with a park or an unpark on the `Desktop`. `Navigation` decides where the focus goes after a change and which workspace to show when the user focuses a window. `WindowEnrollment` and `FullScreenReturns` repeat a read macOS sent no notification for.
 
 ### macOS boundary
 
@@ -153,7 +158,7 @@ flowchart TB
     Engine -->|focused, frames| WindowSystem
     ManagedWindows & Navigation -->|focused, shows, snapshot| WindowSystem
     WindowEnrollment & FullScreenReturns -->|snapshot| WindowSystem
-    TabGroups -->|tabCount| WindowSystem
+    TabGroups -->|tabCount, frame| WindowSystem
     RunningApplicationsObserver -->|WindowEvent| Engine
     Desktop --> MainScreen
     Desktop --> HiddenEdge
@@ -228,7 +233,7 @@ sequenceDiagram
     Engine->>ManagedWindows: switchTo(n)
     ManagedWindows->>Workspaces: switchTo(n, leavingFocusOn: focused)
     Workspaces-->>ManagedWindows: (activating, parking)
-    ManagedWindows->>Desktop: reframe(park or unpark per window, an unpark carrying the frame recorded for it)
+    ManagedWindows->>Desktop: reframe(park or unpark, per window)
     Desktop-->>ManagedWindows: parked from a frame, active, or gone, per window
     ManagedWindows->>ParkedWindows: record(what came back)
     alt the desktop is in front
@@ -240,7 +245,7 @@ sequenceDiagram
     end
 ```
 
-A window `Desktop.place` cannot reach is no longer managed (maybe moved to another native space).
+A window the desktop reports gone is no longer managed.
 
 ### Move window to workspace
 
@@ -268,13 +273,25 @@ sequenceDiagram
     Engine->>Workspaces: windowIds(in: the current workspace)
     Engine->>ManagedWindows: isParked(id)
     Engine->>WindowSystem: frames(of: the windows that are not parked)
-    Note over Engine: keeps the on-screen windows that are not parked
     Engine->>Neighbors: nearest(to: direction)
     Neighbors-->>Engine: the window that way, or nothing
     Engine->>Desktop: focus(id)
 ```
 
-Selects the nearest window (from the active workspace) in the direction pressed, or does nothing if there is none.
+### Move, center or maximize the focused window
+
+```mermaid
+sequenceDiagram
+    Hotkeys->>Engine: handle(moveWindow(step), centerWindow or toggleMaximize)
+    Engine->>Navigation: focusedWindowOfCurrentWorkspace()
+    Note over Engine: nothing for a parked window
+    Engine->>MaximizedWindows: restoringFrame(of: id), for a toggle
+    Engine->>Desktop: reframe(id, step, center or maximize(restoring))
+    Desktop-->>Engine: maximized from a frame, active, or gone
+    Engine->>MaximizedWindows: record(what came back)
+```
+
+A maximize with no frame to go back to fills the visible frame inset by 15pt and reports the frame it left; one with a frame puts the window back there. A window within 30pt of the filled frame on every edge is read as filled and left alone: a window settles short of the frame it was given, Terminal by whole rows. A step or a centering ends the maximize; a park does not, so the frame survives a workspace switch. The tabs of one window share the frame, and a tab that joins a maximized window takes it, so the frame outlives the tab the maximize went through.
 
 ### Manual navigation
 
@@ -360,12 +377,12 @@ sequenceDiagram
     alt quit action
         Hotkeys->>Engine: handle(quit)
         Engine->>ManagedWindows: restoreParkedWindows()
-        ManagedWindows->>Desktop: place(every parked window, at: .active)
+        ManagedWindows->>Desktop: reframe(unpark every parked window)
         Engine->>Lifecycle: quit()
     else SIGTERM
         Lifecycle->>Engine: stop()
         Engine->>ManagedWindows: restoreParkedWindows()
-        ManagedWindows->>Desktop: place(every parked window, at: .active)
+        ManagedWindows->>Desktop: reframe(unpark every parked window)
     end
     Lifecycle->>Lifecycle: exit(EXIT_SUCCESS)
 ```
@@ -374,7 +391,7 @@ The default action for SIGTERM ends the process with every parked window still a
 
 ### Unlock
 
-Window events are dropped while the screen is locked, and a sweep run behind the login window reads every window as closed, so the registry and the workspaces drift apart. Unlocking closes the gap: `Lifecycle` runs both halves of the reconciliation, the removals first and the additions after.
+Window events are dropped while the screen is locked, and a sweep run behind the login window reads every window as closed, so the registry and the workspaces drift apart. Unlocking closes the gap: `Lifecycle` runs the removals first and the additions after.
 
 ```mermaid
 sequenceDiagram
@@ -391,11 +408,11 @@ sequenceDiagram
     Engine->>ManagedWindows: assign the ones no workspace knows to the current workspace
 ```
 
-The sweep runs first: a window it drops must not come back in the answer as one to enroll again. A window is reported dead only after two passes without an answer, because an application still coming back from sleep answers for none of its windows.
+The sweep runs first, so a window it drops does not come back in the answer as one to enroll again. A window is reported dead only after two passes without an answer: an application still waking from sleep answers for none of its windows.
 
-The answer holds every window, not only the ones this pass attached. A window created behind the login window was attached by the notification that announced it, and only the engine dropped the event, so it reaches the workspaces solely because `Engine.resync` reads the full set and keeps what no workspace knows.
+The answer holds every window, not only the ones this pass attached. A window created behind the login window was attached by the notification that announced it and only the engine dropped the event, so `Engine.resync` reads the full set and keeps what no workspace knows.
 
-An application that appeared behind the login window is not watched yet, so `RunningApplicationsObserver` starts it the way a launch does, and one that does not answer is retried until the grace period runs out.
+An application that appeared behind the login window is not watched yet, so `RunningApplicationsObserver` starts it the way a launch does, retrying one that does not answer until the grace period runs out.
 
 ### Window lifecycle
 
@@ -450,7 +467,7 @@ flowchart LR
     match -->|no| own
 ```
 
-A group is keyed by a counter as macOS reuses window ids. Where a group stands is read from its members rather than kept from when the group was first seen: a tab opens where its window is now, which a maximize or a move since has changed. A background tab answers the frame it had when it was last active, so every member is tried and the one that is where the window stands places the group.
+A group is keyed by a counter as macOS reuses window ids. Where a group stands is read from its members at each match, since a maximize or a move has moved it since the group was first seen. A background tab reports the frame it had when it was last active, so every member is tried.
 
 ### Group events
 

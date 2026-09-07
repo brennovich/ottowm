@@ -99,8 +99,11 @@ final class OffscreenParkingDesktop: Desktop {
     private func apply(_ requested: Move) -> FrameOutcome {
         guard let current = requested.window.movableFrame() else {
             Log.desktop.info("cannot \(requested.change.logDescription) id=\(requested.windowId): window not movable")
-            if case let .unpark(parkedFrom?) = requested.change { return .parked(requested.windowId, from: parkedFrom) }
-            return .active(requested.windowId)
+            switch requested.change {
+            case let .unpark(parkedFrom?): return .parked(requested.windowId, from: parkedFrom)
+            case let .maximize(restoring?): return .maximized(requested.windowId, from: restoring)
+            default: return .active(requested.windowId)
+            }
         }
 
         let (target, outcome) = destination(current, for: requested)

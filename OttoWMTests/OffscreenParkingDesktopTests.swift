@@ -99,6 +99,13 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(filled.frame, shortOfFilled)
     }
 
+    func testRestoringAWindowThatIsNotMovableKeepsTheFrameToGoBackTo() {
+        win.isMinimized = true
+
+        XCTAssertEqual(reframe(100, .maximize(restoring: originalFrame)), [.maximized(100, from: originalFrame)])
+        XCTAssertEqual(win.positionSetCount, 0)
+    }
+
     func testReportsAWindowThatNoLongerExists() {
         XCTAssertEqual(reframe(999, .step(Step(direction: .east, points: 15))), [.gone(999)])
     }
