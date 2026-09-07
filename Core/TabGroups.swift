@@ -71,11 +71,18 @@ struct TabGroups {
     /// every tab of the window. A background tab answers the frame it had when it was last
     /// active, so every member is tried and the one that is where the window stands places
     /// the group.
+    ///
+    /// Two maximized windows stand at one frame, so the frame alone matches either group.
+    /// A group already holding as many windows as the tab reports tabs is full, and the
+    /// tab of the other window opens its own group.
     private func group(representing window: WindowSnapshot) -> Int? {
-        guard tabCount(window.id) > 1 else { return nil }
+        if let known = windowToGroup[window.id] { return known }
+
+        let tabs = tabCount(window.id)
+        guard tabs > 1 else { return nil }
 
         return groups.first { entry in
-            guard entry.value.appName == window.appName else { return false }
+            guard entry.value.appName == window.appName, entry.value.windowIds.count < tabs else { return false }
 
             return entry.value.windowIds.lazy.compactMap(frame).contains { stands(window, at: $0) }
         }?.key

@@ -466,14 +466,18 @@ An application lists only the active tab of a group, and sends no notification w
 
 ```mermaid
 flowchart LR
-    win[window being assigned] --> tabs{more than one tab?}
+    win[window being assigned] --> known{already in a group?}
+    known -->|yes| that[that group]
+    known -->|no| tabs{more than one tab?}
     tabs -->|no| own["opens a new group"]
-    tabs -->|yes| match{"same application, x, width and height,<br/>y within 10 pt of where a group stands now?"}
+    tabs -->|yes| match{"same application, fewer members than the window has tabs,<br/>x, width and height, y within 10 pt of where a group stands now?"}
     match -->|yes| join[joins that group]
     match -->|no| own
 ```
 
 A group is keyed by a counter as macOS reuses window ids. Where a group stands is read from its members at each match, since a maximize or a move has moved it since the group was first seen. A background tab reports the frame it had when it was last active, so every member is tried.
+
+Two maximized windows stand at one frame, so the frame alone matches either group. A group already holding as many windows as the tab reports tabs is full, and the tab of the other window opens its own group.
 
 ### Group events
 

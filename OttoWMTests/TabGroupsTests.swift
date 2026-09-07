@@ -129,12 +129,36 @@ final class TabGroupsTests: XCTestCase {
         XCTAssertEqual(tabGroups.members(of: 100), [100, 200, 300])
     }
 
+    /// Two maximized windows stand at one frame, so the frame alone matches either group.
+    /// A group holding as many windows as the tab reports tabs has no room for it.
+    func testATabDoesNotJoinAGroupHoldingAsManyWindowsAsItReportsTabs() {
+        var tabGroups = makeTabGroups([tabbed(100, tabCount: 2), tabbed(200, tabCount: 2)])
+        let maximized = CGRect(x: 15, y: 15, width: 1762, height: 1090)
+        frames[100] = maximized
+        frames[200] = maximized
+
+        add(tabbed(300, frame: maximized, tabCount: 2), to: &tabGroups)
+        add(tabbed(400, frame: maximized, tabCount: 2), to: &tabGroups)
+
+        XCTAssertEqual(tabGroups.members(of: 100), [100, 200])
+        XCTAssertEqual(tabGroups.members(of: 300), [300, 400])
+    }
+
+    /// A tab of a group that already holds every tab of its window is still in it: the
+    /// group it is a member of places it, not the room left in the group.
+    func testAWindowInAGroupHoldingEveryTabOfItsWindowStillHasIt() {
+        let member = tabbed(200, tabCount: 2)
+        let tabGroups = makeTabGroups([tabbed(100, tabCount: 2), member])
+
+        XCTAssertTrue(tabGroups.hasGroup(for: member.snapshot))
+    }
+
     func testSiblings() {
         let cases: [(name: String, windows: [TabbedWindow], subject: CGWindowID, expected: [CGWindowID])] = [
             ("an unknown window has no siblings", [], 999, []),
             (
                 "the other members of the group",
-                [tabbed(100, tabCount: 2), tabbed(200, tabCount: 2), tabbed(300, tabCount: 2)],
+                [tabbed(100, tabCount: 2), tabbed(200, tabCount: 2), tabbed(300, tabCount: 3)],
                 200,
                 [100, 300]
             ),
