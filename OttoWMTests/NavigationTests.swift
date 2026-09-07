@@ -4,8 +4,8 @@ import XCTest
 final class NavigationTests: EngineTestCase {
     func testFollowingAParkedWindowSwitchesToItsWorkspace() {
         let win = add(StubWindow(id: 700))
-        managed.assign(win.snapshot(), to: 1)
-        managed.switchTo(2)
+        placement.assign(win.snapshot(), to: 1)
+        placement.switchTo(2)
 
         focused = win
         navigation.follow(win.snapshot())
@@ -16,28 +16,28 @@ final class NavigationTests: EngineTestCase {
     func testAStaleFocusEventForAParkedWindowIsIgnored() {
         let win1 = add(StubWindow(id: 100))
         let win2 = add(StubWindow(id: 200))
-        managed.assign(win1.snapshot(), to: 1)
-        managed.assign(win2.snapshot(), to: 2)
+        placement.assign(win1.snapshot(), to: 1)
+        placement.assign(win2.snapshot(), to: 2)
 
         focused = win1
         navigation.follow(win2.snapshot())
 
         XCTAssertEqual(workspaces.current, 1)
-        XCTAssertTrue(managed.isParked(200))
+        XCTAssertTrue(placement.isParked(200))
     }
 
     func testFollowingAParkedWindowDoesNotSwitchWhenACurrentWorkspaceWindowLeftTheScreen() {
         let win1 = add(StubWindow(id: 100))
         let win2 = add(StubWindow(id: 200))
-        managed.assign(win1.snapshot(), to: 1)
-        managed.assign(win2.snapshot(), to: 2)
+        placement.assign(win1.snapshot(), to: 1)
+        placement.assign(win2.snapshot(), to: 2)
 
         offScreenWindowIds = [100]
         focused = win2
         navigation.follow(win2.snapshot())
 
         XCTAssertEqual(workspaces.current, 1)
-        XCTAssertTrue(managed.isParked(200))
+        XCTAssertTrue(placement.isParked(200))
         XCTAssertEqual(workspaces.allWindowIds, [200])
     }
 
@@ -45,9 +45,9 @@ final class NavigationTests: EngineTestCase {
         let win1 = add(StubWindow(id: 100))
         let win2 = add(StubWindow(id: 200))
         let survivor = add(StubWindow(id: 101))
-        managed.assign(win1.snapshot(), to: 1)
-        managed.assign(win2.snapshot(), to: 2)
-        managed.assign(survivor.snapshot(), to: 1)
+        placement.assign(win1.snapshot(), to: 1)
+        placement.assign(win2.snapshot(), to: 2)
+        placement.assign(survivor.snapshot(), to: 1)
 
         windows[100] = nil
         focused = win2
@@ -61,8 +61,8 @@ final class NavigationTests: EngineTestCase {
     func testFollowingAParkedWindowSwitchesWhenTheCurrentWorkspaceWindowIsOnlyMinimized() {
         let win1 = add(StubWindow(id: 100))
         let win2 = add(StubWindow(id: 200))
-        managed.assign(win1.snapshot(), to: 1)
-        managed.assign(win2.snapshot(), to: 2)
+        placement.assign(win1.snapshot(), to: 1)
+        placement.assign(win2.snapshot(), to: 2)
 
         win1.isMinimized = true
         offScreenWindowIds = [100]
@@ -70,11 +70,11 @@ final class NavigationTests: EngineTestCase {
         navigation.follow(win2.snapshot())
 
         XCTAssertEqual(workspaces.current, 2)
-        XCTAssertFalse(managed.isParked(200))
+        XCTAssertFalse(placement.isParked(200))
     }
 
     func testFollowingAnUnknownWindowAssignsItToTheCurrentWorkspace() {
-        managed.switchTo(2)
+        placement.switchTo(2)
         let win = add(StubWindow(id: 100))
 
         navigation.follow(win.snapshot())
@@ -96,10 +96,10 @@ final class NavigationTests: EngineTestCase {
     func testFollowingAWindowBackFromFullScreenTakesTheDesktopToTheWorkspaceItLeft() {
         let win1 = add(StubWindow(id: 100))
         let win2 = add(StubWindow(id: 200))
-        managed.assign(win1.snapshot(), to: 1)
-        managed.assign(win2.snapshot(), to: 1)
-        managed.releaseToFullScreen(200, from: 1)
-        managed.switchTo(2)
+        placement.assign(win1.snapshot(), to: 1)
+        placement.assign(win2.snapshot(), to: 1)
+        placement.releaseToFullScreen(200, from: 1)
+        placement.switchTo(2)
 
         navigation.follow(win2.snapshot())
 
@@ -108,31 +108,31 @@ final class NavigationTests: EngineTestCase {
 
     func testFollowingATabOfAGroupParkedElsewhereSwitchesToItsWorkspace() {
         let tab1 = add(StubWindow(id: 300, appName: "Terminal", frame: tabFrame, tabCount: 2))
-        managed.assign(tab1.snapshot(), to: 1)
-        managed.switchTo(2)
+        placement.assign(tab1.snapshot(), to: 1)
+        placement.switchTo(2)
 
         let lateTab = add(StubWindow(id: 301, appName: "Terminal", frame: tabFrame, tabCount: 2))
         focused = lateTab
         navigation.follow(lateTab.snapshot())
 
         XCTAssertEqual(workspaces.current, 1)
-        XCTAssertFalse(managed.isParked(301))
+        XCTAssertFalse(placement.isParked(301))
     }
 
     func testRestoreFocusesTheWindowFocusedLastInTheCurrentWorkspace() {
         let win1 = add(StubWindow(id: 100))
         let win2 = add(StubWindow(id: 200))
-        managed.assign(win1.snapshot(), to: 1)
+        placement.assign(win1.snapshot(), to: 1)
         navigation.follow(win1.snapshot())
-        managed.assign(win2.snapshot(), to: 1)
-        managed.unmanage(200, reason: "test")
+        placement.assign(win2.snapshot(), to: 1)
+        placement.unmanage(200, reason: "test")
 
         XCTAssertTrue(navigation.restore())
         XCTAssertEqual(win1.focusCount, 1)
     }
 
     func testRestoreReportsNothingToFocusInAnEmptyWorkspace() {
-        managed.switchTo(2)
+        placement.switchTo(2)
 
         XCTAssertFalse(navigation.restore())
     }
@@ -140,8 +140,8 @@ final class NavigationTests: EngineTestCase {
     func testRestoreKeepsTheFocusOnAWindowOfTheCurrentWorkspaceAndEnrollsAnUnknownOne() {
         let win1 = add(StubWindow(id: 100))
         let win2 = add(StubWindow(id: 200))
-        managed.assign(win1.snapshot(), to: 1)
-        managed.assign(win2.snapshot(), to: 1)
+        placement.assign(win1.snapshot(), to: 1)
+        placement.assign(win2.snapshot(), to: 1)
 
         focused = win1
         XCTAssertTrue(navigation.restore())
@@ -156,8 +156,8 @@ final class NavigationTests: EngineTestCase {
     func testRestoreLeavesTheFocusOnAFullScreenWindowOfTheCurrentWorkspace() {
         let win1 = add(StubWindow(id: 100))
         let win2 = add(StubWindow(id: 200))
-        managed.assign(win1.snapshot(), to: 1)
-        managed.assign(win2.snapshot(), to: 1)
+        placement.assign(win1.snapshot(), to: 1)
+        placement.assign(win2.snapshot(), to: 1)
         win1.isFullScreen = true
         focused = win1
 
@@ -168,8 +168,8 @@ final class NavigationTests: EngineTestCase {
 
     func testReturnToDesktopBringsAManagedWindowFrontAndIgnoresTheNavigationItCauses() {
         let parked = [72, 88, 187].map { add(StubWindow(id: $0)) }
-        parked.forEach { managed.assign($0.snapshot(), to: 1) }
-        managed.switchTo(3)
+        parked.forEach { placement.assign($0.snapshot(), to: 1) }
+        placement.switchTo(3)
         offScreenWindowIds = [72, 88, 187]
 
         navigation.returnToDesktop()
@@ -188,7 +188,7 @@ final class NavigationTests: EngineTestCase {
 
     func testFocusedWindowOfCurrentWorkspaceIsNilForNoWindowOrOneOfAnotherWorkspace() {
         let elsewhere = add(StubWindow(id: 900))
-        managed.assign(elsewhere.snapshot(), to: 2)
+        placement.assign(elsewhere.snapshot(), to: 2)
 
         for reference in [nil, elsewhere] {
             focused = reference

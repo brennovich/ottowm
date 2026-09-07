@@ -32,7 +32,7 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         reframe([(windowId: windowId, change: change)])
     }
 
-    /// Mirrors what `ManagedWindows` does around an unpark: hands the desktop the frame the
+    /// Mirrors what `WindowPlacement` does around an unpark: hands the desktop the frame the
     /// window was parked from.
     @discardableResult
     private func unpark(_ windowId: CGWindowID) -> [FrameOutcome] {

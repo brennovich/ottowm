@@ -7,7 +7,7 @@ final class Navigation {
     private let desktop: any Desktop
     private let windowSystem: WindowSystem
     private let workspaces: Workspaces
-    private let managed: ManagedWindows
+    private let placement: WindowPlacement
     private let enrollment: WindowEnrollment
     private var expectedNavigation = false
 
@@ -15,20 +15,20 @@ final class Navigation {
         desktop: any Desktop,
         windowSystem: WindowSystem,
         workspaces: Workspaces,
-        managed: ManagedWindows,
+        placement: WindowPlacement,
         enrollment: WindowEnrollment
     ) {
         self.desktop = desktop
         self.windowSystem = windowSystem
         self.workspaces = workspaces
-        self.managed = managed
+        self.placement = placement
         self.enrollment = enrollment
     }
 
     /// The focused event: manual navigation to a parked window, a stale event, a window not
     /// yet on screen, a window back from full screen, a tab of a group parked elsewhere.
     func follow(_ win: WindowSnapshot) {
-        if managed.isParked(win.id) {
+        if placement.isParked(win.id) {
             guard windowSystem.focused()?.id == win.id else {
                 Log.engine.debug("ignoring stale focus event id=\(win.id)")
                 return
@@ -39,7 +39,7 @@ final class Navigation {
 
         switch workspaces.membership(of: win, whenNew: workspaces.current) {
         case let .fullScreen(workspace):
-            guard !managed.followBackFromFullScreen(win, to: workspace) else { return }
+            guard !placement.followBackFromFullScreen(win, to: workspace) else { return }
             enroll(win, into: workspaces.current)
         case let .assigned(workspace):
             workspaces.recordFocus(on: win.id, in: workspace)
@@ -62,7 +62,7 @@ final class Navigation {
         if !closed.isEmpty {
             var focusSettled = false
             for closedId in closed {
-                focusSettled = managed.unmanage(closedId, reason: "closed") || focusSettled
+                focusSettled = placement.unmanage(closedId, reason: "closed") || focusSettled
             }
 
             if !focusSettled {
@@ -73,7 +73,7 @@ final class Navigation {
 
         let target = workspaces.workspace(for: windowId) ?? 1
         Log.engine.info("manual navigation → workspace \(target) window id=\(windowId)")
-        managed.switchTo(target)
+        placement.switchTo(target)
     }
 
     @discardableResult
@@ -83,12 +83,12 @@ final class Navigation {
         if let osFocused = windowSystem.focused() {
             switch workspaces.membership(of: osFocused, whenNew: currentWorkspace) {
             case let .fullScreen(workspace):
-                if managed.followBackFromFullScreen(osFocused, to: workspace) { return true }
+                if placement.followBackFromFullScreen(osFocused, to: workspace) { return true }
             case let .assigned(workspace) where workspace == currentWorkspace:
                 workspaces.recordFocus(on: osFocused.id, in: currentWorkspace)
                 return true
             case .unassigned:
-                if managed.assign(osFocused, to: currentWorkspace) == currentWorkspace { return true }
+                if placement.assign(osFocused, to: currentWorkspace) == currentWorkspace { return true }
             default:
                 break
             }
@@ -120,7 +120,7 @@ final class Navigation {
     func focusedWindowOfCurrentWorkspace() -> WindowSnapshot? {
         guard let focused = windowSystem.focused() else { return nil }
 
-        return managed.assign(focused, to: workspaces.current) == workspaces.current ? focused : nil
+        return placement.assign(focused, to: workspaces.current) == workspaces.current ? focused : nil
     }
 
     private func enroll(_ win: WindowSnapshot, into workspace: Int) {

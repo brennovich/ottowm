@@ -5,7 +5,7 @@ final class Engine {
     private let desktop: any Desktop
     private let windowSystem: WindowSystem
     private let workspaces: Workspaces
-    private let managed: ManagedWindows
+    private let placement: WindowPlacement
     private let filledWindows: FilledWindows
     private let enrollment: WindowEnrollment
     private let navigation: Navigation
@@ -18,7 +18,7 @@ final class Engine {
         desktop: any Desktop,
         windowSystem: WindowSystem,
         workspaces: Workspaces,
-        managed: ManagedWindows,
+        placement: WindowPlacement,
         filledWindows: FilledWindows,
         enrollment: WindowEnrollment,
         navigation: Navigation,
@@ -30,7 +30,7 @@ final class Engine {
         self.desktop = desktop
         self.windowSystem = windowSystem
         self.workspaces = workspaces
-        self.managed = managed
+        self.placement = placement
         self.filledWindows = filledWindows
         self.enrollment = enrollment
         self.navigation = navigation
@@ -43,7 +43,7 @@ final class Engine {
     func start(windows: [WindowSnapshot]) {
         windowSystem.duringOperation("start") {
             for win in desktop.recover(windows) {
-                managed.assign(win, to: 1)
+                placement.assign(win, to: 1)
             }
 
             desktop.startWatching { [weak self] in
@@ -51,11 +51,11 @@ final class Engine {
 
                 self.windowSystem.duringOperation("native-space-change") {
                     guard let focused = self.windowSystem.focused(),
-                          self.managed.isParked(focused.id)
+                          self.placement.isParked(focused.id)
                     else {
                         Log.engine.debug("native space change: no parked window focused")
                         self.fullScreenReturns.followWithRetries()
-                        self.desktop.repark(self.managed.parked)
+                        self.desktop.repark(self.placement.parked)
                         return
                     }
 
@@ -67,7 +67,7 @@ final class Engine {
     }
 
     func stop() {
-        managed.restoreParkedWindows()
+        placement.restoreParkedWindows()
     }
 
     func handle(_ event: WindowEvent) {
@@ -85,20 +85,20 @@ final class Engine {
             case let .focused(win):
                 navigation.follow(win)
             case let .destroyed(windowId):
-                if !managed.unmanage(windowId, reason: "destroyed") {
+                if !placement.unmanage(windowId, reason: "destroyed") {
                     navigation.restore()
                 }
             case let .minimized(windowId):
                 guard workspaces.workspace(for: windowId) != nil else { return }
 
                 for memberId in workspaces.tabGroupMembers(of: windowId) {
-                    managed.unmanage(memberId, reason: "minimized")
+                    placement.unmanage(memberId, reason: "minimized")
                 }
 
                 navigation.restore()
             case let .unminimized(win):
                 for recovered in desktop.recover([win]) {
-                    managed.assign(recovered, to: workspaces.current)
+                    placement.assign(recovered, to: workspaces.current)
                 }
             }
         }
@@ -129,7 +129,7 @@ final class Engine {
     func resync(windows: [WindowSnapshot]) {
         windowSystem.duringOperation("resync") {
             for win in windows {
-                managed.assign(win, to: workspaces.current)
+                placement.assign(win, to: workspaces.current)
             }
         }
     }
@@ -138,16 +138,16 @@ final class Engine {
         windowSystem.duringOperation("switch-to-workspace") {
             if let focused = windowSystem.focused(), focused.isFullScreen,
                let previous = workspaces.workspace(for: focused.id) {
-                managed.releaseToFullScreen(focused.id, from: previous)
+                placement.releaseToFullScreen(focused.id, from: previous)
             }
 
-            managed.dropWindowsThatLeftTheDesktop()
+            placement.dropWindowsThatLeftTheDesktop()
 
             if let focused = windowSystem.focused() {
-                managed.assign(focused, to: workspaces.current)
+                placement.assign(focused, to: workspaces.current)
             }
 
-            let onDesktop = managed.isDesktopInFront
+            let onDesktop = placement.isDesktopInFront
             Log.engine.info("switch requested target=\(workspace) current=\(self.workspaces.current) onDesktop=\(onDesktop)")
 
             if workspace == workspaces.current {
@@ -157,7 +157,7 @@ final class Engine {
                 return
             }
 
-            managed.switchTo(workspace)
+            placement.switchTo(workspace)
 
             if onDesktop {
                 navigation.restore()
@@ -173,7 +173,7 @@ final class Engine {
                 Log.engine.info("move dropped: invalid workspace \(workspace)")
                 return
             }
-            guard let win = windowSystem.focused(), managed.move(win, to: workspace) else {
+            guard let win = windowSystem.focused(), placement.move(win, to: workspace) else {
                 Log.engine.info("move to \(workspace) dropped: no valid window to move")
                 return
             }
@@ -190,7 +190,7 @@ final class Engine {
             }
 
             let candidates = workspaces.windowIds(in: workspaces.current)
-                .filter { $0 != reference.id && !managed.isParked($0) }
+                .filter { $0 != reference.id && !placement.isParked($0) }
 
             let neighbors = Neighbors(around: reference.frame, among: windowSystem.frames(of: candidates))
             guard let target = neighbors.nearest(to: direction) else {
@@ -213,7 +213,7 @@ final class Engine {
                 Log.engine.info("\(operation) dropped: no window of workspace \(self.workspaces.current) focused")
                 return
             }
-            guard !managed.isParked(win.id) else {
+            guard !placement.isParked(win.id) else {
                 Log.engine.info("\(operation) dropped: id=\(win.id) is parked")
                 return
             }
@@ -224,7 +224,7 @@ final class Engine {
             let outcomes = desktop.reframe([(windowId: win.id, change: requested)])
             filledWindows.record(outcomes)
             if outcomes.contains(.gone(win.id)) {
-                managed.unmanage(win.id, reason: "gone")
+                placement.unmanage(win.id, reason: "gone")
             }
         }
     }
@@ -243,7 +243,7 @@ extension Engine {
         restart: @escaping () -> Void = {}
     ) -> Engine {
         let filledWindows = FilledWindows(tabs: workspaces.tabGroupMembers(of:))
-        let managed = ManagedWindows(
+        let placement = WindowPlacement(
             desktop: desktop,
             windowSystem: windowSystem,
             workspaces: workspaces,
@@ -253,20 +253,20 @@ extension Engine {
         let enrollment = WindowEnrollment(
             windowSystem: windowSystem,
             workspaces: workspaces,
-            managed: managed,
+            placement: placement,
             scheduleRetry: scheduleRetry
         )
         let navigation = Navigation(
             desktop: desktop,
             windowSystem: windowSystem,
             workspaces: workspaces,
-            managed: managed,
+            placement: placement,
             enrollment: enrollment
         )
         let fullScreenReturns = FullScreenReturns(
             windowSystem: windowSystem,
             workspaces: workspaces,
-            managed: managed,
+            placement: placement,
             navigation: navigation,
             scheduleRetry: scheduleRetry
         )
@@ -275,7 +275,7 @@ extension Engine {
             desktop: desktop,
             windowSystem: windowSystem,
             workspaces: workspaces,
-            managed: managed,
+            placement: placement,
             filledWindows: filledWindows,
             enrollment: enrollment,
             navigation: navigation,

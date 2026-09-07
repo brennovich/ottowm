@@ -68,7 +68,7 @@ flowchart LR
 | `Bindings`                    | Input     | The bindings currently up: `start`, `stop`, `reload`.                                   |
 | `Hotkeys`                     | Input     | A session `CGEventTap` on keyDown, running on a thread of its own.                      |
 | `Engine`                      | Engine    | Runs each window event and action as one operation over the four parts below.           |
-| `ManagedWindows`              | Engine    | Admits a window, and keeps its workspace membership and desktop placement in step.      |
+| `WindowPlacement`             | Engine    | Admits a window, and keeps its workspace membership and desktop placement in step.      |
 | `WindowEnrollment`            | Engine    | Enrolls a window announced before it was on screen, retrying the read for a moment.     |
 | `Navigation`                  | Engine    | Restores the focus after a change, and follows the user to the workspace they focused.  |
 | `FullScreenReturns`           | Engine    | Notices a window back from full screen on every event, and polls after a Space change.  |
@@ -106,7 +106,7 @@ flowchart LR
 
 `Window` is a protocol; `AXWindow` is the implementation the app runs.
 
-`Desktop` is a protocol; `OffscreenParkingDesktop` is the implementation the app runs. It holds no state of its own. `ManagedWindows` hands it a park or an unpark per window, the unpark carrying the frame the window was parked from, and records what comes back in `ParkedWindows`. `Engine` hands it a step, a centering, a maximize or a fill of the focused window, the maximize and the fill carrying the frame to go back to, and records what comes back in `FilledWindows`.
+`Desktop` is a protocol; `OffscreenParkingDesktop` is the implementation the app runs. It holds no state of its own. `WindowPlacement` hands it a park or an unpark per window, the unpark carrying the frame the window was parked from, and records what comes back in `ParkedWindows`. `Engine` hands it a step, a centering, a maximize or a fill of the focused window, the maximize and the fill carrying the frame to go back to, and records what comes back in `FilledWindows`.
 
 ### Input
 
@@ -125,21 +125,21 @@ The tap thread matches the key and dispatches the action to the main queue, the 
 
 ```mermaid
 flowchart LR
-    Engine --> ManagedWindows
+    Engine --> WindowPlacement
     Engine --> WindowEnrollment
     Engine --> Navigation
     Engine --> FullScreenReturns
     Engine --> Workspaces
     Engine --> Neighbors
     Engine --> FilledWindows
-    WindowEnrollment --> ManagedWindows
+    WindowEnrollment --> WindowPlacement
     Navigation --> WindowEnrollment
-    Navigation --> ManagedWindows
+    Navigation --> WindowPlacement
     FullScreenReturns --> Navigation
-    FullScreenReturns --> ManagedWindows
-    ManagedWindows --> Workspaces
-    ManagedWindows --> ParkedWindows
-    ManagedWindows --> FilledWindows
+    FullScreenReturns --> WindowPlacement
+    WindowPlacement --> Workspaces
+    WindowPlacement --> ParkedWindows
+    WindowPlacement --> FilledWindows
     FilledWindows --> Workspaces
     Navigation --> Workspaces
     Workspaces --> Workspace
@@ -148,17 +148,17 @@ flowchart LR
 
 Every window event, and every action that touches windows, runs inside `WindowSystem.duringOperation`. Only an entry point opens an operation: an `Engine` method, the native Space change callback, or a retry closure of `WindowEnrollment` and `FullScreenReturns`. The parts never open one. Events are dropped while the screen is locked, where every window reads as closed.
 
-`ManagedWindows` owns a window's workspace: every change of it is paired with a park or an unpark on the `Desktop`. `Navigation` decides where the focus goes after a change and which workspace to show when the user focuses a window. `WindowEnrollment` and `FullScreenReturns` repeat a read macOS sent no notification for.
+`WindowPlacement` owns a window's workspace: every change of it is paired with a park or an unpark on the `Desktop`. `Navigation` decides where the focus goes after a change and which workspace to show when the user focuses a window. `WindowEnrollment` and `FullScreenReturns` repeat a read macOS sent no notification for.
 
 ### macOS boundary
 
 ```mermaid
 flowchart TB
     Engine -->|recover, reframe, focus, repark| Desktop
-    ManagedWindows -->|reframe| Desktop
+    WindowPlacement -->|reframe| Desktop
     Navigation -->|focus| Desktop
     Engine -->|focused, frames| WindowSystem
-    ManagedWindows & Navigation -->|focused, shows, snapshot| WindowSystem
+    WindowPlacement & Navigation -->|focused, shows, snapshot| WindowSystem
     WindowEnrollment & FullScreenReturns -->|snapshot| WindowSystem
     TabGroups -->|tabCount, frame| WindowSystem
     RunningApplicationsObserver -->|WindowEvent| Engine
@@ -220,7 +220,7 @@ sequenceDiagram
     AppDelegate->>Engine: start(windows:)
     Engine->>Desktop: recover(windows)
     Desktop-->>Engine: the same windows, parked ones back on screen
-    Engine->>ManagedWindows: assign each one to workspace 1
+    Engine->>WindowPlacement: assign each one to workspace 1
     Engine->>Desktop: startWatching(nativeSpaceChange:)
     AppDelegate->>Bindings: start()
 ```
@@ -232,12 +232,12 @@ sequenceDiagram
     Hotkeys->>Engine: handle(switchToWorkspace(n))
     Engine->>WindowSystem: focused()
     Note over Engine: releases the focused window if full screen,<br/>drops the windows that left the desktop,<br/>assigns the focused window no workspace knows
-    Engine->>ManagedWindows: switchTo(n)
-    ManagedWindows->>Workspaces: switchTo(n, leavingFocusOn: focused)
-    Workspaces-->>ManagedWindows: (activating, parking)
-    ManagedWindows->>Desktop: reframe(park or unpark, per window)
-    Desktop-->>ManagedWindows: parked from a frame, active, or gone, per window
-    ManagedWindows->>ParkedWindows: record(what came back)
+    Engine->>WindowPlacement: switchTo(n)
+    WindowPlacement->>Workspaces: switchTo(n, leavingFocusOn: focused)
+    Workspaces-->>WindowPlacement: (activating, parking)
+    WindowPlacement->>Desktop: reframe(park or unpark, per window)
+    Desktop-->>WindowPlacement: parked from a frame, active, or gone, per window
+    WindowPlacement->>ParkedWindows: record(what came back)
     alt the desktop is in front
         Engine->>Navigation: restore()
         Navigation->>Desktop: focus(nextWindowToFocus)
@@ -256,10 +256,10 @@ sequenceDiagram
     Hotkeys->>Engine: handle(moveWindowToWorkspace(n))
     Engine->>WindowSystem: focused()
     WindowSystem-->>Engine: the window, or nothing to move
-    Engine->>ManagedWindows: move(window, to: n)
-    ManagedWindows->>Desktop: reframe(id, unpark if n is current, else park)
-    ManagedWindows->>ParkedWindows: record(what came back)
-    ManagedWindows->>Workspaces: move(id, to: n), which drops any full screen record of it
+    Engine->>WindowPlacement: move(window, to: n)
+    WindowPlacement->>Desktop: reframe(id, unpark if n is current, else park)
+    WindowPlacement->>ParkedWindows: record(what came back)
+    WindowPlacement->>Workspaces: move(id, to: n), which drops any full screen record of it
     Engine->>Navigation: restore()
     Note over Navigation: skipped when a window of the current workspace already has the focus
     Navigation->>Desktop: focus(nextWindowToFocus)
@@ -273,7 +273,7 @@ sequenceDiagram
     Engine->>Navigation: focusedWindowOfCurrentWorkspace()
     Note over Navigation: nothing unless the focused window is in the current workspace,<br/>enrolled first when no workspace holds it
     Engine->>Workspaces: windowIds(in: the current workspace)
-    Engine->>ManagedWindows: isParked(id)
+    Engine->>WindowPlacement: isParked(id)
     Engine->>WindowSystem: frames(of: the windows that are not parked)
     Engine->>Neighbors: nearest(to: direction)
     Neighbors-->>Engine: the window that way, or nothing
@@ -306,7 +306,7 @@ sequenceDiagram
     participant Engine
     participant Navigation
     participant WindowSystem
-    participant ManagedWindows
+    participant WindowPlacement
 
     alt on the same native Space
         RunningApplicationsObserver->>Engine: focused(a parked window)
@@ -320,8 +320,8 @@ sequenceDiagram
         Engine->>Navigation: navigate(to: window)
     end
     Note over Navigation: dropped by the one-shot ignore flag,<br/>or when every window of the current workspace is already gone
-    Navigation->>ManagedWindows: switchTo(that window's workspace)
-    ManagedWindows->>Desktop: reframe(unpark for one, park for the other)
+    Navigation->>WindowPlacement: switchTo(that window's workspace)
+    WindowPlacement->>Desktop: reframe(unpark for one, park for the other)
 ```
 
 A Space change also pulls a parked window back on screen when its full screen instance exits. With no parked window focused, `Engine` answers the change with `repark`, which puts the parked windows found on screen back at the hidden edge.
@@ -331,15 +331,15 @@ A Space change also pulls a parked window back on screen when its full screen in
 ```mermaid
 sequenceDiagram
     Note over Engine: a switch finds the focused window full screen
-    Engine->>ManagedWindows: releaseToFullScreen(id, from: the workspace it was in)
-    ManagedWindows->>Workspaces: remove(id), then recordFullScreen(id, leaving: it)
+    Engine->>WindowPlacement: releaseToFullScreen(id, from: the workspace it was in)
+    WindowPlacement->>Workspaces: remove(id), then recordFullScreen(id, leaving: it)
     Note over Engine: the window leaves full screen
     RunningApplicationsObserver->>Engine: focused(window)
     Engine->>Navigation: follow(window)
     Navigation->>Workspaces: membership(of: window)
     Workspaces-->>Navigation: fullScreen(the recorded workspace)
-    Navigation->>ManagedWindows: followBackFromFullScreen(window, to: it)
-    ManagedWindows->>Workspaces: switchTo(it), then assign(window) there
+    Navigation->>WindowPlacement: followBackFromFullScreen(window, to: it)
+    WindowPlacement->>Workspaces: switchTo(it), then assign(window) there
 ```
 
 The record is taken after the removal, which clears every other trace of the window. A `move-window-to-workspace` on that window clears the record. The focus event can arrive while the window still reads as full screen and is dropped then; `FullScreenReturns` runs the same follow-back at the start of every later window event, and polls for it after a native Space change until the retries run out.
@@ -378,13 +378,13 @@ An `LSUIElement` agent has no quit command, so the ways out are a bound `quit` a
 sequenceDiagram
     alt quit action
         Hotkeys->>Engine: handle(quit)
-        Engine->>ManagedWindows: restoreParkedWindows()
-        ManagedWindows->>Desktop: reframe(unpark every parked window)
+        Engine->>WindowPlacement: restoreParkedWindows()
+        WindowPlacement->>Desktop: reframe(unpark every parked window)
         Engine->>Lifecycle: quit()
     else SIGTERM
         Lifecycle->>Engine: stop()
-        Engine->>ManagedWindows: restoreParkedWindows()
-        ManagedWindows->>Desktop: reframe(unpark every parked window)
+        Engine->>WindowPlacement: restoreParkedWindows()
+        WindowPlacement->>Desktop: reframe(unpark every parked window)
     end
     Lifecycle->>Lifecycle: exit(EXIT_SUCCESS)
 ```
@@ -407,7 +407,7 @@ sequenceDiagram
     end
     RunningApplicationsObserver-->>Lifecycle: the windows of every application
     Lifecycle->>Engine: resync(windows:)
-    Engine->>ManagedWindows: assign the ones no workspace knows to the current workspace
+    Engine->>WindowPlacement: assign the ones no workspace knows to the current workspace
 ```
 
 The sweep runs first, so a window it drops does not come back in the answer as one to enroll again. A window is reported dead only after two passes without an answer: an application still waking from sleep answers for none of its windows.
@@ -439,7 +439,7 @@ sequenceDiagram
     participant RunningApplicationsObserver
     participant Engine
     participant Navigation
-    participant ManagedWindows
+    participant WindowPlacement
     participant Workspaces
     participant TabGroups
 
@@ -447,8 +447,8 @@ sequenceDiagram
     Note over RunningApplicationsObserver: Application.attach registers the window before the event goes on
     RunningApplicationsObserver->>Engine: focused(window)
     Engine->>Navigation: follow(window)
-    Navigation->>ManagedWindows: assign(window)
-    ManagedWindows->>Workspaces: assign(window)
+    Navigation->>WindowPlacement: assign(window)
+    WindowPlacement->>Workspaces: assign(window)
     Workspaces->>TabGroups: add(window)
     Note over TabGroups: reads how many tabs the window shows
     TabGroups-->>Workspaces: the group it joined

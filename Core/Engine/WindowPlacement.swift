@@ -2,7 +2,7 @@ import CoreGraphics
 
 /// The windows that belong to a workspace. Keeps each one's membership and its placement on
 /// the desktop in step: a window of the current workspace is active, any other is parked.
-final class ManagedWindows {
+final class WindowPlacement {
     private let desktop: any Desktop
     private let windowSystem: WindowSystem
     private let workspaces: Workspaces

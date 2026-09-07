@@ -24,7 +24,7 @@ final class FullScreenReturnsTests: EngineTestCase {
 
         XCTAssertEqual(workspaces.workspace(for: 200), 1)
         XCTAssertEqual(workspaces.current, 1)
-        XCTAssertFalse(managed.isParked(200))
+        XCTAssertFalse(placement.isParked(200))
     }
 
     func testTheRetriesStopAfterTheLastDelay() {
@@ -39,7 +39,7 @@ final class FullScreenReturnsTests: EngineTestCase {
 
     func testNothingIsScheduledWithNoWindowOutInFullScreen() {
         let win = add(StubWindow(id: 100))
-        managed.assign(win.snapshot(), to: 1)
+        placement.assign(win.snapshot(), to: 1)
 
         fullScreenReturns.followWithRetries()
 
@@ -49,10 +49,10 @@ final class FullScreenReturnsTests: EngineTestCase {
     private func sendWindowFullScreenAndLeave() -> (StubWindow, StubWindow) {
         let win1 = add(StubWindow(id: 100))
         let win2 = add(StubWindow(id: 200))
-        managed.assign(win1.snapshot(), to: 1)
-        managed.assign(win2.snapshot(), to: 1)
-        managed.releaseToFullScreen(200, from: 1)
-        managed.switchTo(2)
+        placement.assign(win1.snapshot(), to: 1)
+        placement.assign(win2.snapshot(), to: 1)
+        placement.releaseToFullScreen(200, from: 1)
+        placement.switchTo(2)
         return (win1, win2)
     }
 }

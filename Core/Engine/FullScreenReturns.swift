@@ -8,7 +8,7 @@ import Foundation
 final class FullScreenReturns {
     private let windowSystem: WindowSystem
     private let workspaces: Workspaces
-    private let managed: ManagedWindows
+    private let placement: WindowPlacement
     private let navigation: Navigation
     private let scheduleRetry: (TimeInterval, @escaping () -> Void) -> Void
 
@@ -18,13 +18,13 @@ final class FullScreenReturns {
     init(
         windowSystem: WindowSystem,
         workspaces: Workspaces,
-        managed: ManagedWindows,
+        placement: WindowPlacement,
         navigation: Navigation,
         scheduleRetry: @escaping (TimeInterval, @escaping () -> Void) -> Void
     ) {
         self.windowSystem = windowSystem
         self.workspaces = workspaces
-        self.managed = managed
+        self.placement = placement
         self.navigation = navigation
         self.scheduleRetry = scheduleRetry
     }
@@ -33,7 +33,7 @@ final class FullScreenReturns {
     func follow() -> Bool {
         for (windowId, workspace) in workspaces.fullScreenWindows {
             guard let win = windowSystem.snapshot(of: windowId),
-                  managed.followBackFromFullScreen(win, to: workspace)
+                  placement.followBackFromFullScreen(win, to: workspace)
             else { continue }
 
             // The window is back, but the focus can sit on a window this switch just parked.

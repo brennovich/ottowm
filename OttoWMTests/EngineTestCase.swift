@@ -50,7 +50,7 @@ class EngineTestCase: XCTestCase {
         window: { [weak self] id in self?.windows[id] }
     )
 
-    lazy var managed = ManagedWindows(
+    lazy var placement = WindowPlacement(
         desktop: desktop,
         windowSystem: windowSystem,
         workspaces: workspaces,
@@ -61,7 +61,7 @@ class EngineTestCase: XCTestCase {
     lazy var enrollment = WindowEnrollment(
         windowSystem: windowSystem,
         workspaces: workspaces,
-        managed: managed,
+        placement: placement,
         scheduleRetry: scheduleRetry
     )
 
@@ -69,14 +69,14 @@ class EngineTestCase: XCTestCase {
         desktop: desktop,
         windowSystem: windowSystem,
         workspaces: workspaces,
-        managed: managed,
+        placement: placement,
         enrollment: enrollment
     )
 
     lazy var fullScreenReturns = FullScreenReturns(
         windowSystem: windowSystem,
         workspaces: workspaces,
-        managed: managed,
+        placement: placement,
         navigation: navigation,
         scheduleRetry: scheduleRetry
     )
@@ -85,7 +85,7 @@ class EngineTestCase: XCTestCase {
         desktop: desktop,
         windowSystem: windowSystem,
         workspaces: workspaces,
-        managed: managed,
+        placement: placement,
         filledWindows: filledWindows,
         enrollment: enrollment,
         navigation: navigation,

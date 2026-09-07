@@ -7,7 +7,7 @@ import Foundation
 final class WindowEnrollment {
     private let windowSystem: WindowSystem
     private let workspaces: Workspaces
-    private let managed: ManagedWindows
+    private let placement: WindowPlacement
     private let scheduleRetry: (TimeInterval, @escaping () -> Void) -> Void
 
     private static let firstDelay: TimeInterval = 0.1
@@ -16,18 +16,18 @@ final class WindowEnrollment {
     init(
         windowSystem: WindowSystem,
         workspaces: Workspaces,
-        managed: ManagedWindows,
+        placement: WindowPlacement,
         scheduleRetry: @escaping (TimeInterval, @escaping () -> Void) -> Void
     ) {
         self.windowSystem = windowSystem
         self.workspaces = workspaces
-        self.managed = managed
+        self.placement = placement
         self.scheduleRetry = scheduleRetry
     }
 
     @discardableResult
     func enroll(_ win: WindowSnapshot, to workspace: Int) -> Int? {
-        let assigned = managed.assign(win, to: workspace)
+        let assigned = placement.assign(win, to: workspace)
         if assigned == nil { enrollLater(win) }
         return assigned
     }
@@ -46,7 +46,7 @@ final class WindowEnrollment {
             self.windowSystem.duringOperation("enroll-retry") {
                 guard let win = self.windowSystem.snapshot(of: windowId) else { return }
 
-                if self.managed.assign(win, to: self.workspaces.current) == nil {
+                if self.placement.assign(win, to: self.workspaces.current) == nil {
                     self.retry(windowId, in: delay * 2)
                 }
             }
