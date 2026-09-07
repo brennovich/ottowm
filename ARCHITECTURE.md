@@ -27,6 +27,7 @@ Step         = (direction, points)                               // "move-window
 KeyCombo     = (keyCode, [ModifierKey: ModifierSide])            // "lopt-shift-1"
 FrameChange  = step(Step) | center | park | unpark(frame?)       // what a window's frame is asked to become
              | maximize(frame?) | fill(direction, frame?)        // carrying the frame to go back to
+FrameOutcome = parked(id, from: frame) | filled(id, from: frame) | active(id) | gone(id)
 WindowSnapshot(id, appName, isStandard, hasCloseButton, hasMinimizeButton, isFullScreen, isMinimized, frame)
 ```
 

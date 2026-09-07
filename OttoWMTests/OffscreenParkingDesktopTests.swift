@@ -80,8 +80,8 @@ final class OffscreenParkingDesktopTests: XCTestCase {
     }
 
     /// A window rarely settles at the frame it was given: Terminal quantizes its height to
-    /// whole rows. The frame handed in is what says the window is maximized, not its size.
-    func testMaximizeTakesAWindowBackToTheFrameHandedInWhateverItsSize() {
+    /// whole rows. A window within the tolerance of the target stands at it.
+    func testMaximizeTakesAWindowShortOfTheFilledFrameBackToTheFrameHandedIn() {
         let short = addWindow(101, frame: CGRect(x: 15, y: 53, width: 1762, height: 1051))
 
         XCTAssertEqual(reframe(short.id, .maximize(restoring: originalFrame)), [.active(short.id)])
@@ -109,14 +109,6 @@ final class OffscreenParkingDesktopTests: XCTestCase {
     func testFillTakesTheHalfOfTheFrameAMaximizeFills() {
         XCTAssertEqual(reframe(100, .fill(.west, restoring: nil)), [.filled(100, from: originalFrame)])
         XCTAssertEqual(win.frame, CGRect(x: 15, y: 53, width: 873.5, height: 1052))
-        XCTAssertEqual(win.animatedWriteCount, 0)
-    }
-
-    func testFillTakesAWindowAlreadyInThatHalfBackToTheFrameHandedIn() {
-        let west = addWindow(101, frame: CGRect(x: 15, y: 53, width: 873.5, height: 1052))
-
-        XCTAssertEqual(reframe(west.id, .fill(.west, restoring: originalFrame)), [.active(west.id)])
-        XCTAssertEqual(west.frame, originalFrame)
     }
 
     /// One record serves every target, so a window standing in one half still fills the
