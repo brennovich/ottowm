@@ -5,13 +5,13 @@ import AppKit
 let fillInset: CGFloat = 15
 
 // Terminal fits its window to whole rows, 17pt at the default font, so a window handed a
-// filled frame settles a row short of it. Core/TabGroups.swift and
+// filled frame settles a row short of it. Core/Model/TabGroups.swift and
 // OffscreenParkingDesktop.filledTolerance allow the same 30.
 let refitTolerance: CGFloat = 30
 
 // The frames below are worked out here rather than read from the app on purpose: the
 // harness drives the shipped bundle without importing its code, so a change to
-// Core/Half.swift that the app and the run disagree about is a run that fails.
+// Core/Model/Half.swift that the app and the run disagree about is a run that fails.
 
 // What Core/ScreenGeometry.swift calls the visible frame, the display without the menu bar
 // and the Dock, in the top left coordinates every frame read through the accessibility API
