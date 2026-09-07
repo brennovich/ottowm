@@ -25,7 +25,10 @@ struct TabGroups {
     }
 
     mutating func add(_ window: WindowSnapshot) {
-        guard windowToGroup[window.id] == nil else { return }
+        if let current = windowToGroup[window.id] {
+            join(window, leaving: current)
+            return
+        }
 
         let groupId: Int
         if let opened = group(representing: window) {
@@ -74,16 +77,32 @@ struct TabGroups {
     ///
     /// Two maximized windows stand at one frame, so the frame alone matches either group.
     /// A group already holding as many windows as the tab reports tabs is full, and the
-    /// tab of the other window opens its own group.
+    /// tab of the other window opens its own group. The group the window is already in is
+    /// no candidate, so a window is never matched against itself.
     private func group(representing window: WindowSnapshot) -> Int? {
+        let candidates = groups.filter { $0.value.appName == window.appName && $0.key != windowToGroup[window.id] }
+        guard !candidates.isEmpty else { return nil }
+
         let tabs = tabCount(window.id)
         guard tabs > 1 else { return nil }
 
-        return groups.first { entry in
-            guard entry.value.appName == window.appName, entry.value.windowIds.count < tabs else { return false }
+        return candidates.first { entry in
+            guard entry.value.windowIds.count < tabs else { return false }
 
             return entry.value.windowIds.lazy.compactMap(frame).contains { stands(window, at: $0) }
         }?.key
+    }
+
+    /// Merging windows into tabs opens no window and posts no notification, so a window
+    /// standing alone in the group it opened is matched again every time it is added: it
+    /// joins the group of the window it was merged into, and the group it leaves is
+    /// retired. A window that already has siblings keeps the group it is in.
+    private mutating func join(_ window: WindowSnapshot, leaving opened: Int) {
+        guard groups[opened]?.windowIds.count == 1, let joined = group(representing: window) else { return }
+
+        groups[opened] = nil
+        groups[joined]?.windowIds.append(window.id)
+        windowToGroup[window.id] = joined
     }
 
     private func stands(_ window: WindowSnapshot, at occupied: CGRect) -> Bool {

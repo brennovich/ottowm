@@ -138,6 +138,18 @@ final class TabGroupsTests: XCTestCase {
         XCTAssertEqual(tabGroups.members(of: 300), [300, 400])
     }
 
+    /// Merging windows into tabs opens no window and posts no notification: two windows
+    /// each holding a group of its own become one window showing a tab of each, and the
+    /// tab acted on stands where the window it was merged into stands.
+    func testAWindowMergedIntoAnotherJoinsItsGroup() {
+        let apart = CGRect(x: 900, y: 0, width: 800, height: 600)
+        var tabGroups = makeTabGroups([tabbed(100), tabbed(200, frame: apart)])
+
+        add(tabbed(200, tabCount: 2), to: &tabGroups)
+
+        XCTAssertEqual(tabGroups.members(of: 100), [100, 200])
+    }
+
     func testSiblings() {
         let cases: [(name: String, windows: [TabbedWindow], subject: CGWindowID, expected: [CGWindowID])] = [
             ("an unknown window has no siblings", [], 999, []),

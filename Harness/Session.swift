@@ -297,11 +297,13 @@ struct Session {
 // Opens the second terminal window and merges it into the one the desk already shows.
 // Merged before the desk is arranged, and with the desk's own window brought back to the
 // front after: the merge leaves whichever window it pleases in front, and what the run
-// arranges and reads from there has to be the tab it claimed.
+// arranges and reads from there has to be the tab it claimed. The tab bar goes up before
+// the second window opens so neither of them changes size when they become tabs.
 private func stageTab(
     alongside windows: [(String, String, AXUIElement)], claimed: inout [AXUIElement]
 ) -> (WindowSource, AXUIElement) {
     let source = stageTabSource()
+    showTabBar(ofApplication: source.bundleId, named: source.name)
     let window = openWindow(source, claimed: claimed)
     claimed.append(window)
 

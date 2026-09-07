@@ -1,5 +1,26 @@
 import AppKit
 
+// Terminal shows the tab bar only while a window has more than one tab, and the bar takes
+// the height it needs out of the window: a window merged into tabs stands tens of points
+// from where it was, and a window read before the merge is not where it is read after.
+// Shown up front, every window the run stages keeps its frame through the merge. The menu
+// item is named `Hide Tab Bar` once the bar is up, so a session that already shows it finds
+// nothing to press and there is nothing to undo.
+func showTabBar(ofApplication bundleId: String, named name: String) {
+    guard let application = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first else {
+        fail("\(name) is not running, its tab bar cannot be shown")
+    }
+
+    application.activate()
+
+    guard let show = menuItem(
+        ofApplication: application.processIdentifier, menu: "View", named: "Show Tab Bar"
+    ) else { return }
+
+    AXUIElementPerformAction(show, kAXPressAction as CFString)
+    report("ok, \(name) shows the tab bar")
+}
+
 // A tabbed window is made by merging windows that are already open rather than by asking
 // for a new tab. Terminal answers `Shell > New Tab` with a submenu of profiles, and
 // pressing either the parent or its first entry adds no tab; whether a new document opens

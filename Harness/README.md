@@ -9,7 +9,7 @@ Shared machinery for the acceptance run in `Acceptance/` and the benchmark in `B
 | `AX.swift`      | The accessibility reads: a window's frame, an application's windows, a window's title, a menu item |
 | `Hotkeys.swift` | Posts the bundled key combos as real key events into the session event tap                         |
 | `Screen.swift`  | Where the window actions take a window, worked out from the screen the same way the app does it   |
-| `Tabs.swift`    | Makes a tabbed window out of two, and brings either of its tabs to the front                      |
+| `Tabs.swift`    | Shows the tab bar, makes a tabbed window out of two, and brings either of its tabs to the front    |
 | `Report.swift`  | Output, failure, and the wait every check is built on                                              |
 
 There is no target of its own to build. Each run compiles the harness into its own binary, `make build/acceptance` and `make build/benchmark`, which is also how CI builds the one it is about to run before it grants permissions to anything.

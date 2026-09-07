@@ -119,8 +119,10 @@ final class Navigation {
     /// workspace does. See `WindowEnrollment` for how a live window ends up in no workspace.
     func focusedWindowOfCurrentWorkspace() -> WindowSnapshot? {
         guard let focused = windowSystem.focused() else { return nil }
+        guard placement.assign(focused, to: workspaces.current) == workspaces.current else { return nil }
 
-        return placement.assign(focused, to: workspaces.current) == workspaces.current ? focused : nil
+        workspaces.regroupTabs(of: focused)
+        return focused
     }
 
     private func enroll(_ win: WindowSnapshot, into workspace: Int) {

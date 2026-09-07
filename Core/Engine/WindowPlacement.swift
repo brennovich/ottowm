@@ -73,6 +73,7 @@ final class WindowPlacement {
     @discardableResult
     func move(_ win: WindowSnapshot, to workspace: Int) -> Bool {
         guard admission.verdict(for: win) == .admit else { return false }
+        workspaces.regroupTabs(of: win)
 
         let parked = workspace != workspaces.current
         Log.engine.info("moving window \(win.logDescription) to workspace \(workspace) parked=\(parked)")

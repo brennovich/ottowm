@@ -61,6 +61,12 @@ final class Workspaces {
         recordFocus(on: windowId, in: workspace)
     }
 
+    /// Settles the tab group of a window already assigned, for the windows merged into
+    /// tabs of one after each was seen on its own. See `TabGroups.add`.
+    func regroupTabs(of window: WindowSnapshot) {
+        tabGroups.add(window)
+    }
+
     func hasTabGroup(for window: WindowSnapshot) -> Bool {
         tabGroups.hasGroup(for: window)
     }

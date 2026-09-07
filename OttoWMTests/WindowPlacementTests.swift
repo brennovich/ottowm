@@ -34,6 +34,22 @@ final class WindowPlacementTests: EngineTestCase {
         XCTAssertTrue(placement.isParked(301))
     }
 
+    /// macOS reports no merge, so the group of a window merged into another window's tabs
+    /// since it was assigned is settled before it moves, and the window it stands in goes
+    /// whole.
+    func testMoveTakesTheTabsAWindowWasMergedIntoSinceItWasAssigned() {
+        let host = add(StubWindow(id: 300, appName: "Terminal", frame: tabFrame))
+        let apart = add(StubWindow(id: 301, appName: "Terminal", frame: CGRect(x: 1200, y: 0, width: 800, height: 600)))
+        placement.assign(host.snapshot(), to: 1)
+        placement.assign(apart.snapshot(), to: 1)
+
+        apart.tabs = 2
+        apart.moveTo(tabFrame)
+        placement.move(apart.snapshot(), to: 2)
+
+        XCTAssertEqual(workspaces.workspace(for: 300), 2)
+    }
+
     func testDropHandsAParkedWindowBackToTheDesktop() {
         let parked = add(StubWindow(id: 100))
         let onDesk = add(StubWindow(id: 200))

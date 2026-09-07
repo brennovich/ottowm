@@ -456,6 +456,8 @@ flowchart LR
     match -->|no| own
 ```
 
+Merging windows into tabs posts no notification, so a window seen before the merge still holds a group of its own. A window alone in its group is matched again every time it is added, one with siblings is not: it joins the group of the window it was merged into, and the group it leaves is retired. Matching reads the tab count, so it happens when a window is focused for an action or moved, not on a workspace switch.
+
 ### Group events
 
 | Event                                              | What OttoWM does                                                                                          |
@@ -464,4 +466,5 @@ flowchart LR
 | The group of that tab is in another workspace      | Switches to that workspace.                                                                               |
 | A workspace switch, or a move to another workspace | Places every member of the group together.                                                                |
 | A tab closes                                       | Drops the window. A sibling keeps the focus, so no other window is chosen.                                |
+| Two windows are merged into tabs                   | Matches the window acted on again, and it joins the group of the window it was merged into.               |
 | The group is minimized                             | macOS minimizes every member and names one. Drops all of them, then picks a new window to focus.          |

@@ -5,7 +5,7 @@ final class StubWindow: Window {
     let id: CGWindowID
     let pid: pid_t
     let appName: String
-    let tabs: Int
+    var tabs: Int
     let isStandard: Bool
     let hasCloseButton: Bool
     let hasMinimizeButton: Bool

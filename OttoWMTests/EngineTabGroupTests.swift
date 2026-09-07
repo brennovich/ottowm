@@ -16,6 +16,25 @@ final class EngineTabGroupTests: EngineTestCase {
         XCTAssertEqual(workspaces.workspace(for: 301), 2)
     }
 
+    /// Merging opens no window and posts no notification, so the group of the tab acted on
+    /// is settled first: the maximize belongs to the window, and the tab brought to the
+    /// front goes back to the frame the tab it was merged with maximized from.
+    func testAMaximizeIsUndoneThroughTheTabItsWindowWasMergedWith() {
+        let stood = CGRect(x: 400, y: 300, width: 200, height: 200)
+        let host = create(StubWindow(id: 300, appName: "Terminal", frame: stood))
+        let merged = create(StubWindow(id: 301, appName: "Terminal", frame: CGRect(x: 1200, y: 0, width: 800, height: 600)))
+        focused = host
+        engine.handle(.toggleMaximize)
+
+        merged.tabs = 2
+        merged.moveTo(host.frame)
+        focused = merged
+        desktop.clearCalls()
+        engine.handle(.toggleMaximize)
+
+        XCTAssertEqual(desktop.reframeCalls.map(\.change), [.maximize(restoring: stood)])
+    }
+
     func testSelectingAnotherTabKeepsTheDesktopInFront() {
         let tab1 = create(StubWindow(id: 300, appName: "Terminal", frame: tabFrame, tabCount: 2))
         let tab2 = add(StubWindow(id: 301, appName: "Terminal", frame: tabFrame, tabCount: 2))
