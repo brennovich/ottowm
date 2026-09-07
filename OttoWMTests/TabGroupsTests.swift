@@ -68,8 +68,8 @@ final class TabGroupsTests: XCTestCase {
                 [200]
             ),
             (
-                "a window of another size opens its own group",
-                [tabbed(100, tabCount: 2), tabbed(200, frame: CGRect(x: 0, y: 0, width: 801, height: 600), tabCount: 2)],
+                "a window a row taller than the size tolerance opens its own group",
+                [tabbed(100, tabCount: 2), tabbed(200, frame: CGRect(x: 0, y: 0, width: 800, height: 631), tabCount: 2)],
                 200,
                 [200]
             ),
@@ -101,6 +101,18 @@ final class TabGroupsTests: XCTestCase {
         frames[100] = maximized
 
         add(tabbed(200, frame: maximized, tabCount: 2), to: &tabGroups)
+
+        XCTAssertEqual(tabGroups.members(of: 100), [100, 200])
+    }
+
+    /// Terminal fits the window to whole rows when a tab takes over, and the tab that went
+    /// to the background keeps the unfitted size the fill wrote.
+    func testATabJoinsThroughAMemberOfTheSizeTheFillWroteRatherThanTheFittedOne() {
+        var tabGroups = makeTabGroups([tabbed(100, tabCount: 2)])
+        let written = CGRect(x: 15, y: 15, width: 1762, height: 1090)
+        frames[100] = written
+
+        add(tabbed(200, frame: CGRect(x: 15, y: 15, width: 1762, height: 1083), tabCount: 2), to: &tabGroups)
 
         XCTAssertEqual(tabGroups.members(of: 100), [100, 200])
     }

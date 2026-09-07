@@ -2,6 +2,10 @@ import CoreGraphics
 
 struct TabGroups {
     private static let yTolerance: CGFloat = 10
+    /// Terminal fits a window to whole rows when a tab takes over, one row being 17pt at the
+    /// default font, and the tab that goes to the background keeps the size the write left:
+    /// a fill of 1090 is answered as 1090 by one tab and as 1083 by the other.
+    private static let sizeTolerance: CGFloat = 30
 
     private struct Group {
         let appName: String
@@ -80,7 +84,7 @@ struct TabGroups {
     private func stands(_ window: WindowSnapshot, at occupied: CGRect) -> Bool {
         window.frame.origin.x == occupied.origin.x
             && abs(window.frame.origin.y - occupied.origin.y) <= Self.yTolerance
-            && window.frame.width == occupied.width
-            && window.frame.height == occupied.height
+            && abs(window.frame.width - occupied.width) <= Self.sizeTolerance
+            && abs(window.frame.height - occupied.height) <= Self.sizeTolerance
     }
 }
