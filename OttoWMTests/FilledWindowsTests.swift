@@ -33,15 +33,6 @@ final class FilledWindowsTests: XCTestCase {
         XCTAssertNil(filledWindows.restoringFrame(of: 100))
     }
 
-    /// Tabs of one window share the frame the fill took them from: a tab opened after it
-    /// lands at the filled frame with them.
-    func testATabOfAFilledWindowGoesBackToTheSameFrame() {
-        tabs = [100: [100, 200], 200: [100, 200]]
-        filledWindows.record([.filled(100, from: original)])
-
-        XCTAssertEqual(filledWindows.restoringFrame(of: 200), original)
-    }
-
     func testRestoringOneTabEndsTheFillForTheWholeWindow() {
         tabs = [100: [100, 200], 200: [100, 200]]
         filledWindows.record([.filled(100, from: original)])

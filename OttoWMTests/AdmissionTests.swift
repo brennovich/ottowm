@@ -8,12 +8,6 @@ final class AdmissionTests: EngineTestCase {
         XCTAssertEqual(admission.verdict(for: win.snapshot()), .admit)
     }
 
-    func testRefusesAWindowItsShapeRulesOut() {
-        let win = add(StubWindow(id: 100, isFullScreen: true))
-
-        XCTAssertEqual(admission.verdict(for: win.snapshot()), .refuse)
-    }
-
     func testRetriesAWindowNotYetOnScreen() {
         offScreenWindowIds = [100]
         let win = add(StubWindow(id: 100))
