@@ -8,7 +8,7 @@ final class WindowPlacement {
     private let workspaces: Workspaces
     private let admission: Admission
     private let parkedWindows: ParkedWindows
-    private let filledWindows: FilledWindows
+    private let restoringFrames: RestoringFrames
 
     init(
         desktop: any Desktop,
@@ -16,14 +16,14 @@ final class WindowPlacement {
         workspaces: Workspaces,
         admission: Admission,
         parkedWindows: ParkedWindows,
-        filledWindows: FilledWindows
+        restoringFrames: RestoringFrames
     ) {
         self.desktop = desktop
         self.windowSystem = windowSystem
         self.workspaces = workspaces
         self.admission = admission
         self.parkedWindows = parkedWindows
-        self.filledWindows = filledWindows
+        self.restoringFrames = restoringFrames
     }
 
     func isParked(_ windowId: CGWindowID) -> Bool {
@@ -40,7 +40,7 @@ final class WindowPlacement {
         guard admission.verdict(for: win) == .admit else { return nil }
 
         let assigned = workspaces.assign(win, to: workspace)
-        filledWindows.shareFrame(with: win.id)
+        restoringFrames.shareFrame(with: win.id)
         Log.engine.info("assigned \(win.logDescription) → workspace \(assigned)")
 
         place(win.id, parked: assigned != workspaces.current)
@@ -66,7 +66,7 @@ final class WindowPlacement {
 
         let focusSettled = workspaces.remove(windowId)
         parkedWindows.forget(windowId)
-        filledWindows.forget(windowId)
+        restoringFrames.forget(windowId)
         return focusSettled || workspace == nil
     }
 

@@ -82,7 +82,7 @@ flowchart LR
 | `Half`                        | Model     | One side of a rect, taking half of it, with the gap kept between the two halves.        |
 | `FrameChange`                 | Model     | What a window's frame is asked to become: step, center, maximize, fill, park or unpark. |
 | `ParkedWindows`               | Model     | The windows parked at the hidden edge, and the frame each one was parked from.          |
-| `FilledWindows`               | Model     | The frame each filled window goes back to, shared by the tabs of one window.            |
+| `RestoringFrames`             | Model     | The frame each maximized or filled window goes back to, shared by its tabs.             |
 | `Desktop`                     | macOS     | Manipulates the current workspace's windows.                                            |
 | `HiddenEdge`                  | macOS     | Where a parked window sits, and whether a frame sits there.                             |
 | `WindowSystem`                | macOS     | The focused window, the on-screen window frames, and the tab count of a window.         |
@@ -130,7 +130,7 @@ flowchart LR
     Engine --> FullScreenReturns
     Engine --> Workspaces
     Engine --> Neighbors
-    Engine --> FilledWindows
+    Engine --> RestoringFrames
     WindowEnrollment --> WindowPlacement
     WindowEnrollment --> Admission
     WindowPlacement --> Admission
@@ -140,8 +140,8 @@ flowchart LR
     FullScreenReturns --> WindowPlacement
     WindowPlacement --> Workspaces
     WindowPlacement --> ParkedWindows
-    WindowPlacement --> FilledWindows
-    FilledWindows --> Workspaces
+    WindowPlacement --> RestoringFrames
+    RestoringFrames --> Workspaces
     Navigation --> Workspaces
     Workspaces --> Workspace
     Workspaces --> TabGroups
@@ -284,10 +284,10 @@ sequenceDiagram
     Hotkeys->>Engine: handle(moveWindow(step), centerWindow, toggleMaximize or fill(direction))
     Engine->>Navigation: focusedWindowOfCurrentWorkspace()
     Note over Engine: nothing for a parked window
-    Engine->>FilledWindows: restoringFrame(of: id), for a maximize or a fill
+    Engine->>RestoringFrames: restoringFrame(of: id), for a maximize or a fill
     Engine->>Desktop: reframe(id, step, center, maximize(restoring) or fill(direction, restoring))
     Desktop-->>Engine: filled from a frame, active, or gone
-    Engine->>FilledWindows: record(what came back)
+    Engine->>RestoringFrames: record(what came back)
 ```
 
 ### Manual navigation

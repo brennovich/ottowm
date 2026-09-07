@@ -24,7 +24,7 @@ class EngineTestCase: XCTestCase {
     )
 
     let parkedWindows = ParkedWindows()
-    lazy var filledWindows = FilledWindows(
+    lazy var restoringFrames = RestoringFrames(
         tabs: { [weak self] id in self?.workspaces.tabGroupMembers(of: id) ?? [id] }
     )
 
@@ -58,7 +58,7 @@ class EngineTestCase: XCTestCase {
         workspaces: workspaces,
         admission: admission,
         parkedWindows: parkedWindows,
-        filledWindows: filledWindows
+        restoringFrames: restoringFrames
     )
 
     lazy var enrollment = WindowEnrollment(
@@ -91,7 +91,7 @@ class EngineTestCase: XCTestCase {
         workspaces: workspaces,
         admission: admission,
         placement: placement,
-        filledWindows: filledWindows,
+        restoringFrames: restoringFrames,
         enrollment: enrollment,
         navigation: navigation,
         fullScreenReturns: fullScreenReturns,

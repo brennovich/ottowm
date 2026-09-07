@@ -1,26 +1,27 @@
 import CoreGraphics
 
-/// The frame each filled window is to go back to. Recording the frame the window came from,
-/// rather than the one it was given, keeps the original through a second fill at another
-/// target. Tabs of one window share the record: they stand at one frame, and every tab holds
-/// the frame so closing the one the fill went through leaves the rest with it.
-final class FilledWindows {
+/// The frame each maximized or filled window is to go back to. Recording the frame the window
+/// came from, rather than the one it was given, keeps the original.
+///
+/// Tabs of one window share the record: they stand at one frame, and every tab holds the frame
+/// so closing the one the change went through leaves the rest with it.
+final class RestoringFrames {
     private let tabs: (CGWindowID) -> [CGWindowID]
 
-    private var filled: [CGWindowID: CGRect] = [:]
+    private var frames: [CGWindowID: CGRect] = [:]
 
     init(tabs: @escaping (CGWindowID) -> [CGWindowID]) {
         self.tabs = tabs
     }
 
     func restoringFrame(of windowId: CGWindowID) -> CGRect? {
-        tabs(windowId).lazy.compactMap { self.filled[$0] }.first
+        tabs(windowId).lazy.compactMap { self.frames[$0] }.first
     }
 
     /// A tab that joins a filled window takes the frame its siblings go back to: the tabs
     /// the fill recorded can all close while this one stays.
     func shareFrame(with windowId: CGWindowID) {
-        filled[windowId] = restoringFrame(of: windowId)
+        frames[windowId] = restoringFrame(of: windowId)
     }
 
     func record(_ outcomes: [FrameOutcome]) {
@@ -36,10 +37,10 @@ final class FilledWindows {
     /// A destroyed window has already left its tab group by the time it is forgotten, so
     /// the tabs that stay keep the frame.
     func forget(_ windowId: CGWindowID) {
-        filled[windowId] = nil
+        frames[windowId] = nil
     }
 
     private func keep(_ frame: CGRect?, of windowId: CGWindowID) {
-        for tabId in tabs(windowId) { filled[tabId] = frame }
+        for tabId in tabs(windowId) { frames[tabId] = frame }
     }
 }

@@ -7,7 +7,7 @@ final class Engine {
     private let workspaces: Workspaces
     private let admission: Admission
     private let placement: WindowPlacement
-    private let filledWindows: FilledWindows
+    private let restoringFrames: RestoringFrames
     private let enrollment: WindowEnrollment
     private let navigation: Navigation
     private let fullScreenReturns: FullScreenReturns
@@ -21,7 +21,7 @@ final class Engine {
         workspaces: Workspaces,
         admission: Admission,
         placement: WindowPlacement,
-        filledWindows: FilledWindows,
+        restoringFrames: RestoringFrames,
         enrollment: WindowEnrollment,
         navigation: Navigation,
         fullScreenReturns: FullScreenReturns,
@@ -34,7 +34,7 @@ final class Engine {
         self.workspaces = workspaces
         self.admission = admission
         self.placement = placement
-        self.filledWindows = filledWindows
+        self.restoringFrames = restoringFrames
         self.enrollment = enrollment
         self.navigation = navigation
         self.fullScreenReturns = fullScreenReturns
@@ -116,11 +116,11 @@ final class Engine {
         case .centerWindow: reframeFocusedWindow(operation: "center-window") { _ in .center }
         case .toggleMaximize:
             reframeFocusedWindow(operation: "toggle-maximize") {
-                .maximize(restoring: self.filledWindows.restoringFrame(of: $0.id))
+                .maximize(restoring: self.restoringFrames.restoringFrame(of: $0.id))
             }
         case let .fill(direction):
             reframeFocusedWindow(operation: "fill") {
-                .fill(direction, restoring: self.filledWindows.restoringFrame(of: $0.id))
+                .fill(direction, restoring: self.restoringFrames.restoringFrame(of: $0.id))
             }
         case .quit: quit()
         case .restart: restart()
@@ -225,7 +225,7 @@ final class Engine {
             Log.engine.info("\(requested.logDescription) \(win.logDescription)")
 
             let outcomes = desktop.reframe([(windowId: win.id, change: requested)])
-            filledWindows.record(outcomes)
+            restoringFrames.record(outcomes)
             if outcomes.contains(.gone(win.id)) {
                 placement.drop(win.id, reason: "gone")
             }
@@ -245,7 +245,7 @@ extension Engine {
         quit: @escaping () -> Void = {},
         restart: @escaping () -> Void = {}
     ) -> Engine {
-        let filledWindows = FilledWindows(tabs: workspaces.tabGroupMembers(of:))
+        let restoringFrames = RestoringFrames(tabs: workspaces.tabGroupMembers(of:))
         let admission = Admission(windowSystem: windowSystem, workspaces: workspaces)
         let placement = WindowPlacement(
             desktop: desktop,
@@ -253,7 +253,7 @@ extension Engine {
             workspaces: workspaces,
             admission: admission,
             parkedWindows: ParkedWindows(),
-            filledWindows: filledWindows
+            restoringFrames: restoringFrames
         )
         let enrollment = WindowEnrollment(
             windowSystem: windowSystem,
@@ -283,7 +283,7 @@ extension Engine {
             workspaces: workspaces,
             admission: admission,
             placement: placement,
-            filledWindows: filledWindows,
+            restoringFrames: restoringFrames,
             enrollment: enrollment,
             navigation: navigation,
             fullScreenReturns: fullScreenReturns,
