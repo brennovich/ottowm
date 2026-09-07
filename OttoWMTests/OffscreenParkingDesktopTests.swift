@@ -237,7 +237,7 @@ final class OffscreenParkingDesktopTests: XCTestCase {
 
         reframe(batch.map { (windowId: $0.id, change: .park) })
 
-        XCTAssertEqual(Set(batch.map(\.frame)), [hiddenEdgeFrame(size: originalFrame.size)])
+        XCTAssertEqual(batch.map(\.frame), Array(repeating: hiddenEdgeFrame(size: originalFrame.size), count: batch.count))
     }
 
     func testKeepsTheWindowsOfOneApplicationOnOneThread() {
