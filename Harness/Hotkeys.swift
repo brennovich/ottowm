@@ -8,11 +8,23 @@ import CoreGraphics
 let leftOptionBit: UInt64 = 0x20
 let leftShiftBit: UInt64 = 0x2
 
+// The bundled bindings name the left Option key, so every combo carries its device bit.
+// `ctrl` and `shift` are named without a side, and Core/Config/KeyCombo.swift matches
+// those on the mask alone.
+let leftOption = CGEventFlags(rawValue: CGEventFlags.maskAlternate.rawValue | leftOptionBit)
+let leftOptionShift = CGEventFlags(
+    rawValue: leftOption.rawValue | CGEventFlags.maskShift.rawValue | leftShiftBit
+)
+let leftOptionControl = CGEventFlags(rawValue: leftOption.rawValue | CGEventFlags.maskControl.rawValue)
+
 let keyCodesByWorkspace: [Int: CGKeyCode] = [1: 18, 2: 19, 3: 20, 4: 21, 5: 23]
 let quitKeyCode: CGKeyCode = 12
 let restartKeyCode: CGKeyCode = 15
+let centerKeyCode: CGKeyCode = 8
+let maximizeKeyCode: CGKeyCode = 46
 
-// The bundled focus bindings, lopt-h/j/k/l in Core/Config/ottowm.
+// The h/j/k/l the bundled focus, move-window and fill bindings share in
+// Core/Config/ottowm, told apart by the modifiers each one carries.
 enum Direction: String {
     case north, east, south, west
 }
@@ -43,22 +55,38 @@ func keyCode(forWorkspace workspace: Int) -> CGKeyCode {
 }
 
 func switchToWorkspace(_ workspace: Int) {
-    post(keyCode(forWorkspace: workspace), CGEventFlags(rawValue: CGEventFlags.maskAlternate.rawValue | leftOptionBit))
+    post(keyCode(forWorkspace: workspace), leftOption)
 }
 
 func moveWindowToWorkspace(_ workspace: Int) {
-    post(
-        keyCode(forWorkspace: workspace),
-        CGEventFlags(
-            rawValue: CGEventFlags.maskAlternate.rawValue | CGEventFlags.maskShift.rawValue
-                | leftOptionBit | leftShiftBit
-        )
-    )
+    post(keyCode(forWorkspace: workspace), leftOptionShift)
+}
+
+func keyCode(for direction: Direction, action: String) -> CGKeyCode {
+    guard let keyCode = keyCodesByDirection[direction] else {
+        fail("no key bound to \(action) \(direction.rawValue)")
+    }
+    return keyCode
 }
 
 func focusNeighbor(_ direction: Direction) {
-    guard let keyCode = keyCodesByDirection[direction] else { fail("no key bound to focus \(direction.rawValue)") }
-    post(keyCode, CGEventFlags(rawValue: CGEventFlags.maskAlternate.rawValue | leftOptionBit))
+    post(keyCode(for: direction, action: "focus"), leftOption)
+}
+
+func moveWindow(_ direction: Direction) {
+    post(keyCode(for: direction, action: "move-window"), leftOptionShift)
+}
+
+func fillHalf(_ direction: Direction) {
+    post(keyCode(for: direction, action: "fill"), leftOptionControl)
+}
+
+func centerWindow() {
+    post(centerKeyCode, leftOptionControl)
+}
+
+func toggleMaximize() {
+    post(maximizeKeyCode, leftOptionControl)
 }
 
 func quit() {

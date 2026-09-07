@@ -32,6 +32,27 @@ struct Subject {
             && abs(frame.minY - originalFrame.minY) <= restoreTolerance
     }
 
+    // Whether the window stands at a frame, the size included, for a scene that asserts a
+    // maximize or a fill: isWhereItWas reads the origin alone, which a window still filling
+    // the screen satisfies as readily as one put back.
+    //
+    // The size is allowed more room than the origin because an application answers a size
+    // it can take rather than the one it was handed, where the position it is handed it
+    // keeps.
+    func stands(at target: CGRect, sizedWithin sizeTolerance: CGFloat = restoreTolerance) -> Bool {
+        guard let frame = frame() else { return false }
+
+        return abs(frame.minX - target.minX) <= restoreTolerance
+            && abs(frame.minY - target.minY) <= restoreTolerance
+            && abs(frame.width - target.width) <= sizeTolerance
+            && abs(frame.height - target.height) <= sizeTolerance
+    }
+
+    // The frame it was read at, the size included.
+    var isAsItWas: Bool {
+        stands(at: originalFrame, sizedWithin: refitTolerance)
+    }
+
     // The hotkeys act on the focused window, and a workspace switch hands the focus to
     // whichever window it pleases, so whoever wants this one moved says so first.
     func focus() {
