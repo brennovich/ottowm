@@ -106,10 +106,6 @@ flowchart LR
 | `AccessibilityAlert`          | UI        | The accessibility permission alerts: what they say and how they show.                   |
 | `ConfigAlert`                 | UI        | The config error alert UI.                                                              |
 
-`Window` is a protocol; `AXWindow` is the implementation the app runs.
-
-`Desktop` is a protocol; `OffscreenParkingDesktop` is the implementation the app runs. It holds no state of its own. `WindowPlacement` hands it a park or an unpark per window, the unpark carrying the frame the window was parked from, and records what comes back in `ParkedWindows`. `Engine` hands it a step, a centering, a maximize or a fill of the focused window, the maximize and the fill carrying the frame to go back to, and records what comes back in `FilledWindows`.
-
 ### Input
 
 ```mermaid
@@ -151,10 +147,6 @@ flowchart LR
     Workspaces --> TabGroups
 ```
 
-Every window event, and every action that touches windows, runs inside `WindowSystem.duringOperation`. Only an entry point opens an operation: an `Engine` method, the native Space change callback, or a retry closure of `WindowEnrollment` and `FullScreenReturns`. The parts never open one. Events are dropped while the screen is locked, where every window reads as closed.
-
-`Admission` answers whether OttoWM can take a window: refused for good when the window's own shape rules it out, worth reading again when only the desktop in front or the on-screen list does. `WindowPlacement` owns a window's workspace: every change of it is paired with a park or an unpark on the `Desktop`. `Navigation` decides where the focus goes after a change and which workspace to show when the user focuses a window. `WindowEnrollment` and `FullScreenReturns` repeat a read macOS sent no notification for.
-
 ### macOS boundary
 
 ```mermaid
@@ -183,7 +175,7 @@ flowchart TB
     AXWindowEvents --> AXWindow
 ```
 
-`AXWindowEvents` pushes only what nobody asked for: the AX notifications of the watched applications and the sweep. A scan, `start`, `discover` or `inventory`, answers with what it found, and `RunningApplicationsObserver` decides what to announce.
+`AXWindowEvents` pushes the AX notifications of the watched applications and the sweep. A scan, `start`, `discover` or `inventory`, answers with what it found, and `RunningApplicationsObserver` decides what to announce.
 
 ### Lifecycle
 
@@ -298,8 +290,6 @@ sequenceDiagram
     Engine->>FilledWindows: record(what came back)
 ```
 
-A maximize targets the visible frame inset by 15pt, a fill one half of that frame, the two halves of an axis leaving the same gap between them. A window not already at the target takes it and reports the frame it left; one already there goes back to the frame handed in, and with none it is left alone. A window within 30pt of the target on every edge is read as standing there: a window settles short of the frame it was given, Terminal by whole rows. One record serves every target, so filling west and then maximizing moves the window on rather than restoring it, and the frame recorded stays the one from before the first fill. A step or a centering ends the fill; a park does not, so the frame survives a workspace switch. The tabs of one window share the frame, and a tab that joins a filled window takes it, so the frame outlives the tab the fill went through.
-
 ### Manual navigation
 
 The user can reach a parked window without OttoWM, through Cmd-Tab, the Dock or Mission Control.
@@ -329,7 +319,7 @@ sequenceDiagram
     WindowPlacement->>Desktop: reframe(unpark for one, park for the other)
 ```
 
-A Space change also pulls a parked window back on screen when its full screen instance exits. With no parked window focused, `Engine` answers the change with `repark`, which puts the parked windows found on screen back at the hidden edge.
+A Space change also pulls a parked window back on screen when its full screen instance exits. 
 
 ### Full screen round trip
 
@@ -347,7 +337,7 @@ sequenceDiagram
     WindowPlacement->>Workspaces: switchTo(it), then assign(window) there
 ```
 
-The record is taken after the removal, which clears every other trace of the window. A `move-window-to-workspace` on that window clears the record. The focus event can arrive while the window still reads as full screen and is dropped then; `FullScreenReturns` runs the same follow-back at the start of every later window event, and polls for it after a native Space change until the retries run out.
+The record is taken after the removal, which clears every other trace of the window.
 
 ### Config reload
 
@@ -415,12 +405,6 @@ sequenceDiagram
     Engine->>WindowPlacement: assign the ones no workspace knows to the current workspace
 ```
 
-The sweep runs first, so a window it drops does not come back in the answer as one to enroll again. A window is reported dead only after two passes without an answer: an application still waking from sleep answers for none of its windows.
-
-The answer holds every window, not only the ones this pass attached. A window created behind the login window was attached by the notification that announced it and only the engine dropped the event, so `Engine.resync` reads the full set and keeps what no workspace knows.
-
-An application that appeared behind the login window is not watched yet, so `RunningApplicationsObserver` starts it the way a launch does, retrying one that does not answer until the grace period runs out.
-
 ### Window lifecycle
 
 ```mermaid
@@ -429,8 +413,6 @@ flowchart LR
     managed -->|minimized, full screen, destroyed, or moved to another native Space| unmanaged
     unmanaged -->|unminimized, or focused again| managed
 ```
-
-A window out of reach cannot be parked, so OttoWM stops managing it instead of marking it. A parked window on screen proves the Space in front is OttoWM's own, so the managed windows missing from that Space are the ones that left. A window that comes back joins the current workspace, like a new one. A tab of a group in another workspace is the exception: it joins the group, and the user who focused it is followed there.
 
 ## Tabbed windows
 
@@ -473,10 +455,6 @@ flowchart LR
     match -->|yes| join[joins that group]
     match -->|no| own
 ```
-
-A group is keyed by a counter as macOS reuses window ids. Where a group stands is read from its members at each match, since a maximize or a move has moved it since the group was first seen. A background tab reports the frame it had when it was last active, so every member is tried.
-
-Two maximized windows stand at one frame, so the frame alone matches either group. A group already holding as many windows as the tab reports tabs is full, and the tab of the other window opens its own group.
 
 ### Group events
 
