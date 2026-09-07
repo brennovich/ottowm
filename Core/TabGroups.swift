@@ -76,8 +76,6 @@ struct TabGroups {
     /// A group already holding as many windows as the tab reports tabs is full, and the
     /// tab of the other window opens its own group.
     private func group(representing window: WindowSnapshot) -> Int? {
-        if let known = windowToGroup[window.id] { return known }
-
         let tabs = tabCount(window.id)
         guard tabs > 1 else { return nil }
 

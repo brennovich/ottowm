@@ -68,7 +68,13 @@ final class TabGroupsTests: XCTestCase {
                 [200]
             ),
             (
-                "a window a row taller than the size tolerance opens its own group",
+                "a window within the size tolerance joins the group",
+                [tabbed(100, tabCount: 2), tabbed(200, frame: CGRect(x: 0, y: 0, width: 800, height: 607), tabCount: 2)],
+                100,
+                [100, 200]
+            ),
+            (
+                "a window past the size tolerance opens its own group",
                 [tabbed(100, tabCount: 2), tabbed(200, frame: CGRect(x: 0, y: 0, width: 800, height: 631), tabCount: 2)],
                 200,
                 [200]
@@ -105,18 +111,6 @@ final class TabGroupsTests: XCTestCase {
         XCTAssertEqual(tabGroups.members(of: 100), [100, 200])
     }
 
-    /// Terminal fits the window to whole rows when a tab takes over, and the tab that went
-    /// to the background keeps the unfitted size the fill wrote.
-    func testATabJoinsThroughAMemberOfTheSizeTheFillWroteRatherThanTheFittedOne() {
-        var tabGroups = makeTabGroups([tabbed(100, tabCount: 2)])
-        let written = CGRect(x: 15, y: 15, width: 1762, height: 1090)
-        frames[100] = written
-
-        add(tabbed(200, frame: CGRect(x: 15, y: 15, width: 1762, height: 1083), tabCount: 2), to: &tabGroups)
-
-        XCTAssertEqual(tabGroups.members(of: 100), [100, 200])
-    }
-
     /// A background tab answers the frame it had when it was last active, so a maximize
     /// through one tab leaves the others reporting where they were.
     func testATabJoinsThroughAnyMemberThatIsWhereTheWindowStands() {
@@ -142,15 +136,6 @@ final class TabGroupsTests: XCTestCase {
 
         XCTAssertEqual(tabGroups.members(of: 100), [100, 200])
         XCTAssertEqual(tabGroups.members(of: 300), [300, 400])
-    }
-
-    /// A tab of a group that already holds every tab of its window is still in it: the
-    /// group it is a member of places it, not the room left in the group.
-    func testAWindowInAGroupHoldingEveryTabOfItsWindowStillHasIt() {
-        let member = tabbed(200, tabCount: 2)
-        let tabGroups = makeTabGroups([tabbed(100, tabCount: 2), member])
-
-        XCTAssertTrue(tabGroups.hasGroup(for: member.snapshot))
     }
 
     func testSiblings() {

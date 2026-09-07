@@ -466,11 +466,9 @@ An application lists only the active tab of a group, and sends no notification w
 
 ```mermaid
 flowchart LR
-    win[window being assigned] --> known{already in a group?}
-    known -->|yes| that[that group]
-    known -->|no| tabs{more than one tab?}
+    win[window being assigned] --> tabs{more than one tab?}
     tabs -->|no| own["opens a new group"]
-    tabs -->|yes| match{"same application, fewer members than the window has tabs,<br/>x, width and height, y within 10 pt of where a group stands now?"}
+    tabs -->|yes| match{"same application, fewer members than the window has tabs,<br/>same x, y within 10 pt, width and height within 30 pt<br/>of where a group stands now?"}
     match -->|yes| join[joins that group]
     match -->|no| own
 ```
