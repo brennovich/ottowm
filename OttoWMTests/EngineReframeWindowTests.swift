@@ -10,7 +10,7 @@ final class EngineReframeWindowTests: EngineTestCase {
         focused = win
         desktop.clearCalls()
 
-        engine.reframeFocusedWindow(.step(step), operation: "move-window")
+        engine.handle(.moveWindow(step))
 
         XCTAssertEqual(desktop.reframeCalls.map(\.windowId), [win.id])
         XCTAssertEqual(desktop.reframeCalls.map(\.change), [.step(step)])
@@ -20,7 +20,7 @@ final class EngineReframeWindowTests: EngineTestCase {
         let win = add(StubWindow(id: 900, frame: frame))
         focused = win
 
-        engine.reframeFocusedWindow(.step(step), operation: "move-window")
+        engine.handle(.moveWindow(step))
 
         XCTAssertEqual(workspaces.workspace(for: 900), 1)
         XCTAssertEqual(desktop.reframeCalls.map(\.windowId), [900, 900])
@@ -30,7 +30,7 @@ final class EngineReframeWindowTests: EngineTestCase {
     func testNothingHappensWhenNoWindowOfTheCurrentWorkspaceIsFocused() {
         focused = nil
 
-        engine.reframeFocusedWindow(.step(step), operation: "move-window")
+        engine.handle(.moveWindow(step))
 
         XCTAssertTrue(desktop.reframeCalls.isEmpty)
     }
@@ -41,7 +41,7 @@ final class EngineReframeWindowTests: EngineTestCase {
         parkedWindows.park(win.id, from: frame)
         desktop.clearCalls()
 
-        engine.reframeFocusedWindow(.step(step), operation: "move-window")
+        engine.handle(.moveWindow(step))
 
         XCTAssertTrue(desktop.reframeCalls.isEmpty)
     }
@@ -51,7 +51,7 @@ final class EngineReframeWindowTests: EngineTestCase {
         focused = win
         windows[win.id] = nil
 
-        engine.reframeFocusedWindow(.step(step), operation: "move-window")
+        engine.handle(.moveWindow(step))
 
         XCTAssertNil(workspaces.workspace(for: win.id))
     }

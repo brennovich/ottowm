@@ -109,8 +109,8 @@ final class Engine {
         case let .switchToWorkspace(workspace): switchToWorkspace(workspace)
         case let .moveWindowToWorkspace(workspace): moveFocusedWindow(toWorkspace: workspace)
         case let .focus(direction): focusWindow(direction)
-        case let .moveWindow(step): reframeFocusedWindow(.step(step), operation: "move-window")
-        case .centerWindow: reframeFocusedWindow(.center, operation: "center-window")
+        case let .moveWindow(step): reframeFocusedWindow(operation: "move-window") { _ in .step(step) }
+        case .centerWindow: reframeFocusedWindow(operation: "center-window") { _ in .center }
         case .toggleMaximize:
             reframeFocusedWindow(operation: "toggle-maximize") {
                 .maximize(restoring: self.maximizedWindows.restoringFrame(of: $0.id))
@@ -201,13 +201,9 @@ final class Engine {
 
     /// - Parameter operation: one name per action, so the round-trip cost of a step and of a
     ///   centering stay separate operations.
-    func reframeFocusedWindow(_ change: FrameChange, operation: StaticString) {
-        reframeFocusedWindow(operation: operation) { _ in change }
-    }
-
-    /// The variant for a change that needs the window it applies to, which is known only
-    /// once the guards below have passed.
-    func reframeFocusedWindow(operation: StaticString, _ change: (WindowSnapshot) -> FrameChange) {
+    /// - Parameter change: takes the window it applies to, which is known only once the
+    ///   guards below have passed.
+    private func reframeFocusedWindow(operation: StaticString, _ change: (WindowSnapshot) -> FrameChange) {
         windowSystem.duringOperation(operation) {
             guard let win = navigation.focusedWindowOfCurrentWorkspace() else {
                 Log.engine.info("\(operation) dropped: no window of workspace \(self.workspaces.current) focused")
