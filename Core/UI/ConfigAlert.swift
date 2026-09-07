@@ -27,7 +27,6 @@ enum ConfigAlert {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = "OttoWM cannot read its config"
-        alert.accessoryView = monospaced("\(error)")
 
         switch request {
         case .boot:
@@ -40,6 +39,8 @@ enum ConfigAlert {
             alert.addButton(withTitle: "Keep bindings")
         }
 
+        alert.layout()
+        alert.accessoryView = monospaced("\(error)", like: textColumn(of: alert))
         alert.layout()
 
         alert.window.level = .floating
@@ -54,15 +55,28 @@ enum ConfigAlert {
         return response
     }
 
-    private static func monospaced(_ text: String) -> NSView {
+    // macOS 15 centers the text of an alert, macOS 26 aligns it to the left. Copying the
+    // width and the alignment of the informative text keeps the error in the same column
+    // as the rest of the alert on both. Reading it requires a laid out alert.
+    private static func textColumn(of alert: NSAlert) -> (width: CGFloat, alignment: NSTextAlignment) {
+        let informative = alert.window.contentView?.subviews
+            .compactMap { $0 as? NSTextField }
+            .first { $0.stringValue == alert.informativeText }
+
+        guard let informative else { return (errorWidth, .natural) }
+
+        return (informative.frame.width, informative.alignment)
+    }
+
+    private static func monospaced(_ text: String, like column: (width: CGFloat, alignment: NSTextAlignment)) -> NSView {
         let label = NSTextField(wrappingLabelWithString: text)
         label.font = .monospacedSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
-        label.alignment = .center
+        label.alignment = column.alignment
         // `wrappingLabelWithString` turns the autoresizing mask off, and NSAlert sizes an
         // accessory view from its frame, so the mask goes back on and the frame is set here.
         label.translatesAutoresizingMaskIntoConstraints = true
-        label.preferredMaxLayoutWidth = errorWidth
-        label.frame = NSRect(x: 0, y: 0, width: errorWidth, height: ceil(label.fittingSize.height))
+        label.preferredMaxLayoutWidth = column.width
+        label.frame = NSRect(x: 0, y: 0, width: column.width, height: ceil(label.fittingSize.height))
 
         return label
     }
