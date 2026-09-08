@@ -38,6 +38,7 @@ Out of the box (bundled config):
 | left&nbsp;Option + Shift + H/J/K/L | Move the focused window west/south/north/east |
 | left&nbsp;Option + Ctrl + C | Center the focused window, keeping its size |
 | left&nbsp;Option + Ctrl + M | Fill the screen with the focused window, or put it back |
+| left&nbsp;Option + Ctrl + H/J/K/L | Fill the west/south/north/east half of the screen with the focused window, or put it back |
 | Cmd + Ctrl + Option + Shift + Q | Quit OttoWM |
 | Cmd + Ctrl + Option + Shift + R | Reload the config |
 

@@ -69,13 +69,13 @@ An operation that makes no round trip reports nothing. A nested operation is cou
 
 A line that carries no log prefix is passed through unchanged, so the stream's own status lines stay readable.
 
-| Counted                                    | Where                                        |
-| ------------------------------------------ | -------------------------------------------- |
-| Every accessibility read, write and action | `Core/Infra/AX.swift`, `Core/AXWindow.swift` |
-| The AX notification subscriptions          | `Core/Infra/AX.swift`                        |
-| The on-screen window list                  | `App/AppDelegate.swift`                      |
-| Activating an application                  | `Core/AXWindow.swift`                        |
-| The frontmost application                  | `Core/AXWindow.swift`                        |
+| Counted                                    | Where                                                                     |
+| ------------------------------------------ | ------------------------------------------------------------------------- |
+| Every accessibility read, write and action | `Core/Infra/AX.swift`, `Core/AXWindow.swift`, `Core/AXWindowEvents.swift` |
+| The AX notification subscriptions          | `Core/Infra/AX.swift`                                                     |
+| The on-screen window list                  | `Core/WindowSystem.swift`                                                 |
+| Activating an application                  | `Core/AXWindow.swift`                                                     |
+| The frontmost application                  | `Core/AXWindow.swift`                                                     |
 
 ### The trace
 

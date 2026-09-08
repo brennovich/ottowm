@@ -83,7 +83,7 @@ flowchart LR
 | `FrameChange`                 | Model     | What a window's frame is asked to become: step, center, maximize, fill, park or unpark. |
 | `ParkedWindows`               | Model     | The windows parked at the hidden edge, and the frame each one was parked from.          |
 | `RestoringFrames`             | Model     | The frame each maximized or filled window restores to, shared by its tabs.              |
-| `Desktop`                     | macOS     | Manipulates the current workspace's windows.                                            |
+| `Desktop`                     | macOS     | Moves, parks and focuses windows on the native Space.                                   |
 | `HiddenEdge`                  | macOS     | Where a parked window sits, and whether a frame sits there.                             |
 | `WindowSystem`                | macOS     | The focused window, the on-screen window frames, and the tab count of a window.         |
 | `RunningApplicationsObserver` | macOS     | Which applications count, and the `NSWorkspace` notifications of their lifecycle.       |
