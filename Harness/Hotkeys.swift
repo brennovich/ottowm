@@ -2,14 +2,14 @@ import CoreGraphics
 
 // Only the raw event flags tell the left Option key from the right one, and the bundled
 // workspace bindings are all left Option, so the device dependent bits of
-// Core/Config/KeyCombo.swift have to be set by hand. System Events cannot produce them.
+// Core/Input/KeyCombo.swift have to be set by hand. System Events cannot produce them.
 // The bundled quit and restart bindings are hyper, which takes either side of every
 // modifier, so the masks alone match them.
 let leftOptionBit: UInt64 = 0x20
 let leftShiftBit: UInt64 = 0x2
 
 // The bundled bindings name the left Option key, so every combo carries its device bit.
-// `ctrl` and `shift` are named without a side, and Core/Config/KeyCombo.swift matches
+// `ctrl` and `shift` are named without a side, and Core/Input/KeyCombo.swift matches
 // those on the mask alone.
 let leftOption = CGEventFlags(rawValue: CGEventFlags.maskAlternate.rawValue | leftOptionBit)
 let leftOptionShift = CGEventFlags(
@@ -20,7 +20,7 @@ let leftOptionControl = CGEventFlags(rawValue: leftOption.rawValue | CGEventFlag
 let keyCodesByWorkspace: [Int: CGKeyCode] = [1: 18, 2: 19, 3: 20, 4: 21, 5: 23]
 let quitKeyCode: CGKeyCode = 12
 let restartKeyCode: CGKeyCode = 15
-// Core/Config/Action.swift moves a window 15 points when the binding names no distance,
+// Core/Input/Action.swift moves a window 15 points when the binding names no distance,
 // which the bundled move-window bindings do not.
 let moveWindowStep: CGFloat = 15
 
@@ -28,7 +28,7 @@ let centerKeyCode: CGKeyCode = 8
 let maximizeKeyCode: CGKeyCode = 46
 
 // The h/j/k/l the bundled focus, move-window and fill bindings share in
-// Core/Config/ottowm, told apart by the modifiers each one carries.
+// Core/Input/ottowm, told apart by the modifiers each one carries.
 enum Direction: String {
     case north, east, south, west
 }
