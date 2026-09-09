@@ -205,14 +205,16 @@ final class RunningApplicationsObserverTests: XCTestCase {
         XCTAssertEqual(Array(harness.callbacks.keys), [901])
     }
 
-    func testApplicationTerminationStopsObservingTheApplication() {
+    func testApplicationTerminationStopsObservingTheApplicationAndReportsItsWindowsDestroyed() {
         let app = StubRunningApplication(pid: 901)
         harness.apps = [app]
+        harness.addWindow(pid: 901, id: 100)
         _ = harness.start()
 
         harness.post(NSWorkspace.didTerminateApplicationNotification, app)
 
         XCTAssertEqual(harness.windows.invalidatedPids, [901])
+        XCTAssertEqual(harness.eventDescriptions, ["destroyed(100)"])
     }
 
     func testApplicationActivationScansAndEmitsFocus() {

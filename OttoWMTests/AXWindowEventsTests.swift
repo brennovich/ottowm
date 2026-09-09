@@ -66,6 +66,7 @@ final class AXWindowEventsTests: AXWindowEventsTestCase {
         let element = harness.addWindow(pid: 901, id: 100)
         start()
         windowEvents.stop(app)
+        events = []
 
         notify(element, kAXUIElementDestroyedNotification)
 

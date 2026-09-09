@@ -76,8 +76,16 @@ final class AXWindowEvents {
         return attempt
     }
 
+    /// The windows of a terminated application are reported destroyed here: the process sends
+    /// no notification for them, and the sweep reads only the applications still watched.
     func stop(_ app: NSRunningApplication) {
+        guard let application = applications.find(by: app.processIdentifier) else { return }
+
+        let windowIds = Set(application.windows.map(\.id))
         applications.remove(by: app.processIdentifier)
+        for windowId in windowIds.sorted() {
+            onEvent?(.destroyed(windowId))
+        }
     }
 
     func discover(_ app: NSRunningApplication) -> Attempt? {

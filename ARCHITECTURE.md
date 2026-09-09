@@ -411,7 +411,7 @@ sequenceDiagram
 ```mermaid
 flowchart LR
     new[new or discovered window] -->|valid| managed[in a workspace]
-    managed -->|minimized, full screen, destroyed, or moved to another native Space| unmanaged
+    managed -->|minimized, full screen, destroyed, its application terminated, or moved to another native Space| unmanaged
     unmanaged -->|unminimized, or focused again| managed
 ```
 
