@@ -173,6 +173,41 @@ final class WindowPlacementTests: EngineTestCase {
         XCTAssertEqual(workspaces.allWindowIds, [])
     }
 
+    func testReframeHandsTheChangeTheFrameARestoreGoesBackTo() {
+        let frame = CGRect(x: 400, y: 300, width: 200, height: 200)
+        let win = add(StubWindow(id: 100, frame: frame))
+        placement.assign(win.snapshot(), to: 1)
+        desktop.clearCalls()
+
+        placement.reframe(win.snapshot()) { .maximize(restoring: $0) }
+        placement.reframe(win.snapshot()) { .maximize(restoring: $0) }
+
+        XCTAssertEqual(desktop.reframeCalls.map(\.windowId), [100, 100])
+        XCTAssertEqual(desktop.reframeCalls.map(\.change), [.maximize(restoring: nil), .maximize(restoring: frame)])
+    }
+
+    func testReframeWithAnyOtherChangeLeavesNothingToRestore() {
+        let win = add(StubWindow(id: 100))
+        placement.assign(win.snapshot(), to: 1)
+        placement.reframe(win.snapshot()) { .maximize(restoring: $0) }
+        placement.reframe(win.snapshot()) { _ in .step(Step(direction: .east, points: 15)) }
+        desktop.clearCalls()
+
+        placement.reframe(win.snapshot()) { .maximize(restoring: $0) }
+
+        XCTAssertEqual(desktop.reframeCalls.map(\.change), [.maximize(restoring: nil)])
+    }
+
+    func testReframeDropsAWindowTheDesktopReportsGone() {
+        let win = add(StubWindow(id: 100))
+        placement.assign(win.snapshot(), to: 1)
+
+        windows[100] = nil
+        placement.reframe(win.snapshot()) { _ in .center }
+
+        XCTAssertNil(workspaces.workspace(for: 100))
+    }
+
     func testRestoreParkedWindowsActivatesEveryParkedWindowWhereItIs() {
         let win1 = add(StubWindow(id: 100))
         let win2 = add(StubWindow(id: 200))

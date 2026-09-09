@@ -6,7 +6,6 @@ final class Engine {
     private let windowSystem: WindowSystem
     private let workspaces: Workspaces
     private let placement: WindowPlacement
-    private let restoringFrames: RestoringFrames
     private let enrollment: WindowEnrollment
     private let navigation: Navigation
     private let fullScreenReturns: FullScreenReturns
@@ -17,7 +16,6 @@ final class Engine {
         windowSystem: WindowSystem,
         workspaces: Workspaces,
         placement: WindowPlacement,
-        restoringFrames: RestoringFrames,
         enrollment: WindowEnrollment,
         navigation: Navigation,
         fullScreenReturns: FullScreenReturns,
@@ -27,7 +25,6 @@ final class Engine {
         self.windowSystem = windowSystem
         self.workspaces = workspaces
         self.placement = placement
-        self.restoringFrames = restoringFrames
         self.enrollment = enrollment
         self.navigation = navigation
         self.fullScreenReturns = fullScreenReturns
@@ -106,14 +103,8 @@ final class Engine {
         case let .moveWindow(step): reframeFocusedWindow(operation: "move-window") { _ in .step(step) }
         case let .resize(resize): reframeFocusedWindow(operation: "resize") { _ in .resize(resize) }
         case .centerWindow: reframeFocusedWindow(operation: "center-window") { _ in .center }
-        case .toggleMaximize:
-            reframeFocusedWindow(operation: "toggle-maximize") {
-                .maximize(restoring: self.restoringFrames.restoringFrame(of: $0.id))
-            }
-        case let .fill(direction):
-            reframeFocusedWindow(operation: "fill") {
-                .fill(direction, restoring: self.restoringFrames.restoringFrame(of: $0.id))
-            }
+        case .toggleMaximize: reframeFocusedWindow(operation: "toggle-maximize") { .maximize(restoring: $0) }
+        case let .fill(direction): reframeFocusedWindow(operation: "fill") { .fill(direction, restoring: $0) }
         }
     }
 
@@ -198,9 +189,7 @@ final class Engine {
 
     /// - Parameter operation: one name per action, so the round-trip cost of a step and of a
     ///   centering are reported separately.
-    /// - Parameter change: takes the window it applies to, which is known only once the
-    ///   guards below have passed.
-    private func reframeFocusedWindow(operation: StaticString, _ change: (WindowSnapshot) -> FrameChange) {
+    private func reframeFocusedWindow(operation: StaticString, _ change: (_ restoring: CGRect?) -> FrameChange) {
         windowSystem.duringOperation(operation) {
             guard let win = navigation.focusedWindowOfCurrentWorkspace() else {
                 Log.engine.info("\(operation) dropped: no window of workspace \(self.workspaces.current) focused")
@@ -211,14 +200,7 @@ final class Engine {
                 return
             }
 
-            let requested = change(win)
-            Log.engine.info("\(requested.logDescription) \(win.logDescription)")
-
-            let outcomes = desktop.reframe([(windowId: win.id, change: requested)])
-            restoringFrames.record(outcomes)
-            if outcomes.contains(.gone(win.id)) {
-                placement.drop(win.id, reason: "gone")
-            }
+            placement.reframe(win, change)
         }
     }
 }
@@ -269,7 +251,6 @@ extension Engine {
             windowSystem: windowSystem,
             workspaces: workspaces,
             placement: placement,
-            restoringFrames: restoringFrames,
             enrollment: enrollment,
             navigation: navigation,
             fullScreenReturns: fullScreenReturns,

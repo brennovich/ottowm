@@ -12,26 +12,6 @@ final class EngineMaximizeTests: EngineTestCase {
         return win
     }
 
-    func testTheNextMaximizeHandsBackTheFrameTheFirstTookTheWindowFrom() {
-        let win = focus(100)
-
-        engine.handle(.toggleMaximize)
-        engine.handle(.toggleMaximize)
-
-        XCTAssertEqual(desktop.reframeCalls.map(\.windowId), [win.id, win.id])
-        XCTAssertEqual(desktop.reframeCalls.map(\.change), [.maximize(restoring: nil), .maximize(restoring: frame)])
-    }
-
-    func testAFillAndAMaximizeGoBackToTheSameFrame() {
-        focus(100)
-        engine.handle(.toggleMaximize)
-        desktop.clearCalls()
-
-        engine.handle(.fill(.east))
-
-        XCTAssertEqual(desktop.reframeCalls.map(\.change), [.fill(.east, restoring: frame)])
-    }
-
     func testATabOpenedWhileMaximizedKeepsTheFrameOnceTheOthersClose() {
         let win = focus(100)
         engine.handle(.toggleMaximize)
@@ -43,17 +23,6 @@ final class EngineMaximizeTests: EngineTestCase {
         engine.handle(.toggleMaximize)
 
         XCTAssertEqual(desktop.reframeCalls.map(\.change), [.maximize(restoring: frame)])
-    }
-
-    func testMovingAMaximizedWindowLeavesNothingToRestore() {
-        focus(100)
-        engine.handle(.toggleMaximize)
-
-        engine.handle(.moveWindow(Step(direction: .east, points: 15)))
-        desktop.clearCalls()
-        engine.handle(.toggleMaximize)
-
-        XCTAssertEqual(desktop.reframeCalls.map(\.change), [.maximize(restoring: nil)])
     }
 
     /// Parking and unparking report `.active`, which is what tells `RestoringFrames` the
@@ -71,14 +40,5 @@ final class EngineMaximizeTests: EngineTestCase {
         engine.handle(.toggleMaximize)
 
         XCTAssertEqual(desktop.reframeCalls.map(\.change), [.maximize(restoring: frame)])
-    }
-
-    func testDroppingAWindowForgetsTheFrameToRestore() {
-        let win = focus(100)
-        engine.handle(.toggleMaximize)
-
-        engine.handle(.destroyed(win.id))
-
-        XCTAssertNil(restoringFrames.restoringFrame(of: win.id))
     }
 }

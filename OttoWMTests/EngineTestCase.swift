@@ -87,7 +87,6 @@ class EngineTestCase: XCTestCase {
         windowSystem: windowSystem,
         workspaces: workspaces,
         placement: placement,
-        restoringFrames: restoringFrames,
         enrollment: enrollment,
         navigation: navigation,
         fullScreenReturns: fullScreenReturns,

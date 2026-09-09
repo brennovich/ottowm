@@ -137,6 +137,18 @@ final class WindowPlacement {
         }
     }
 
+    /// - Parameter change: takes the frame a maximize or a fill of the window goes back to.
+    func reframe(_ win: WindowSnapshot, _ change: (_ restoring: CGRect?) -> FrameChange) {
+        let requested = change(restoringFrames.restoringFrame(of: win.id))
+        Log.engine.info("\(requested.logDescription) \(win.logDescription)")
+
+        let outcomes = desktop.reframe([(windowId: win.id, change: requested)])
+        restoringFrames.record(outcomes)
+        if outcomes.contains(.gone(win.id)) {
+            drop(win.id, reason: "gone")
+        }
+    }
+
     func restoreParkedWindows() {
         let restoring = parkedWindows.all.map { (windowId: $0.windowId, parked: false) }
         Log.engine.info("restoring \(restoring.count) parked windows")

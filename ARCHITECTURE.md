@@ -134,7 +134,6 @@ flowchart LR
     Engine --> FullScreenReturns
     Engine --> Workspaces
     Engine --> Neighbors
-    Engine --> RestoringFrames
     WindowEnrollment --> WindowPlacement
     WindowPlacement --> Admission
     Navigation --> WindowEnrollment
@@ -154,7 +153,7 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    Engine -->|recover, reframe, focus, repark| Desktop
+    Engine -->|recover, focus, repark| Desktop
     WindowPlacement -->|reframe| Desktop
     Navigation -->|focus| Desktop
     Engine -->|focused, frames| WindowSystem
@@ -287,10 +286,12 @@ sequenceDiagram
     Hotkeys->>Engine: handle(a frame action)
     Engine->>Navigation: focusedWindowOfCurrentWorkspace()
     Note over Engine: nothing for a parked window
-    Engine->>RestoringFrames: restoringFrame(of: id), for a maximize or a fill
-    Engine->>Desktop: reframe(id, the FrameChange the action asks for)
-    Desktop-->>Engine: filled from a frame, active, or gone
-    Engine->>RestoringFrames: record(what came back)
+    Engine->>WindowPlacement: reframe(window, the FrameChange the action asks for)
+    WindowPlacement->>RestoringFrames: restoringFrame(of: id), for a maximize or a fill
+    WindowPlacement->>Desktop: reframe(id, change)
+    Desktop-->>WindowPlacement: filled from a frame, active, or gone
+    WindowPlacement->>RestoringFrames: record(what came back)
+    Note over WindowPlacement: a window reported gone is dropped
 ```
 
 ### Manual navigation

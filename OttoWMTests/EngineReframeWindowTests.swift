@@ -45,14 +45,4 @@ final class EngineReframeWindowTests: EngineTestCase {
 
         XCTAssertTrue(desktop.reframeCalls.isEmpty)
     }
-
-    func testWindowThatNoLongerExistsIsDropped() {
-        let win = create(StubWindow(id: 100, frame: frame))
-        focused = win
-        windows[win.id] = nil
-
-        engine.handle(.moveWindow(step))
-
-        XCTAssertNil(workspaces.workspace(for: win.id))
-    }
 }
