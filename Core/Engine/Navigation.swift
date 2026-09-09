@@ -56,10 +56,7 @@ final class Navigation {
             return
         }
 
-        let closed = workspaces.windowIds(in: workspaces.current).filter { candidate in
-            guard let snapshot = windowSystem.snapshot(of: candidate) else { return true }
-            return !windowSystem.shows(candidate) && !snapshot.isMinimized && !snapshot.isFullScreen
-        }
+        let closed = placement.closedWindows()
         if !closed.isEmpty {
             var focusSettled = false
             for closedId in closed {

@@ -263,6 +263,27 @@ final class WindowPlacementTests: EngineTestCase {
         XCTAssertEqual(workspaces.allWindowIds, [100, 200, 300, 301])
     }
 
+    func testClosedWindowsAreTheCurrentWorkspaceWindowsTheScreenNoLongerShows() {
+        let cases: [(name: String, workspace: Int, prepare: (StubWindow) -> Void, closed: [CGWindowID])] = [
+            ("off screen", 1, { _ in }, [100]),
+            ("minimized", 1, { $0.isMinimized = true }, []),
+            ("full screen", 1, { $0.isFullScreen = true }, []),
+            ("parked in another workspace", 2, { _ in }, []),
+            ("no snapshot", 1, { _ in self.windows[100] = nil }, []),
+        ]
+
+        for testCase in cases {
+            let win = add(StubWindow(id: 100))
+            placement.assign(win.snapshot(), to: testCase.workspace)
+            testCase.prepare(win)
+            offScreenWindowIds = [100]
+
+            XCTAssertEqual(placement.closedWindows(), testCase.closed, testCase.name)
+
+            placement.drop(100, reason: "test")
+        }
+    }
+
     func testKeepsAWindowThatWentFullScreen() {
         let (active, _) = seedActiveAndParkedWindows()
 

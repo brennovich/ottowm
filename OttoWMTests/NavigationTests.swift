@@ -26,22 +26,7 @@ final class NavigationTests: EngineTestCase {
         XCTAssertTrue(placement.isParked(200))
     }
 
-    func testFollowingAParkedWindowDoesNotSwitchWhenACurrentWorkspaceWindowLeftTheScreen() {
-        let win1 = add(StubWindow(id: 100))
-        let win2 = add(StubWindow(id: 200))
-        placement.assign(win1.snapshot(), to: 1)
-        placement.assign(win2.snapshot(), to: 2)
-
-        offScreenWindowIds = [100]
-        focused = win2
-        navigation.follow(win2.snapshot())
-
-        XCTAssertEqual(workspaces.current, 1)
-        XCTAssertTrue(placement.isParked(200))
-        XCTAssertEqual(workspaces.allWindowIds, [200])
-    }
-
-    func testFollowingAParkedWindowDropsTheClosedWindowAndFocusesASurvivor() {
+    func testFollowingAParkedWindowDropsTheClosedWindowAndFocusesASurvivorInstead() {
         let win1 = add(StubWindow(id: 100))
         let win2 = add(StubWindow(id: 200))
         let survivor = add(StubWindow(id: 101))
@@ -49,11 +34,12 @@ final class NavigationTests: EngineTestCase {
         placement.assign(win2.snapshot(), to: 2)
         placement.assign(survivor.snapshot(), to: 1)
 
-        windows[100] = nil
+        offScreenWindowIds = [100]
         focused = win2
         navigation.follow(win2.snapshot())
 
         XCTAssertEqual(workspaces.current, 1)
+        XCTAssertTrue(placement.isParked(200))
         XCTAssertEqual(workspaces.allWindowIds, [101, 200])
         XCTAssertEqual(survivor.focusCount, 1)
     }

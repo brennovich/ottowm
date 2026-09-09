@@ -149,6 +149,16 @@ final class WindowPlacement {
         }
     }
 
+    /// The windows of the current workspace the screen no longer shows and that are neither
+    /// minimized nor full screen. A window without a snapshot has left the registry, so its
+    /// `destroyed` event is on its way.
+    func closedWindows() -> [CGWindowID] {
+        workspaces.windowIds(in: workspaces.current).filter { windowId in
+            guard let snapshot = windowSystem.snapshot(of: windowId) else { return false }
+            return !windowSystem.shows(windowId) && !snapshot.isMinimized && !snapshot.isFullScreen
+        }
+    }
+
     func restoreParkedWindows() {
         let restoring = parkedWindows.all.map { (windowId: $0.windowId, parked: false) }
         Log.engine.info("restoring \(restoring.count) parked windows")
