@@ -34,37 +34,41 @@ focusNeighbor(.east)
 session.expectFocused(movable)
 
 // The window actions all act on the focused window, which the walk above left on the
-// movable one, and each scene leaves it where the next one expects to find it.
-report("posting lopt-ctrl-c")
-let centered = centeredFrame(movable.originalFrame.size)
-centerWindow()
-session.expect("the \(movable.name) window centered", [movable]) { $0.stands(at: centered) }
+// movable one. Every scene starts from the frame the desk arranged that window at, so a
+// scene can be added or dropped without the ones around it noticing.
+let start = movable.originalFrame
 
+movable.putBack()
+report("posting lopt-ctrl-c")
+centerWindow()
+session.expect("the \(movable.name) window centered", [movable]) { $0.stands(at: centeredFrame(start.size)) }
+
+movable.putBack()
 report("posting lopt-shift-l")
-let stepped = centered.offsetBy(dx: moveWindowStep, dy: 0)
 moveWindow(.east)
 session.expect("the \(movable.name) window moved \(Int(moveWindowStep))pt east", [movable]) {
-    $0.stands(at: stepped)
+    $0.stands(at: start.offsetBy(dx: moveWindowStep, dy: 0))
 }
 
-// A resize keeps the top left corner where the move left it, and the second key puts the
-// width back, so the scenes below still find the window at the stepped frame.
+// A resize keeps the top left corner where it is.
+movable.putBack()
 report("posting lopt-ctrl-shift-l")
-let widened = CGRect(origin: stepped.origin, size: CGSize(width: stepped.width + moveWindowStep, height: stepped.height))
 resizeWindow(.wider)
 session.expect("the \(movable.name) window grew \(Int(moveWindowStep))pt wider", [movable]) {
-    $0.stands(at: widened)
+    $0.stands(at: CGRect(origin: start.origin, size: CGSize(width: start.width + moveWindowStep, height: start.height)))
 }
 
+movable.putBack()
 report("posting lopt-ctrl-shift-h")
 resizeWindow(.narrower)
-session.expect("the \(movable.name) window went back to its width", [movable]) {
-    $0.stands(at: stepped)
+session.expect("the \(movable.name) window shrank \(Int(moveWindowStep))pt narrower", [movable]) {
+    $0.stands(at: CGRect(origin: start.origin, size: CGSize(width: start.width - moveWindowStep, height: start.height)))
 }
 
 // A fill and a maximize both put the window back on the second press, and the frame they
 // put it back to is the one it was standing at when the first press filled it.
 for direction in [Direction.west, .east] {
+    movable.putBack()
     report("posting lopt-ctrl-\(direction == .west ? "h" : "l")")
     fillHalf(direction)
     session.expect("the \(movable.name) window filled the \(direction.rawValue) half", [movable]) {
@@ -73,11 +77,10 @@ for direction in [Direction.west, .east] {
 
     report("posting lopt-ctrl-\(direction == .west ? "h" : "l") again")
     fillHalf(direction)
-    session.expect("the \(movable.name) window went back to where it filled from", [movable]) {
-        $0.stands(at: stepped, sizedWithin: refitTolerance)
-    }
+    session.expect("the \(movable.name) window went back to where it filled from", [movable]) { $0.isAsItWas }
 }
 
+movable.putBack()
 report("posting lopt-ctrl-m")
 toggleMaximize()
 session.expect("the \(movable.name) window maximized", [movable]) {
@@ -86,9 +89,7 @@ session.expect("the \(movable.name) window maximized", [movable]) {
 
 report("posting lopt-ctrl-m again")
 toggleMaximize()
-session.expect("the \(movable.name) window went back to where it maximized from", [movable]) {
-    $0.stands(at: stepped, sizedWithin: refitTolerance)
-}
+session.expect("the \(movable.name) window went back to where it maximized from", [movable]) { $0.isAsItWas }
 
 // The workspace scenes below read the frame every window started at, which the actions
 // above left the movable one away from.
