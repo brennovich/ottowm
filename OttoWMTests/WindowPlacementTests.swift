@@ -270,9 +270,14 @@ final class WindowPlacementTests: EngineTestCase {
             ("full screen", 1, { $0.isFullScreen = true }, []),
             ("parked in another workspace", 2, { _ in }, []),
             ("no snapshot", 1, { _ in self.windows[100] = nil }, []),
+            ("hidden by a tab sibling", 1, { win in
+                let sibling = self.add(StubWindow(id: 101, frame: win.frame, tabCount: 2))
+                self.placement.assign(sibling.snapshot(), to: 1)
+            }, []),
         ]
 
         for testCase in cases {
+            offScreenWindowIds = []
             let win = add(StubWindow(id: 100))
             placement.assign(win.snapshot(), to: testCase.workspace)
             testCase.prepare(win)
@@ -280,7 +285,7 @@ final class WindowPlacementTests: EngineTestCase {
 
             XCTAssertEqual(placement.closedWindows(), testCase.closed, testCase.name)
 
-            placement.drop(100, reason: "test")
+            workspaces.allWindowIds.forEach { placement.drop($0, reason: "test") }
         }
     }
 

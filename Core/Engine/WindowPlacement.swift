@@ -130,10 +130,19 @@ final class WindowPlacement {
         let parked = workspaces.allWindowIds.filter { parkedWindows.isParked($0) }
         guard windowSystem.showsAny(parked) else { return }
 
-        for windowId in workspaces.allWindowIds.subtracting(parked)
-        where !windowSystem.showsAny(Set(workspaces.tabGroupMembers(of: windowId))) {
+        for windowId in workspaces.allWindowIds.subtracting(parked) where !showsAnyTab(of: windowId) {
             guard let snapshot = windowSystem.snapshot(of: windowId), !snapshot.isFullScreen else { continue }
             drop(windowId, reason: "left the desktop")
+        }
+    }
+
+    /// The windows of the current workspace the screen no longer shows and that are neither
+    /// minimized nor full screen. A tab hidden by its sibling is still there. A window
+    /// without a snapshot has left the registry, so its `destroyed` event is on its way.
+    func closedWindows() -> [CGWindowID] {
+        workspaces.windowIds(in: workspaces.current).filter { windowId in
+            guard let snapshot = windowSystem.snapshot(of: windowId) else { return false }
+            return !showsAnyTab(of: windowId) && !snapshot.isMinimized && !snapshot.isFullScreen
         }
     }
 
@@ -146,16 +155,6 @@ final class WindowPlacement {
         restoringFrames.record(outcomes)
         if outcomes.contains(.gone(win.id)) {
             drop(win.id, reason: "gone")
-        }
-    }
-
-    /// The windows of the current workspace the screen no longer shows and that are neither
-    /// minimized nor full screen. A window without a snapshot has left the registry, so its
-    /// `destroyed` event is on its way.
-    func closedWindows() -> [CGWindowID] {
-        workspaces.windowIds(in: workspaces.current).filter { windowId in
-            guard let snapshot = windowSystem.snapshot(of: windowId) else { return false }
-            return !windowSystem.shows(windowId) && !snapshot.isMinimized && !snapshot.isFullScreen
         }
     }
 
@@ -173,6 +172,10 @@ final class WindowPlacement {
         let parkedFrom = parkedWindows.parkedFrom(of: request.windowId)
         guard request.parked else { return (windowId: request.windowId, change: .unpark(parkedFrom)) }
         return parkedFrom == nil ? (windowId: request.windowId, change: .park) : nil
+    }
+
+    private func showsAnyTab(of windowId: CGWindowID) -> Bool {
+        windowSystem.showsAny(Set(workspaces.tabGroupMembers(of: windowId)))
     }
 
     private func place(_ windowId: CGWindowID, parked: Bool) {
