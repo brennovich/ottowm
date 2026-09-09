@@ -281,15 +281,15 @@ sequenceDiagram
     Engine->>Desktop: focus(id)
 ```
 
-### Move, resize, center, maximize or fill the focused window
+### Change the frame of the focused window
 
 ```mermaid
 sequenceDiagram
-    Hotkeys->>Engine: handle(moveWindow(step), resize(resize), centerWindow, toggleMaximize or fill(direction))
+    Hotkeys->>Engine: handle(a frame action)
     Engine->>Navigation: focusedWindowOfCurrentWorkspace()
     Note over Engine: nothing for a parked window
     Engine->>RestoringFrames: restoringFrame(of: id), for a maximize or a fill
-    Engine->>Desktop: reframe(id, step, resize, center, maximize(restoring) or fill(direction, restoring))
+    Engine->>Desktop: reframe(id, the FrameChange the action asks for)
     Desktop-->>Engine: filled from a frame, active, or gone
     Engine->>RestoringFrames: record(what came back)
 ```

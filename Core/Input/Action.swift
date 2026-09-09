@@ -44,23 +44,24 @@ enum Action: Equatable {
     )] = [
         "switch-to-workspace": (1 ... 1, { workspace($0[0]).map(Action.switchToWorkspace) }),
         "move-window-to-workspace": (1 ... 1, { workspace($0[0]).map(Action.moveWindowToWorkspace) }),
-        "focus": (1 ... 1, { direction($0[0]).map(Action.focus) }),
-        "fill": (1 ... 1, { direction($0[0]).map(Action.fill) }),
-        "move-window": (1 ... 2, moveWindow),
-        "resize": (1 ... 2, resize),
+        "focus": (1 ... 1, { word($0[0], or: ConfigError.Reason.invalidDirection).map(Action.focus) }),
+        "fill": (1 ... 1, { word($0[0], or: ConfigError.Reason.invalidDirection).map(Action.fill) }),
+        "move-window": (1 ... 2, {
+            withPoints($0, or: ConfigError.Reason.invalidDirection) { .moveWindow(Step(direction: $0, points: $1)) }
+        }),
+        "resize": (1 ... 2, {
+            withPoints($0, or: ConfigError.Reason.invalidResize) { .resize(Resize(change: $0, points: $1)) }
+        }),
     ]
 
-    private static func moveWindow(_ arguments: [String]) -> Result<Action, ConfigError.Reason> {
-        direction(arguments[0]).flatMap { direction in
-            points(arguments.count == 2 ? arguments[1] : nil)
-                .map { .moveWindow(Step(direction: direction, points: $0)) }
-        }
-    }
-
-    private static func resize(_ arguments: [String]) -> Result<Action, ConfigError.Reason> {
-        change(arguments[0]).flatMap { change in
-            points(arguments.count == 2 ? arguments[1] : nil)
-                .map { .resize(Resize(change: change, points: $0)) }
+    /// `verb WORD [N]`: a word from `Word`'s cases, then the points, 15 when left out.
+    private static func withPoints<Word: RawRepresentable>(
+        _ arguments: [String],
+        or reason: (String) -> ConfigError.Reason,
+        _ make: (Word, CGFloat) -> Action
+    ) -> Result<Action, ConfigError.Reason> where Word.RawValue == String {
+        word(arguments[0], or: reason).flatMap { word in
+            points(arguments.count == 2 ? arguments[1] : nil).map { make(word, $0) }
         }
     }
 
@@ -70,16 +71,13 @@ enum Action: Equatable {
         return .success(workspace)
     }
 
-    private static func direction(_ text: String) -> Result<Direction, ConfigError.Reason> {
-        guard let direction = Direction(rawValue: text) else { return .failure(.invalidDirection(text)) }
+    private static func word<Word: RawRepresentable>(
+        _ text: String,
+        or reason: (String) -> ConfigError.Reason
+    ) -> Result<Word, ConfigError.Reason> where Word.RawValue == String {
+        guard let word = Word(rawValue: text) else { return .failure(reason(text)) }
 
-        return .success(direction)
-    }
-
-    private static func change(_ text: String) -> Result<Resize.Change, ConfigError.Reason> {
-        guard let change = Resize.Change(rawValue: text) else { return .failure(.invalidResize(text)) }
-
-        return .success(change)
+        return .success(word)
     }
 
     private static func points(_ text: String?) -> Result<CGFloat, ConfigError.Reason> {

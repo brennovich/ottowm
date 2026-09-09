@@ -102,7 +102,7 @@ final class OffscreenParkingDesktop: Desktop {
             switch requested.change {
             case let .unpark(parkedFrom?): return .parked(requested.windowId, from: parkedFrom)
             case let .maximize(restoring?), let .fill(_, restoring?): return .filled(requested.windowId, from: restoring)
-            default: return .active(requested.windowId)
+            case .step, .resize, .center, .park, .unpark, .maximize, .fill: return .active(requested.windowId)
             }
         }
 
