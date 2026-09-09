@@ -70,6 +70,7 @@ flowchart LR
 | `Config`                      | Input     | The `KeyCombo → Action` table, indexed by key code.                                     |
 | `Bindings`                    | Input     | The bindings currently up: `start`, `stop`, `reload`.                                   |
 | `Hotkeys`                     | Input     | A session `CGEventTap` on keyDown, running on a thread of its own.                      |
+| `SecureInput`                 | Input     | The window server flag that withholds keystrokes from every tap while it is set.        |
 | `Engine`                      | Engine    | Runs each window event and action as one operation over the five parts below.           |
 | `Admission`                   | Engine    | Whether a window can be taken now, may be worth reading again, or never qualifies.      |
 | `WindowPlacement`             | Engine    | Keeps a window's workspace membership and its desktop placement in step.                |

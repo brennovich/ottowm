@@ -4,6 +4,7 @@ import Foundation
 
 final class Hotkeys {
     private let keyCodeMatcher: (Int64, CGEventFlags) -> Action?
+    private let secureInput: SecureInput
     private let dispatch: (@escaping () -> Void) -> Void
     private let handler: (Action) -> Void
 
@@ -13,10 +14,12 @@ final class Hotkeys {
 
     init(
         keyCodeMatcher: @escaping (Int64, CGEventFlags) -> Action?,
+        secureInput: SecureInput = SecureInput(),
         dispatch: @escaping (@escaping () -> Void) -> Void = { DispatchQueue.main.async(execute: $0) },
         handler: @escaping (Action) -> Void
     ) {
         self.keyCodeMatcher = keyCodeMatcher
+        self.secureInput = secureInput
         self.dispatch = dispatch
         self.handler = handler
     }
@@ -36,6 +39,7 @@ final class Hotkeys {
 
         self.tap = tap
         released = false
+        reportSecureInput()
 
         let running = DispatchSemaphore(value: 0)
         let thread = Thread { [weak self] in
@@ -76,6 +80,7 @@ final class Hotkeys {
 
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             Log.hotkey.error("event tap disabled (\(type == .tapDisabledByTimeout ? "timeout" : "userInput")), re-enabling")
+            if type == .tapDisabledByUserInput { reportSecureInput() }
             if let tap {
                 CGEvent.tapEnable(tap: tap, enable: true)
             }
@@ -90,6 +95,12 @@ final class Hotkeys {
         Log.hotkey.info("hotkey → \(action)")
         dispatch { [weak self] in self?.handler(action) }
         return nil
+    }
+
+    private func reportSecureInput() {
+        guard let warning = secureInput.warning() else { return }
+
+        Log.hotkey.error(warning)
     }
 
     private func release() {
