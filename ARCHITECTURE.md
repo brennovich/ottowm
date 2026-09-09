@@ -128,7 +128,6 @@ The tap thread matches the key and dispatches the action to the main queue, the 
 
 ```mermaid
 flowchart LR
-    Engine --> Admission
     Engine --> WindowPlacement
     Engine --> WindowEnrollment
     Engine --> Navigation
@@ -137,7 +136,6 @@ flowchart LR
     Engine --> Neighbors
     Engine --> RestoringFrames
     WindowEnrollment --> WindowPlacement
-    WindowEnrollment --> Admission
     WindowPlacement --> Admission
     Navigation --> WindowEnrollment
     Navigation --> WindowPlacement

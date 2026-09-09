@@ -3,6 +3,15 @@ import CoreGraphics
 /// Keeps a window's workspace membership and its placement on the desktop in step: a window
 /// of the current workspace is active, any other is parked.
 final class WindowPlacement {
+    enum Placement: Equatable {
+        case assigned(Int)
+        case refused(Admission.Verdict)
+
+        var workspace: Int? {
+            if case let .assigned(workspace) = self { workspace } else { nil }
+        }
+    }
+
     private let desktop: any Desktop
     private let windowSystem: WindowSystem
     private let workspaces: Workspaces
@@ -34,17 +43,23 @@ final class WindowPlacement {
         parkedWindows.all
     }
 
+    var isDesktopInFront: Bool {
+        admission.isDesktopInFront
+    }
+
     @discardableResult
-    func assign(_ win: WindowSnapshot, to workspace: Int) -> Int? {
-        if let known = workspaces.workspace(for: win.id) { return known }
-        guard admission.verdict(for: win) == .admit else { return nil }
+    func assign(_ win: WindowSnapshot, to workspace: Int) -> Placement {
+        if let known = workspaces.workspace(for: win.id) { return .assigned(known) }
+
+        let verdict = admission.verdict(for: win)
+        guard verdict == .admit else { return .refused(verdict) }
 
         let assigned = workspaces.assign(win, to: workspace)
         restoringFrames.shareFrame(with: win.id)
         Log.engine.info("assigned \(win.logDescription) → workspace \(assigned)")
 
         place(win.id, parked: assigned != workspaces.current)
-        return assigned
+        return .assigned(assigned)
     }
 
     /// - Returns: `true` when the focus is settled without OttoWM: a tab sibling kept it, or
@@ -95,7 +110,7 @@ final class WindowPlacement {
         if workspace != workspaces.current {
             switchTo(workspace)
         }
-        return assign(win, to: workspace) != nil
+        return assign(win, to: workspace).workspace != nil
     }
 
     func switchTo(_ workspace: Int) {

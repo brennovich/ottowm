@@ -62,7 +62,6 @@ class EngineTestCase: XCTestCase {
     lazy var enrollment = WindowEnrollment(
         windowSystem: windowSystem,
         workspaces: workspaces,
-        admission: admission,
         placement: placement,
         scheduleRetry: scheduleRetry
     )
@@ -87,7 +86,6 @@ class EngineTestCase: XCTestCase {
         desktop: desktop,
         windowSystem: windowSystem,
         workspaces: workspaces,
-        admission: admission,
         placement: placement,
         restoringFrames: restoringFrames,
         enrollment: enrollment,

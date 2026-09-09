@@ -5,7 +5,6 @@ final class Engine {
     private let desktop: any Desktop
     private let windowSystem: WindowSystem
     private let workspaces: Workspaces
-    private let admission: Admission
     private let placement: WindowPlacement
     private let restoringFrames: RestoringFrames
     private let enrollment: WindowEnrollment
@@ -17,7 +16,6 @@ final class Engine {
         desktop: any Desktop,
         windowSystem: WindowSystem,
         workspaces: Workspaces,
-        admission: Admission,
         placement: WindowPlacement,
         restoringFrames: RestoringFrames,
         enrollment: WindowEnrollment,
@@ -28,7 +26,6 @@ final class Engine {
         self.desktop = desktop
         self.windowSystem = windowSystem
         self.workspaces = workspaces
-        self.admission = admission
         self.placement = placement
         self.restoringFrames = restoringFrames
         self.enrollment = enrollment
@@ -143,7 +140,7 @@ final class Engine {
                 placement.assign(focused, to: workspaces.current)
             }
 
-            let onDesktop = admission.isDesktopInFront
+            let onDesktop = placement.isDesktopInFront
             Log.engine.info("switch requested target=\(workspace) current=\(self.workspaces.current) onDesktop=\(onDesktop)")
 
             if workspace == workspaces.current {
@@ -249,7 +246,6 @@ extension Engine {
         let enrollment = WindowEnrollment(
             windowSystem: windowSystem,
             workspaces: workspaces,
-            admission: admission,
             placement: placement,
             scheduleRetry: scheduleRetry
         )
@@ -272,7 +268,6 @@ extension Engine {
             desktop: desktop,
             windowSystem: windowSystem,
             workspaces: workspaces,
-            admission: admission,
             placement: placement,
             restoringFrames: restoringFrames,
             enrollment: enrollment,

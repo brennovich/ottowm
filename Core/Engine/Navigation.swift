@@ -89,7 +89,7 @@ final class Navigation {
                 workspaces.recordFocus(on: osFocused.id, in: currentWorkspace)
                 return true
             case .unassigned:
-                if placement.assign(osFocused, to: currentWorkspace) == currentWorkspace { return true }
+                if placement.assign(osFocused, to: currentWorkspace).workspace == currentWorkspace { return true }
             default:
                 break
             }
@@ -120,7 +120,7 @@ final class Navigation {
     /// workspace does. See `WindowEnrollment` for how a live window ends up in no workspace.
     func focusedWindowOfCurrentWorkspace() -> WindowSnapshot? {
         guard let focused = windowSystem.focused() else { return nil }
-        guard placement.assign(focused, to: workspaces.current) == workspaces.current else { return nil }
+        guard placement.assign(focused, to: workspaces.current).workspace == workspaces.current else { return nil }
 
         workspaces.regroupTabs(of: focused)
         return focused

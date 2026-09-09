@@ -7,11 +7,17 @@ final class WindowPlacementTests: EngineTestCase {
         let offScreen = add(StubWindow(id: 500))
         let admitted = add(StubWindow(id: 600))
 
-        XCTAssertNil(placement.assign(offScreen.snapshot(), to: 1))
+        XCTAssertEqual(placement.assign(offScreen.snapshot(), to: 1), .refused(.retry))
         XCTAssertTrue(desktop.reframeCalls.isEmpty)
 
-        XCTAssertEqual(placement.assign(admitted.snapshot(), to: 1), 1)
+        XCTAssertEqual(placement.assign(admitted.snapshot(), to: 1), .assigned(1))
         XCTAssertEqual(workspaces.allWindowIds, [600])
+    }
+
+    func testAssignReportsAWindowItsShapeRulesOutAsRefusedForGood() {
+        let fullScreen = add(StubWindow(id: 500, isFullScreen: true))
+
+        XCTAssertEqual(placement.assign(fullScreen.snapshot(), to: 1), .refused(.refuse))
     }
 
     func testAssignReportsTheWorkspaceOfAKnownWindowAndLeavesItThere() {
@@ -19,7 +25,7 @@ final class WindowPlacementTests: EngineTestCase {
         placement.assign(win.snapshot(), to: 2)
         desktop.clearCalls()
 
-        XCTAssertEqual(placement.assign(win.snapshot(), to: 1), 2)
+        XCTAssertEqual(placement.assign(win.snapshot(), to: 1), .assigned(2))
         XCTAssertEqual(workspaces.workspace(for: 100), 2)
         XCTAssertTrue(desktop.reframeCalls.isEmpty)
     }
@@ -30,7 +36,7 @@ final class WindowPlacementTests: EngineTestCase {
         placement.switchTo(2)
         let tab2 = add(StubWindow(id: 301, appName: "Terminal", frame: tabFrame, tabCount: 2))
 
-        XCTAssertEqual(placement.assign(tab2.snapshot(), to: 2), 1)
+        XCTAssertEqual(placement.assign(tab2.snapshot(), to: 2), .assigned(1))
         XCTAssertTrue(placement.isParked(301))
     }
 

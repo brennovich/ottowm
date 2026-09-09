@@ -9,7 +9,6 @@ import Foundation
 final class WindowEnrollment {
     private let windowSystem: WindowSystem
     private let workspaces: Workspaces
-    private let admission: Admission
     private let placement: WindowPlacement
     private let scheduleRetry: (TimeInterval, @escaping () -> Void) -> Void
 
@@ -19,27 +18,20 @@ final class WindowEnrollment {
     init(
         windowSystem: WindowSystem,
         workspaces: Workspaces,
-        admission: Admission,
         placement: WindowPlacement,
         scheduleRetry: @escaping (TimeInterval, @escaping () -> Void) -> Void
     ) {
         self.windowSystem = windowSystem
         self.workspaces = workspaces
-        self.admission = admission
         self.placement = placement
         self.scheduleRetry = scheduleRetry
     }
 
     @discardableResult
     func enroll(_ win: WindowSnapshot, to workspace: Int) -> Int? {
-        let assigned = placement.assign(win, to: workspace)
-        if assigned == nil { enrollLater(win) }
-        return assigned
-    }
-
-    private func enrollLater(_ win: WindowSnapshot) {
-        guard admission.verdict(for: win) == .retry else { return }
-        retry(win.id, in: Self.firstDelay)
+        let placed = placement.assign(win, to: workspace)
+        if placed == .refused(.retry) { retry(win.id, in: Self.firstDelay) }
+        return placed.workspace
     }
 
     private func retry(_ windowId: CGWindowID, in delay: TimeInterval) {
@@ -51,7 +43,7 @@ final class WindowEnrollment {
             self.windowSystem.duringOperation("enroll-retry") {
                 guard let win = self.windowSystem.snapshot(of: windowId) else { return }
 
-                if self.placement.assign(win, to: self.workspaces.current) == nil {
+                if self.placement.assign(win, to: self.workspaces.current).workspace == nil {
                     self.retry(windowId, in: delay * 2)
                 }
             }
