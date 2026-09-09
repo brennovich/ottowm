@@ -9,8 +9,6 @@ enum Action: Equatable {
     case centerWindow
     case toggleMaximize
     case fill(Direction)
-    case quit
-    case restart
 
     static func parse(_ text: String) -> Result<Action, ConfigError.Reason> {
         let parts = text.split(separator: " ").map(String.init)
@@ -34,8 +32,6 @@ enum Action: Equatable {
     private static let actionsByVerb: [String: Action] = [
         "center-window": .centerWindow,
         "toggle-maximize": .toggleMaximize,
-        "quit": .quit,
-        "restart": .restart,
     ]
 
     private static let argumentActionsByVerb: [String: (

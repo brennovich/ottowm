@@ -20,8 +20,9 @@ OttoWM is a headless agent that offers several workspaces on one native macOS Sp
 
 ```
 WindowEvent  = created(WindowSnapshot) | focused(WindowSnapshot) | destroyed(id) | minimized(id) | unminimized(WindowSnapshot)
+Binding      = action(Action) | quit | restart
 Action       = switchToWorkspace(n) | moveWindowToWorkspace(n) | focus(direction) | moveWindow(step)
-             | resize(resize) | centerWindow | toggleMaximize | fill(direction) | quit | restart
+             | resize(resize) | centerWindow | toggleMaximize | fill(direction)
 Direction    = north | east | south | west                       // "focus east" in the config
 Step         = (direction, points)                               // "move-window east 15" in the config
 Resize       = (change, points)                                  // "resize wider 15" in the config
@@ -54,7 +55,7 @@ flowchart LR
 ```mermaid
 flowchart LR
     Input -->|Action| Engine
-    Engine -->|restart| Lifecycle
+    Input -->|quit, restart| Lifecycle
     Lifecycle -->|reload| Input
     macOS["macOS boundary"] -->|WindowEvent| Engine
     Engine -->|reframe, focus, read| macOS
@@ -67,7 +68,7 @@ flowchart LR
 | Component                     | Category  | Description                                                                             |
 |-------------------------------|-----------|-----------------------------------------------------------------------------------------|
 | `ConfigFile`                  | Input     | Reads the user's config file, or the bundled one.                                       |
-| `Config`                      | Input     | The `KeyCombo → Action` table, indexed by key code.                                     |
+| `Config`                      | Input     | The `KeyCombo → Binding` table, indexed by key code.                                    |
 | `Bindings`                    | Input     | The bindings currently up: `start`, `stop`, `reload`.                                   |
 | `Hotkeys`                     | Input     | A session `CGEventTap` on keyDown, running on a thread of its own.                      |
 | `SecureInput`                 | Input     | The window server flag that withholds keystrokes from every tap while it is set.        |
@@ -115,9 +116,9 @@ flowchart LR
 ```mermaid
 flowchart LR
     ConfigFile -->|Config| Bindings
-    Bindings -->|"(keyCode, flags) → Action?"| Hotkeys
+    Bindings -->|"(keyCode, flags) → Binding?"| Hotkeys
     Hotkeys -->|Action| Engine
-    Engine -->|restart| Lifecycle
+    Hotkeys -->|quit, restart| Lifecycle
     Lifecycle -->|reload| Bindings
 ```
 
@@ -347,8 +348,7 @@ The record is taken after the removal, which clears every other trace of the win
 
 ```mermaid
 sequenceDiagram
-    Hotkeys->>Engine: handle(restart)
-    Engine->>Lifecycle: reload()
+    Hotkeys->>Lifecycle: reload()
     Lifecycle->>Bindings: reload()
     Bindings->>ConfigFile: load()
     ConfigFile-->>Bindings: Config, or a ConfigError
@@ -376,15 +376,13 @@ An `LSUIElement` agent has no quit command, so the ways out are a bound `quit` a
 ```mermaid
 sequenceDiagram
     alt quit action
-        Hotkeys->>Engine: handle(quit)
-        Engine->>WindowPlacement: restoreParkedWindows()
-        WindowPlacement->>Desktop: reframe(unpark every parked window)
-        Engine->>Lifecycle: quit()
+        Hotkeys->>Lifecycle: quit()
     else SIGTERM
-        Lifecycle->>Engine: stop()
-        Engine->>WindowPlacement: restoreParkedWindows()
-        WindowPlacement->>Desktop: reframe(unpark every parked window)
+        Note over Lifecycle: the signal source fires
     end
+    Lifecycle->>Engine: stop()
+    Engine->>WindowPlacement: restoreParkedWindows()
+    WindowPlacement->>Desktop: reframe(unpark every parked window)
     Lifecycle->>Lifecycle: exit(EXIT_SUCCESS)
 ```
 

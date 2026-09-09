@@ -48,9 +48,9 @@ final class Bindings {
 }
 
 extension Bindings {
-    static func system(config: Config, handler: @escaping (Action) -> Void) -> Bindings {
+    static func system(config: Config, handler: @escaping (Binding) -> Void) -> Bindings {
         Bindings(config: config) { config in
-            let hotkeys = Hotkeys(keyCodeMatcher: config.action, handler: handler)
+            let hotkeys = Hotkeys(keyCodeMatcher: config.binding, handler: handler)
             return Tap(start: hotkeys.start, stop: hotkeys.stop)
         }
     }

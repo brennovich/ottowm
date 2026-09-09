@@ -12,8 +12,6 @@ class EngineTestCase: XCTestCase {
     var offScreenWindowIds: Set<CGWindowID> = []
     var screenIsLocked = false
     var scheduledRetries: [(delay: TimeInterval, work: () -> Void)] = []
-    var quitCount = 0
-    var restartCount = 0
     let tabFrame = CGRect(x: 400, y: 0, width: 800, height: 600)
 
     lazy var workspaces = Workspaces(
@@ -95,9 +93,7 @@ class EngineTestCase: XCTestCase {
         enrollment: enrollment,
         navigation: navigation,
         fullScreenReturns: fullScreenReturns,
-        screenIsLocked: { [weak self] in self?.screenIsLocked ?? false },
-        quit: { [weak self] in self?.quit() },
-        restart: { [weak self] in self?.restartCount += 1 }
+        screenIsLocked: { [weak self] in self?.screenIsLocked ?? false }
     )
 
     @discardableResult
@@ -136,12 +132,5 @@ class EngineTestCase: XCTestCase {
         engine.handle(.focused(tab2.snapshot()))
         let other = create(StubWindow(id: 100))
         return (tab1, tab2, other)
-    }
-
-    /// Mirrors the production wiring, where Lifecycle.quit stops the engine before it
-    /// exits.
-    private func quit() {
-        engine.stop()
-        quitCount += 1
     }
 }

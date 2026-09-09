@@ -12,29 +12,16 @@ final class EngineLifecycleTests: EngineTestCase {
         XCTAssertEqual(workspaces.allWindowIds, [100, 200])
     }
 
-    func testQuitBringsEveryParkedWindowBackBeforeLeaving() {
+    func testStopBringsEveryParkedWindowBack() {
         let win1 = create(StubWindow(id: 100))
         let win2 = create(StubWindow(id: 200))
         moveFocusedWindow(win1, to: 2)
         moveFocusedWindow(win2, to: 3)
 
-        engine.handle(.quit)
+        engine.stop()
 
         XCTAssertFalse(parkedWindows.isParked(100))
         XCTAssertFalse(parkedWindows.isParked(200))
-        XCTAssertEqual(quitCount, 1)
-    }
-
-    func testRestartLeavesTheDeskWhereItStands() {
-        let win1 = create(StubWindow(id: 100))
-        create(StubWindow(id: 200))
-        moveFocusedWindow(win1, to: 2)
-
-        engine.handle(.restart)
-
-        XCTAssertTrue(parkedWindows.isParked(100))
-        XCTAssertFalse(parkedWindows.isParked(200))
-        XCTAssertEqual(restartCount, 1)
     }
 
     func testHandleDispatchesEachAction() {

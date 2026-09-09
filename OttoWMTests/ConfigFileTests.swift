@@ -41,7 +41,7 @@ final class ConfigFileTests: XCTestCase {
                 ConfigFile.load(bundle: bundle, environment: testCase.environment) { url in
                     url.path == testCase.expected ? "hyper-1 = switch-to-workspace 1" : nil
                 },
-                .success(try makeConfig(["hyper-1": .switchToWorkspace(1)])),
+                .success(try makeConfig(["hyper-1": .action(.switchToWorkspace(1))])),
                 testCase.name
             )
         }
@@ -50,13 +50,13 @@ final class ConfigFileTests: XCTestCase {
     func testFallsBackToTheBundledConfigWhenThereIsNone() throws {
         let config = try load(userConfig: nil).get()
 
-        XCTAssertEqual(config.action(keyCode: 18, flags: .leftOption), .switchToWorkspace(1))
+        XCTAssertEqual(config.binding(keyCode: 18, flags: .leftOption), .action(.switchToWorkspace(1)))
         XCTAssertEqual(
-            config.action(keyCode: 12, flags: [.leftCommand, .leftControl, .leftOption, .leftShift]),
+            config.binding(keyCode: 12, flags: [.leftCommand, .leftControl, .leftOption, .leftShift]),
             .quit
         )
         XCTAssertEqual(
-            config.action(keyCode: 15, flags: [.leftCommand, .leftControl, .leftOption, .leftShift]),
+            config.binding(keyCode: 15, flags: [.leftCommand, .leftControl, .leftOption, .leftShift]),
             .restart
         )
     }

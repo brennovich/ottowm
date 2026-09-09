@@ -3,7 +3,7 @@ import XCTest
 
 final class HotkeysTests: XCTestCase {
     private var deferred: [() -> Void] = []
-    private var received: [Action] = []
+    private var received: [Binding] = []
     private var matched: [(keyCode: Int64, flags: CGEventFlags)] = []
 
     private func makeHotkeys() -> Hotkeys {
@@ -11,8 +11,8 @@ final class HotkeysTests: XCTestCase {
             keyCodeMatcher: { keyCode, flags in
                 self.matched.append((keyCode, flags))
                 switch keyCode {
-                case 18: return .switchToWorkspace(1)
-                case 20: return .moveWindowToWorkspace(3)
+                case 18: return .action(.switchToWorkspace(1))
+                case 20: return .action(.moveWindowToWorkspace(3))
                 default: return nil
                 }
             },
@@ -39,7 +39,7 @@ final class HotkeysTests: XCTestCase {
 
         deferred.forEach { $0() }
 
-        XCTAssertEqual(received, [.switchToWorkspace(1), .moveWindowToWorkspace(3)])
+        XCTAssertEqual(received, [.action(.switchToWorkspace(1)), .action(.moveWindowToWorkspace(3))])
     }
 
     func testUnmatchedKeyPassesThroughWithoutDeferringAnything() throws {

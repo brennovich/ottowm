@@ -26,19 +26,19 @@ final class ConfigFileParserTests: XCTestCase {
         XCTAssertEqual(
             ConfigFileParser.parse(text),
             .success(try makeConfig([
-                "lalt-1": .switchToWorkspace(1),
-                "lalt-shift-1": .moveWindowToWorkspace(1),
-                "hyper-f18": .switchToWorkspace(12),
+                "lalt-1": .action(.switchToWorkspace(1)),
+                "lalt-shift-1": .action(.moveWindowToWorkspace(1)),
+                "hyper-f18": .action(.switchToWorkspace(12)),
                 "lopt-q": .quit,
                 "lopt-r": .restart,
-                "lopt-h": .focus(.west),
-                "lopt-shift-h": .moveWindow(Step(direction: .west, points: 15)),
-                "lopt-shift-l": .moveWindow(Step(direction: .east, points: 100)),
-                "lopt-ctrl-c": .centerWindow,
-                "lopt-m": .toggleMaximize,
-                "lopt-ctrl-h": .fill(.west),
-                "lopt-ctrl-shift-l": .resize(Resize(change: .wider, points: 15)),
-                "lopt-ctrl-shift-j": .resize(Resize(change: .taller, points: 60)),
+                "lopt-h": .action(.focus(.west)),
+                "lopt-shift-h": .action(.moveWindow(Step(direction: .west, points: 15))),
+                "lopt-shift-l": .action(.moveWindow(Step(direction: .east, points: 100))),
+                "lopt-ctrl-c": .action(.centerWindow),
+                "lopt-m": .action(.toggleMaximize),
+                "lopt-ctrl-h": .action(.fill(.west)),
+                "lopt-ctrl-shift-l": .action(.resize(Resize(change: .wider, points: 15))),
+                "lopt-ctrl-shift-j": .action(.resize(Resize(change: .taller, points: 60))),
             ]))
         )
     }

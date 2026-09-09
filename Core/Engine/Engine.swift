@@ -12,8 +12,6 @@ final class Engine {
     private let navigation: Navigation
     private let fullScreenReturns: FullScreenReturns
     private let screenIsLocked: () -> Bool
-    private let quit: () -> Void
-    private let restart: () -> Void
 
     init(
         desktop: any Desktop,
@@ -25,9 +23,7 @@ final class Engine {
         enrollment: WindowEnrollment,
         navigation: Navigation,
         fullScreenReturns: FullScreenReturns,
-        screenIsLocked: @escaping () -> Bool,
-        quit: @escaping () -> Void,
-        restart: @escaping () -> Void
+        screenIsLocked: @escaping () -> Bool
     ) {
         self.desktop = desktop
         self.windowSystem = windowSystem
@@ -39,8 +35,6 @@ final class Engine {
         self.navigation = navigation
         self.fullScreenReturns = fullScreenReturns
         self.screenIsLocked = screenIsLocked
-        self.quit = quit
-        self.restart = restart
     }
 
     func start(windows: [WindowSnapshot]) {
@@ -123,8 +117,6 @@ final class Engine {
             reframeFocusedWindow(operation: "fill") {
                 .fill(direction, restoring: self.restoringFrames.restoringFrame(of: $0.id))
             }
-        case .quit: quit()
-        case .restart: restart()
         }
     }
 
@@ -242,9 +234,7 @@ extension Engine {
         scheduleRetry: @escaping (TimeInterval, @escaping () -> Void) -> Void = { delay, work in
             DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
         },
-        screenIsLocked: @escaping () -> Bool = { false },
-        quit: @escaping () -> Void = {},
-        restart: @escaping () -> Void = {}
+        screenIsLocked: @escaping () -> Bool = { false }
     ) -> Engine {
         let restoringFrames = RestoringFrames(tabs: workspaces.tabGroupMembers(of:))
         let admission = Admission(windowSystem: windowSystem, workspaces: workspaces)
@@ -288,9 +278,7 @@ extension Engine {
             enrollment: enrollment,
             navigation: navigation,
             fullScreenReturns: fullScreenReturns,
-            screenIsLocked: screenIsLocked,
-            quit: quit,
-            restart: restart
+            screenIsLocked: screenIsLocked
         )
     }
 }

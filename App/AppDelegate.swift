@@ -54,14 +54,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             ),
             windowSystem: windowSystem,
             workspaces: Workspaces(tabGroups: TabGroups(tabCount: windowSystem.tabCount(of:), frame: windowSystem.frame(of:))),
-            screenIsLocked: { [lifecycle] in lifecycle.screenIsLocked },
-            quit: lifecycle.quit,
-            restart: { [lifecycle] in lifecycle.reload() }
+            screenIsLocked: { [lifecycle] in lifecycle.screenIsLocked }
         )
         engine.start(windows: applicationsObserver.start { engine.handle($0) })
         self.engine = engine
 
-        let bindings = Bindings.system(config: config, handler: engine.handle)
+        let bindings = Bindings.system(config: config) { [lifecycle] binding in
+            switch binding {
+            case let .action(action): engine.handle(action)
+            case .quit: lifecycle.quit()
+            case .restart: lifecycle.reload()
+            }
+        }
         self.bindings = bindings
 
         bindings.start()

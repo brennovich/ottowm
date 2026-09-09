@@ -3,20 +3,20 @@ import Dispatch
 import Foundation
 
 final class Hotkeys {
-    private let keyCodeMatcher: (Int64, CGEventFlags) -> Action?
+    private let keyCodeMatcher: (Int64, CGEventFlags) -> Binding?
     private let secureInput: SecureInput
     private let dispatch: (@escaping () -> Void) -> Void
-    private let handler: (Action) -> Void
+    private let handler: (Binding) -> Void
 
     private var tap: CFMachPort?
     private var runLoop: CFRunLoop?
     private var released = false
 
     init(
-        keyCodeMatcher: @escaping (Int64, CGEventFlags) -> Action?,
+        keyCodeMatcher: @escaping (Int64, CGEventFlags) -> Binding?,
         secureInput: SecureInput = SecureInput(),
         dispatch: @escaping (@escaping () -> Void) -> Void = { DispatchQueue.main.async(execute: $0) },
-        handler: @escaping (Action) -> Void
+        handler: @escaping (Binding) -> Void
     ) {
         self.keyCodeMatcher = keyCodeMatcher
         self.secureInput = secureInput
@@ -87,13 +87,13 @@ final class Hotkeys {
             return Unmanaged.passUnretained(event)
         }
 
-        guard type == .keyDown, let action = keyCodeMatcher(
+        guard type == .keyDown, let binding = keyCodeMatcher(
             event.getIntegerValueField(.keyboardEventKeycode),
             event.flags
         ) else { return Unmanaged.passUnretained(event) }
 
-        Log.hotkey.info("hotkey → \(action)")
-        dispatch { [weak self] in self?.handler(action) }
+        Log.hotkey.info("hotkey → \(binding)")
+        dispatch { [weak self] in self?.handler(binding) }
         return nil
     }
 
