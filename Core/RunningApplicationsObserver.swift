@@ -35,9 +35,7 @@ final class RunningApplicationsObserver {
 
     init(
         windowEvents: AXWindowEvents,
-        scheduleRetry: @escaping (TimeInterval, @escaping () -> Void) -> Void = { delay, work in
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
-        },
+        scheduleRetry: @escaping (TimeInterval, @escaping () -> Void) -> Void = Backoff.onMainQueue,
         whenFinishedLaunching: @escaping (NSRunningApplication, @escaping () -> Void) -> Void = { app, finished in
             var observation: NSKeyValueObservation?
             observation = app.observe(\.isFinishedLaunching) { app, _ in

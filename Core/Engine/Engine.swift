@@ -210,9 +210,7 @@ extension Engine {
         desktop: any Desktop,
         windowSystem: WindowSystem,
         workspaces: Workspaces,
-        scheduleRetry: @escaping (TimeInterval, @escaping () -> Void) -> Void = { delay, work in
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
-        },
+        scheduleRetry: @escaping (TimeInterval, @escaping () -> Void) -> Void = Backoff.onMainQueue,
         screenIsLocked: @escaping () -> Bool = { false }
     ) -> Engine {
         let restoringFrames = RestoringFrames(tabs: workspaces.tabGroupMembers(of:))

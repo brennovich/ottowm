@@ -11,7 +11,7 @@ final class FullScreenReturns {
     private let workspaces: Workspaces
     private let placement: WindowPlacement
     private let navigation: Navigation
-    private let scheduleRetry: (TimeInterval, @escaping () -> Void) -> Void
+    private let backoff: Backoff
 
     private static let firstDelay: TimeInterval = 0.1
     private static let lastDelay: TimeInterval = 1.6
@@ -27,7 +27,7 @@ final class FullScreenReturns {
         self.workspaces = workspaces
         self.placement = placement
         self.navigation = navigation
-        self.scheduleRetry = scheduleRetry
+        backoff = Backoff(schedule: scheduleRetry, first: Self.firstDelay, last: Self.lastDelay)
     }
 
     @discardableResult
@@ -48,17 +48,13 @@ final class FullScreenReturns {
     /// arrives, and macOS sends no notification once it settles, so nothing would report the
     /// return until the user acts. The check is repeated for a few seconds.
     func followWithRetries() {
-        followWithRetries(in: Self.firstDelay)
-    }
+        guard !follow(), !workspaces.fullScreenWindows.isEmpty else { return }
 
-    private func followWithRetries(in delay: TimeInterval) {
-        guard !follow(), !workspaces.fullScreenWindows.isEmpty, delay <= Self.lastDelay else { return }
+        backoff.run { [weak self] in
+            guard let self else { return true }
 
-        scheduleRetry(delay) { [weak self] in
-            guard let self else { return }
-
-            self.windowSystem.duringOperation("full-screen-return") {
-                self.followWithRetries(in: delay * 2)
+            return self.windowSystem.duringOperation("full-screen-return") {
+                self.follow() || self.workspaces.fullScreenWindows.isEmpty
             }
         }
     }

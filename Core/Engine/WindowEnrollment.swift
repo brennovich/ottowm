@@ -10,7 +10,7 @@ final class WindowEnrollment {
     private let windowSystem: WindowSystem
     private let workspaces: Workspaces
     private let placement: WindowPlacement
-    private let scheduleRetry: (TimeInterval, @escaping () -> Void) -> Void
+    private let backoff: Backoff
 
     private static let firstDelay: TimeInterval = 0.1
     private static let lastDelay: TimeInterval = 0.8
@@ -24,28 +24,24 @@ final class WindowEnrollment {
         self.windowSystem = windowSystem
         self.workspaces = workspaces
         self.placement = placement
-        self.scheduleRetry = scheduleRetry
+        backoff = Backoff(schedule: scheduleRetry, first: Self.firstDelay, last: Self.lastDelay)
     }
 
     @discardableResult
     func enroll(_ win: WindowSnapshot, to workspace: Int) -> Int? {
         let placed = placement.assign(win, to: workspace)
-        if placed == .refused(.retry) { retry(win.id, in: Self.firstDelay) }
+        if placed == .refused(.retry) { enrollLater(win.id) }
         return placed.workspace
     }
 
-    private func retry(_ windowId: CGWindowID, in delay: TimeInterval) {
-        guard delay <= Self.lastDelay else { return }
+    private func enrollLater(_ windowId: CGWindowID) {
+        backoff.run { [weak self] in
+            guard let self else { return true }
 
-        scheduleRetry(delay) { [weak self] in
-            guard let self else { return }
+            return self.windowSystem.duringOperation("enroll-retry") {
+                guard let win = self.windowSystem.snapshot(of: windowId) else { return true }
 
-            self.windowSystem.duringOperation("enroll-retry") {
-                guard let win = self.windowSystem.snapshot(of: windowId) else { return }
-
-                if self.placement.assign(win, to: self.workspaces.current).workspace == nil {
-                    self.retry(windowId, in: delay * 2)
-                }
+                return self.placement.assign(win, to: self.workspaces.current).workspace != nil
             }
         }
     }
