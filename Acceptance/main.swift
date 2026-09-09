@@ -47,6 +47,21 @@ session.expect("the \(movable.name) window moved \(Int(moveWindowStep))pt east",
     $0.stands(at: stepped)
 }
 
+// A resize keeps the top left corner where the move left it, and the second key puts the
+// width back, so the scenes below still find the window at the stepped frame.
+report("posting lopt-ctrl-shift-l")
+let widened = CGRect(origin: stepped.origin, size: CGSize(width: stepped.width + moveWindowStep, height: stepped.height))
+resizeWindow(.wider)
+session.expect("the \(movable.name) window grew \(Int(moveWindowStep))pt wider", [movable]) {
+    $0.stands(at: widened)
+}
+
+report("posting lopt-ctrl-shift-h")
+resizeWindow(.narrower)
+session.expect("the \(movable.name) window went back to its width", [movable]) {
+    $0.stands(at: stepped)
+}
+
 // A fill and a maximize both put the window back on the second press, and the frame they
 // put it back to is the one it was standing at when the first press filled it.
 for direction in [Direction.west, .east] {

@@ -123,6 +123,8 @@ final class OffscreenParkingDesktop: Desktop {
             return (onScreenFrame(for: requested.windowId, replacing: parkedFrom ?? current), .active(requested.windowId))
         case let .step(step):
             return (step.frame(moving: current, within: screen.visibleFrame), .active(requested.windowId))
+        case let .resize(resize):
+            return (resize.frame(resizing: current, within: screen.visibleFrame), .active(requested.windowId))
         case .center:
             return (centered(current.size), .active(requested.windowId))
         case let .maximize(restoring):

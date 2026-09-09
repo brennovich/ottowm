@@ -19,6 +19,8 @@ final class ConfigFileParserTests: XCTestCase {
         lopt-ctrl-c = center-window
         lopt-m = toggle-maximize
         lopt-ctrl-h = fill west
+        lopt-ctrl-shift-l = resize wider
+        lopt-ctrl-shift-j = resize taller 60
         """
 
         XCTAssertEqual(
@@ -35,6 +37,8 @@ final class ConfigFileParserTests: XCTestCase {
                 "lopt-ctrl-c": .centerWindow,
                 "lopt-m": .toggleMaximize,
                 "lopt-ctrl-h": .fill(.west),
+                "lopt-ctrl-shift-l": .resize(Resize(change: .wider, points: 15)),
+                "lopt-ctrl-shift-j": .resize(Resize(change: .taller, points: 60)),
             ]))
         )
     }
@@ -126,6 +130,16 @@ final class ConfigFileParserTests: XCTestCase {
                 "a step action with a step below one point",
                 "lalt-1 = move-window east 0",
                 ConfigError(line: 1, reason: .invalidStep("0"))
+            ),
+            (
+                "a resize with an unknown change",
+                "lalt-1 = resize sideways",
+                ConfigError(line: 1, reason: .invalidResize("sideways"))
+            ),
+            (
+                "a resize with a step that is not a number",
+                "lalt-1 = resize wider abc",
+                ConfigError(line: 1, reason: .invalidStep("abc"))
             ),
         ])
     }

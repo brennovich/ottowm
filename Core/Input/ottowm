@@ -26,6 +26,12 @@ lopt-shift-j = move-window south
 lopt-shift-k = move-window north
 lopt-shift-l = move-window east
 
+# Resize the focused window from its top left corner, 15 points by default
+lopt-ctrl-shift-h = resize narrower
+lopt-ctrl-shift-j = resize taller
+lopt-ctrl-shift-k = resize shorter
+lopt-ctrl-shift-l = resize wider
+
 # Center the focused window on the screen, keeping its size
 lopt-ctrl-c = center-window
 

@@ -16,6 +16,7 @@ let leftOptionShift = CGEventFlags(
     rawValue: leftOption.rawValue | CGEventFlags.maskShift.rawValue | leftShiftBit
 )
 let leftOptionControl = CGEventFlags(rawValue: leftOption.rawValue | CGEventFlags.maskControl.rawValue)
+let leftOptionControlShift = CGEventFlags(rawValue: leftOptionShift.rawValue | CGEventFlags.maskControl.rawValue)
 
 let keyCodesByWorkspace: [Int: CGKeyCode] = [1: 18, 2: 19, 3: 20, 4: 21, 5: 23]
 let quitKeyCode: CGKeyCode = 12
@@ -34,6 +35,13 @@ enum Direction: String {
 }
 
 let keyCodesByDirection: [Direction: CGKeyCode] = [.west: 4, .south: 38, .north: 40, .east: 37]
+
+// The same h/j/k/l under Control and Shift, as the bundled resize bindings name them.
+enum ResizeChange: String {
+    case wider, narrower, taller, shorter
+}
+
+let keyCodesByResizeChange: [ResizeChange: CGKeyCode] = [.narrower: 4, .taller: 38, .shorter: 40, .wider: 37]
 
 // Built once rather than per post: the benchmark reads its clock before the hotkey goes
 // out, so anything built inside post() is charged to the app as latency.
@@ -79,6 +87,11 @@ func focusNeighbor(_ direction: Direction) {
 
 func moveWindow(_ direction: Direction) {
     post(keyCode(for: direction, action: "move-window"), leftOptionShift)
+}
+
+func resizeWindow(_ change: ResizeChange) {
+    guard let keyCode = keyCodesByResizeChange[change] else { fail("no key bound to resize \(change.rawValue)") }
+    post(keyCode, leftOptionControlShift)
 }
 
 func fillHalf(_ direction: Direction) {

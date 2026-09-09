@@ -36,6 +36,7 @@ Out of the box (bundled config):
 | left&nbsp;Option + Shift + 1–4 | Move focused window to workspace |
 | left&nbsp;Option + H/J/K/L | Focus the window to the west/south/north/east |
 | left&nbsp;Option + Shift + H/J/K/L | Move the focused window west/south/north/east |
+| left&nbsp;Option + Ctrl + Shift + H/J/K/L | Make the focused window narrower/taller/shorter/wider |
 | left&nbsp;Option + Ctrl + C | Center the focused window, keeping its size |
 | left&nbsp;Option + Ctrl + M | Fill the screen with the focused window, or put it back |
 | left&nbsp;Option + Ctrl + H/J/K/L | Fill the west/south/north/east half of the screen with the focused window, or put it back |
@@ -79,17 +80,18 @@ hyper-5 = switch-to-workspace 5
 
 Workspaces are created on demand:
 
-| Action                       | Effect                                                                           |
-|------------------------------|----------------------------------------------------------------------------------|
-| `switch-to-workspace N`      | Switch to workspace N                                                            |
-| `move-window-to-workspace N` | Move the focused window to workspace N                                           |
-| `focus D`                    | Focus the window `D` leads to: `north`, `east`, `south` or `west`                |
-| `move-window D [N]`          | Move the focused window N points `D`, 15 by default, stopping at the screen edge |
-| `center-window`              | Center the focused window on the screen, keeping its size                        |
-| `toggle-maximize`            | Fill the screen with the focused window, or put it back where it was             |
-| `fill D`                     | Fill the half of the screen `D` leads to, or put the window back where it was    |
-| `quit`                       | Quit OttoWM, putting every parked window back                                    |
-| `restart`                    | Read the config file again and rebind the keys                                   |
+| Action                       | Effect                                                                                                                         |
+|------------------------------|--------------------------------------------------------------------------------------------------------------------------------|
+| `switch-to-workspace N`      | Switch to workspace N                                                                                                          |
+| `move-window-to-workspace N` | Move the focused window to workspace N                                                                                         |
+| `focus D`                    | Focus the window `D` leads to: `north`, `east`, `south` or `west`                                                              |
+| `move-window D [N]`          | Move the focused window N points `D`, 15 by default, stopping at the screen edge                                               |
+| `resize C [N]`               | Resize the focused window from its top left corner, N points, 15 by default: `C` is `wider`, `narrower`, `taller` or `shorter` |
+| `center-window`              | Center the focused window on the screen, keeping its size                                                                      |
+| `toggle-maximize`            | Fill the screen with the focused window, or put it back where it was                                                           |
+| `fill D`                     | Fill the half of the screen `D` leads to, or put the window back where it was                                                  |
+| `quit`                       | Quit OttoWM, putting every parked window back                                                                                  |
+| `restart`                    | Read the config file again and rebind the keys                                                                                 |
 
 The `restart` action reloads the config without a relaunch: the windows stay where they are. A file that does not parse leaves the bindings already up in place. Errors show up in the log:
 
@@ -100,7 +102,6 @@ log stream --level debug --predicate 'subsystem == "com.github.brennovich.ottowm
 ## Limitations
 
 - No multi-screen support (yet)
-- No window resize (yet)
 - Switching to a workspace from an unmanaged native Space or a full screen app only works when that workspace has a window to activate. When it has none, another workspace that does is activated instead, because macOS has no public API to switch Spaces
 
 <hr>

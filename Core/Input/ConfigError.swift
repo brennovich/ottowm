@@ -14,6 +14,7 @@ struct ConfigError: Error, Equatable, CustomStringConvertible {
         case malformedAction(String)
         case invalidWorkspace(String)
         case invalidDirection(String)
+        case invalidResize(String)
         case invalidStep(String)
 
         var description: String {
@@ -28,6 +29,8 @@ struct ConfigError: Error, Equatable, CustomStringConvertible {
             case let .invalidWorkspace(value): return "workspace must be a number from 1, got \(value)"
             case let .invalidDirection(value):
                 return "direction must be one of \(Direction.allCases.map(\.rawValue).joined(separator: ", ")), got \(value)"
+            case let .invalidResize(value):
+                return "resize must be one of \(Resize.Change.allCases.map(\.rawValue).joined(separator: ", ")), got \(value)"
             case let .invalidStep(value): return "step must be a number of points from 1, got \(value)"
             }
         }

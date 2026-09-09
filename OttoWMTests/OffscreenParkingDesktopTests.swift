@@ -59,6 +59,20 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(win.frame.minY, StubScreen.standard.visibleFrame.minY)
     }
 
+    func testResizeChangesTheSizeFromTheTopLeftWithoutAnimating() {
+        reframe(100, .resize(Resize(change: .wider, points: 15)))
+
+        XCTAssertEqual(win.frame, CGRect(x: 100, y: 100, width: 815, height: 600))
+        XCTAssertEqual(win.positionSetCount, 0)
+        XCTAssertEqual(win.animatedWriteCount, 0)
+    }
+
+    func testResizeStopsAtTheVisibleFrame() {
+        reframe(100, .resize(Resize(change: .taller, points: 5000)))
+
+        XCTAssertEqual(win.frame.maxY, StubScreen.standard.visibleFrame.maxY)
+    }
+
     func testCenterPutsTheWindowInTheMiddleOfTheVisibleFrame() {
         reframe(100, .center)
 

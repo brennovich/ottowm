@@ -113,6 +113,7 @@ final class Engine {
         case let .moveWindowToWorkspace(workspace): moveFocusedWindow(toWorkspace: workspace)
         case let .focus(direction): focusWindow(direction)
         case let .moveWindow(step): reframeFocusedWindow(operation: "move-window") { _ in .step(step) }
+        case let .resize(resize): reframeFocusedWindow(operation: "resize") { _ in .resize(resize) }
         case .centerWindow: reframeFocusedWindow(operation: "center-window") { _ in .center }
         case .toggleMaximize:
             reframeFocusedWindow(operation: "toggle-maximize") {

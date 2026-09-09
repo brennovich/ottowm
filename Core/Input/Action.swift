@@ -5,6 +5,7 @@ enum Action: Equatable {
     case moveWindowToWorkspace(Int)
     case focus(Direction)
     case moveWindow(Step)
+    case resize(Resize)
     case centerWindow
     case toggleMaximize
     case fill(Direction)
@@ -46,12 +47,20 @@ enum Action: Equatable {
         "focus": (1 ... 1, { direction($0[0]).map(Action.focus) }),
         "fill": (1 ... 1, { direction($0[0]).map(Action.fill) }),
         "move-window": (1 ... 2, moveWindow),
+        "resize": (1 ... 2, resize),
     ]
 
     private static func moveWindow(_ arguments: [String]) -> Result<Action, ConfigError.Reason> {
         direction(arguments[0]).flatMap { direction in
             points(arguments.count == 2 ? arguments[1] : nil)
                 .map { .moveWindow(Step(direction: direction, points: $0)) }
+        }
+    }
+
+    private static func resize(_ arguments: [String]) -> Result<Action, ConfigError.Reason> {
+        change(arguments[0]).flatMap { change in
+            points(arguments.count == 2 ? arguments[1] : nil)
+                .map { .resize(Resize(change: change, points: $0)) }
         }
     }
 
@@ -65,6 +74,12 @@ enum Action: Equatable {
         guard let direction = Direction(rawValue: text) else { return .failure(.invalidDirection(text)) }
 
         return .success(direction)
+    }
+
+    private static func change(_ text: String) -> Result<Resize.Change, ConfigError.Reason> {
+        guard let change = Resize.Change(rawValue: text) else { return .failure(.invalidResize(text)) }
+
+        return .success(change)
     }
 
     private static func points(_ text: String?) -> Result<CGFloat, ConfigError.Reason> {
