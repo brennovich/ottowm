@@ -24,21 +24,27 @@ final class ConfigGateTests: XCTestCase {
         XCTAssertEqual(relaunches, 0)
     }
 
-    func testRelaunchesWhenTheUserRestartsOverTheError() {
+    func testLoadRecoversFromAConfigThatDoesNotParse() {
         let error = ConfigError(line: 2, reason: .unknownAction("relaunch"))
         response = .restart
 
         XCTAssertEqual(makeGate(.failure(error)).load(), .relaunching)
         XCTAssertEqual(asked, [error])
-        XCTAssertEqual(relaunches, 1)
     }
 
-    func testQuitsWhenTheUserDismissesTheError() {
+    func testRecoverRelaunchesOnRestartAndQuitsOnDismiss() {
         let error = ConfigError(line: 1, reason: .syntax("lalt-1 switch-to-workspace 1"))
-        response = .dismiss
+        let cases: [(response: ConfigAlert.Response, outcome: ConfigGate.Outcome, relaunches: Int)] = [
+            (.restart, .relaunching, 1),
+            (.dismiss, .quit, 0),
+        ]
 
-        XCTAssertEqual(makeGate(.failure(error)).load(), .quit)
-        XCTAssertEqual(asked, [error])
-        XCTAssertEqual(relaunches, 0)
+        for testCase in cases {
+            relaunches = 0
+            response = testCase.response
+
+            XCTAssertEqual(makeGate(.success(Config([:]))).recover(from: error), testCase.outcome)
+            XCTAssertEqual(relaunches, testCase.relaunches)
+        }
     }
 }

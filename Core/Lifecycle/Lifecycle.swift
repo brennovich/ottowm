@@ -13,6 +13,7 @@ final class Lifecycle {
     private let observeSIGTERM: (@escaping () -> Void) -> (any DispatchSourceSignal)?
     private var termination: (any DispatchSourceSignal)?
     private var awaitingUserInput = false
+    private lazy var configGate = ConfigGate(ask: ask, relaunch: { [weak self] in self?.relaunch() })
 
     var screenIsLocked: Bool { screenLock.isLocked }
 
@@ -51,13 +52,8 @@ final class Lifecycle {
         guard let error = reloadBindings() else { return }
 
         awaitingUserInput = true
-        let response = ask(error)
-        awaitingUserInput = false
-
-        guard response == .restart else { return }
-
-        Log.app.notice("config rejected, relaunching")
-        relaunch()
+        defer { awaitingUserInput = false }
+        configGate.recover(from: error)
     }
 
     func relaunch() {

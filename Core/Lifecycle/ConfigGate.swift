@@ -14,15 +14,18 @@ struct ConfigGate {
 
     func load() -> Outcome {
         switch read() {
-        case let .success(config):
-            return .loaded(config)
-        case let .failure(error):
-            guard ask(error) == .restart else { return .quit }
-
-            Log.config.notice("config rejected, relaunching")
-            relaunch()
-
-            return .relaunching
+        case let .success(config): .loaded(config)
+        case let .failure(error): recover(from: error)
         }
+    }
+
+    @discardableResult
+    func recover(from error: ConfigError) -> Outcome {
+        guard ask(error) == .restart else { return .quit }
+
+        Log.config.notice("config rejected, relaunching")
+        relaunch()
+
+        return .relaunching
     }
 }
