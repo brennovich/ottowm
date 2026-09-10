@@ -27,6 +27,7 @@ class EngineTestCase: XCTestCase {
     )
 
     lazy var desktop = StubDesktop(window: { [weak self] id in self?.windows[id] })
+    lazy var layouts = DisplayLayouts(display: { [weak self] in self?.desktop.display.id ?? Display.standard.id })
 
     private lazy var scheduleRetry: (TimeInterval, @escaping () -> Void) -> Void = { [weak self] delay, work in
         self?.scheduledRetries.append((delay, work))
@@ -56,7 +57,8 @@ class EngineTestCase: XCTestCase {
         workspaces: workspaces,
         admission: admission,
         parkedWindows: parkedWindows,
-        restoringFrames: restoringFrames
+        restoringFrames: restoringFrames,
+        layouts: layouts
     )
 
     lazy var enrollment = WindowEnrollment(

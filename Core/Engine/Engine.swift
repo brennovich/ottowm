@@ -81,6 +81,7 @@ final class Engine {
             case let .created(win):
                 enrollment.enroll(win, to: workspaces.current)
             case let .focused(win):
+                placement.remember(win)
                 navigation.follow(win)
             case let .destroyed(windowId):
                 if !placement.drop(windowId, reason: "destroyed") {
@@ -183,7 +184,9 @@ final class Engine {
             let candidates = workspaces.windowIds(in: workspaces.current)
                 .filter { $0 != reference.id && !placement.isParked($0) }
 
-            let neighbors = Neighbors(around: reference.frame, among: windowSystem.frames(of: candidates))
+            let frames = windowSystem.frames(of: candidates)
+            placement.remember(frames)
+            let neighbors = Neighbors(around: reference.frame, among: frames)
             guard let target = neighbors.nearest(to: direction) else {
                 Log.engine.info("focus \(direction.rawValue) dropped: no window that way")
                 return
@@ -228,7 +231,8 @@ extension Engine {
             workspaces: workspaces,
             admission: admission,
             parkedWindows: ParkedWindows(),
-            restoringFrames: restoringFrames
+            restoringFrames: restoringFrames,
+            layouts: DisplayLayouts(display: { desktop.display.id })
         )
         let enrollment = WindowEnrollment(
             windowSystem: windowSystem,

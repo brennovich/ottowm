@@ -18,6 +18,7 @@ final class WindowPlacement {
     private let admission: Admission
     private let parkedWindows: ParkedWindows
     private let restoringFrames: RestoringFrames
+    private let layouts: DisplayLayouts
 
     init(
         desktop: any Desktop,
@@ -25,7 +26,8 @@ final class WindowPlacement {
         workspaces: Workspaces,
         admission: Admission,
         parkedWindows: ParkedWindows,
-        restoringFrames: RestoringFrames
+        restoringFrames: RestoringFrames,
+        layouts: DisplayLayouts
     ) {
         self.desktop = desktop
         self.windowSystem = windowSystem
@@ -33,6 +35,7 @@ final class WindowPlacement {
         self.admission = admission
         self.parkedWindows = parkedWindows
         self.restoringFrames = restoringFrames
+        self.layouts = layouts
     }
 
     func isParked(_ windowId: CGWindowID) -> Bool {
@@ -47,8 +50,20 @@ final class WindowPlacement {
         admission.isDesktopInFront
     }
 
+    /// A parked window stands at the hidden edge, which is no frame to go back to.
+    func remember(_ win: WindowSnapshot) {
+        remember([win.id: win.frame])
+    }
+
+    func remember(_ frames: [CGWindowID: CGRect]) {
+        for (windowId, frame) in frames where !parkedWindows.isParked(windowId) {
+            layouts.record(frame, of: windowId)
+        }
+    }
+
     @discardableResult
     func assign(_ win: WindowSnapshot, to workspace: Int) -> Placement {
+        remember(win)
         if let known = workspaces.workspace(for: win.id) { return .assigned(known) }
 
         let verdict = admission.verdict(for: win)
@@ -82,6 +97,7 @@ final class WindowPlacement {
         let focusSettled = workspaces.remove(windowId)
         parkedWindows.forget(windowId)
         restoringFrames.forget(windowId)
+        layouts.forget(windowId)
         return focusSettled || workspace == nil
     }
 
@@ -186,6 +202,7 @@ final class WindowPlacement {
     private func place(_ requests: [(windowId: CGWindowID, parked: Bool)]) -> [CGWindowID] {
         let outcomes = desktop.reframe(requests.compactMap(change(for:)))
         parkedWindows.record(outcomes)
+        layouts.record(outcomes)
 
         return outcomes.compactMap { outcome -> CGWindowID? in
             guard case let .gone(windowId) = outcome else { return nil }

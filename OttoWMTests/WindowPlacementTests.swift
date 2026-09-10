@@ -56,6 +56,48 @@ final class WindowPlacementTests: EngineTestCase {
         XCTAssertEqual(workspaces.workspace(for: 300), 2)
     }
 
+    func testAssignRemembersWhereTheWindowStandsKnownOrNot() {
+        let win = add(StubWindow(id: 100))
+        let moved = CGRect(x: 300, y: 200, width: 640, height: 480)
+        placement.assign(win.snapshot(), to: 1)
+        win.moveTo(moved)
+
+        placement.assign(win.snapshot(), to: 1)
+
+        XCTAssertEqual(layouts.frame(of: 100, on: Display.standard.id), moved)
+    }
+
+    func testRememberLeavesAParkedWindowWhereItWasParkedFrom() {
+        let win = add(StubWindow(id: 100))
+        let frame = win.frame
+        placement.assign(win.snapshot(), to: 2)
+        win.moveTo(hiddenEdgeFrame(size: frame.size))
+
+        placement.remember(win.snapshot())
+
+        XCTAssertEqual(layouts.frame(of: 100, on: Display.standard.id), frame)
+    }
+
+    func testSwitchToRemembersTheFrameEachWindowIsParkedFrom() {
+        let win = add(StubWindow(id: 100))
+        let moved = CGRect(x: 300, y: 200, width: 640, height: 480)
+        placement.assign(win.snapshot(), to: 1)
+        win.moveTo(moved)
+
+        placement.switchTo(2)
+
+        XCTAssertEqual(layouts.frame(of: 100, on: Display.standard.id), moved)
+    }
+
+    func testDropForgetsWhereTheWindowStood() {
+        let win = add(StubWindow(id: 100))
+        placement.assign(win.snapshot(), to: 1)
+
+        placement.drop(100, reason: "test")
+
+        XCTAssertNil(layouts.frame(of: 100, on: Display.standard.id))
+    }
+
     func testDropHandsAParkedWindowBackToTheDesktop() {
         let parked = add(StubWindow(id: 100))
         let onDesk = add(StubWindow(id: 200))

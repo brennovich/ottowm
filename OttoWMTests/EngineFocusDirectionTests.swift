@@ -18,6 +18,18 @@ final class EngineFocusDirectionTests: EngineTestCase {
         XCTAssertEqual(farther.focusCount, 1)
     }
 
+    func testFocusingByDirectionRefreshesWhereTheCandidatesStand() {
+        let reference = create(StubWindow(id: 100, frame: center))
+        let neighbor = create(StubWindow(id: 200, frame: east))
+        let moved = east.offsetBy(dx: 50, dy: 0)
+        neighbor.moveTo(moved)
+        focused = reference
+
+        engine.focusWindow(.east)
+
+        XCTAssertEqual(layouts.frame(of: 200, on: Display.standard.id), moved)
+    }
+
     func testWindowMissingFromTheScreenIsIgnored() {
         let reference = create(StubWindow(id: 100, frame: center))
         let backgroundTab = create(StubWindow(id: 200, frame: east))
