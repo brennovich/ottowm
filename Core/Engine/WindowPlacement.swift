@@ -174,10 +174,40 @@ final class WindowPlacement {
         }
     }
 
+    /// Puts every managed window where it last stood on the display entered, or at its last
+    /// frame on the display left fitted into the new one. A parked window goes to the new
+    /// hidden edge, and comes back to that frame.
+    func relocate(from old: Display, to new: Display) {
+        let fit = Fit(from: old.visibleFrame, into: new.visibleFrame)
+        restoringFrames.relocate(with: fit)
+
+        let changes = workspaces.allWindowIds.sorted().compactMap { windowId in
+            change(relocating: windowId, from: old, to: new, with: fit)
+        }
+        Log.engine.info("display changed to \(new.logDescription), placing \(changes.count) windows")
+        apply(changes).forEach { drop($0, reason: "gone") }
+    }
+
     func restoreParkedWindows() {
         let restoring = parkedWindows.all.map { (windowId: $0.windowId, parked: false) }
         Log.engine.info("restoring \(restoring.count) parked windows")
         place(restoring)
+    }
+
+    /// On the same display only the parked windows move, to the edge of its new geometry: the
+    /// frame remembered for an active window may be older than where the user left it.
+    private func change(
+        relocating windowId: CGWindowID, from old: Display, to new: Display, with fit: Fit
+    ) -> (windowId: CGWindowID, change: FrameChange)? {
+        let parkedFrom = parkedWindows.parkedFrom(of: windowId)
+        guard old.id != new.id else {
+            return parkedFrom.map { (windowId: windowId, change: .park(from: fit.frame($0))) }
+        }
+        guard let last = layouts.frame(of: windowId, on: old.id) ?? parkedFrom else { return nil }
+
+        let target = layouts.frame(of: windowId, on: new.id) ?? fit.frame(last)
+        layouts.record(target, of: windowId)
+        return (windowId: windowId, change: parkedFrom == nil ? .unpark(target) : .park(from: target))
     }
 
     /// Nothing to do for a window already parked: parking it again would record the hidden
@@ -200,7 +230,11 @@ final class WindowPlacement {
 
     @discardableResult
     private func place(_ requests: [(windowId: CGWindowID, parked: Bool)]) -> [CGWindowID] {
-        let outcomes = desktop.reframe(requests.compactMap(change(for:)))
+        apply(requests.compactMap(change(for:)))
+    }
+
+    private func apply(_ changes: [(windowId: CGWindowID, change: FrameChange)]) -> [CGWindowID] {
+        let outcomes = desktop.reframe(changes)
         parkedWindows.record(outcomes)
         layouts.record(outcomes)
 

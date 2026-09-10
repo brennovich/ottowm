@@ -7,6 +7,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
     private var windows: [CGWindowID: StubWindow] = [:]
     private var focused: StubWindow?
     private let center = NotificationCenter()
+    private let screens = StubScreen(main: .standard)
     private lazy var workspaces = Workspaces(
         tabGroups: TabGroups(
             tabCount: { [weak self] id in self?.windows[id]?.tabCount() ?? 1 },
@@ -20,9 +21,10 @@ final class EngineDesktopIntegrationTests: XCTestCase {
     }
 
     private lazy var desktop: OffscreenParkingDesktop = OffscreenParkingDesktop(
-        screens: StubScreen(main: .standard),
+        screens: screens,
         window: { [weak self] in self?.windows[$0] },
-        notificationCenter: center
+        notificationCenter: center,
+        screenNotificationCenter: center
     )
 
     private lazy var engine: Engine = Engine.system(
@@ -99,6 +101,30 @@ final class EngineDesktopIntegrationTests: XCTestCase {
 
         XCTAssertEqual(win2.frame, hiddenEdgeFrame(size: frame2.size))
         XCTAssertEqual(workspaces.current, 1)
+    }
+
+    func testADisplayRoundTripPutsEveryWindowBackWhereItWas() {
+        let win1 = addWindow(100, frame: frame1)
+        let win2 = addWindow(200, frame: frame2)
+        start()
+        moveFocusedWindow(win2, to: 2)
+        let fit = Fit(from: Display.standard.visibleFrame, into: Display.external.visibleFrame)
+
+        screens.main = .external
+        center.postScreenParametersChange()
+
+        XCTAssertEqual(win1.frame, fit.frame(frame1))
+        XCTAssertEqual(win2.frame, hiddenEdgeFrame(size: frame2.size, on: .external))
+
+        screens.main = .standard
+        center.postScreenParametersChange()
+
+        XCTAssertEqual(win1.frame, frame1)
+        XCTAssertEqual(win2.frame, hiddenEdgeFrame(size: frame2.size))
+
+        engine.switchToWorkspace(2)
+
+        XCTAssertEqual(win2.frame, frame2)
     }
 
     func testSwitchingReadsNoTabCounts() {

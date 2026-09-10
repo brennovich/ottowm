@@ -42,7 +42,8 @@ final class Engine {
 
                 switch event {
                 case .nativeSpaceChange: self.followNativeSpaceChange()
-                case .displayChange: break
+                case let .displayChange(from, to):
+                    self.windowSystem.duringOperation("display-change") { self.placement.relocate(from: from, to: to) }
                 }
             }
         }

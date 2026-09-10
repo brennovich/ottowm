@@ -26,6 +26,15 @@ final class RestoringFramesTests: XCTestCase {
         XCTAssertEqual(restoringFrames.restoringFrame(of: 100), original)
     }
 
+    func testRelocateFitsEveryFrameIntoTheNewVisibleFrame() {
+        let fit = Fit(from: Display.external.visibleFrame, into: Display.standard.visibleFrame)
+        restoringFrames.record([.filled(100, from: original)])
+
+        restoringFrames.relocate(with: fit)
+
+        XCTAssertEqual(restoringFrames.restoringFrame(of: 100), fit.frame(original))
+    }
+
     func testAnyOtherFrameChangeDropsTheFrame() {
         restoringFrames.record([.filled(100, from: original)])
         restoringFrames.record([.active(100)])

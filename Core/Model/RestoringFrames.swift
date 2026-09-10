@@ -34,6 +34,10 @@ final class RestoringFrames {
         }
     }
 
+    func relocate(with fit: Fit) {
+        frames = frames.mapValues(fit.frame)
+    }
+
     /// A destroyed window has already left its tab group by the time it is forgotten, so
     /// the tabs that stay keep the frame.
     func forget(_ windowId: CGWindowID) {
