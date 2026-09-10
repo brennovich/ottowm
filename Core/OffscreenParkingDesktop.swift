@@ -18,8 +18,7 @@ final class OffscreenParkingDesktop: Desktop {
 
     private(set) var display: Display
     private var hiddenEdge: HiddenEdge
-    private var nativeSpaceChangeObserver: (any NSObjectProtocol)?
-    private var screenParametersObserver: (any NSObjectProtocol)?
+    private var observers: [(center: NotificationCenter, token: any NSObjectProtocol)] = []
 
     init(
         screens: any Screens,
@@ -80,20 +79,14 @@ final class OffscreenParkingDesktop: Desktop {
 
     func startWatching(_ handler: @escaping (DesktopEvent) -> Void) {
         stopWatching()
-        nativeSpaceChangeObserver = notificationCenter.addObserver(
-            forName: NSWorkspace.activeSpaceDidChangeNotification,
-            object: nil,
-            queue: nil
-        ) { _ in
-            handler(.nativeSpaceChange)
-        }
-        screenParametersObserver = screenNotificationCenter.addObserver(
-            forName: NSApplication.didChangeScreenParametersNotification,
-            object: nil,
-            queue: nil
-        ) { [weak self] _ in
-            self?.screenParametersChanged(handler)
-        }
+        observers = [
+            (notificationCenter, notificationCenter.addObserver(
+                forName: NSWorkspace.activeSpaceDidChangeNotification, object: nil, queue: nil
+            ) { _ in handler(.nativeSpaceChange) }),
+            (screenNotificationCenter, screenNotificationCenter.addObserver(
+                forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: nil
+            ) { [weak self] _ in self?.screenParametersChanged(handler) }),
+        ]
     }
 
     func repark(_ parked: [(windowId: CGWindowID, parkedFrom: CGRect)]) {
@@ -223,14 +216,8 @@ final class OffscreenParkingDesktop: Desktop {
     }
 
     private func stopWatching() {
-        if let nativeSpaceChangeObserver {
-            notificationCenter.removeObserver(nativeSpaceChangeObserver)
-            self.nativeSpaceChangeObserver = nil
-        }
-        if let screenParametersObserver {
-            screenNotificationCenter.removeObserver(screenParametersObserver)
-            self.screenParametersObserver = nil
-        }
+        for (center, token) in observers { center.removeObserver(token) }
+        observers = []
     }
 
     deinit {

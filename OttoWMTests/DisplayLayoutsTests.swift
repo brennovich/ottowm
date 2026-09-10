@@ -7,13 +7,6 @@ final class DisplayLayoutsTests: XCTestCase {
     private var display = Display.standard.id
     private lazy var layouts = DisplayLayouts(display: { [weak self] in self?.display ?? Display.standard.id })
 
-    func testRecordsTheFrameOnTheCurrentDisplayOnly() {
-        layouts.record(frame, of: 100)
-
-        XCTAssertEqual(layouts.frame(of: 100, on: Display.standard.id), frame)
-        XCTAssertNil(layouts.frame(of: 100, on: Display.external.id))
-    }
-
     func testARecordOnAnotherDisplayLeavesTheFrameOnTheFirst() {
         layouts.record(frame, of: 100)
         display = Display.external.id

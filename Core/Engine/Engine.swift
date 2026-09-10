@@ -10,6 +10,8 @@ final class Engine {
     private let navigation: Navigation
     private let fullScreenReturns: FullScreenReturns
     private let screenIsLocked: () -> Bool
+    /// The accessibility reads fail behind the lock screen, and a window that cannot be read
+    /// would be recorded as parked, so a change seen while locked waits for the unlock.
     private var displayLeftBehindLock: Display?
 
     init(
@@ -55,8 +57,6 @@ final class Engine {
         }
     }
 
-    /// The accessibility reads fail behind the lock screen, and a window that cannot be read
-    /// would be recorded as parked, so a change seen while locked waits for the unlock.
     private func relocate(from: Display, to: Display) {
         windowSystem.duringOperation("display-change") { placement.relocate(from: from, to: to) }
     }

@@ -50,11 +50,11 @@ final class WindowPlacement {
         admission.isDesktopInFront
     }
 
-    /// A parked window stands at the hidden edge, which is no frame to go back to.
     func remember(_ win: WindowSnapshot) {
         remember([win.id: win.frame])
     }
 
+    /// A parked window stands at the hidden edge, which is no frame to go back to.
     func remember(_ frames: [CGWindowID: CGRect]) {
         for (windowId, frame) in frames where !parkedWindows.isParked(windowId) {
             layouts.record(frame, of: windowId)

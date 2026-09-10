@@ -333,6 +333,21 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(win.frame, hiddenEdgeFrame(size: originalFrame.size, on: .external))
     }
 
+    func testAScreenParametersChangeOfTheGeometryOfTheSameDisplayIsReported() {
+        var events: [DesktopEvent] = []
+        desktop.startWatching { events.append($0) }
+        let dockMoved = Display(
+            id: Display.standard.id,
+            fullFrame: Display.standard.fullFrame,
+            visibleFrame: CGRect(x: 0, y: 38, width: 1792, height: 1000)
+        )
+
+        screens.main = dockMoved
+        center.postScreenParametersChange()
+
+        XCTAssertEqual(events, [.displayChange(from: .standard, to: dockMoved)])
+    }
+
     func testAScreenParametersChangeWithNoDisplayKeepsTheLastOne() {
         var events: [DesktopEvent] = []
         desktop.startWatching { events.append($0) }

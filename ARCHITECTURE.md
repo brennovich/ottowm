@@ -10,6 +10,7 @@ OttoWM is a headless agent that offers several workspaces on one native macOS Sp
 | Desktop        | The native Space OttoWM controls, and the component that moves windows on it.                                 |
 | Workspace      | A numbered set of windows. It exists as soon as an action names it.                                           |
 | Managed window | A window that belongs to a workspace.                                                                         |
+| Display        | The main display: the CoreGraphics UUID that identifies it across plugs, its full frame and visible frame.    |
 | Hidden edge    | A 1pt sliver at the bottom right of the display. A window not in the current workspace is parked there.       |
 | Tab group      | The windows macOS shows as tabs of one window. See [Tabbed windows](#tabbed-windows).                         |
 | Window id      | The `CGWindowID` of a window. It identifies the window for as long as the window lives.                       |
@@ -27,10 +28,12 @@ Direction    = north | east | south | west                       // "focus east"
 Step         = (direction, points)                               // "move-window east 15" in the config
 Resize       = (change, points)                                  // "resize wider 15" in the config
 KeyCombo     = (keyCode, [ModifierKey: ModifierSide])            // "lopt-shift-1"
-FrameChange  = step(Step) | resize(Resize) | center | park       // what a window's frame is asked to become
-             | unpark(frame?) | maximize(frame?)                 // carrying the frame to go back to
+FrameChange  = step(Step) | resize(Resize) | center               // what a window's frame is asked to become
+             | park(frame?) | unpark(frame?) | maximize(frame?)  // carrying the frame to record, or to go back to
              | fill(direction, frame?)
 FrameOutcome = parked(id, from: frame) | filled(id, from: frame) | active(id) | gone(id)
+Display      = (id, fullFrame, visibleFrame)                     // top-left coordinates
+DesktopEvent = nativeSpaceChange | displayChange(from: Display, to: Display)
 WindowSnapshot(id, appName, isStandard, hasCloseButton, hasMinimizeButton, isFullScreen, isMinimized, frame)
 ```
 
@@ -88,6 +91,8 @@ flowchart LR
 | `FrameChange`                 | Model     | What a frame is asked to become: step, resize, center, maximize, fill, park or unpark.   |
 | `ParkedWindows`               | Model     | The windows parked at the hidden edge, and the frame each one was parked from.          |
 | `RestoringFrames`             | Model     | The frame each maximized or filled window restores to, shared by its tabs.              |
+| `DisplayLayouts`              | Model     | The last frame each window had on each display, kept after the display disconnects.     |
+| `Fit`                         | Model     | One frame moved between two visible frames, each axis keeping its share of the room.    |
 | `Desktop`                     | macOS     | Moves, parks and focuses windows on the native Space.                                   |
 | `HiddenEdge`                  | macOS     | Where a parked window sits, and whether a frame sits there.                             |
 | `WindowSystem`                | macOS     | The focused window, the on-screen window frames, and the tab count of a window.         |
@@ -100,7 +105,7 @@ flowchart LR
 | `AXNotifications`             | macOS     | The AX notification channel of one process: subscribe an element, invalidate the lot.   |
 | `Window`                      | macOS     | The window operations the desktop needs: snapshot, frames, moves, focus, tabs.          |
 | `AXWindow`                    | macOS     | One window: snapshot, frame writes, focus, tab count.                                   |
-| `MainScreen`                  | macOS     | The geometry of the main display, in top-left coordinates.                              |
+| `MainScreen`                  | macOS     | The main display as a `Display`, the `Screens` the desktop reads.                       |
 | `OperationCache`              | macOS     | Holds one AX or CG read for the length of an operation.                                 |
 | `RoundTrips`                  | macOS     | Prices an operation in the calls it makes out of the process: how many, of what, cost.  |
 | `Signposts`                   | macOS     | The operation and round-trip intervals Instruments records.                             |
@@ -144,6 +149,7 @@ flowchart LR
     WindowPlacement --> Workspaces
     WindowPlacement --> ParkedWindows
     WindowPlacement --> RestoringFrames
+    WindowPlacement --> DisplayLayouts
     RestoringFrames --> Workspaces
     Navigation --> Workspaces
     Workspaces --> Workspace
@@ -155,6 +161,7 @@ flowchart LR
 ```mermaid
 flowchart TB
     Engine -->|recover, focus, repark| Desktop
+    Desktop -->|DesktopEvent| Engine
     WindowPlacement -->|reframe| Desktop
     Navigation -->|focus| Desktop
     Engine -->|focused, frames| WindowSystem
@@ -222,7 +229,7 @@ sequenceDiagram
     Engine->>Desktop: recover(windows)
     Desktop-->>Engine: the same windows, parked ones back on screen
     Engine->>WindowPlacement: assign each one to workspace 1
-    Engine->>Desktop: startWatching(nativeSpaceChange:)
+    Engine->>Desktop: startWatching(DesktopEvent handler)
     AppDelegate->>Bindings: start()
 ```
 
@@ -326,6 +333,26 @@ sequenceDiagram
 ```
 
 A Space change also pulls a parked window back on screen when its full screen instance exits.
+
+### Display change
+
+The frame a window had on the display left is not read at the change: macOS may have moved the windows of a removed display by the time the notification arrives, and whether it does is not verified. `WindowPlacement` records each snapshot the engine reads, the frame a park records, and the on-screen frames a focus move reads, under the display of the moment, and the relocation works from those records. A window dragged with the mouse and not read since is remembered where it was last read.
+
+```mermaid
+sequenceDiagram
+    Note over Desktop: the screen parameters notification names a main display<br/>other than the one held; the same display again is not reported
+    Desktop->>Engine: displayChange(from: left, to: entered)
+    Note over Engine: held until the unlock while the screen is locked:<br/>the accessibility reads fail behind it
+    Engine->>WindowPlacement: relocate(from: left, to: entered)
+    WindowPlacement->>RestoringFrames: relocate(with: the fit of left into entered)
+    loop each managed window
+        WindowPlacement->>DisplayLayouts: frame(of: id, on: entered), else its frame on left, fitted
+        WindowPlacement->>Desktop: reframe(park(from: target) for a parked window, unpark(target) for an active one)
+    end
+    WindowPlacement->>ParkedWindows: record(what came back)
+```
+
+A change that keeps the display, the Dock or the scaling changing, moves only the parked windows to the new edge: the frame remembered for an active window may be older than where the user left it.
 
 ### Full screen round trip
 

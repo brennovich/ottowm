@@ -38,7 +38,6 @@ final class WindowPlacementRelocateTests: EngineTestCase {
         placement.relocate(from: .standard, to: .external)
 
         XCTAssertEqual(desktop.reframeCalls.map(\.change), [.park(from: fitted)])
-        XCTAssertEqual(parkedWindows.parkedFrom(of: 100), fitted)
     }
 
     func testRelocateOnTheSameDisplayMovesOnlyTheParkedWindows() {

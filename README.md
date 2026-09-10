@@ -101,7 +101,7 @@ log stream --level debug --predicate 'subsystem == "com.github.brennovich.ottowm
 
 ## Limitations
 
-- No multi-screen support (yet)
+- No support for two displays at once (yet). One display swapped for another, a lid closed on an external monitor, keeps each window's frame per display
 - Switching to a workspace from an unmanaged native Space or a full screen app only works when that workspace has a window to activate. When it has none, another workspace that does is activated instead, because macOS has no public API to switch Spaces
 
 <hr>

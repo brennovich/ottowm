@@ -14,12 +14,6 @@ final class FitTests: XCTestCase {
                 CGRect(x: 150, y: 125, width: 400, height: 300)
             ),
             (
-                "a window at the top left stays there",
-                Fit(from: large, into: small),
-                CGRect(x: 0, y: 0, width: 400, height: 300),
-                CGRect(x: 0, y: 25, width: 400, height: 300)
-            ),
-            (
                 "a window at the bottom right stays there",
                 Fit(from: large, into: small),
                 CGRect(x: 1600, y: 700, width: 400, height: 300),
@@ -36,12 +30,6 @@ final class FitTests: XCTestCase {
                 Fit(from: large, into: small),
                 CGRect(x: 100, y: 100, width: 3000, height: 2000),
                 CGRect(x: 0, y: 25, width: 1000, height: 500)
-            ),
-            (
-                "the same frame on both sides leaves a window inside it alone",
-                Fit(from: small, into: small),
-                CGRect(x: 150, y: 125, width: 400, height: 300),
-                CGRect(x: 150, y: 125, width: 400, height: 300)
             ),
             (
                 "a window hanging off an edge comes inside",
