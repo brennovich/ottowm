@@ -45,6 +45,7 @@ final class Engine {
 
                 switch event {
                 case .nativeSpaceChange: self.followNativeSpaceChange()
+                case .screenParametersChange: self.reparkAfterScreenParametersChange()
                 case let .displayChange(from, to):
                     guard !self.screenIsLocked() else {
                         Log.engine.info("display changed behind the lock screen, the windows are placed at unlock")
@@ -59,6 +60,12 @@ final class Engine {
 
     private func relocate(from: Display, to: Display) {
         windowSystem.duringOperation("display-change") { placement.relocate(from: from, to: to) }
+    }
+
+    /// macOS moves windows to their last frame on the display after the first notification of
+    /// a plug, so a parked window can be back on screen once the display change is handled.
+    private func reparkAfterScreenParametersChange() {
+        windowSystem.duringOperation("screen-parameters-change") { desktop.repark(placement.parked) }
     }
 
     private func followNativeSpaceChange() {

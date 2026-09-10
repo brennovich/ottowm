@@ -202,11 +202,13 @@ final class OffscreenParkingDesktop: Desktop {
     }
 
     /// The notification also follows a Dock or menu bar change, and macOS posts it more than
-    /// once per plug, so only a display that differs from the one held is reported.
+    /// once per plug, so only a display that differs from the one held is reported as a
+    /// display change.
     private func screenParametersChanged(_ handler: (DesktopEvent) -> Void) {
         let main = screens.main
         Log.desktop.debug("screen parameters changed, main display: \(main.map(\.logDescription) ?? "none")")
-        guard let entered = main, entered != display else { return }
+        guard let entered = main else { return }
+        guard entered != display else { return handler(.screenParametersChange) }
 
         let left = display
         display = entered

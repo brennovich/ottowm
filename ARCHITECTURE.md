@@ -33,7 +33,7 @@ FrameChange  = step(Step) | resize(Resize) | center               // what a wind
              | fill(direction, frame?)
 FrameOutcome = parked(id, from: frame) | filled(id, from: frame) | active(id) | gone(id)
 Display      = (id, fullFrame, visibleFrame)                     // top-left coordinates
-DesktopEvent = nativeSpaceChange | displayChange(from: Display, to: Display)
+DesktopEvent = nativeSpaceChange | displayChange(from: Display, to: Display) | screenParametersChange
 WindowSnapshot(id, appName, isStandard, hasCloseButton, hasMinimizeButton, isFullScreen, isMinimized, frame)
 ```
 
@@ -340,7 +340,7 @@ The frame a window had on the display left is not read at the change: macOS may 
 
 ```mermaid
 sequenceDiagram
-    Note over Desktop: the screen parameters notification names a main display<br/>other than the one held; the same display again is not reported
+    Note over Desktop: the screen parameters notification names a main display<br/>other than the one held; the same display again is reported as screenParametersChange
     Desktop->>Engine: displayChange(from: left, to: entered)
     Note over Engine: held until the unlock while the screen is locked:<br/>the accessibility reads fail behind it
     Engine->>WindowPlacement: relocate(from: left, to: entered)
@@ -353,6 +353,8 @@ sequenceDiagram
 ```
 
 A change that keeps the display, the Dock or the scaling changing, moves only the parked windows to the new edge: the frame remembered for an active window may be older than where the user left it.
+
+macOS posts the notification more than once per plug and moves each window to its last frame on the entered display on its own, which can land after the relocation wrote. A notification that keeps the display makes the engine repark: every parked window read back on screen is moved to the hidden edge again.
 
 ### Full screen round trip
 

@@ -8,6 +8,7 @@ final class StubDesktop: Desktop {
     private(set) var reframeCalls: [(windowId: CGWindowID, change: FrameChange)] = []
     private(set) var reframeBatches: [[CGWindowID]] = []
     private(set) var recoveredWindowIds: [CGWindowID] = []
+    private(set) var reparkedWindowIds: [[CGWindowID]] = []
     private(set) var handler: ((DesktopEvent) -> Void)?
 
     var recoveredFrames: [CGWindowID: CGRect] = [:]
@@ -65,5 +66,7 @@ final class StubDesktop: Desktop {
         self.handler = handler
     }
 
-    func repark(_: [(windowId: CGWindowID, parkedFrom: CGRect)]) {}
+    func repark(_ parked: [(windowId: CGWindowID, parkedFrom: CGRect)]) {
+        reparkedWindowIds.append(parked.map(\.windowId))
+    }
 }

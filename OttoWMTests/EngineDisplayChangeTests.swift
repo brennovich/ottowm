@@ -15,6 +15,17 @@ final class EngineDisplayChangeTests: EngineTestCase {
         XCTAssertEqual(desktop.reframeBatches, [[100, 200]])
     }
 
+    func testAScreenParametersChangeThatKeepsTheDisplayReparksTheParkedWindows() {
+        engine.start(windows: [])
+        create(StubWindow(id: 100))
+        let parked = create(StubWindow(id: 200))
+        moveFocusedWindow(parked, to: 2)
+
+        desktop.handler?(.screenParametersChange)
+
+        XCTAssertEqual(desktop.reparkedWindowIds, [[200]])
+    }
+
     func testADisplayChangeBehindTheLockScreenWaitsForTheUnlock() {
         engine.start(windows: [])
         create(StubWindow(id: 100))

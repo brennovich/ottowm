@@ -3,6 +3,8 @@ import CoreGraphics
 enum DesktopEvent: Equatable {
     case nativeSpaceChange
     case displayChange(from: Display, to: Display)
+    /// A screen parameters notification that keeps the display.
+    case screenParametersChange
 }
 
 protocol Desktop {

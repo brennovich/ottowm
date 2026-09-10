@@ -327,7 +327,7 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         center.postScreenParametersChange()
         center.postScreenParametersChange()
 
-        XCTAssertEqual(events, [.displayChange(from: .standard, to: .external)])
+        XCTAssertEqual(events, [.displayChange(from: .standard, to: .external), .screenParametersChange])
         XCTAssertEqual(desktop.display, .external)
         reframe(100, .park(from: nil))
         XCTAssertEqual(win.frame, hiddenEdgeFrame(size: originalFrame.size, on: .external))
@@ -346,6 +346,15 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         center.postScreenParametersChange()
 
         XCTAssertEqual(events, [.displayChange(from: .standard, to: dockMoved)])
+    }
+
+    func testAScreenParametersChangeThatKeepsTheDisplayIsReported() {
+        var events: [DesktopEvent] = []
+        desktop.startWatching { events.append($0) }
+
+        center.postScreenParametersChange()
+
+        XCTAssertEqual(events, [.screenParametersChange])
     }
 
     func testAScreenParametersChangeWithNoDisplayKeepsTheLastOne() {
