@@ -4,22 +4,22 @@ struct HiddenEdge {
     private static let epsilon: CGFloat = 1
     private static let detectionMargin: CGFloat = 10
 
-    private let screen: ScreenGeometry
+    private let display: Display
 
-    init(screen: ScreenGeometry) {
-        self.screen = screen
+    init(display: Display) {
+        self.display = display
     }
 
     func frame(parking windowFrame: CGRect) -> CGRect {
         CGRect(
-            x: screen.fullFrame.maxX - Self.epsilon,
-            y: screen.fullFrame.maxY - Self.epsilon,
+            x: display.fullFrame.maxX - Self.epsilon,
+            y: display.fullFrame.maxY - Self.epsilon,
             width: windowFrame.width,
             height: windowFrame.height
         )
     }
 
     func holds(_ frame: CGRect) -> Bool {
-        frame.minX >= screen.fullFrame.maxX - Self.epsilon - Self.detectionMargin
+        frame.minX >= display.fullFrame.maxX - Self.epsilon - Self.detectionMargin
     }
 }

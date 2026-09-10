@@ -8,14 +8,14 @@ final class OffscreenParkingDesktopTests: XCTestCase {
     private let win = StubWindow(id: 100, frame: originalFrame)
     private let center = NotificationCenter()
 
-    private let hiddenEdge = HiddenEdge(screen: StubScreen.standard)
+    private let hiddenEdge = HiddenEdge(display: .standard)
 
     private lazy var windows = [win.id: win]
 
     private let parkedWindows = ParkedWindows()
 
     private lazy var desktop = OffscreenParkingDesktop(
-        screen: StubScreen.standard,
+        screens: StubScreen(main: .standard),
         window: { [weak self] id in self?.windows[id] },
         notificationCenter: center
     )
@@ -56,7 +56,7 @@ final class OffscreenParkingDesktopTests: XCTestCase {
     func testStepStopsAtTheVisibleFrame() {
         reframe(100, .step(Step(direction: .north, points: 500)))
 
-        XCTAssertEqual(win.frame.minY, StubScreen.standard.visibleFrame.minY)
+        XCTAssertEqual(win.frame.minY, Display.standard.visibleFrame.minY)
     }
 
     func testResizeChangesTheSizeFromTheTopLeftWithoutAnimating() {
@@ -70,7 +70,7 @@ final class OffscreenParkingDesktopTests: XCTestCase {
     func testResizeStopsAtTheVisibleFrame() {
         reframe(100, .resize(Resize(change: .taller, points: 5000)))
 
-        XCTAssertEqual(win.frame.maxY, StubScreen.standard.visibleFrame.maxY)
+        XCTAssertEqual(win.frame.maxY, Display.standard.visibleFrame.maxY)
     }
 
     func testCenterPutsTheWindowInTheMiddleOfTheVisibleFrame() {

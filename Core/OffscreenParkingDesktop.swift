@@ -10,23 +10,25 @@ final class OffscreenParkingDesktop: Desktop {
 
     private static let filledTolerance: CGFloat = 30
 
-    private let screen: ScreenGeometry
+    private let screens: any Screens
     private let inset: CGFloat
-    private let hiddenEdge: HiddenEdge
     private let window: (CGWindowID) -> (any Window)?
     private let notificationCenter: NotificationCenter
 
+    private(set) var display: Display
+    private var hiddenEdge: HiddenEdge
     private var nativeSpaceChangeObserver: (any NSObjectProtocol)?
 
     init(
-        screen: ScreenGeometry,
+        screens: any Screens,
         window: @escaping (CGWindowID) -> (any Window)?,
         inset: CGFloat = 15,
         notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter
     ) {
-        self.screen = screen
+        self.screens = screens
         self.inset = inset
-        hiddenEdge = HiddenEdge(screen: screen)
+        display = screens.main ?? Display(id: DisplayID(rawValue: "none"), fullFrame: .zero, visibleFrame: .zero)
+        hiddenEdge = HiddenEdge(display: display)
         self.window = window
         self.notificationCenter = notificationCenter
     }
@@ -122,9 +124,9 @@ final class OffscreenParkingDesktop: Desktop {
         case let .unpark(parkedFrom):
             return (onScreenFrame(for: requested.windowId, replacing: parkedFrom ?? current), .active(requested.windowId))
         case let .step(step):
-            return (step.frame(moving: current, within: screen.visibleFrame), .active(requested.windowId))
+            return (step.frame(moving: current, within: display.visibleFrame), .active(requested.windowId))
         case let .resize(resize):
-            return (resize.frame(resizing: current, within: screen.visibleFrame), .active(requested.windowId))
+            return (resize.frame(resizing: current, within: display.visibleFrame), .active(requested.windowId))
         case .center:
             return (centered(current.size), .active(requested.windowId))
         case let .maximize(restoring):
@@ -153,7 +155,7 @@ final class OffscreenParkingDesktop: Desktop {
     }
 
     private var filled: CGRect {
-        screen.visibleFrame.insetBy(dx: inset, dy: inset)
+        display.visibleFrame.insetBy(dx: inset, dy: inset)
     }
 
     /// Whether the window covers the target, within a tolerance.
@@ -170,7 +172,7 @@ final class OffscreenParkingDesktop: Desktop {
     }
 
     private func centered(_ size: CGSize) -> CGRect {
-        let bounds = screen.visibleFrame
+        let bounds = display.visibleFrame
 
         return CGRect(
             x: bounds.minX + (bounds.width - size.width) / 2,

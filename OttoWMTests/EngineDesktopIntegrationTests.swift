@@ -20,7 +20,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
     }
 
     private lazy var desktop: OffscreenParkingDesktop = OffscreenParkingDesktop(
-        screen: StubScreen.standard,
+        screens: StubScreen(main: .standard),
         window: { [weak self] in self?.windows[$0] },
         notificationCenter: center
     )

@@ -3,6 +3,8 @@ import CoreGraphics
 final class StubDesktop: Desktop {
     private let window: (CGWindowID) -> (any Window)?
 
+    var display: Display = .standard
+
     private(set) var reframeCalls: [(windowId: CGWindowID, change: FrameChange)] = []
     private(set) var reframeBatches: [[CGWindowID]] = []
     private(set) var recoveredWindowIds: [CGWindowID] = []

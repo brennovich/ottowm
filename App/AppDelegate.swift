@@ -49,7 +49,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let engine = Engine.system(
             desktop: OffscreenParkingDesktop(
-                screen: MainScreen(),
+                screens: MainScreen(),
                 window: applications.findWindow(by:)
             ),
             windowSystem: windowSystem,

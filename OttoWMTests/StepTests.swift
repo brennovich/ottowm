@@ -2,7 +2,7 @@ import CoreGraphics
 import XCTest
 
 final class StepTests: XCTestCase {
-    private let bounds = StubScreen.standard.visibleFrame
+    private let bounds = Display.standard.visibleFrame
     private let frame = CGRect(x: 800, y: 500, width: 400, height: 300)
 
     func testMovesAlongTheAxisTheDirectionTravels() {

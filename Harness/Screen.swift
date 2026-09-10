@@ -13,7 +13,7 @@ let refitTolerance: CGFloat = 30
 // the shipped bundle without importing its code, so a change to Core/Model/Half.swift that
 // is not mirrored here fails the run.
 
-// What Core/ScreenGeometry.swift calls the visible frame, the display without the menu bar
+// What Core/Display.swift calls the visible frame, the display without the menu bar
 // and the Dock, in the top left coordinates every frame read through the accessibility API
 // is in. AppKit measures from the bottom left of the primary display.
 func visibleFrame() -> CGRect {
