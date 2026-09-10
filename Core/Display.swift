@@ -9,3 +9,7 @@ struct Display: Equatable {
     let fullFrame: CGRect
     let visibleFrame: CGRect
 }
+
+extension Display {
+    var logDescription: String { "\(id.rawValue) \(fullFrame) visible \(visibleFrame)" }
+}

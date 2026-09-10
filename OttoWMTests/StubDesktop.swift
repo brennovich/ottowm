@@ -8,7 +8,7 @@ final class StubDesktop: Desktop {
     private(set) var reframeCalls: [(windowId: CGWindowID, change: FrameChange)] = []
     private(set) var reframeBatches: [[CGWindowID]] = []
     private(set) var recoveredWindowIds: [CGWindowID] = []
-    private(set) var nativeSpaceChangeCallback: (() -> Void)?
+    private(set) var handler: ((DesktopEvent) -> Void)?
 
     var recoveredFrames: [CGWindowID: CGRect] = [:]
 
@@ -61,8 +61,8 @@ final class StubDesktop: Desktop {
         return true
     }
 
-    func startWatching(nativeSpaceChange callback: @escaping () -> Void) {
-        nativeSpaceChangeCallback = callback
+    func startWatching(_ handler: @escaping (DesktopEvent) -> Void) {
+        self.handler = handler
     }
 
     func repark(_: [(windowId: CGWindowID, parkedFrom: CGRect)]) {}

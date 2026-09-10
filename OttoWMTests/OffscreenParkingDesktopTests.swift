@@ -7,6 +7,7 @@ private let pulledBackFrame = CGRect(x: 200, y: 300, width: 800, height: 600)
 final class OffscreenParkingDesktopTests: XCTestCase {
     private let win = StubWindow(id: 100, frame: originalFrame)
     private let center = NotificationCenter()
+    private let screens = StubScreen(main: .standard)
 
     private let hiddenEdge = HiddenEdge(display: .standard)
 
@@ -15,9 +16,10 @@ final class OffscreenParkingDesktopTests: XCTestCase {
     private let parkedWindows = ParkedWindows()
 
     private lazy var desktop = OffscreenParkingDesktop(
-        screens: StubScreen(main: .standard),
+        screens: screens,
         window: { [weak self] id in self?.windows[id] },
-        notificationCenter: center
+        notificationCenter: center,
+        screenNotificationCenter: center
     )
 
     @discardableResult
@@ -295,24 +297,51 @@ final class OffscreenParkingDesktopTests: XCTestCase {
     }
 
     func testStartWatchingReportsANativeSpaceChange() {
-        var changes = 0
+        var events: [DesktopEvent] = []
 
-        desktop.startWatching { changes += 1 }
+        desktop.startWatching { events.append($0) }
         center.postNativeSpaceChange()
 
-        XCTAssertEqual(changes, 1)
+        XCTAssertEqual(events, [.nativeSpaceChange])
     }
 
     func testStartWatchingReplacesThePreviousSubscription() {
         var first = 0
         var second = 0
 
-        desktop.startWatching { first += 1 }
-        desktop.startWatching { second += 1 }
+        desktop.startWatching { _ in first += 1 }
+        desktop.startWatching { _ in second += 1 }
         center.postNativeSpaceChange()
+        screens.main = .external
+        center.postScreenParametersChange()
 
         XCTAssertEqual(first, 0)
-        XCTAssertEqual(second, 1)
+        XCTAssertEqual(second, 2)
+    }
+
+    func testAScreenParametersChangeToAnotherDisplayIsReportedOnceAndMovesTheHiddenEdge() {
+        var events: [DesktopEvent] = []
+        desktop.startWatching { events.append($0) }
+
+        screens.main = .external
+        center.postScreenParametersChange()
+        center.postScreenParametersChange()
+
+        XCTAssertEqual(events, [.displayChange(from: .standard, to: .external)])
+        XCTAssertEqual(desktop.display, .external)
+        reframe(100, .park(from: nil))
+        XCTAssertEqual(win.frame, hiddenEdgeFrame(size: originalFrame.size, on: .external))
+    }
+
+    func testAScreenParametersChangeWithNoDisplayKeepsTheLastOne() {
+        var events: [DesktopEvent] = []
+        desktop.startWatching { events.append($0) }
+
+        screens.main = nil
+        center.postScreenParametersChange()
+
+        XCTAssertEqual(events, [])
+        XCTAssertEqual(desktop.display, .standard)
     }
 
     func testReparkParksAWindowPulledBackOnScreenWithoutAnimations() {

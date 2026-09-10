@@ -31,4 +31,8 @@ extension NotificationCenter {
     func postNativeSpaceChange() {
         post(name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
     }
+
+    func postScreenParametersChange() {
+        post(name: NSApplication.didChangeScreenParametersNotification, object: nil)
+    }
 }

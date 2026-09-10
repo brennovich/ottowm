@@ -37,23 +37,30 @@ final class Engine {
                 placement.assign(win, to: 1)
             }
 
-            desktop.startWatching { [weak self] in
+            desktop.startWatching { [weak self] event in
                 guard let self else { return }
 
-                self.windowSystem.duringOperation("native-space-change") {
-                    guard let focused = self.windowSystem.focused(),
-                          self.placement.isParked(focused.id)
-                    else {
-                        Log.engine.debug("native space change: no parked window focused")
-                        self.fullScreenReturns.followWithRetries()
-                        self.desktop.repark(self.placement.parked)
-                        return
-                    }
-
-                    Log.engine.info("native space change with parked window focused id=\(focused.id)")
-                    self.navigation.navigate(to: focused.id)
+                switch event {
+                case .nativeSpaceChange: self.followNativeSpaceChange()
+                case .displayChange: break
                 }
             }
+        }
+    }
+
+    private func followNativeSpaceChange() {
+        windowSystem.duringOperation("native-space-change") {
+            guard let focused = windowSystem.focused(),
+                  placement.isParked(focused.id)
+            else {
+                Log.engine.debug("native space change: no parked window focused")
+                fullScreenReturns.followWithRetries()
+                desktop.repark(placement.parked)
+                return
+            }
+
+            Log.engine.info("native space change with parked window focused id=\(focused.id)")
+            navigation.navigate(to: focused.id)
         }
     }
 

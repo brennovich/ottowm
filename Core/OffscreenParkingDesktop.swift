@@ -14,16 +14,19 @@ final class OffscreenParkingDesktop: Desktop {
     private let inset: CGFloat
     private let window: (CGWindowID) -> (any Window)?
     private let notificationCenter: NotificationCenter
+    private let screenNotificationCenter: NotificationCenter
 
     private(set) var display: Display
     private var hiddenEdge: HiddenEdge
     private var nativeSpaceChangeObserver: (any NSObjectProtocol)?
+    private var screenParametersObserver: (any NSObjectProtocol)?
 
     init(
         screens: any Screens,
         window: @escaping (CGWindowID) -> (any Window)?,
         inset: CGFloat = 15,
-        notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter
+        notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
+        screenNotificationCenter: NotificationCenter = .default
     ) {
         self.screens = screens
         self.inset = inset
@@ -31,6 +34,7 @@ final class OffscreenParkingDesktop: Desktop {
         hiddenEdge = HiddenEdge(display: display)
         self.window = window
         self.notificationCenter = notificationCenter
+        self.screenNotificationCenter = screenNotificationCenter
     }
 
     func recover(_ windows: [WindowSnapshot]) -> [WindowSnapshot] {
@@ -74,14 +78,21 @@ final class OffscreenParkingDesktop: Desktop {
         return true
     }
 
-    func startWatching(nativeSpaceChange callback: @escaping () -> Void) {
+    func startWatching(_ handler: @escaping (DesktopEvent) -> Void) {
         stopWatching()
         nativeSpaceChangeObserver = notificationCenter.addObserver(
             forName: NSWorkspace.activeSpaceDidChangeNotification,
             object: nil,
             queue: nil
         ) { _ in
-            callback()
+            handler(.nativeSpaceChange)
+        }
+        screenParametersObserver = screenNotificationCenter.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification,
+            object: nil,
+            queue: nil
+        ) { [weak self] _ in
+            self?.screenParametersChanged(handler)
         }
     }
 
@@ -197,10 +208,28 @@ final class OffscreenParkingDesktop: Desktop {
         }
     }
 
+    /// The notification also follows a Dock or menu bar change, and macOS posts it more than
+    /// once per plug, so only a display that differs from the one held is reported.
+    private func screenParametersChanged(_ handler: (DesktopEvent) -> Void) {
+        let main = screens.main
+        Log.desktop.debug("screen parameters changed, main display: \(main.map(\.logDescription) ?? "none")")
+        guard let entered = main, entered != display else { return }
+
+        let left = display
+        display = entered
+        hiddenEdge = HiddenEdge(display: entered)
+        Log.desktop.info("display changed from \(left.logDescription) to \(entered.logDescription)")
+        handler(.displayChange(from: left, to: entered))
+    }
+
     private func stopWatching() {
         if let nativeSpaceChangeObserver {
             notificationCenter.removeObserver(nativeSpaceChangeObserver)
             self.nativeSpaceChangeObserver = nil
+        }
+        if let screenParametersObserver {
+            screenNotificationCenter.removeObserver(screenParametersObserver)
+            self.screenParametersObserver = nil
         }
     }
 
