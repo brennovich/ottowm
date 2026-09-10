@@ -10,6 +10,7 @@ final class Engine {
     private let navigation: Navigation
     private let fullScreenReturns: FullScreenReturns
     private let screenIsLocked: () -> Bool
+    private var displayLeftBehindLock: Display?
 
     init(
         desktop: any Desktop,
@@ -43,10 +44,21 @@ final class Engine {
                 switch event {
                 case .nativeSpaceChange: self.followNativeSpaceChange()
                 case let .displayChange(from, to):
-                    self.windowSystem.duringOperation("display-change") { self.placement.relocate(from: from, to: to) }
+                    guard !self.screenIsLocked() else {
+                        Log.engine.info("display changed behind the lock screen, the windows are placed at unlock")
+                        self.displayLeftBehindLock = self.displayLeftBehindLock ?? from
+                        return
+                    }
+                    self.relocate(from: from, to: to)
                 }
             }
         }
+    }
+
+    /// The accessibility reads fail behind the lock screen, and a window that cannot be read
+    /// would be recorded as parked, so a change seen while locked waits for the unlock.
+    private func relocate(from: Display, to: Display) {
+        windowSystem.duringOperation("display-change") { placement.relocate(from: from, to: to) }
     }
 
     private func followNativeSpaceChange() {
@@ -118,8 +130,14 @@ final class Engine {
     }
 
     /// Enrolls the windows no workspace knows. Window events are dropped while the screen is
-    /// locked, so a window that appeared behind the login window reached no workspace.
+    /// locked, so a window that appeared behind the login window reached no workspace. A
+    /// display change behind it is applied first, from the display the layouts were taken on.
     func resync(windows: [WindowSnapshot]) {
+        if let left = displayLeftBehindLock {
+            displayLeftBehindLock = nil
+            relocate(from: left, to: desktop.display)
+        }
+
         windowSystem.duringOperation("resync") {
             for win in windows {
                 placement.assign(win, to: workspaces.current)
