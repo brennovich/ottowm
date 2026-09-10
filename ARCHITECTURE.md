@@ -91,7 +91,8 @@ flowchart LR
 | `Desktop`                     | macOS     | Moves, parks and focuses windows on the native Space.                                   |
 | `HiddenEdge`                  | macOS     | Where a parked window sits, and whether a frame sits there.                             |
 | `WindowSystem`                | macOS     | The focused window, the on-screen window frames, and the tab count of a window.         |
-| `RunningApplicationsObserver` | macOS     | Which applications count, and the `NSWorkspace` notifications of their lifecycle.       |
+| `RunningApplicationsObserver` | macOS     | The `NSWorkspace` notifications of the applications' lifecycle, and what to announce.   |
+| `ApplicationFilter`           | macOS     | Which applications are worth an AX subscription: not OttoWM, the lock screen or WebKit. |
 | `AXWindowEvents`              | macOS     | The AX notifications of the watched applications, as `WindowEvent`s.                    |
 | `Applications`                | macOS     | The applications watched, and the window each `CGWindowID` belongs to.                  |
 | `Application`                 | macOS     | One watched application: its channel and subscription, the windows it reads, their ids. |
@@ -166,6 +167,7 @@ flowchart TB
     Desktop --> Applications
     WindowSystem -->|adoptFocusedWindow| AXWindowEvents
     WindowSystem -->|findWindow| Applications
+    RunningApplicationsObserver -->|includes| ApplicationFilter
     RunningApplicationsObserver -->|start, discover, inventory, stop, sweepDeadWindows| AXWindowEvents
     AXWindowEvents -->|WindowEvent| RunningApplicationsObserver
     AXWindowEvents -->|add, find, remove| Applications

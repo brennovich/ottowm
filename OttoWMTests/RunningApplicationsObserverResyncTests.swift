@@ -18,6 +18,17 @@ final class RunningApplicationsObserverResyncTests: XCTestCase {
         XCTAssertNotNil(harness.callbacks[903])
     }
 
+    func testResyncSubscribesOnlyTheApplicationsTheFilterIncludes() {
+        _ = harness.start()
+        harness.apps = [StubRunningApplication(pid: 901), StubRunningApplication(pid: 902)]
+        harness.addWindow(pid: 901, id: 100)
+        harness.addWindow(pid: 902, id: 200)
+        harness.excludedPids = [902]
+
+        XCTAssertEqual(harness.observer.resync().map(\.id), [100])
+        XCTAssertEqual(Array(harness.callbacks.keys), [901])
+    }
+
     func testResyncRetriesAnApplicationThatAppearedWhileTheScreenWasLockedAndDoesNotReply() {
         _ = harness.start()
         harness.apps = [StubRunningApplication(pid: 901)]

@@ -1,29 +1,16 @@
 import AppKit
 
 private let initialRetryDelay: TimeInterval = 0.1
-private let lockScreenBundleId = "com.apple.loginwindow"
-
-// WebKit runs one of these XPC services per tab, per network session and per GPU
-// context, so a browser accounts for dozens of them. None owns a window and none
-// replies to the Accessibility API: every subscription attempt costs a full messaging
-// timeout, and the retries spend it again until the grace period runs out. Universal
-// Control behaves the same: it runs with or without a second device and owns no window.
-private let silentBundleIds: Set<String> = [
-    "com.apple.WebKit.WebContent",
-    "com.apple.WebKit.Networking",
-    "com.apple.WebKit.GPU",
-    "com.apple.universalcontrol",
-]
 
 final class RunningApplicationsObserver {
     private let windowEvents: AXWindowEvents
+    private let canSubscribe: (NSRunningApplication) -> Bool
     private let scheduleRetry: (TimeInterval, @escaping () -> Void) -> Void
     private let whenFinishedLaunching: (NSRunningApplication, @escaping () -> Void) -> Void
     private let now: () -> Date
     private let notificationCenter: NotificationCenter
     private let runningApplications: () -> [NSRunningApplication]
     private var handler: ((WindowEvent) -> Void)?
-    private let ownPid = ProcessInfo.processInfo.processIdentifier
 
     static let subscriptionGracePeriod: TimeInterval = 15
 
@@ -35,6 +22,7 @@ final class RunningApplicationsObserver {
 
     init(
         windowEvents: AXWindowEvents,
+        canSubscribe: @escaping (NSRunningApplication) -> Bool = ApplicationFilter().includes,
         scheduleRetry: @escaping (TimeInterval, @escaping () -> Void) -> Void = Backoff.onMainQueue,
         whenFinishedLaunching: @escaping (NSRunningApplication, @escaping () -> Void) -> Void = { app, finished in
             var observation: NSKeyValueObservation?
@@ -51,6 +39,7 @@ final class RunningApplicationsObserver {
         runningApplications: @escaping () -> [NSRunningApplication] = { NSWorkspace.shared.runningApplications }
     ) {
         self.windowEvents = windowEvents
+        self.canSubscribe = canSubscribe
         self.scheduleRetry = scheduleRetry
         self.whenFinishedLaunching = whenFinishedLaunching
         self.now = now
@@ -99,26 +88,6 @@ final class RunningApplicationsObserver {
         }
 
         return attempts.map(\.attempt)
-    }
-
-    private func canSubscribe(_ app: NSRunningApplication) -> Bool {
-        let pid = app.processIdentifier
-        guard app.activationPolicy != .prohibited else {
-            Log.observer.debug("skipping pid=\(pid) app=\(app.localizedName ?? ""): activation policy is prohibited")
-            return false
-        }
-        guard pid != ownPid else { return false }
-        guard let bundleId = app.bundleIdentifier else { return true }
-        guard bundleId != lockScreenBundleId else {
-            Log.observer.debug("skipping pid=\(pid) app=\(app.localizedName ?? ""): lock screen")
-            return false
-        }
-        guard !silentBundleIds.contains(bundleId) else {
-            Log.observer.debug("skipping pid=\(pid) app=\(app.localizedName ?? ""): replies to no accessibility call")
-            return false
-        }
-
-        return true
     }
 
     // Some applications take a while to finish launching and become reachable through AX,

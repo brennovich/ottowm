@@ -6,6 +6,7 @@ final class RunningApplicationsObserverHarness {
     let windows = AXWindowEventsHarness()
     let center = NotificationCenter()
     var apps: [NSRunningApplication] = []
+    var excludedPids: Set<pid_t> = []
     // What one attempt against an application that is not answering costs, so a test
     // that runs the retries also spends the time they would really take.
     let retryStep: TimeInterval = 0.4
@@ -18,6 +19,7 @@ final class RunningApplicationsObserverHarness {
 
     lazy var observer = RunningApplicationsObserver(
         windowEvents: windows.windowEvents,
+        canSubscribe: { !self.excludedPids.contains($0.processIdentifier) },
         scheduleRetry: { delay, work in
             self.retryDelays.append(delay)
             self.scheduledRetries.append((delay, work))

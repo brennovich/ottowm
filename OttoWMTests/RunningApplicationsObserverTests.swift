@@ -38,24 +38,14 @@ final class RunningApplicationsObserverTests: XCTestCase {
         XCTAssertEqual(harness.callbacks.count, 8)
     }
 
-    func testStartSubscribesOnlyTheApplicationsThatCount() {
-        harness.apps = [
-            StubRunningApplication(pid: 901),
-            StubRunningApplication(pid: 902, policy: .accessory),
-            StubRunningApplication(pid: ProcessInfo.processInfo.processIdentifier),
-            StubRunningApplication(pid: 903, policy: .prohibited),
-            StubRunningApplication(pid: 904, bundleId: "com.apple.loginwindow"),
-            StubRunningApplication(pid: 905, bundleId: "com.apple.WebKit.WebContent"),
-            StubRunningApplication(pid: 906, bundleId: "com.apple.WebKit.Networking"),
-            StubRunningApplication(pid: 907, bundleId: "com.apple.WebKit.GPU"),
-            StubRunningApplication(pid: 908, bundleId: "com.apple.universalcontrol"),
-        ]
-        for app in harness.apps {
-            harness.addWindow(pid: app.processIdentifier, id: CGWindowID(app.processIdentifier))
-        }
+    func testStartSubscribesOnlyTheApplicationsTheFilterIncludes() {
+        harness.apps = [StubRunningApplication(pid: 901), StubRunningApplication(pid: 902)]
+        harness.addWindow(pid: 901, id: 100)
+        harness.addWindow(pid: 902, id: 200)
+        harness.excludedPids = [902]
 
-        XCTAssertEqual(Set(harness.start().map(\.id)), [901, 902])
-        XCTAssertEqual(Set(harness.callbacks.keys), [901, 902])
+        XCTAssertEqual(harness.start().map(\.id), [100])
+        XCTAssertEqual(Array(harness.callbacks.keys), [901])
     }
 
     func testStartSkipsAppWhenObserverCreationFails() {
@@ -188,18 +178,14 @@ final class RunningApplicationsObserverTests: XCTestCase {
         XCTAssertTrue(harness.scheduledRetries.isEmpty)
     }
 
-    // Every new tab spawns a WebContent process, so the launch notification is the
-    // path that would pay for them again and again.
-    func testApplicationLaunchSubscribesOnlyTheApplicationsThatCount() {
+    func testApplicationLaunchSubscribesOnlyTheApplicationsTheFilterIncludes() {
         _ = harness.start()
         harness.addWindow(pid: 901, id: 100)
         harness.addWindow(pid: 902, id: 200)
+        harness.excludedPids = [902]
 
-        harness.post(NSWorkspace.didLaunchApplicationNotification, StubRunningApplication(pid: 901, policy: .accessory))
-        harness.post(
-            NSWorkspace.didLaunchApplicationNotification,
-            StubRunningApplication(pid: 902, bundleId: "com.apple.WebKit.WebContent")
-        )
+        harness.post(NSWorkspace.didLaunchApplicationNotification, StubRunningApplication(pid: 901))
+        harness.post(NSWorkspace.didLaunchApplicationNotification, StubRunningApplication(pid: 902))
 
         XCTAssertEqual(harness.eventDescriptions, ["created(100)"])
         XCTAssertEqual(Array(harness.callbacks.keys), [901])
@@ -229,6 +215,18 @@ final class RunningApplicationsObserverTests: XCTestCase {
         harness.post(NSWorkspace.didActivateApplicationNotification, app)
 
         XCTAssertEqual(harness.eventDescriptions, ["created(300)", "focused(200)"])
+    }
+
+    func testApplicationActivationScansOnlyTheApplicationsTheFilterIncludes() {
+        let app = StubRunningApplication(pid: 901)
+        harness.apps = [app]
+        _ = harness.start()
+        harness.addWindow(pid: 901, id: 100)
+        harness.excludedPids = [901]
+
+        harness.post(NSWorkspace.didActivateApplicationNotification, app)
+
+        XCTAssertEqual(harness.eventDescriptions, [])
     }
 
     // A window closed by its button while its application is in the background takes no
