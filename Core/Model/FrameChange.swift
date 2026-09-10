@@ -4,7 +4,7 @@ enum FrameChange: Equatable {
     case step(Step)
     case resize(Resize)
     case center
-    case park
+    case park(from: CGRect?)
     case unpark(CGRect?)
     case maximize(restoring: CGRect?)
     case fill(Direction, restoring: CGRect?)

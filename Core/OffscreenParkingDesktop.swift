@@ -102,7 +102,7 @@ final class OffscreenParkingDesktop: Desktop {
         guard let current = requested.window.movableFrame() else {
             Log.desktop.info("cannot \(requested.change.logDescription) id=\(requested.windowId): window not movable")
             switch requested.change {
-            case let .unpark(parkedFrom?): return .parked(requested.windowId, from: parkedFrom)
+            case let .unpark(parkedFrom?), let .park(from: parkedFrom?): return .parked(requested.windowId, from: parkedFrom)
             case let .maximize(restoring?), let .fill(_, restoring?): return .filled(requested.windowId, from: restoring)
             case .step, .resize, .center, .park, .unpark, .maximize, .fill: return .active(requested.windowId)
             }
@@ -118,8 +118,8 @@ final class OffscreenParkingDesktop: Desktop {
 
     private func destination(_ current: CGRect, for requested: Move) -> (frame: CGRect, outcome: FrameOutcome) {
         switch requested.change {
-        case .park:
-            let onScreen = onScreenFrame(for: requested.windowId, replacing: current)
+        case let .park(from: known):
+            let onScreen = onScreenFrame(for: requested.windowId, replacing: known ?? current)
             return (hiddenEdge.frame(parking: onScreen), .parked(requested.windowId, from: onScreen))
         case let .unpark(parkedFrom):
             return (onScreenFrame(for: requested.windowId, replacing: parkedFrom ?? current), .active(requested.windowId))

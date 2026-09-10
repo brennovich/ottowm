@@ -171,7 +171,7 @@ final class WindowPlacement {
     ) -> (windowId: CGWindowID, change: FrameChange)? {
         let parkedFrom = parkedWindows.parkedFrom(of: request.windowId)
         guard request.parked else { return (windowId: request.windowId, change: .unpark(parkedFrom)) }
-        return parkedFrom == nil ? (windowId: request.windowId, change: .park) : nil
+        return parkedFrom == nil ? (windowId: request.windowId, change: .park(from: nil)) : nil
     }
 
     private func showsAnyTab(of windowId: CGWindowID) -> Bool {
