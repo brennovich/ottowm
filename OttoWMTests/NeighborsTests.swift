@@ -84,12 +84,21 @@ final class NeighborsTests: XCTestCase {
         XCTAssertEqual(neighbors.nearest(to: .west), 100)
     }
 
-    func testWindowSharingTheReferenceCenterLiesInNoDirection() {
+    func testWindowSharingTheReferenceCenterIsReachableInEveryDirection() {
         let neighbors = Neighbors(around: reference, among: [100: reference])
 
         for direction in Direction.allCases {
-            XCTAssertNil(neighbors.nearest(to: direction), direction.rawValue)
+            XCTAssertEqual(neighbors.nearest(to: direction), 100, direction.rawValue)
         }
+    }
+
+    func testWindowLyingInTheDirectionWinsOverOneSharingTheReferenceCenter() {
+        let neighbors = Neighbors(around: reference, among: [
+            100: reference,
+            200: CGRect(x: 1600, y: 0, width: 400, height: 200),
+        ])
+
+        XCTAssertEqual(neighbors.nearest(to: .east), 200)
     }
 
     func testNoWindowThatWay() {

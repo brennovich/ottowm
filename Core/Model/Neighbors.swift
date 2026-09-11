@@ -11,14 +11,7 @@ struct Neighbors {
 
     func nearest(to direction: Direction) -> CGWindowID? {
         candidates
-            .filter { candidate in
-                switch direction {
-                case .north: return candidate.value.midY < reference.midY
-                case .south: return candidate.value.midY > reference.midY
-                case .west: return candidate.value.midX < reference.midX
-                case .east: return candidate.value.midX > reference.midX
-                }
-            }
+            .filter { lies($0.value, to: direction) || sharesCenter($0.value) }
             .min { rank($0, to: direction) < rank($1, to: direction) }?
             .key
     }
@@ -31,7 +24,29 @@ struct Neighbors {
         let travelled = direction.isVertical ? abs(center.y - reference.midY) : abs(center.x - reference.midX)
         let across = direction.isVertical ? abs(center.x - reference.midX) : abs(center.y - reference.midY)
 
-        return (sharesLane(candidate.value, to: direction) ? 0 : 1, travelled, across, candidate.key)
+        return (tier(candidate.value, to: direction), travelled, across, candidate.key)
+    }
+
+    private func lies(_ candidate: CGRect, to direction: Direction) -> Bool {
+        switch direction {
+        case .north: return candidate.midY < reference.midY
+        case .south: return candidate.midY > reference.midY
+        case .west: return candidate.midX < reference.midX
+        case .east: return candidate.midX > reference.midX
+        }
+    }
+
+    private func sharesCenter(_ candidate: CGRect) -> Bool {
+        candidate.midX == reference.midX && candidate.midY == reference.midY
+    }
+
+    /// A window sharing the reference center lies in no direction, so it is taken in every one,
+    /// behind any window that does lie that way. Two centered windows are otherwise unreachable
+    /// from each other.
+    private func tier(_ candidate: CGRect, to direction: Direction) -> Int {
+        guard lies(candidate, to: direction) else { return 2 }
+
+        return sharesLane(candidate, to: direction) ? 0 : 1
     }
 
     /// A window that only overlaps the reference by an edge is not in its lane: one wide
