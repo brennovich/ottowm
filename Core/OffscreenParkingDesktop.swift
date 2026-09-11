@@ -67,6 +67,10 @@ final class OffscreenParkingDesktop: Desktop {
         }
     }
 
+    func isMaximized(_ frame: CGRect) -> Bool {
+        fills(frame, filled)
+    }
+
     func focus(_ windowId: CGWindowID) -> Bool {
         guard let win = window(windowId) else {
             Log.desktop.debug("cannot focus id=\(windowId): window not found")

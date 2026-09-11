@@ -131,8 +131,10 @@ final class Engine {
         case let .switchToWorkspace(workspace): switchToWorkspace(workspace)
         case let .moveWindowToWorkspace(workspace): moveFocusedWindow(toWorkspace: workspace)
         case let .focus(direction): focusWindow(direction)
-        case let .moveWindow(step): reframeFocusedWindow(operation: "move-window") { _ in .step(step) }
-        case let .resize(resize): reframeFocusedWindow(operation: "resize") { _ in .resize(resize) }
+        case let .moveWindow(step):
+            reframeFocusedWindow(operation: "move-window", keepingMaximized: true) { _ in .step(step) }
+        case let .resize(resize):
+            reframeFocusedWindow(operation: "resize", keepingMaximized: true) { _ in .resize(resize) }
         case .centerWindow: reframeFocusedWindow(operation: "center-window") { _ in .center }
         case .toggleMaximize: reframeFocusedWindow(operation: "toggle-maximize") { .maximize(restoring: $0) }
         case let .fill(direction): reframeFocusedWindow(operation: "fill") { .fill(direction, restoring: $0) }
@@ -228,7 +230,14 @@ final class Engine {
 
     /// - Parameter operation: one name per action, so the round-trip cost of a step and of a
     ///   centering are reported separately.
-    private func reframeFocusedWindow(operation: StaticString, _ change: (_ restoring: CGRect?) -> FrameChange) {
+    /// - Parameter keepingMaximized: drops the change when the window fills the screen. The
+    ///   window would leave the maximized frame, and the frame it goes back to is dropped
+    ///   with it.
+    private func reframeFocusedWindow(
+        operation: StaticString,
+        keepingMaximized: Bool = false,
+        _ change: (_ restoring: CGRect?) -> FrameChange
+    ) {
         windowSystem.duringOperation(operation) {
             guard let win = navigation.focusedWindowOfCurrentWorkspace() else {
                 Log.engine.info("\(operation) dropped: no window of workspace \(self.workspaces.current) focused")
@@ -236,6 +245,10 @@ final class Engine {
             }
             guard !placement.isParked(win.id) else {
                 Log.engine.info("\(operation) dropped: id=\(win.id) is parked")
+                return
+            }
+            guard !keepingMaximized || !desktop.isMaximized(win.frame) else {
+                Log.engine.info("\(operation) dropped: id=\(win.id) is maximized")
                 return
             }
 

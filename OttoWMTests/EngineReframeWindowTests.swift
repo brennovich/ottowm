@@ -35,6 +35,26 @@ final class EngineReframeWindowTests: EngineTestCase {
         XCTAssertTrue(desktop.reframeCalls.isEmpty)
     }
 
+    func testAMaximizedWindowIsNotMoved() {
+        focused = create(StubWindow(id: 100, frame: frame))
+        desktop.maximizedFrame = frame
+        desktop.clearCalls()
+
+        engine.handle(.moveWindow(step))
+
+        XCTAssertTrue(desktop.reframeCalls.isEmpty)
+    }
+
+    func testAMaximizedWindowIsNotResized() {
+        focused = create(StubWindow(id: 100, frame: frame))
+        desktop.maximizedFrame = frame
+        desktop.clearCalls()
+
+        engine.handle(.resize(Resize(change: .wider, points: 15)))
+
+        XCTAssertTrue(desktop.reframeCalls.isEmpty)
+    }
+
     func testParkedWindowOfTheCurrentWorkspaceIsLeftAlone() {
         let win = create(StubWindow(id: 100, frame: frame))
         focused = win

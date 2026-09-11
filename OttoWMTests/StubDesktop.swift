@@ -12,6 +12,7 @@ final class StubDesktop: Desktop {
     private(set) var handler: ((DesktopEvent) -> Void)?
 
     var recoveredFrames: [CGWindowID: CGRect] = [:]
+    var maximizedFrame: CGRect?
 
     init(window: @escaping (CGWindowID) -> (any Window)? = { _ in nil }) {
         self.window = window
@@ -54,6 +55,10 @@ final class StubDesktop: Desktop {
     func clearCalls() {
         reframeCalls = []
         reframeBatches = []
+    }
+
+    func isMaximized(_ frame: CGRect) -> Bool {
+        frame == maximizedFrame
     }
 
     func focus(_ windowId: CGWindowID) -> Bool {

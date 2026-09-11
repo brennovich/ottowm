@@ -115,6 +115,11 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(filled.frame, shortOfFilled)
     }
 
+    func testAFrameWithinTheToleranceOfTheFilledFrameCountsAsMaximized() {
+        XCTAssertTrue(desktop.isMaximized(CGRect(x: 15, y: 53, width: 1762, height: 1045)))
+        XCTAssertFalse(desktop.isMaximized(originalFrame))
+    }
+
     func testRestoringAWindowThatIsNotMovableKeepsTheFrameToGoBackTo() {
         win.isMinimized = true
 
