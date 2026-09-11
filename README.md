@@ -80,18 +80,18 @@ hyper-5 = switch-to-workspace 5
 
 Workspaces are created on demand:
 
-| Action                                       | Effect                                                                                                |
-|----------------------------------------------|-------------------------------------------------------------------------------------------------------|
-| <code>switch-to-workspace&nbsp;N</code>      | Switch to workspace N                                                                                 |
-| <code>move-window-to-workspace&nbsp;N</code> | Move the focused window to workspace N                                                                |
-| <code>focus&nbsp;D</code>                    | Focus the window `D` leads to: `north`, `east`, `south` or `west`                                     |
-| <code>move-window&nbsp;D&nbsp;[N]</code>     | Move the focused window N points `D`                                                                  |
-| <code>resize&nbsp;C&nbsp;[N]</code>          | Resize the focused window, N points, 15 by default: `C` is `wider`, `narrower`, `taller` or `shorter` |
-| <code>center-window</code>                   | Center the focused window on the screen, keeping its size                                             |
-| <code>toggle-maximize</code>                 | Fill the screen with the focused window (toggable)                                                    |
-| <code>fill&nbsp;D</code>                     | Fill the half of the screen `D` leads to (toggable)                                                   |
-| <code>quit</code>                            | Quit OttoWM, putting every parked window back                                                         |
-| <code>restart</code>                         | Read the config file again and rebind the keys                                                        |
+| Action                            | Effect                                                                                                |
+|-----------------------------------|-------------------------------------------------------------------------------------------------------|
+| switch-to-workspace&nbsp;`N`      | Switch to workspace N                                                                                 |
+| move-window-to-workspace&nbsp;`N` | Move the focused window to workspace N                                                                |
+| focus&nbsp;`D`                    | Focus the window `D` leads to: `north`, `east`, `south` or `west`                                     |
+| move-window&nbsp;`D`&nbsp;`[N]`   | Move the focused window N points `D`                                                                  |
+| resize&nbsp;`C`&nbsp;`[N]`        | Resize the focused window, N points, 15 by default: `C` is `wider`, `narrower`, `taller` or `shorter` |
+| center-window                     | Center the focused window on the screen, keeping its size                                             |
+| toggle-maximize                   | Fill the screen with the focused window (toggable)                                                    |
+| fill&nbsp;`D`                     | Fill the half of the screen `D` leads to (toggable)                                                   |
+| quit                              | Quit OttoWM, putting every parked window back                                                         |
+| restart                           | Read the config file again and rebind the keys                                                        |
 
 The `restart` action reloads the config without a relaunch: the windows stay where they are. A file that does not parse leaves the bindings already up in place. Errors show up in the log:
 
