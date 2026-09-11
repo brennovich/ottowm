@@ -51,7 +51,7 @@ INSTALLED = $(INSTALL_DIR)/$(SCHEME).app
 
 CODE_SIGN_IDENTITY ?= -
 
-.PHONY: build test lint lint/report lint/summary coverage coverage/summary coverage/files acceptance benchmark profile roundtrips release install clean version bump
+.PHONY: build test lint lint/report lint/summary coverage coverage/summary coverage/badge coverage/files acceptance benchmark profile roundtrips release install clean version bump
 
 version:
 	@echo $(VERSION)
@@ -112,6 +112,9 @@ coverage: $(COVERAGE)
 
 coverage/summary:
 	@Tools/coverage-summary.sh $(COVERAGE) $(SCHEME).app
+
+coverage/badge:
+	@Tools/coverage-badge.sh $(COVERAGE) $(SCHEME).app
 
 coverage/files: $(COVERAGE)
 	xcrun xccov view --report --files-for-target $(SCHEME).app $(COVERAGE)

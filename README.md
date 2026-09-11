@@ -8,6 +8,11 @@
     <i>Inspired by <a href="https://github.com/venam/2bwm">2bwm</a> and <a href="https://github.com/wmutils/core">wmutils</a>,<br>
     and by the technical approach of <a href="https://github.com/nikitabobko/AeroSpace">AeroSpace</a></i>.
   </p>
+  <p>
+    <a href="https://github.com/brennovich/ottowm/releases/latest"><img src="https://img.shields.io/github/v/release/brennovich/ottowm?sort=semver" alt="Latest release"></a>
+    <a href="https://github.com/brennovich/ottowm/actions/workflows/deployment-pipeline.yml"><img src="https://img.shields.io/github/actions/workflow/status/brennovich/ottowm/deployment-pipeline.yml?branch=main&amp;label=pipeline" alt="Pipeline status"></a>
+    <a href="https://github.com/brennovich/ottowm/actions/workflows/deployment-pipeline.yml"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2Fbrennovich%2Faddbbeb4ae9b27eb25fcdd5bc136ee5d%2Fraw%2Fcoverage.json" alt="Coverage"></a>
+  </p>
 </div>
 
 <hr>
