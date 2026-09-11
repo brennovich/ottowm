@@ -19,10 +19,10 @@ if [ -z "$percent" ] || [ "$percent" = "null" ]; then
 fi
 
 color=$(awk -v p="$percent" 'BEGIN {
-	if (p < 50) print "red"
-	else if (p < 60) print "orange"
-	else if (p < 70) print "yellow"
-	else if (p < 80) print "yellowgreen"
+	if (p < 40) print "red"
+	else if (p < 55) print "orange"
+	else if (p < 65) print "yellow"
+	else if (p < 75) print "yellowgreen"
 	else if (p < 90) print "green"
 	else print "brightgreen"
 }')
