@@ -31,9 +31,11 @@ KeyCombo     = (keyCode, [ModifierKey: ModifierSide])            // "lopt-shift-
 FrameChange  = step(Step) | resize(Resize) | center               // what a window's frame is asked to become
              | park(frame?) | unpark(frame?) | maximize(frame?)  // carrying the frame to record, or to go back to
              | fill(direction, frame?)
+FrameRequest = (windowId, change: FrameChange)                   // what the desktop is asked to do
 FrameOutcome = parked(id, from: frame) | filled(id, from: frame) | active(id) | gone(id)
 Display      = (id, fullFrame, visibleFrame)                     // top-left coordinates
-DesktopEvent = nativeSpaceChange | displayChange(from: Display, to: Display) | screenParametersChange
+DisplayChange = (from: Display, to: Display)                     // keepsDisplay when the id is the same
+DesktopEvent = nativeSpaceChange | displayChange(DisplayChange) | screenParametersChange
 WindowSnapshot(id, appName, isStandard, hasCloseButton, hasMinimizeButton, isFullScreen, isMinimized, frame)
 ```
 
@@ -341,9 +343,9 @@ The frame a window had on the display left is not read at the change: macOS may 
 ```mermaid
 sequenceDiagram
     Note over Desktop: the screen parameters notification names a main display<br/>other than the one held; the same display again is reported as screenParametersChange
-    Desktop->>Engine: displayChange(from: left, to: entered)
+    Desktop->>Engine: displayChange(left → entered)
     Note over Engine: held until the unlock while the screen is locked:<br/>the accessibility reads fail behind it
-    Engine->>WindowPlacement: relocate(from: left, to: entered)
+    Engine->>WindowPlacement: relocate(the change)
     WindowPlacement->>RestoringFrames: relocate(with: the fit of left into entered)
     loop each managed window
         WindowPlacement->>DisplayLayouts: frame(of: id, on: entered), else its frame on left, fitted

@@ -5,7 +5,7 @@ final class StubDesktop: Desktop {
 
     var display: Display = .standard
 
-    private(set) var reframeCalls: [(windowId: CGWindowID, change: FrameChange)] = []
+    private(set) var reframeCalls: [FrameRequest] = []
     private(set) var reframeBatches: [[CGWindowID]] = []
     private(set) var recoveredWindowIds: [CGWindowID] = []
     private(set) var reparkedWindowIds: [[CGWindowID]] = []
@@ -34,11 +34,11 @@ final class StubDesktop: Desktop {
 
     /// Records the request, and returns a frame for a park: every other frame a change
     /// resolves to needs the screen bounds, which the real desktop owns.
-    func reframe(_ changes: [(windowId: CGWindowID, change: FrameChange)]) -> [FrameOutcome] {
-        reframeBatches.append(changes.map(\.windowId))
-        reframeCalls.append(contentsOf: changes)
+    func reframe(_ requests: [FrameRequest]) -> [FrameOutcome] {
+        reframeBatches.append(requests.map(\.windowId))
+        reframeCalls.append(contentsOf: requests)
 
-        return changes.map { request in
+        return requests.map { request in
             guard let win = window(request.windowId) else { return .gone(request.windowId) }
 
             switch request.change {
@@ -66,7 +66,7 @@ final class StubDesktop: Desktop {
         self.handler = handler
     }
 
-    func repark(_ parked: [(windowId: CGWindowID, parkedFrom: CGRect)]) {
-        reparkedWindowIds.append(parked.map(\.windowId))
+    func repark(_ windows: [ParkedWindow]) {
+        reparkedWindowIds.append(windows.map(\.windowId))
     }
 }

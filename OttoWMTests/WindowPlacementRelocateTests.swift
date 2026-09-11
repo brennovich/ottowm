@@ -7,9 +7,9 @@ final class WindowPlacementRelocateTests: EngineTestCase {
         placement.assign(win.snapshot(), to: 1)
         desktop.clearCalls()
         desktop.display = .external
-        let fitted = Fit(from: Display.standard.visibleFrame, into: Display.external.visibleFrame).frame(win.frame)
+        let fitted = DisplayChange(from: .standard, to: .external).fit.frame(win.frame)
 
-        placement.relocate(from: .standard, to: .external)
+        placement.relocate(DisplayChange(from: .standard, to: .external))
 
         XCTAssertEqual(desktop.reframeCalls.map(\.change), [.unpark(fitted)])
         XCTAssertEqual(layouts.frame(of: 100, on: Display.external.id), fitted)
@@ -21,9 +21,9 @@ final class WindowPlacementRelocateTests: EngineTestCase {
         placement.assign(win.snapshot(), to: 1)
         desktop.clearCalls()
         desktop.display = .external
-        layouts.record(remembered, of: 100)
+        layouts.record(remembered, of: 100, on: Display.external.id)
 
-        placement.relocate(from: .standard, to: .external)
+        placement.relocate(DisplayChange(from: .standard, to: .external))
 
         XCTAssertEqual(desktop.reframeCalls.map(\.change), [.unpark(remembered)])
     }
@@ -33,9 +33,9 @@ final class WindowPlacementRelocateTests: EngineTestCase {
         placement.assign(win.snapshot(), to: 2)
         desktop.clearCalls()
         desktop.display = .external
-        let fitted = Fit(from: Display.standard.visibleFrame, into: Display.external.visibleFrame).frame(win.frame)
+        let fitted = DisplayChange(from: .standard, to: .external).fit.frame(win.frame)
 
-        placement.relocate(from: .standard, to: .external)
+        placement.relocate(DisplayChange(from: .standard, to: .external))
 
         XCTAssertEqual(desktop.reframeCalls.map(\.change), [.park(from: fitted)])
     }
@@ -51,9 +51,9 @@ final class WindowPlacementRelocateTests: EngineTestCase {
             fullFrame: Display.standard.fullFrame,
             visibleFrame: CGRect(x: 0, y: 38, width: 1792, height: 1000)
         )
-        let fitted = Fit(from: Display.standard.visibleFrame, into: dockMoved.visibleFrame).frame(parked.frame)
+        let fitted = DisplayChange(from: .standard, to: dockMoved).fit.frame(parked.frame)
 
-        placement.relocate(from: .standard, to: dockMoved)
+        placement.relocate(DisplayChange(from: .standard, to: dockMoved))
 
         XCTAssertEqual(desktop.reframeCalls.map(\.windowId), [200])
         XCTAssertEqual(desktop.reframeCalls.map(\.change), [.park(from: fitted)])
@@ -64,9 +64,9 @@ final class WindowPlacementRelocateTests: EngineTestCase {
         let original = CGRect(x: 300, y: 200, width: 640, height: 480)
         placement.assign(win.snapshot(), to: 1)
         restoringFrames.record([.filled(100, from: original)])
-        let fit = Fit(from: Display.standard.visibleFrame, into: Display.external.visibleFrame)
+        let fit = DisplayChange(from: .standard, to: .external).fit
 
-        placement.relocate(from: .standard, to: .external)
+        placement.relocate(DisplayChange(from: .standard, to: .external))
 
         XCTAssertEqual(restoringFrames.restoringFrame(of: 100), fit.frame(original))
     }
@@ -76,7 +76,7 @@ final class WindowPlacementRelocateTests: EngineTestCase {
         placement.assign(win.snapshot(), to: 1)
         windows[100] = nil
 
-        placement.relocate(from: .standard, to: .external)
+        placement.relocate(DisplayChange(from: .standard, to: .external))
 
         XCTAssertEqual(workspaces.allWindowIds, [])
     }

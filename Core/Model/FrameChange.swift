@@ -28,9 +28,23 @@ enum FrameChange: Equatable {
     }
 }
 
+struct FrameRequest: Equatable {
+    let windowId: CGWindowID
+    let change: FrameChange
+}
+
 enum FrameOutcome: Hashable {
     case parked(CGWindowID, from: CGRect)
     case filled(CGWindowID, from: CGRect)
     case active(CGWindowID)
     case gone(CGWindowID)
+}
+
+extension [FrameOutcome] {
+    var gone: [CGWindowID] {
+        compactMap { outcome in
+            guard case let .gone(windowId) = outcome else { return nil }
+            return windowId
+        }
+    }
 }

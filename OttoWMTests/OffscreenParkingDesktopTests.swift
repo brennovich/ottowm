@@ -31,7 +31,7 @@ final class OffscreenParkingDesktopTests: XCTestCase {
 
     @discardableResult
     private func reframe(_ windowId: CGWindowID, _ change: FrameChange) -> [FrameOutcome] {
-        reframe([(windowId: windowId, change: change)])
+        reframe([FrameRequest(windowId: windowId, change: change)])
     }
 
     /// Mirrors what `WindowPlacement` does around an unpark: hands the desktop the frame the
@@ -42,8 +42,8 @@ final class OffscreenParkingDesktopTests: XCTestCase {
     }
 
     @discardableResult
-    private func reframe(_ changes: [(windowId: CGWindowID, change: FrameChange)]) -> [FrameOutcome] {
-        let outcomes = desktop.reframe(changes)
+    private func reframe(_ requests: [FrameRequest]) -> [FrameOutcome] {
+        let outcomes = desktop.reframe(requests)
         parkedWindows.record(outcomes)
         return outcomes
     }
@@ -236,7 +236,9 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         let other = addWindow(200, frame: pulledBackFrame)
 
         let outcomes = reframe([
-            (windowId: 100, change: .park(from: nil)), (windowId: 200, change: .park(from: nil)), (windowId: 999, change: .park(from: nil)),
+            FrameRequest(windowId: 100, change: .park(from: nil)),
+            FrameRequest(windowId: 200, change: .park(from: nil)),
+            FrameRequest(windowId: 999, change: .park(from: nil)),
         ])
 
         XCTAssertEqual(
@@ -245,7 +247,7 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(win.frame, hiddenEdgeFrame(size: originalFrame.size))
         XCTAssertEqual(other.frame, hiddenEdgeFrame(size: pulledBackFrame.size))
 
-        reframe([100, 200].map { (windowId: $0, change: .unpark(parkedWindows.parkedFrom(of: $0))) })
+        reframe([100, 200].map { FrameRequest(windowId: $0, change: .unpark(parkedWindows.parkedFrom(of: $0))) })
 
         XCTAssertEqual(win.frame, originalFrame)
         XCTAssertEqual(other.frame, pulledBackFrame)
@@ -265,7 +267,7 @@ final class OffscreenParkingDesktopTests: XCTestCase {
             }
         }
 
-        reframe(batch.map { (windowId: $0.id, change: .park(from: nil)) })
+        reframe(batch.map { FrameRequest(windowId: $0.id, change: .park(from: nil)) })
 
         XCTAssertEqual(batch.map(\.frame), Array(repeating: hiddenEdgeFrame(size: originalFrame.size), count: batch.count))
     }
@@ -273,7 +275,7 @@ final class OffscreenParkingDesktopTests: XCTestCase {
     func testKeepsTheWindowsOfOneApplicationOnOneThread() {
         let batch = (1...8).map { addWindow(CGWindowID($0) * 10, frame: originalFrame, pid: 42) }
 
-        reframe(batch.map { (windowId: $0.id, change: .park(from: nil)) })
+        reframe(batch.map { FrameRequest(windowId: $0.id, change: .park(from: nil)) })
 
         XCTAssertEqual(Set(batch.compactMap(\.positionSetThread)).count, 1)
     }
@@ -327,7 +329,7 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         center.postScreenParametersChange()
         center.postScreenParametersChange()
 
-        XCTAssertEqual(events, [.displayChange(from: .standard, to: .external), .screenParametersChange])
+        XCTAssertEqual(events, [.displayChange(DisplayChange(from: .standard, to: .external)), .screenParametersChange])
         XCTAssertEqual(desktop.display, .external)
         reframe(100, .park(from: nil))
         XCTAssertEqual(win.frame, hiddenEdgeFrame(size: originalFrame.size, on: .external))
@@ -345,7 +347,7 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         screens.main = dockMoved
         center.postScreenParametersChange()
 
-        XCTAssertEqual(events, [.displayChange(from: .standard, to: dockMoved)])
+        XCTAssertEqual(events, [.displayChange(DisplayChange(from: .standard, to: dockMoved))])
     }
 
     func testAScreenParametersChangeThatKeepsTheDisplayIsReported() {

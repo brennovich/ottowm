@@ -10,8 +10,6 @@ final class Engine {
     private let navigation: Navigation
     private let fullScreenReturns: FullScreenReturns
     private let screenIsLocked: () -> Bool
-    /// The accessibility reads fail behind the lock screen, and a window that cannot be read
-    /// would be recorded as parked, so a change seen while locked waits for the unlock.
     private var displayLeftBehindLock: Display?
 
     init(
@@ -40,26 +38,31 @@ final class Engine {
                 placement.assign(win, to: 1)
             }
 
-            desktop.startWatching { [weak self] event in
-                guard let self else { return }
-
-                switch event {
-                case .nativeSpaceChange: self.followNativeSpaceChange()
-                case .screenParametersChange: self.reparkAfterScreenParametersChange()
-                case let .displayChange(from, to):
-                    guard !self.screenIsLocked() else {
-                        Log.engine.info("display changed behind the lock screen, the windows are placed at unlock")
-                        self.displayLeftBehindLock = self.displayLeftBehindLock ?? from
-                        return
-                    }
-                    self.relocate(from: from, to: to)
-                }
-            }
+            desktop.startWatching { [weak self] event in self?.handle(event) }
         }
     }
 
-    private func relocate(from: Display, to: Display) {
-        windowSystem.duringOperation("display-change") { placement.relocate(from: from, to: to) }
+    private func handle(_ event: DesktopEvent) {
+        switch event {
+        case .nativeSpaceChange: followNativeSpaceChange()
+        case .screenParametersChange: reparkAfterScreenParametersChange()
+        case let .displayChange(change): displayChanged(change)
+        }
+    }
+
+    /// The accessibility reads fail behind the lock screen, and a window that cannot be read
+    /// would be recorded as parked, so a change seen while locked waits for the unlock.
+    private func displayChanged(_ change: DisplayChange) {
+        guard !screenIsLocked() else {
+            Log.engine.info("display changed behind the lock screen, the windows are placed at unlock")
+            displayLeftBehindLock = displayLeftBehindLock ?? change.from
+            return
+        }
+        relocate(change)
+    }
+
+    private func relocate(_ change: DisplayChange) {
+        windowSystem.duringOperation("display-change") { placement.relocate(change) }
     }
 
     /// macOS moves windows to their last frame on the display after the first notification of
@@ -142,7 +145,7 @@ final class Engine {
     func resync(windows: [WindowSnapshot]) {
         if let left = displayLeftBehindLock {
             displayLeftBehindLock = nil
-            relocate(from: left, to: desktop.display)
+            relocate(DisplayChange(from: left, to: desktop.display))
         }
 
         windowSystem.duringOperation("resync") {
@@ -258,7 +261,7 @@ extension Engine {
             admission: admission,
             parkedWindows: ParkedWindows(),
             restoringFrames: restoringFrames,
-            layouts: DisplayLayouts(display: { desktop.display.id })
+            layouts: DisplayLayouts()
         )
         let enrollment = WindowEnrollment(
             windowSystem: windowSystem,
