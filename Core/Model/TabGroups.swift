@@ -2,9 +2,6 @@ import CoreGraphics
 
 struct TabGroups {
     private static let yTolerance: CGFloat = 10
-    /// Terminal rounds a window to whole rows when a tab takes over and the tab
-    /// that goes to the background keeps the size the write left: e.g.
-    /// after a fill of 1090 one tab reports 1090 and the other 1083.
     private static let sizeTolerance: CGFloat = 30
 
     private struct Group {

@@ -1,8 +1,10 @@
 import CoreGraphics
 
-/// Moves a frame from one visible frame into another: the size is kept when it fits, and each
-/// axis keeps its share of the room left, so a centered window stays centered and one against
-/// an edge stays against it.
+/// Maps a frame from one visible frame into another, so a frame remembered on the display
+/// left still fits the display entered or its new resolution.
+///
+/// On each axis the frame keeps the same fraction of the free space it had before, so a
+/// frame flush against an edge stays flush and a centered one stays centered.
 struct Fit: Equatable {
     let from: CGRect
     let into: CGRect

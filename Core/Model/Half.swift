@@ -1,7 +1,8 @@
 import CoreGraphics
 
-/// One side of a rect, taking half of it. The two halves of an axis leave `gap` between them,
-/// so two windows, one in each half, cover exactly `bounds`.
+/// The half of `bounds` on the side `direction` names, which is where a fill sends a window:
+/// north and south split the height and keep the full width, east and west split the width.
+/// The two halves stay `gap` apart, each giving up half of it.
 struct Half {
     let direction: Direction
 
