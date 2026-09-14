@@ -49,6 +49,18 @@ final class ConfigFileParserTests: XCTestCase {
         }
     }
 
+    func testParsesThePagerSetting() throws {
+        let cases: [(name: String, text: String, showsPager: Bool)] = [
+            ("shown without a pager line", "lopt-q = quit", true),
+            ("hidden by pager = off", "pager = off", false),
+            ("the last pager line wins", "pager = off\npager = on", true),
+        ]
+
+        for testCase in cases {
+            XCTAssertEqual(try ConfigFileParser.parse(testCase.text).get().showsPager, testCase.showsPager, testCase.name)
+        }
+    }
+
     func testLineErrors() {
         assertErrors([
             (
@@ -70,6 +82,11 @@ final class ConfigFileParserTests: XCTestCase {
                 "the first problem stops the parse",
                 "lalt-2 = warp-to-workspace 2\nmeta-1 = switch-to-workspace 1",
                 ConfigError(line: 1, reason: .unknownAction("warp-to-workspace"))
+            ),
+            (
+                "a pager setting that is neither on nor off",
+                "lopt-q = quit\npager = maybe",
+                ConfigError(line: 2, reason: .invalidPager("maybe"))
             ),
         ])
     }

@@ -98,6 +98,8 @@ Workspaces are created on demand:
 | quit                              | Quit OttoWM, putting every parked window back                                                         |
 | restart                           | Read the config file again and rebind the keys                                                        |
 
+`pager = off` hides the tab in the bottom right corner that shows the current workspace and covers the windows parked there. It is on by default, and `restart` applies a change.
+
 The `restart` action reloads the config without a relaunch: the windows stay where they are. A file that does not parse leaves the bindings already up in place. Errors show up in the log:
 
 ```sh

@@ -46,6 +46,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Log.app.notice("OttoWM (\(AppInfo.version())) launched")
 
         let windowSystem = WindowSystem.system(windowEvents: windowEvents, applications: applications)
+        let pager = Pager()
 
         let engine = Engine.system(
             desktop: OffscreenParkingDesktop(
@@ -53,19 +54,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 window: applications.findWindow(by:)
             ),
             windowSystem: windowSystem,
-            workspaces: Workspaces(tabGroups: TabGroups(tabCount: windowSystem.tabCount(of:), frame: windowSystem.frame(of:))),
+            workspaces: Workspaces(
+                tabGroups: TabGroups(tabCount: windowSystem.tabCount(of:), frame: windowSystem.frame(of:)),
+                switched: pager.show(workspace:)
+            ),
             screenIsLocked: { [lifecycle] in lifecycle.screenIsLocked }
         )
         engine.start(windows: applicationsObserver.start { engine.handle($0) })
         self.engine = engine
+        pager.isShown = config.showsPager
 
-        let bindings = Bindings.system(config: config) { [lifecycle] binding in
-            switch binding {
-            case let .action(action): engine.handle(action)
-            case .quit: lifecycle.quit()
-            case .restart: lifecycle.reload()
+        let bindings = Bindings.system(
+            config: config,
+            reloaded: { pager.isShown = $0.showsPager },
+            handler: { [lifecycle] binding in
+                switch binding {
+                case let .action(action): engine.handle(action)
+                case .quit: lifecycle.quit()
+                case .restart: lifecycle.reload()
+                }
             }
-        }
+        )
         self.bindings = bindings
 
         bindings.start()

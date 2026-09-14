@@ -73,7 +73,7 @@ flowchart LR
 | Component                     | Category  | Description                                                                             |
 |-------------------------------|-----------|-----------------------------------------------------------------------------------------|
 | `ConfigFile`                  | Input     | Reads the user's config file, or the bundled one.                                       |
-| `Config`                      | Input     | The `KeyCombo → Binding` table, indexed by key code.                                    |
+| `Config`                      | Input     | The `KeyCombo → Binding` table, indexed by key code, and whether the pager shows.       |
 | `Bindings`                    | Input     | The bindings currently up: `start`, `stop`, `reload`.                                   |
 | `Hotkeys`                     | Input     | A session `CGEventTap` on keyDown, running on a thread of its own.                      |
 | `SecureInput`                 | Input     | The window server flag that withholds keystrokes from every tap while it is set.        |
@@ -118,6 +118,7 @@ flowchart LR
 | `Lifecycle`                   | Lifecycle | The transitions once it owns windows: `quit`, SIGTERM, relaunch, reload, unlock.        |
 | `AccessibilityAlert`          | UI        | The accessibility permission alerts: what they say and how they show.                   |
 | `ConfigAlert`                 | UI        | The config error alert UI.                                                              |
+| `Pager`                       | UI        | The tab in the bottom right corner: the current workspace, over the parked windows.     |
 
 ### Input
 
@@ -156,6 +157,7 @@ flowchart LR
     Navigation --> Workspaces
     Workspaces --> Workspace
     Workspaces --> TabGroups
+    Workspaces -->|switched| Pager
 ```
 
 ### macOS boundary
@@ -211,6 +213,8 @@ flowchart LR
     ConfigGate -->|relaunch| Lifecycle
     Lifecycle -->|reload| Bindings
     Lifecycle --> ConfigAlert
+    AppDelegate -->|isShown| Pager
+    Bindings -->|reloaded Config| Pager
 ```
 
 ## Flows
@@ -232,6 +236,7 @@ sequenceDiagram
     Desktop-->>Engine: the same windows, parked ones back on screen
     Engine->>WindowPlacement: assign each one to workspace 1
     Engine->>Desktop: startWatching(DesktopEvent handler)
+    AppDelegate->>Pager: isShown = the pager setting
     AppDelegate->>Bindings: start()
 ```
 
@@ -258,6 +263,10 @@ sequenceDiagram
 ```
 
 A window the desktop reports gone is no longer managed.
+
+### Pager
+
+`Workspaces` reports each switch to the `Pager`, which shows the number. The pager is a panel of OttoWM's own, in the bottom right corner of the full frame, where the parked windows sit. It is above every window and below menus, and clicks pass through it.
 
 ### Move window to workspace
 
@@ -387,6 +396,7 @@ sequenceDiagram
     alt the config parses
         Bindings->>Hotkeys: stop()
         Bindings->>Hotkeys: start() a new tap over the new Config
+        Bindings->>Pager: isShown = the pager setting
     else it does not
         Bindings-->>Lifecycle: the error that kept the bindings already up
         Lifecycle->>ConfigAlert: ask(error)

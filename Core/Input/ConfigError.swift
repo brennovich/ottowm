@@ -16,6 +16,7 @@ struct ConfigError: Error, Equatable, CustomStringConvertible {
         case invalidDirection(String)
         case invalidResize(String)
         case invalidStep(String)
+        case invalidPager(String)
 
         var description: String {
             switch self {
@@ -32,6 +33,7 @@ struct ConfigError: Error, Equatable, CustomStringConvertible {
             case let .invalidResize(value):
                 return "resize must be one of \(Resize.Change.allCases.map(\.rawValue).joined(separator: ", ")), got \(value)"
             case let .invalidStep(value): return "step must be a number of points from 1, got \(value)"
+            case let .invalidPager(value): return "pager must be on or off, got \(value)"
             }
         }
     }

@@ -1,6 +1,9 @@
 # OttoWM example configuration
 #
-# One `key combo = action` per line.
+# One `key combo = action` or `setting = value` per line.
+
+# Show the current workspace in a tab at the bottom right corner: on or off
+pager = on
 
 # Go to a workspace: 4 Workspaces example
 lopt-1 = switch-to-workspace 1

@@ -15,8 +15,11 @@ final class Workspaces {
 
     private var tabGroups: TabGroups
 
-    init(tabGroups: TabGroups) {
+    private let switched: (Int) -> Void
+
+    init(tabGroups: TabGroups, switched: @escaping (Int) -> Void = { _ in }) {
         self.tabGroups = tabGroups
+        self.switched = switched
     }
 
     var allWindowIds: Set<CGWindowID> {
@@ -100,6 +103,7 @@ final class Workspaces {
             recordFocus(on: windowId, in: current)
         }
         current = targetWorkspace
+        switched(targetWorkspace)
 
         return (
             activating: windowIds(in: targetWorkspace),

@@ -4,11 +4,13 @@ final class BindingsTests: XCTestCase {
     private var built: [Config] = []
     private var events: [String] = []
     private var loads: [Result<Config, ConfigError>] = []
+    private var handedOn: [Config] = []
 
     private func makeBindings(_ config: Config) -> Bindings {
         Bindings(
             config: config,
             load: { self.loads.removeFirst() },
+            reloaded: { self.handedOn.append($0) },
             tap: { config in
                 let tap = self.built.count
                 self.built.append(config)
@@ -32,7 +34,7 @@ final class BindingsTests: XCTestCase {
         XCTAssertEqual(events, ["start 0", "stop 0", "start 0"])
     }
 
-    func testReloadReplacesTheTapWithOneOverTheNewConfig() throws {
+    func testReloadReplacesTheTapWithOneOverTheNewConfigAndHandsTheConfigOn() throws {
         let reloaded = try makeConfig(["hyper-r": .restart])
         loads = [.success(reloaded)]
         let bindings = makeBindings(try makeConfig(["hyper-q": .quit]))
@@ -42,6 +44,7 @@ final class BindingsTests: XCTestCase {
         XCTAssertNil(bindings.reload())
         XCTAssertEqual(built.last, reloaded)
         XCTAssertEqual(events, ["start 0", "stop 0", "start 1"])
+        XCTAssertEqual(handedOn, [reloaded])
     }
 
     func testReloadReportsTheErrorAndKeepsTheBindingsAlreadyUpWhenTheConfigDoesNotParse() throws {
@@ -55,5 +58,6 @@ final class BindingsTests: XCTestCase {
         XCTAssertEqual(bindings.reload(), error)
         XCTAssertEqual(built, [config])
         XCTAssertEqual(events, ["start 0"])
+        XCTAssertEqual(handedOn, [])
     }
 }
