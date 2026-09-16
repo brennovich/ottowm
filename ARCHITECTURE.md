@@ -92,7 +92,7 @@ flowchart LR
 | `Half`                        | Model     | One side of a rect, taking half of it, with the gap kept between the two halves.        |
 | `FrameChange`                 | Model     | What a frame is asked to become: step, resize, center, maximize, tile, park or unpark.   |
 | `ParkedWindows`               | Model     | The windows parked at the hidden edge, and the frame each one was parked from.          |
-| `RestoringFrames`             | Model     | The frame each maximized or filled window restores to, shared by its tabs.              |
+| `OriginalFrames`              | Model     | The frame each maximized or filled window restores to, shared by its tabs.              |
 | `DisplayLayouts`              | Model     | The last frame each window had on each display, kept after the display disconnects.     |
 | `Fit`                         | Model     | One frame moved between two visible frames, each axis keeping its share of the room.    |
 | `Desktop`                     | macOS     | Moves, parks and focuses windows on the native Space.                                   |
@@ -151,9 +151,9 @@ flowchart LR
     FullScreenReturns --> WindowPlacement
     WindowPlacement --> Workspaces
     WindowPlacement --> ParkedWindows
-    WindowPlacement --> RestoringFrames
+    WindowPlacement --> OriginalFrames
     WindowPlacement --> DisplayLayouts
-    RestoringFrames --> Workspaces
+    OriginalFrames --> Workspaces
     Navigation --> Workspaces
     Workspaces --> Workspace
     Workspaces --> TabGroups
@@ -307,10 +307,10 @@ sequenceDiagram
     Engine->>Navigation: focusedWindowOfCurrentWorkspace()
     Note over Engine: nothing for a parked window
     Engine->>WindowPlacement: reframe(window, the FrameChange the action asks for)
-    WindowPlacement->>RestoringFrames: restoringFrame(of: id), for a maximize or a tile
+    WindowPlacement->>OriginalFrames: originalFrame(of: id), for a maximize or a tile
     WindowPlacement->>Desktop: reframe(id, change)
     Desktop-->>WindowPlacement: filled from a frame, active, or gone
-    WindowPlacement->>RestoringFrames: record(what came back)
+    WindowPlacement->>OriginalFrames: record(what came back)
     Note over WindowPlacement: a window reported gone is dropped
 ```
 
@@ -355,7 +355,7 @@ sequenceDiagram
     Desktop->>Engine: displayChange(left → entered)
     Note over Engine: held until the unlock while the screen is locked:<br/>the accessibility reads fail behind it
     Engine->>WindowPlacement: relocate(the change)
-    WindowPlacement->>RestoringFrames: relocate(with: the fit of left into entered)
+    WindowPlacement->>OriginalFrames: relocate(with: the fit of left into entered)
     loop each managed window
         WindowPlacement->>DisplayLayouts: frame(of: id, on: entered), else its frame on left, fitted
         WindowPlacement->>Desktop: reframe(park(from: target) for a parked window, unpark(target) for an active one)

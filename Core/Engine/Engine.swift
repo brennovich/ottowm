@@ -265,7 +265,7 @@ extension Engine {
         scheduleRetry: @escaping (TimeInterval, @escaping () -> Void) -> Void = Backoff.onMainQueue,
         screenIsLocked: @escaping () -> Bool = { false }
     ) -> Engine {
-        let restoringFrames = RestoringFrames(tabs: workspaces.tabGroupMembers(of:))
+        let originalFrames = OriginalFrames(tabs: workspaces.tabGroupMembers(of:))
         let admission = Admission(windowSystem: windowSystem, workspaces: workspaces)
         let placement = WindowPlacement(
             desktop: desktop,
@@ -273,7 +273,7 @@ extension Engine {
             workspaces: workspaces,
             admission: admission,
             parkedWindows: ParkedWindows(),
-            restoringFrames: restoringFrames,
+            originalFrames: originalFrames,
             layouts: DisplayLayouts()
         )
         let enrollment = WindowEnrollment(

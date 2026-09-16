@@ -63,12 +63,12 @@ final class WindowPlacementRelocateTests: EngineTestCase {
         let win = add(StubWindow(id: 100))
         let original = CGRect(x: 300, y: 200, width: 640, height: 480)
         placement.assign(win.snapshot(), to: 1)
-        restoringFrames.record([.filled(100, from: original)])
+        originalFrames.record([.filled(100, from: original)])
         let fit = DisplayChange(from: .standard, to: .external).fit
 
         placement.relocate(DisplayChange(from: .standard, to: .external))
 
-        XCTAssertEqual(restoringFrames.restoringFrame(of: 100), fit.frame(original))
+        XCTAssertEqual(originalFrames.originalFrame(of: 100), fit.frame(original))
     }
 
     func testRelocateDropsAWindowTheDesktopReportsGone() {

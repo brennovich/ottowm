@@ -14,20 +14,20 @@ final class OriginalFrames {
         self.tabs = tabs
     }
 
-    func restoringFrame(of windowId: CGWindowID) -> CGRect? {
+    func originalFrame(of windowId: CGWindowID) -> CGRect? {
         tabs(windowId).lazy.compactMap { self.frames[$0] }.first
     }
 
     /// A tab that joins a filled window takes the frame its siblings restore to: every tab
     /// the fill recorded can close while this one stays.
     func shareFrame(with windowId: CGWindowID) {
-        frames[windowId] = restoringFrame(of: windowId)
+        frames[windowId] = originalFrame(of: windowId)
     }
 
     func record(_ outcomes: [FrameOutcome]) {
         for outcome in outcomes {
             switch outcome {
-            case let .filled(windowId, from): keep(restoringFrame(of: windowId) ?? from, of: windowId)
+            case let .filled(windowId, from): keep(originalFrame(of: windowId) ?? from, of: windowId)
             case let .active(windowId): keep(nil, of: windowId)
             case .parked, .gone: continue
             }

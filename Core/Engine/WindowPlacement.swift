@@ -17,7 +17,7 @@ final class WindowPlacement {
     private let workspaces: Workspaces
     private let admission: Admission
     private let parkedWindows: ParkedWindows
-    private let restoringFrames: RestoringFrames
+    private let originalFrames: OriginalFrames
     private let layouts: DisplayLayouts
 
     init(
@@ -26,7 +26,7 @@ final class WindowPlacement {
         workspaces: Workspaces,
         admission: Admission,
         parkedWindows: ParkedWindows,
-        restoringFrames: RestoringFrames,
+        originalFrames: OriginalFrames,
         layouts: DisplayLayouts
     ) {
         self.desktop = desktop
@@ -34,7 +34,7 @@ final class WindowPlacement {
         self.workspaces = workspaces
         self.admission = admission
         self.parkedWindows = parkedWindows
-        self.restoringFrames = restoringFrames
+        self.originalFrames = originalFrames
         self.layouts = layouts
     }
 
@@ -70,7 +70,7 @@ final class WindowPlacement {
         guard verdict == .admit else { return .refused(verdict) }
 
         let assigned = workspaces.assign(win, to: workspace)
-        restoringFrames.shareFrame(with: win.id)
+        originalFrames.shareFrame(with: win.id)
         Log.engine.info("assigned \(win.logDescription) → workspace \(assigned)")
 
         place(win.id, parked: assigned != workspaces.current)
@@ -96,7 +96,7 @@ final class WindowPlacement {
 
         let focusSettled = workspaces.remove(windowId)
         parkedWindows.forget(windowId)
-        restoringFrames.forget(windowId)
+        originalFrames.forget(windowId)
         layouts.forget(windowId)
         return focusSettled || workspace == nil
     }
@@ -164,13 +164,13 @@ final class WindowPlacement {
 
     /// - Parameter change: takes the frame a maximize or a tile of the window goes back to.
     func reframe(_ win: WindowSnapshot, _ change: (_ restoring: CGRect?) -> FrameChange) {
-        let requested = change(restoringFrames.restoringFrame(of: win.id))
+        let requested = change(originalFrames.originalFrame(of: win.id))
         Log.engine.info("\(requested.logDescription) \(win.logDescription)")
 
         let outcomes = apply([FrameRequest(windowId: win.id, change: requested)])
         // Recorded here and not in `apply`: an unpark reports `.active` too, which would drop
         // the frame a maximized window goes back to on every workspace switch.
-        restoringFrames.record(outcomes)
+        originalFrames.record(outcomes)
         outcomes.gone.forEach { drop($0, reason: "gone") }
     }
 
@@ -178,7 +178,7 @@ final class WindowPlacement {
     /// frame on the display left fitted into the new one. A parked window goes to the new
     /// hidden edge, and comes back to that frame.
     func relocate(_ change: DisplayChange) {
-        restoringFrames.relocate(with: change.fit)
+        originalFrames.relocate(with: change.fit)
 
         let requests = workspaces.allWindowIds.sorted().compactMap { request(relocating: $0, in: change) }
         Log.engine.info("display changed to \(change.to.logDescription), placing \(requests.count) windows")
