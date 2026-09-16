@@ -2,7 +2,8 @@
 #
 # One `key combo = action` or `setting = value` per line.
 
-# Show the current workspace in a tab at the bottom right corner: on or off
+# Display the pager at the right bottom corner, at the moment it contains
+# a badge component that shows the current workspace.
 pager = on
 
 # Go to a workspace: 4 Workspaces example
