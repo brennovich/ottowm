@@ -98,9 +98,9 @@ final class Hotkeys {
     }
 
     private func reportSecureInput() {
-        guard let warning = secureInput.warning() else { return }
+        guard secureInput.isActive() else { return }
 
-        Log.hotkey.error(warning)
+        Log.hotkey.error("secure event input is set by another app, no keystroke reaches the event tap")
     }
 
     private func release() {

@@ -1,26 +1,14 @@
+import Carbon
 import XCTest
 
 final class SecureInputTests: XCTestCase {
-    private func secureInput(set: Bool) -> SecureInput {
-        SecureInput(lookUp: { { set } })
-    }
+    func testTheFlagFollowsSecureEventInput() {
+        addTeardownBlock { DisableSecureEventInput() }
 
-    func testTheFlagIsReadThroughSkyLight() {
-        XCTAssertNotNil(SecureInput().isSet())
-    }
+        EnableSecureEventInput()
+        XCTAssertTrue(SecureInput().isActive())
 
-    func testAFlagSkyLightNoLongerExportsIsUnreadable() {
-        XCTAssertNil(SecureInput(lookUp: { nil }).isSet())
-    }
-
-    func testASetFlagWarnsThatKeystrokesStopAtTheWindowServer() {
-        XCTAssertEqual(
-            secureInput(set: true).warning(),
-            "secure event input is set by another app, no keystroke reaches the event tap"
-        )
-    }
-
-    func testAClearFlagWarnsAboutNothing() {
-        XCTAssertNil(secureInput(set: false).warning())
+        DisableSecureEventInput()
+        XCTAssertFalse(SecureInput().isActive())
     }
 }
