@@ -3,9 +3,9 @@ import CoreGraphics
 /// The frame each maximized or filled window restores to: the one it came from, not the one it
 /// was given.
 ///
-/// Tabs of one window share the record. Every tab holds the frame, so closing the tab the
-/// change went through leaves the rest with it.
-final class RestoringFrames {
+/// Tabs of one window share the frame. Each tab holds a copy, so the other tabs keep it
+/// when the tab the change went through closes.
+final class OriginalFrames {
     private let tabs: (CGWindowID) -> [CGWindowID]
 
     private var frames: [CGWindowID: CGRect] = [:]
