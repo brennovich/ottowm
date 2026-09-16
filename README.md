@@ -101,10 +101,8 @@ Workspaces are created on demand:
 | restart                           | Read the config file again and rebind the keys                                                   |
 
 - `pager = off` hides the tab in the bottom right corner that shows the current workspace and covers the parked windows.
-
-`spacing = N` is the number of points for _gap_, and the `move-window` _step_, and `resize` change. It defaults to 15.
-
-The `restart` action reloads the config without a relaunch.
+- `spacing = N` is the number of points for _gap_, and the `move-window` _step_, and `resize` change. It defaults to 15.
+- `restart` action reloads the config without a relaunch.
 
 ## Debugging
 
