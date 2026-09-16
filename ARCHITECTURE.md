@@ -36,6 +36,7 @@ FrameOutcome = parked(id, from: frame) | filled(id, from: frame) | active(id) | 
 Display      = (id, fullFrame, visibleFrame)                     // top-left coordinates
 DisplayChange = (from: Display, to: Display)                     // keepsDisplay when the id is the same
 DesktopEvent = nativeSpaceChange | displayChange(DisplayChange) | screenParametersChange
+WorkspaceEvent = switched(n)
 WindowSnapshot(id, appName, isStandard, hasCloseButton, hasMinimizeButton, isFullScreen, isMinimized, frame)
 ```
 
@@ -158,7 +159,7 @@ flowchart LR
     Navigation --> Workspaces
     Workspaces --> Workspace
     Workspaces --> TabGroups
-    Workspaces -->|switched| Pager
+    Workspaces -->|WorkspaceEvent| Pager
 ```
 
 ### macOS boundary
@@ -176,7 +177,7 @@ flowchart TB
     RunningApplicationsObserver -->|WindowEvent| Engine
     Desktop --> MainScreen
     Desktop --> HiddenEdge
-    Desktop -->|displayChanged| Pager
+    Desktop -->|DesktopEvent| Pager
     Desktop --> Applications
     WindowSystem -->|adoptFocusedWindow| AXWindowEvents
     WindowSystem -->|findWindow| Applications
@@ -215,7 +216,8 @@ flowchart LR
     ConfigGate -->|relaunch| Lifecycle
     Lifecycle -->|reload| Bindings
     Lifecycle --> ConfigAlert
-    AppDelegate -->|isShown| Pager
+    AppDelegate -->|isEnabled| Pager
+    Lifecycle -->|dismiss| Pager
     Bindings -->|reloaded Config| Pager
     AppDelegate -->|spacing| Desktop
     Bindings -->|reloaded Config| Desktop
@@ -240,7 +242,7 @@ sequenceDiagram
     Desktop-->>Engine: the same windows, parked ones back on screen
     Engine->>WindowPlacement: assign each one to workspace 1
     Engine->>Desktop: startWatching(DesktopEvent handler)
-    AppDelegate->>Pager: isShown = the pager setting
+    AppDelegate->>Pager: isEnabled = the pager setting
     AppDelegate->>Bindings: start()
 ```
 
@@ -270,9 +272,7 @@ A window the desktop reports gone is no longer managed.
 
 ### Pager
 
-`Workspaces` reports each switch to the `Pager`, which shows the number. The pager is a panel of OttoWM's own, in the bottom right corner of the full frame, where the parked windows sit. It is above every window and below menus, and clicks pass through it.
-
-The `Desktop` reports its display when it starts watching and on each display change, and the pager moves there with its `ScreenCorners`: black masks on the top left, top right and bottom left corners, 9pt before macOS 26 and 16pt from it. They are above menus, like the Hammerspoon RoundedCorners spoon.
+The pager is the tab that displays the current workspace at the bottom right of the screen, and the corner masks that add a rounded shape to the screen. It uses Core Animation on boot, quit and workspace switch.
 
 ### Move window to workspace
 
@@ -402,7 +402,7 @@ sequenceDiagram
     alt the config parses
         Bindings->>Hotkeys: stop()
         Bindings->>Hotkeys: start() a new tap over the new Config
-        Bindings->>Pager: isShown = the pager setting
+        Bindings->>Pager: isEnabled = the pager setting
     else it does not
         Bindings-->>Lifecycle: the error that kept the bindings already up
         Lifecycle->>ConfigAlert: ask(error)

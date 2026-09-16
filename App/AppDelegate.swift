@@ -8,7 +8,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self else { return }
             engine?.resync(windows: applicationsObserver.resync())
         },
-        reloadBindings: { [weak self] in self?.bindings?.reload() }
+        reloadBindings: { [weak self] in self?.bindings?.reload() },
+        dismiss: { [weak self] done in
+            guard let pager = self?.pager else { return done() }
+            pager.dismiss(then: done)
+        }
     )
     private lazy var windowEvents = AXWindowEvents(
         applications: applications,
@@ -17,6 +21,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var applicationsObserver = RunningApplicationsObserver(windowEvents: windowEvents)
     private var bindings: Bindings?
     private var engine: Engine?
+    private var pager: Pager?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let config: Config
@@ -46,26 +51,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Log.app.notice("OttoWM (\(AppInfo.version())) launched")
 
         let windowSystem = WindowSystem.system(windowEvents: windowEvents, applications: applications)
-        let pager = Pager()
-        let desktop = parkingDesktop(spacing: config.spacing, pager: pager)
+        let desktop = parkingDesktop(spacing: config.spacing)
+        let workspaces = Workspaces(
+            tabGroups: TabGroups(tabCount: windowSystem.tabCount(of:), frame: windowSystem.frame(of:))
+        )
+        let pager = Pager(workspaces: workspaces, desktop: desktop)
+        self.pager = pager
 
         let engine = Engine.system(
             desktop: desktop,
             windowSystem: windowSystem,
-            workspaces: Workspaces(
-                tabGroups: TabGroups(tabCount: windowSystem.tabCount(of:), frame: windowSystem.frame(of:)),
-                switched: pager.show(workspace:)
-            ),
+            workspaces: workspaces,
             screenIsLocked: { [lifecycle] in lifecycle.screenIsLocked }
         )
         engine.start(windows: applicationsObserver.start { engine.handle($0) })
         self.engine = engine
-        pager.isShown = config.showsPager
+        pager.isEnabled = config.showsPager
 
         let bindings = Bindings.system(
             config: config,
             reloaded: {
-                pager.isShown = $0.showsPager
+                pager.isEnabled = $0.showsPager
                 desktop.spacing = $0.spacing
             },
             handler: { [lifecycle] binding in
@@ -88,12 +94,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
-    private func parkingDesktop(spacing: CGFloat, pager: Pager) -> OffscreenParkingDesktop {
+    private func parkingDesktop(spacing: CGFloat) -> OffscreenParkingDesktop {
         OffscreenParkingDesktop(
             screens: MainScreen(),
             window: applications.findWindow(by:),
-            spacing: spacing,
-            displayChanged: pager.place(on:)
+            spacing: spacing
         )
     }
 }

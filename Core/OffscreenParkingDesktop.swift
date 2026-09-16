@@ -12,19 +12,18 @@ final class OffscreenParkingDesktop: Desktop {
     private let screens: any Screens
     var spacing: CGFloat
     private let window: (CGWindowID) -> (any Window)?
-    private let displayChanged: (Display) -> Void
     private let notificationCenter: NotificationCenter
     private let screenNotificationCenter: NotificationCenter
 
     private(set) var display: Display
     private var hiddenEdge: HiddenEdge
     private var observers: [(center: NotificationCenter, token: any NSObjectProtocol)] = []
+    private var handlers: [(DesktopEvent) -> Void] = []
 
     init(
         screens: any Screens,
         window: @escaping (CGWindowID) -> (any Window)?,
         spacing: CGFloat,
-        displayChanged: @escaping (Display) -> Void = { _ in },
         notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
         screenNotificationCenter: NotificationCenter = .default
     ) {
@@ -33,7 +32,6 @@ final class OffscreenParkingDesktop: Desktop {
         display = screens.main ?? .unknown
         hiddenEdge = HiddenEdge(display: display)
         self.window = window
-        self.displayChanged = displayChanged
         self.notificationCenter = notificationCenter
         self.screenNotificationCenter = screenNotificationCenter
     }
@@ -84,16 +82,17 @@ final class OffscreenParkingDesktop: Desktop {
     }
 
     func startWatching(_ handler: @escaping (DesktopEvent) -> Void) {
-        stopWatching()
+        handlers.append(handler)
+        guard observers.isEmpty else { return }
+
         observers = [
             (notificationCenter, notificationCenter.addObserver(
                 forName: NSWorkspace.activeSpaceDidChangeNotification, object: nil, queue: nil
-            ) { _ in handler(.nativeSpaceChange) }),
+            ) { [weak self] _ in self?.report(.nativeSpaceChange) }),
             (screenNotificationCenter, screenNotificationCenter.addObserver(
                 forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: nil
-            ) { [weak self] _ in self?.screenParametersChanged(handler) }),
+            ) { [weak self] _ in self?.screenParametersChanged() }),
         ]
-        displayChanged(display)
     }
 
     func repark(_ windows: [ParkedWindow]) {
@@ -216,26 +215,24 @@ final class OffscreenParkingDesktop: Desktop {
     /// The notification also follows a Dock or menu bar change, and macOS posts it more than
     /// once per plug, so only a display that differs from the one held is reported as a
     /// display change.
-    private func screenParametersChanged(_ handler: (DesktopEvent) -> Void) {
+    private func screenParametersChanged() {
         let main = screens.main
         Log.desktop.debug("screen parameters changed, main display: \(main.map(\.logDescription) ?? "none")")
         guard let entered = main else { return }
-        guard entered != display else { return handler(.screenParametersChange) }
+        guard entered != display else { return report(.screenParametersChange) }
 
         let left = display
         display = entered
         hiddenEdge = HiddenEdge(display: entered)
         Log.desktop.info("display changed from \(left.logDescription) to \(entered.logDescription)")
-        displayChanged(entered)
-        handler(.displayChange(DisplayChange(from: left, to: entered)))
+        report(.displayChange(DisplayChange(from: left, to: entered)))
     }
 
-    private func stopWatching() {
-        for (center, token) in observers { center.removeObserver(token) }
-        observers = []
+    private func report(_ event: DesktopEvent) {
+        for handler in handlers { handler(event) }
     }
 
     deinit {
-        stopWatching()
+        for (center, token) in observers { center.removeObserver(token) }
     }
 }

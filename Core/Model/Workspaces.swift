@@ -1,5 +1,9 @@
 import CoreGraphics
 
+enum WorkspaceEvent: Equatable {
+    case switched(Int)
+}
+
 final class Workspaces {
     enum Membership: Equatable {
         case fullScreen(Int)
@@ -7,19 +11,20 @@ final class Workspaces {
         case unassigned(Int)
     }
 
+    private(set) var fullScreenWindows: [CGWindowID: Int] = [:]
     private(set) var current = 1
 
     private var workspaces: [Int: Workspace] = [:]
-
-    private(set) var fullScreenWindows: [CGWindowID: Int] = [:]
-
     private var tabGroups: TabGroups
 
-    private let switched: (Int) -> Void
+    private var handler: (WorkspaceEvent) -> Void = { _ in }
 
-    init(tabGroups: TabGroups, switched: @escaping (Int) -> Void = { _ in }) {
+    init(tabGroups: TabGroups) {
         self.tabGroups = tabGroups
-        self.switched = switched
+    }
+
+    func startWatching(_ handler: @escaping (WorkspaceEvent) -> Void) {
+        self.handler = handler
     }
 
     var allWindowIds: Set<CGWindowID> {
@@ -103,7 +108,7 @@ final class Workspaces {
             recordFocus(on: windowId, in: current)
         }
         current = targetWorkspace
-        switched(targetWorkspace)
+        handler(.switched(targetWorkspace))
 
         return (
             activating: windowIds(in: targetWorkspace),

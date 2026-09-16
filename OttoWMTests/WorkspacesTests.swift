@@ -4,13 +4,12 @@ import XCTest
 final class WorkspacesTests: XCTestCase {
     private typealias Assignments = [(window: CGWindowID, workspace: Int)]
 
-    private func makeWorkspaces(tabbed: Set<CGWindowID> = [], switched: @escaping (Int) -> Void = { _ in }) -> Workspaces {
+    private func makeWorkspaces(tabbed: Set<CGWindowID> = []) -> Workspaces {
         Workspaces(
             tabGroups: TabGroups(
                 tabCount: { tabbed.contains($0) ? 2 : 1 },
                 frame: { makeSnapshot($0).frame }
-            ),
-            switched: switched
+            )
         )
     }
 
@@ -23,14 +22,15 @@ final class WorkspacesTests: XCTestCase {
     }
 
     func testSwitchToReportsOnlyAChangeOfWorkspace() {
-        let cases: [(name: String, target: Int, reported: [Int])] = [
-            ("another workspace is reported", 2, [2]),
+        let cases: [(name: String, target: Int, reported: [WorkspaceEvent])] = [
+            ("another workspace is reported", 2, [.switched(2)]),
             ("the current workspace is not reported", 1, []),
         ]
 
         for testCase in cases {
-            var reported: [Int] = []
-            let model = makeWorkspaces { reported.append($0) }
+            var reported: [WorkspaceEvent] = []
+            let model = makeWorkspaces()
+            model.startWatching { reported.append($0) }
 
             _ = model.switchTo(testCase.target, leavingFocusOn: nil)
 

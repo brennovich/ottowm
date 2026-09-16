@@ -19,7 +19,7 @@
 
 ![OttoWM preview](assets/preview.png)
 
-OttoWM fakes multiple workspaces on a **single native macOS Space**. No native Spaces, no animations, no Mission Control involved.
+OttoWM fakes multiple workspaces on a **single native macOS Space**. No native Spaces, no Space switch animations, no Mission Control involved.
 
 Some important features:
 - Native Tabbed windows (Terminal, Ghostty, Finder, …) support
@@ -29,9 +29,9 @@ Some important features:
   - Fullscreen apps are ignored
 
 Some important foundations:
-- Headless agent: no Dock icon, no menu bar item
 - No dependency on third-party libraries or frameworks
 - Relies on macOS public APIs only (up until now)
+- Backwards compatibility, it works on macOS Big Sur onwards
 
 ### Hotkeys
 
@@ -100,14 +100,16 @@ Workspaces are created on demand:
 | quit                              | Quit OttoWM, putting every parked window back                                                    |
 | restart                           | Read the config file again and rebind the keys                                                   |
 
-`pager = off` hides the tab in the bottom right corner that shows the current workspace and covers the windows parked there, and the rounded masks on the other three screen corners. It is on by default, and `restart` applies a change.
+- `pager = off` hides the tab in the bottom right corner that shows the current workspace and covers the parked windows.
 
-`spacing = N` is the number of points kept between a maximized window and the screen edges and between two tiled windows, and the amount `move-window` and `resize` change a window by. It defaults to 15, takes a whole number from 1, and `restart` applies a change.
+`spacing = N` is the number of points for _gap_, and the `move-window` _step_, and `resize` change. It defaults to 15.
 
-The `restart` action reloads the config without a relaunch: the windows stay where they are. A file that does not parse leaves the bindings already up in place. Errors show up in the log:
+The `restart` action reloads the config without a relaunch.
+
+## Debugging
 
 ```sh
-log stream --level debug --predicate 'subsystem == "com.github.brennovich.ottowm" && category == "config"'
+log stream --level debug --predicate 'subsystem == "com.github.brennovich.ottowm"'
 ```
 
 ## Limitations

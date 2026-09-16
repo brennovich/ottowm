@@ -11,6 +11,7 @@ final class Lifecycle {
     private let exit: (Int32) -> Void
     private let launchNewInstance: (@escaping () -> Void) -> Void
     private let observeSIGTERM: (@escaping () -> Void) -> (any DispatchSourceSignal)?
+    private let dismiss: (@escaping () -> Void) -> Void
     private var termination: (any DispatchSourceSignal)?
     private var awaitingUserInput = false
     private lazy var configGate = ConfigGate(ask: ask, relaunch: { [weak self] in self?.relaunch() })
@@ -25,7 +26,8 @@ final class Lifecycle {
         screenLock: ScreenLock = ScreenLock(),
         exit: @escaping (Int32) -> Void = { Darwin.exit($0) },
         launchNewInstance: @escaping (@escaping () -> Void) -> Void = Lifecycle.newInstance,
-        observeSIGTERM: @escaping (@escaping () -> Void) -> (any DispatchSourceSignal)? = Lifecycle.sigterm
+        observeSIGTERM: @escaping (@escaping () -> Void) -> (any DispatchSourceSignal)? = Lifecycle.sigterm,
+        dismiss: @escaping (@escaping () -> Void) -> Void = { $0() }
     ) {
         self.stop = stop
         self.resume = resume
@@ -35,12 +37,13 @@ final class Lifecycle {
         self.exit = exit
         self.launchNewInstance = launchNewInstance
         self.observeSIGTERM = observeSIGTERM
+        self.dismiss = dismiss
     }
 
     func quit() {
         Log.app.notice("quit action received, restoring window frames")
         stop()
-        exit(EXIT_SUCCESS)
+        dismiss { [exit] in exit(EXIT_SUCCESS) }
     }
 
     /// The event tap stays live while the alert is up, and the main queue is drained in
@@ -59,7 +62,9 @@ final class Lifecycle {
     func relaunch() {
         Log.app.notice("relaunching, restoring window frames")
         stop()
-        launchNewInstance { [exit] in exit(EXIT_SUCCESS) }
+        dismiss { [launchNewInstance, exit] in
+            launchNewInstance { exit(EXIT_SUCCESS) }
+        }
     }
 
     func startWatchingScreenLock() {
@@ -67,10 +72,10 @@ final class Lifecycle {
     }
 
     func startWatchingSIGTERM() {
-        termination = observeSIGTERM { [stop, exit] in
+        termination = observeSIGTERM { [stop, dismiss, exit] in
             Log.app.notice("SIGTERM received, restoring window frames")
             stop()
-            exit(EXIT_SUCCESS)
+            dismiss { exit(EXIT_SUCCESS) }
         }
     }
 

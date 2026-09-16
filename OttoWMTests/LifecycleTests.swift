@@ -8,6 +8,7 @@ final class LifecycleTests: XCTestCase {
     private var asked: [ConfigError] = []
     private var response: ConfigAlert.Response = .dismiss
     private var whileAsking: (() -> Void)?
+    private var dismissed: (() -> Void)?
 
     private func makeLifecycle() -> Lifecycle {
         Lifecycle(
@@ -30,14 +31,21 @@ final class LifecycleTests: XCTestCase {
                 self.events.append("launch")
                 launched()
             },
-            observeSIGTERM: { self.terminated = $0; return nil }
+            observeSIGTERM: { self.terminated = $0; return nil },
+            dismiss: { done in
+                self.events.append("dismiss")
+                self.dismissed = done
+            }
         )
     }
 
-    func testQuitRestoresTheWindowsBeforeItExits() {
+    func testQuitRestoresTheWindowsAndExitsOnceThePagerIsDismissed() throws {
         makeLifecycle().quit()
+        XCTAssertEqual(events, ["stop", "dismiss"])
 
-        XCTAssertEqual(events, ["stop", "exit 0"])
+        try XCTUnwrap(dismissed)()
+
+        XCTAssertEqual(events, ["stop", "dismiss", "exit 0"])
     }
 
     func testSIGTERMRestoresTheWindowsBeforeItExits() throws {
@@ -47,14 +55,16 @@ final class LifecycleTests: XCTestCase {
         XCTAssertEqual(events, [])
 
         try XCTUnwrap(terminated)()
+        try XCTUnwrap(dismissed)()
 
-        XCTAssertEqual(events, ["stop", "exit 0"])
+        XCTAssertEqual(events, ["stop", "dismiss", "exit 0"])
     }
 
-    func testRelaunchRestoresTheWindowsBeforeTheNewInstanceReplacesIt() {
+    func testRelaunchRestoresTheWindowsAndDismissesThePagerBeforeTheNewInstanceReplacesIt() throws {
         makeLifecycle().relaunch()
+        try XCTUnwrap(dismissed)()
 
-        XCTAssertEqual(events, ["stop", "launch", "exit 0"])
+        XCTAssertEqual(events, ["stop", "dismiss", "launch", "exit 0"])
     }
 
     func testAConfigThatParsesIsTakenWithoutAskingAnything() {
@@ -85,13 +95,14 @@ final class LifecycleTests: XCTestCase {
         XCTAssertEqual(events, ["reload"])
     }
 
-    func testRestartingOverAConfigErrorRelaunches() {
+    func testRestartingOverAConfigErrorRelaunches() throws {
         reloadError = ConfigError(line: 2, reason: .unknownAction("relaunch"))
         response = .restart
 
         makeLifecycle().reload()
+        try XCTUnwrap(dismissed)()
 
-        XCTAssertEqual(events, ["reload", "stop", "launch", "exit 0"])
+        XCTAssertEqual(events, ["reload", "stop", "dismiss", "launch", "exit 0"])
     }
 
     func testLockingTheScreenIsReportedAndUnlockingItResumes() {
