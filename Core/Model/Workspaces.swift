@@ -135,3 +135,27 @@ final class Workspaces {
         }
     }
 }
+
+extension Workspaces {
+    /// Leaves out the full screen windows: admission refuses them at launch.
+    struct Record: Codable, Equatable {
+        let current: Int
+        let workspaces: [Int: Workspace]
+
+        func keeping(_ windowIds: Set<CGWindowID>) -> Record {
+            Record(current: current, workspaces: workspaces.mapValues { workspace in
+                workspace.windowIds.filter { !windowIds.contains($0) }.reduce(into: workspace) { $0.remove($1) }
+            })
+        }
+    }
+
+    var record: Record {
+        Record(current: current, workspaces: workspaces)
+    }
+
+    func load(_ record: Record) {
+        workspaces = record.workspaces
+        current = record.current
+        handler(.switched(current))
+    }
+}

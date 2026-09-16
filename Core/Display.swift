@@ -1,10 +1,10 @@
 import CoreGraphics
 
-struct DisplayID: Hashable {
+struct DisplayID: Hashable, Codable {
     let rawValue: String
 }
 
-struct Display: Equatable {
+struct Display: Equatable, Codable {
     let id: DisplayID
     let fullFrame: CGRect
     let visibleFrame: CGRect

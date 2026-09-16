@@ -1,6 +1,6 @@
 import CoreGraphics
 
-struct ParkedWindow: Equatable {
+struct ParkedWindow: Codable, Equatable {
     let windowId: CGWindowID
     let parkedFrom: CGRect
 }

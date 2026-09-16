@@ -8,11 +8,7 @@ enum ConfigFile {
         environment: [String: String] = ProcessInfo.processInfo.environment,
         read: (URL) -> String? = { try? String(contentsOf: $0, encoding: .utf8) }
     ) -> Result<Config, ConfigError> {
-        func value(_ name: String) -> String? { environment[name].flatMap { $0.isEmpty ? nil : $0 } }
-
-        let home = value("HOME") ?? NSHomeDirectory()
-        let directory = value("XDG_CONFIG_HOME") ?? "\(home)/.config"
-        let path = URL(fileURLWithPath: directory.hasPrefix("~/") ? home + directory.dropFirst() : directory)
+        let path = XDGDirectory.url("XDG_CONFIG_HOME", orHome: ".config", environment: environment)
             .appendingPathComponent("\(name)/\(name)")
 
         guard let bundledPath = bundle.url(forResource: name, withExtension: nil) else {

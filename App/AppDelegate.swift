@@ -1,7 +1,10 @@
 import Cocoa
 
+private let stateSaveInterval: TimeInterval = 10
+
 class AppDelegate: NSObject, NSApplicationDelegate {
     private let applications = Applications()
+    private let stateFile = StateFile()
     private lazy var lifecycle: Lifecycle = Lifecycle(
         stop: { [weak self] in self?.engine?.stop() },
         resume: { [weak self] in
@@ -58,14 +61,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let pager = Pager(workspaces: workspaces, desktop: desktop)
         self.pager = pager
 
-        let engine = Engine.system(
-            desktop: desktop,
-            windowSystem: windowSystem,
-            workspaces: workspaces,
-            screenIsLocked: { [lifecycle] in lifecycle.screenIsLocked }
-        )
-        engine.start(windows: applicationsObserver.start { engine.handle($0) })
+        let engine = engine(desktop: desktop, windowSystem: windowSystem, workspaces: workspaces)
+        engine.start(windows: applicationsObserver.start { engine.handle($0) }, restoring: stateFile.load())
         self.engine = engine
+        // A crash runs no quit handler, so the state is also saved on a timer.
+        Timer.scheduledTimer(withTimeInterval: stateSaveInterval, repeats: true) { _ in engine.saveState() }
         pager.isEnabled = config.showsPager
 
         let bindings = Bindings.system(
@@ -91,6 +91,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         permission.startWatchingTrust(
             lost: { [weak self] in self?.bindings?.stop() },
             regained: { [weak self] in self?.bindings?.start() }
+        )
+    }
+
+    private func engine(desktop: any Desktop, windowSystem: WindowSystem, workspaces: Workspaces) -> Engine {
+        Engine.system(
+            desktop: desktop,
+            windowSystem: windowSystem,
+            workspaces: workspaces,
+            screenIsLocked: { [lifecycle] in lifecycle.screenIsLocked },
+            save: stateFile.save
         )
     }
 

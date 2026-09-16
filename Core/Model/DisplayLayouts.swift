@@ -5,6 +5,10 @@ import CoreGraphics
 final class DisplayLayouts {
     private var frames: [DisplayID: [CGWindowID: CGRect]] = [:]
 
+    var all: [DisplayID: [CGWindowID: CGRect]] {
+        frames
+    }
+
     func frame(of windowId: CGWindowID, on display: DisplayID) -> CGRect? {
         frames[display]?[windowId]
     }
@@ -17,6 +21,10 @@ final class DisplayLayouts {
         for case let .parked(windowId, from) in outcomes {
             record(from, of: windowId, on: display)
         }
+    }
+
+    func load(_ frames: [DisplayID: [CGWindowID: CGRect]]) {
+        self.frames = frames
     }
 
     func forget(_ windowId: CGWindowID) {

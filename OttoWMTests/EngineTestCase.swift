@@ -11,6 +11,7 @@ class EngineTestCase: XCTestCase {
     var onScreenReadCount = 0
     var offScreenWindowIds: Set<CGWindowID> = []
     var screenIsLocked = false
+    var savedStates: [SavedState] = []
     var scheduledRetries: [(delay: TimeInterval, work: () -> Void)] = []
     let tabFrame = CGRect(x: 400, y: 0, width: 800, height: 600)
 
@@ -92,7 +93,8 @@ class EngineTestCase: XCTestCase {
         enrollment: enrollment,
         navigation: navigation,
         fullScreenReturns: fullScreenReturns,
-        screenIsLocked: { [weak self] in self?.screenIsLocked ?? false }
+        screenIsLocked: { [weak self] in self?.screenIsLocked ?? false },
+        save: { [weak self] in self?.savedStates.append($0) }
     )
 
     @discardableResult
@@ -117,6 +119,29 @@ class EngineTestCase: XCTestCase {
         add(window)
         engine.handle(.created(window.snapshot()))
         return window
+    }
+
+    func savedState(
+        current: Int = 1,
+        _ assignments: [(window: StubWindow, workspace: Int)],
+        parked: [CGWindowID: CGRect] = [:],
+        original: [CGWindowID: CGRect] = [:],
+        on display: Display = .standard
+    ) -> SavedState {
+        var workspaces: [Int: Workspace] = [:]
+        var frames: [CGWindowID: CGRect] = [:]
+        for (window, workspace) in assignments {
+            workspaces[workspace, default: Workspace()].add(window.id)
+            frames[window.id] = parked[window.id] ?? window.frame
+        }
+
+        return SavedState(
+            display: display,
+            workspaces: Workspaces.Record(current: current, workspaces: workspaces),
+            parkedWindows: parked.sorted { $0.key < $1.key }.map { ParkedWindow(windowId: $0.key, parkedFrom: $0.value) },
+            originalFrames: original,
+            displayLayouts: [display.id: frames]
+        )
     }
 
     func moveFocusedWindow(_ window: StubWindow, to workspace: Int) {

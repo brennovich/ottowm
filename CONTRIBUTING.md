@@ -33,7 +33,7 @@ CI runs it first in the `commit` job as `make lint/report`, which writes `build/
 
 ## Acceptance and benchmark
 
-`Acceptance/` is one scenario: a window sent to another workspace parks at the hidden edge and comes back, and the rest of the desk moves with the workspace it belongs to. `Benchmark/` times the same hotkeys; see `Benchmark/README.md`.
+`Acceptance/` is one scenario: a window sent to another workspace parks at the hidden edge and comes back, and the rest of the desk moves with the workspace it belongs to. OttoWM quit and launched again puts every window back in its workspace. `Benchmark/` times the same hotkeys; see `Benchmark/README.md`.
 
 Both drive the app installed in `/Applications` through the harness in `Harness/`: real hotkeys through the event tap, real frames read back through the accessibility API. Run `make install` first, and grant Accessibility permission to the terminal running them. `Harness/README.md` covers the desk they run on, the permissions they need and what they leave behind.
 

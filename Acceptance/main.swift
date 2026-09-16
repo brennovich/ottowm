@@ -7,9 +7,10 @@ import CoreGraphics
 // A window sent to another workspace parks at the hidden edge and comes back, and the desk
 // it was standing on goes with the workspace it belongs to. The restart hotkey picks up a
 // binding the run adds while it is up, and the quit hotkey ends it, with whatever is parked
-// when it fires handed back before OttoWM goes.
+// when it fires handed back before OttoWM goes. OttoWM launched again puts every window back
+// in the workspace it was in when the last one quit.
 
-let session = Session.start(arranged: true, tabbed: true)
+var session = Session.start(arranged: true, tabbed: true)
 let movable = session.movable
 let terminal = session.subject(named: "Terminal")
 
@@ -168,6 +169,22 @@ report("posting hyper-q")
 quit()
 session.waitForExit()
 session.expect("the whole desk came back", session.subjects) { $0.isWhereItWas }
+
+// The quit left workspace 1 current and the movable window in workspace 2.
+report("launching OttoWM again")
+session.relaunch()
+session.expect("the \(movable.name) window parked again", [movable], session.isParked)
+session.expect("the rest of the desk stayed where it was", session.others) { $0.isWhereItWas }
+
+report("posting lopt-2")
+switchToWorkspace(2)
+session.expect("the \(movable.name) window came back", [movable]) { $0.isWhereItWas }
+session.expect("the rest of the desk parked", session.others, session.isParked)
+
+report("posting hyper-q")
+quit()
+session.waitForExit()
+session.expect("the whole desk came back after the second quit", session.subjects) { $0.isWhereItWas }
 
 session.finish()
 

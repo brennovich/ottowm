@@ -12,39 +12,12 @@ final class ConfigFileTests: XCTestCase {
         }
     }
 
-    func testResolvesTheUserConfigPath() throws {
-        let cases: [(name: String, environment: [String: String], expected: String)] = [
-            (
-                "defaults to ~/.config",
-                ["HOME": "/Users/otto"],
-                "/Users/otto/.config/ottowm/ottowm"
-            ),
-            (
-                "honours XDG_CONFIG_HOME",
-                ["HOME": "/Users/otto", "XDG_CONFIG_HOME": "/Users/otto/cfg"],
-                "/Users/otto/cfg/ottowm/ottowm"
-            ),
-            (
-                "XDG_CONFIG_HOME expands a tilde",
-                ["HOME": "/Users/otto", "XDG_CONFIG_HOME": "~/cfg"],
-                "/Users/otto/cfg/ottowm/ottowm"
-            ),
-            (
-                "empty variables are ignored",
-                ["HOME": "/Users/otto", "XDG_CONFIG_HOME": ""],
-                "/Users/otto/.config/ottowm/ottowm"
-            ),
-        ]
-
-        for testCase in cases {
-            XCTAssertEqual(
-                ConfigFile.load(bundle: bundle, environment: testCase.environment) { url in
-                    url.path == testCase.expected ? "hyper-1 = switch-to-workspace 1" : nil
-                },
-                .success(try makeConfig(["hyper-1": .action(.switchToWorkspace(1))])),
-                testCase.name
-            )
+    func testReadsTheUserConfigUnderXDGConfigHome() throws {
+        let config = ConfigFile.load(bundle: bundle, environment: ["HOME": "/Users/otto", "XDG_CONFIG_HOME": "~/cfg"]) { url in
+            url.path == "/Users/otto/cfg/ottowm/ottowm" ? "hyper-1 = switch-to-workspace 1" : nil
         }
+
+        XCTAssertEqual(config, .success(try makeConfig(["hyper-1": .action(.switchToWorkspace(1))])))
     }
 
     func testFallsBackToTheBundledConfigWhenThereIsNone() throws {

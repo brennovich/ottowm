@@ -248,4 +248,27 @@ final class WorkspacesTests: XCTestCase {
             XCTAssertEqual(model.nextWindowToFocus, testCase.expected, testCase.name)
         }
     }
+
+    func testLoadingARecordReportsTheSwitchToItsCurrentWorkspace() {
+        let model = makeWorkspaces(assigning: [(100, 1), (200, 2)])
+        _ = model.switchTo(2, leavingFocusOn: nil)
+        var reported: [WorkspaceEvent] = []
+        let loaded = makeWorkspaces()
+        loaded.startWatching { reported.append($0) }
+
+        loaded.load(model.record)
+
+        XCTAssertEqual(loaded.current, 2)
+        XCTAssertEqual(reported, [.switched(2)])
+        XCTAssertEqual(loaded.windowIds(in: 1), [100])
+    }
+
+    func testARecordKeepsOnlyTheGivenWindows() {
+        let model = makeWorkspaces(assigning: [(100, 1), (200, 1), (300, 2)])
+
+        let kept = model.record.keeping([100, 300])
+
+        let expected = makeWorkspaces(assigning: [(100, 1), (300, 2)])
+        XCTAssertEqual(kept, expected.record)
+    }
 }

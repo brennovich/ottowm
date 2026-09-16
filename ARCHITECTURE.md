@@ -96,6 +96,7 @@ flowchart LR
 | `OriginalFrames`              | Model     | The frame each maximized or filled window restores to, shared by its tabs.              |
 | `DisplayLayouts`              | Model     | The last frame each window had on each display, kept after the display disconnects.     |
 | `Fit`                         | Model     | One frame moved between two visible frames, each axis keeping its share of the room.    |
+| `SavedState`                  | Model     | What the state file holds, less the windows no longer open.                             |
 | `Desktop`                     | macOS     | Moves, parks and focuses windows on the native Space.                                   |
 | `HiddenEdge`                  | macOS     | Where a parked window sits, and whether a frame sits there.                             |
 | `WindowSystem`                | macOS     | The focused window, the on-screen window frames, and the tab count of a window.         |
@@ -112,8 +113,10 @@ flowchart LR
 | `OperationCache`              | macOS     | Holds one AX or CG read for the length of an operation.                                 |
 | `RoundTrips`                  | macOS     | Prices an operation in the calls it makes out of the process: how many, of what, cost.  |
 | `Signposts`                   | macOS     | The operation and round-trip intervals Instruments records.                             |
+| `XDGDirectory`                | macOS     | The directory an XDG variable names, where the config and state files live.             |
 | `AppDelegate`                 | Lifecycle | The startup order.                                                                      |
 | `ConfigGate`                  | Lifecycle | The config startup gate: the error alert, and whether to relaunch or quit.              |
+| `StateFile`                   | Lifecycle | Reads and writes the state file, ignoring one saved in another login session.           |
 | `AccessibilityPermission`     | Lifecycle | The startup gate, and the watch on the accessibility trust.                             |
 | `ScreenLock`                  | Lifecycle | Reports whether the login window covers the session, and when it is uncovered.          |
 | `Lifecycle`                   | Lifecycle | The transitions once it owns windows: `quit`, SIGTERM, relaunch, reload, unlock.        |
@@ -155,6 +158,7 @@ flowchart LR
     WindowPlacement --> ParkedWindows
     WindowPlacement --> OriginalFrames
     WindowPlacement --> DisplayLayouts
+    WindowPlacement --> SavedState
     OriginalFrames --> Workspaces
     Navigation --> Workspaces
     Workspaces --> Workspace
@@ -207,6 +211,8 @@ flowchart LR
     AppDelegate --> Bindings
     AccessibilityPermission -->|trust lost, regained| Bindings
     AppDelegate --> Lifecycle
+    AppDelegate -->|load| StateFile
+    Engine -->|save| StateFile
     Lifecycle --> ScreenLock
     Lifecycle -->|stop, resync| Engine
     Lifecycle -->|screenIsLocked| Engine
@@ -237,14 +243,25 @@ sequenceDiagram
     AccessibilityPermission-->>AppDelegate: granted, quit, or relaunch after the grant
     AppDelegate->>RunningApplicationsObserver: start(handler)
     RunningApplicationsObserver-->>AppDelegate: the windows found while subscribing
-    AppDelegate->>Engine: start(windows:)
-    Engine->>Desktop: recover(windows)
-    Desktop-->>Engine: the same windows, parked ones back on screen
-    Engine->>WindowPlacement: assign each one to workspace 1
+    AppDelegate->>StateFile: load()
+    AppDelegate->>Engine: start(windows:, restoring: the SavedState, if any)
+    Engine->>WindowPlacement: restore(windows, from: the SavedState)
+    WindowPlacement->>Desktop: recover(windows the state does not hold as parked)
+    Desktop-->>WindowPlacement: the same windows, parked ones back on screen
+    WindowPlacement->>Workspaces: assign each one no workspace holds to the current workspace
     Engine->>Desktop: startWatching(DesktopEvent handler)
     AppDelegate->>Pager: isEnabled = the pager setting
     AppDelegate->>Bindings: start()
+    AppDelegate->>Engine: saveState() every 10 seconds
 ```
+
+### State file
+
+The state lives in `$XDG_STATE_HOME/ottowm/state.json`, `~/.local/state/ottowm/state.json` by default. The engine writes it every 10 seconds when it changed, because a crash runs no quit handler, and on quit once the parked windows are back on screen.
+
+It only covers the current login session. Window ids are only reliable within one login session, so the file records the session it was written in and a file from another session is ignored. Within the session a saved window is found again by its id, and the ids of windows that are gone or that admission refuses are left out. A file that does not decode is ignored too. Either way OttoWM starts as if there were none.
+
+A window saved as parked stays at the hidden edge, and `repark` puts it back there if macOS moved it. If the display changed since the save, the windows are relocated as on a display change. Full screen windows are not saved, since admission refuses them at launch.
 
 ### Workspace switch
 
@@ -431,6 +448,7 @@ sequenceDiagram
     Lifecycle->>Engine: stop()
     Engine->>WindowPlacement: restoreParkedWindows()
     WindowPlacement->>Desktop: reframe(unpark every parked window)
+    Engine->>StateFile: save(the SavedState, no window parked)
     Lifecycle->>Lifecycle: exit(EXIT_SUCCESS)
 ```
 

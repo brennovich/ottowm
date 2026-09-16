@@ -14,6 +14,10 @@ final class OriginalFrames {
         self.tabs = tabs
     }
 
+    var all: [CGWindowID: CGRect] {
+        frames
+    }
+
     func originalFrame(of windowId: CGWindowID) -> CGRect? {
         tabs(windowId).lazy.compactMap { self.frames[$0] }.first
     }
@@ -42,6 +46,10 @@ final class OriginalFrames {
     /// the tabs that stay keep the frame.
     func forget(_ windowId: CGWindowID) {
         frames[windowId] = nil
+    }
+
+    func load(_ frames: [CGWindowID: CGRect]) {
+        self.frames = frames
     }
 
     private func keep(_ frame: CGRect?, of windowId: CGWindowID) {

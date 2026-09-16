@@ -35,7 +35,8 @@ final class EngineDesktopIntegrationTests: XCTestCase {
             onScreenWindows: onScreenWindows,
             window: { [weak self] in self?.windows[$0] }
         ),
-        workspaces: workspaces
+        workspaces: workspaces,
+        save: { _ in }
     )
 
     private func addWindow(_ id: CGWindowID, frame: CGRect) -> StubWindow {

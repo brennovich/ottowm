@@ -185,10 +185,54 @@ final class WindowPlacement {
         apply(requests).gone.forEach { drop($0, reason: "gone") }
     }
 
+    /// Puts the windows back in the workspaces the state holds them in, and takes the others
+    /// into the current workspace. A window the state holds as parked stays at the hidden
+    /// edge; any other window found there is brought back on screen.
+    func restore(_ windows: [WindowSnapshot], from saved: SavedState?) {
+        if let saved {
+            load(saved.keeping(Set(windows.filter { admission.verdict(for: $0) == .admit }.map(\.id))))
+        }
+
+        let recovered = desktop.recover(windows.filter { !parkedWindows.isParked($0.id) })
+
+        if let saved {
+            let placements = workspaces.allWindowIds.sorted()
+                .map { (windowId: $0, parked: workspaces.workspace(for: $0) != workspaces.current) }
+            place(placements).gone.forEach { drop($0, reason: "gone") }
+
+            if saved.display.id != desktop.display.id {
+                relocate(DisplayChange(from: saved.display, to: desktop.display))
+            }
+            desktop.repark(parkedWindows.all)
+        }
+
+        for win in recovered {
+            assign(win, to: workspaces.current)
+        }
+    }
+
+    var savedState: SavedState {
+        SavedState(
+            display: desktop.display,
+            workspaces: workspaces.record,
+            parkedWindows: parkedWindows.all,
+            originalFrames: originalFrames.all,
+            displayLayouts: layouts.all
+        )
+    }
+
     func restoreParkedWindows() {
         let restoring = parkedWindows.all.map { (windowId: $0.windowId, parked: false) }
         Log.engine.info("restoring \(restoring.count) parked windows")
         place(restoring)
+    }
+
+    private func load(_ saved: SavedState) {
+        workspaces.load(saved.workspaces)
+        saved.parkedWindows.forEach { parkedWindows.park($0.windowId, from: $0.parkedFrom) }
+        originalFrames.load(saved.originalFrames)
+        layouts.load(saved.displayLayouts)
+        Log.state.notice("restored \(workspaces.allWindowIds.count) windows, workspace \(workspaces.current)")
     }
 
     /// On the same display only the parked windows move, to the edge of its new geometry: the

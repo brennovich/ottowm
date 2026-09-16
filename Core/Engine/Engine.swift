@@ -10,6 +10,8 @@ final class Engine {
     private let navigation: Navigation
     private let fullScreenReturns: FullScreenReturns
     private let screenIsLocked: () -> Bool
+    private let save: (SavedState) -> Void
+    private var lastSaved: SavedState?
     private var displayLeftBehindLock: Display?
 
     init(
@@ -20,7 +22,8 @@ final class Engine {
         enrollment: WindowEnrollment,
         navigation: Navigation,
         fullScreenReturns: FullScreenReturns,
-        screenIsLocked: @escaping () -> Bool
+        screenIsLocked: @escaping () -> Bool,
+        save: @escaping (SavedState) -> Void
     ) {
         self.desktop = desktop
         self.windowSystem = windowSystem
@@ -30,13 +33,12 @@ final class Engine {
         self.navigation = navigation
         self.fullScreenReturns = fullScreenReturns
         self.screenIsLocked = screenIsLocked
+        self.save = save
     }
 
-    func start(windows: [WindowSnapshot]) {
+    func start(windows: [WindowSnapshot], restoring saved: SavedState? = nil) {
         windowSystem.duringOperation("start") {
-            for win in desktop.recover(windows) {
-                placement.assign(win, to: 1)
-            }
+            placement.restore(windows, from: saved)
 
             desktop.startWatching { [weak self] event in self?.handle(event) }
         }
@@ -87,8 +89,10 @@ final class Engine {
         }
     }
 
+    /// Saved with every window back on screen, the way the next launch finds them.
     func stop() {
         placement.restoreParkedWindows()
+        saveState()
     }
 
     func handle(_ event: WindowEvent) {
@@ -230,6 +234,14 @@ final class Engine {
         }
     }
 
+    /// Writes nothing when the state is the one saved last.
+    func saveState() {
+        let state = placement.savedState
+        guard state != lastSaved else { return }
+        lastSaved = state
+        save(state)
+    }
+
     /// - Parameter operation: one name per action, so the round-trip cost of a step and of a
     ///   centering are reported separately.
     /// - Parameter keepingMaximized: drops the change when the window fills the screen. The
@@ -265,7 +277,8 @@ extension Engine {
         windowSystem: WindowSystem,
         workspaces: Workspaces,
         scheduleRetry: @escaping (TimeInterval, @escaping () -> Void) -> Void = Backoff.onMainQueue,
-        screenIsLocked: @escaping () -> Bool = { false }
+        screenIsLocked: @escaping () -> Bool = { false },
+        save: @escaping (SavedState) -> Void
     ) -> Engine {
         let originalFrames = OriginalFrames(tabs: workspaces.tabGroupMembers(of:))
         let admission = Admission(windowSystem: windowSystem, workspaces: workspaces)
@@ -307,7 +320,8 @@ extension Engine {
             enrollment: enrollment,
             navigation: navigation,
             fullScreenReturns: fullScreenReturns,
-            screenIsLocked: screenIsLocked
+            screenIsLocked: screenIsLocked,
+            save: save
         )
     }
 }

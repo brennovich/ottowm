@@ -1,6 +1,6 @@
 import CoreGraphics
 
-struct Workspace {
+struct Workspace: Codable, Equatable {
     private(set) var windowIds: [CGWindowID] = []
     private var focusHistory: [CGWindowID] = []
 

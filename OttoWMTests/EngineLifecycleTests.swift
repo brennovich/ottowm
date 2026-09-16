@@ -2,14 +2,27 @@ import CoreGraphics
 import XCTest
 
 final class EngineLifecycleTests: EngineTestCase {
-    func testStartRecoversAndSeedsWindowsIntoWorkspaceOne() {
-        let win1 = add(StubWindow(id: 100))
-        let win2 = add(StubWindow(id: 200))
+    func testStartRestoresTheSavedState() {
+        let parkedWin = add(StubWindow(id: 100))
+        let activeWin = add(StubWindow(id: 200))
 
-        engine.start(windows: [win1.snapshot(), win2.snapshot()])
+        engine.start(
+            windows: [parkedWin.snapshot(), activeWin.snapshot()],
+            restoring: savedState(current: 2, [(parkedWin, 1), (activeWin, 2)])
+        )
 
-        XCTAssertEqual(desktop.recoveredWindowIds, [100, 200])
-        XCTAssertEqual(workspaces.allWindowIds, [100, 200])
+        XCTAssertEqual(workspaces.current, 2)
+    }
+
+    func testSaveStateWritesTheStateOnlyWhenItChanged() {
+        let win = create(StubWindow(id: 100))
+        engine.saveState()
+        moveFocusedWindow(win, to: 2)
+        engine.saveState()
+        engine.saveState()
+
+        XCTAssertEqual(savedStates.count, 2)
+        XCTAssertEqual(savedStates.last, placement.savedState)
     }
 
     func testStopBringsEveryParkedWindowBack() {
@@ -22,6 +35,7 @@ final class EngineLifecycleTests: EngineTestCase {
 
         XCTAssertFalse(parkedWindows.isParked(100))
         XCTAssertFalse(parkedWindows.isParked(200))
+        XCTAssertEqual(savedStates.last, placement.savedState)
     }
 
     func testHandleDispatchesEachAction() {

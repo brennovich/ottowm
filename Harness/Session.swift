@@ -113,7 +113,7 @@ struct Subject {
 // The desk it sets up is a file browser, a terminal, a browser and an editor, because a
 // workspace switch costs what the windows on it cost.
 struct Session {
-    let ottowm: Process
+    private(set) var ottowm: Process
     // The window the hotkeys move between workspaces.
     let movable: Subject
     // The ones that only move because the workspace they are on was left.
@@ -289,6 +289,13 @@ struct Session {
         }
     }
 
+    // Launches OttoWM again once the one before has exited, for a run that checks what the
+    // new instance restores from the state the old one saved.
+    mutating func relaunch() {
+        waitForExit()
+        ottowm = launchOttoWM()
+    }
+
     func finish() {
         for cleanup in cleanups.reversed() { cleanup() }
         cleanups = []
@@ -320,8 +327,10 @@ private func stageTab(
 private func launchOttoWM() -> Process {
     let ottowm = Process()
     ottowm.executableURL = URL(fileURLWithPath: "\(appPath)/Contents/MacOS/OttoWM")
+    // The state file goes to the staged directory too, so the run starts from no saved state
+    // and leaves the real one alone.
     ottowm.environment = ProcessInfo.processInfo.environment.merging(
-        ["XDG_CONFIG_HOME": temporaryDirectory.path]
+        ["XDG_CONFIG_HOME": temporaryDirectory.path, "XDG_STATE_HOME": temporaryDirectory.path]
     ) { _, staged in staged }
 
     guard (try? ottowm.run()) != nil else { fail("cannot launch \(ottowm.executableURL!.path)") }
