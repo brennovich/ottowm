@@ -252,7 +252,7 @@ sequenceDiagram
 sequenceDiagram
     Hotkeys->>Engine: handle(switchToWorkspace(n))
     Engine->>WindowSystem: focused()
-    Note over Engine: releases the focused window if full screen,<br/>drops the windows that left the desktop,<br/>assigns the focused window no workspace knows
+    Note over Engine: releases the focused window if full screen,<br/>assigns the focused window no workspace knows,<br/>drops the windows that left the desktop
     Engine->>WindowPlacement: switchTo(n)
     WindowPlacement->>Workspaces: switchTo(n, leavingFocusOn: focused)
     Workspaces-->>WindowPlacement: (activating, parking)

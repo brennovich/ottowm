@@ -46,6 +46,22 @@ final class EngineTabGroupTests: EngineTestCase {
         XCTAssertEqual(tab1.focusCount, 0)
     }
 
+    /// An application lists only the tab in front, so a tab brought to the front is found
+    /// at the switch. It joins the group before the windows that left the desktop are
+    /// dropped, and the tab it hid is not one of them.
+    func testATabBroughtToTheFrontKeepsTheTabItHidManaged() {
+        let tab1 = create(StubWindow(id: 300, appName: "Terminal", frame: tabFrame, tabCount: 2))
+        moveFocusedWindow(create(StubWindow(id: 100)), to: 3)
+        let tab2 = add(StubWindow(id: 301, appName: "Terminal", frame: tabFrame, tabCount: 2))
+        offScreenWindowIds = [300]
+        focused = tab2
+
+        engine.switchToWorkspace(2)
+
+        XCTAssertEqual(workspaces.workspace(for: tab1.id), 1)
+        XCTAssertEqual(workspaces.workspace(for: tab2.id), 1)
+    }
+
     func testDestroyedTabbedWindowDoesNotStealFocus() {
         let (tab1, _, other) = createFocusedTabPair()
 

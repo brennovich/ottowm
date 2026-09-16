@@ -164,11 +164,13 @@ final class Engine {
                 placement.releaseToFullScreen(focused.id, from: previous)
             }
 
-            placement.dropWindowsThatLeftTheDesktop()
-
+            // A tab brought to the front joins its group here, so the tab it hid is not
+            // dropped as a window that left the desktop.
             if let focused = windowSystem.focused() {
                 placement.assign(focused, to: workspaces.current)
             }
+
+            placement.dropWindowsThatLeftTheDesktop()
 
             let onDesktop = placement.isDesktopInFront
             Log.engine.info("switch requested target=\(workspace) current=\(self.workspaces.current) onDesktop=\(onDesktop)")
