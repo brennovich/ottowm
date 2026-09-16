@@ -47,7 +47,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let windowSystem = WindowSystem.system(windowEvents: windowEvents, applications: applications)
         let pager = Pager()
-        let desktop = OffscreenParkingDesktop(screens: MainScreen(), window: applications.findWindow(by:), spacing: config.spacing)
+        let desktop = parkingDesktop(spacing: config.spacing, pager: pager)
 
         let engine = Engine.system(
             desktop: desktop,
@@ -85,6 +85,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         permission.startWatchingTrust(
             lost: { [weak self] in self?.bindings?.stop() },
             regained: { [weak self] in self?.bindings?.start() }
+        )
+    }
+
+    private func parkingDesktop(spacing: CGFloat, pager: Pager) -> OffscreenParkingDesktop {
+        OffscreenParkingDesktop(
+            screens: MainScreen(),
+            window: applications.findWindow(by:),
+            spacing: spacing,
+            displayChanged: pager.place(on:)
         )
     }
 }

@@ -34,4 +34,10 @@ final class MainScreenTests: XCTestCase {
             XCTAssertEqual(result, testCase.expected, testCase.name)
         }
     }
+
+    func testBottomLeftFrameFromTopLeft() {
+        let topLeft = CGRect(x: 1440, y: -180, width: 1920, height: 1080)
+
+        XCTAssertEqual(topLeft.flippedToBottomLeft(primaryHeight: 900), CGRect(x: 1440, y: 0, width: 1920, height: 1080))
+    }
 }

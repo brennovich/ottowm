@@ -9,6 +9,7 @@ final class Pager {
         defer: false
     )
     private let tab = NSHostingView(rootView: PagerView(workspace: 1))
+    private let corners = ScreenCorners()
 
     var isShown = false {
         didSet {
@@ -19,6 +20,7 @@ final class Pager {
             } else {
                 panel.orderOut(nil)
             }
+            corners.isShown = isShown
         }
     }
 
@@ -35,21 +37,18 @@ final class Pager {
         // Without `.canJoinAllSpaces` the panel stays on the native Space it is shown on.
         panel.collectionBehavior = [.stationary, .ignoresCycle]
         panel.contentView = tab
-
-        place()
-        _ = NotificationCenter.default.addObserver(
-            forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
-        ) { [weak self] _ in self?.place() }
     }
 
     func show(workspace: Int) {
         tab.rootView = PagerView(workspace: workspace)
     }
 
-    /// The same screen `MainScreen` reports to the desktop.
-    private func place() {
-        guard let screen = NSScreen.main ?? NSScreen.screens.first else { return }
+    /// `display` is the one the desktop parks windows on.
+    func place(on display: Display) {
+        let primaryHeight = NSScreen.screens.first?.frame.height ?? display.fullFrame.height
+        let screenFrame = display.fullFrame.flippedToBottomLeft(primaryHeight: primaryHeight)
 
-        panel.setFrame(PagerTab.frame(in: screen.frame), display: true)
+        panel.setFrame(PagerTab.frame(in: screenFrame), display: true)
+        corners.place(in: screenFrame)
     }
 }

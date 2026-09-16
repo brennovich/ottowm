@@ -119,6 +119,7 @@ flowchart LR
 | `AccessibilityAlert`          | UI        | The accessibility permission alerts: what they say and how they show.                   |
 | `ConfigAlert`                 | UI        | The config error alert UI.                                                              |
 | `Pager`                       | UI        | The tab in the bottom right corner: the current workspace, over the parked windows.     |
+| `ScreenCorners`               | UI        | The rounded masks on the other three screen corners, shown and placed with the pager.   |
 
 ### Input
 
@@ -175,6 +176,7 @@ flowchart TB
     RunningApplicationsObserver -->|WindowEvent| Engine
     Desktop --> MainScreen
     Desktop --> HiddenEdge
+    Desktop -->|displayChanged| Pager
     Desktop --> Applications
     WindowSystem -->|adoptFocusedWindow| AXWindowEvents
     WindowSystem -->|findWindow| Applications
@@ -269,6 +271,8 @@ A window the desktop reports gone is no longer managed.
 ### Pager
 
 `Workspaces` reports each switch to the `Pager`, which shows the number. The pager is a panel of OttoWM's own, in the bottom right corner of the full frame, where the parked windows sit. It is above every window and below menus, and clicks pass through it.
+
+The `Desktop` reports its display when it starts watching and on each display change, and the pager moves there with its `ScreenCorners`: black masks on the top left, top right and bottom left corners, 9pt before macOS 26 and 16pt from it. They are above menus, like the Hammerspoon RoundedCorners spoon.
 
 ### Move window to workspace
 

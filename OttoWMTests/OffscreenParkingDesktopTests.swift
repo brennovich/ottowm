@@ -14,11 +14,13 @@ final class OffscreenParkingDesktopTests: XCTestCase {
     private lazy var windows = [win.id: win]
 
     private let parkedWindows = ParkedWindows()
+    private var reportedDisplays: [Display] = []
 
     private lazy var desktop = OffscreenParkingDesktop(
         screens: screens,
         window: { [weak self] id in self?.windows[id] },
         spacing: 15,
+        displayChanged: { [weak self] in self?.reportedDisplays.append($0) },
         notificationCenter: center,
         screenNotificationCenter: center
     )
@@ -375,6 +377,16 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         center.postScreenParametersChange()
 
         XCTAssertEqual(events, [.screenParametersChange])
+    }
+
+    func testTheDisplayIsReportedWhenWatchingStartsAndWhenItChanges() {
+        desktop.startWatching { _ in }
+
+        screens.main = .external
+        center.postScreenParametersChange()
+        center.postScreenParametersChange()
+
+        XCTAssertEqual(reportedDisplays, [.standard, .external])
     }
 
     func testAScreenParametersChangeWithNoDisplayKeepsTheLastOne() {

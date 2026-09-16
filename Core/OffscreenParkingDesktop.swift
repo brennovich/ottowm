@@ -12,6 +12,7 @@ final class OffscreenParkingDesktop: Desktop {
     private let screens: any Screens
     var spacing: CGFloat
     private let window: (CGWindowID) -> (any Window)?
+    private let displayChanged: (Display) -> Void
     private let notificationCenter: NotificationCenter
     private let screenNotificationCenter: NotificationCenter
 
@@ -23,6 +24,7 @@ final class OffscreenParkingDesktop: Desktop {
         screens: any Screens,
         window: @escaping (CGWindowID) -> (any Window)?,
         spacing: CGFloat,
+        displayChanged: @escaping (Display) -> Void = { _ in },
         notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
         screenNotificationCenter: NotificationCenter = .default
     ) {
@@ -31,6 +33,7 @@ final class OffscreenParkingDesktop: Desktop {
         display = screens.main ?? .unknown
         hiddenEdge = HiddenEdge(display: display)
         self.window = window
+        self.displayChanged = displayChanged
         self.notificationCenter = notificationCenter
         self.screenNotificationCenter = screenNotificationCenter
     }
@@ -90,6 +93,7 @@ final class OffscreenParkingDesktop: Desktop {
                 forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: nil
             ) { [weak self] _ in self?.screenParametersChanged(handler) }),
         ]
+        displayChanged(display)
     }
 
     func repark(_ windows: [ParkedWindow]) {
@@ -222,6 +226,7 @@ final class OffscreenParkingDesktop: Desktop {
         display = entered
         hiddenEdge = HiddenEdge(display: entered)
         Log.desktop.info("display changed from \(left.logDescription) to \(entered.logDescription)")
+        displayChanged(entered)
         handler(.displayChange(DisplayChange(from: left, to: entered)))
     }
 

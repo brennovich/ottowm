@@ -10,6 +10,10 @@ extension CGRect {
             height: height
         )
     }
+
+    func flippedToBottomLeft(primaryHeight: CGFloat) -> CGRect {
+        flippedToTopLeft(primaryHeight: primaryHeight)
+    }
 }
 
 struct MainScreen: Screens {

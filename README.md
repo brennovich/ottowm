@@ -98,7 +98,7 @@ Workspaces are created on demand:
 | quit                              | Quit OttoWM, putting every parked window back                                                    |
 | restart                           | Read the config file again and rebind the keys                                                   |
 
-`pager = off` hides the tab in the bottom right corner that shows the current workspace and covers the windows parked there. It is on by default, and `restart` applies a change.
+`pager = off` hides the tab in the bottom right corner that shows the current workspace and covers the windows parked there, and the rounded masks on the other three screen corners. It is on by default, and `restart` applies a change.
 
 `spacing = N` is the number of points kept between a maximized window and the screen edges and between two tiled windows, and the amount `move-window` and `resize` change a window by. It defaults to 15, takes a whole number from 1, and `restart` applies a change.
 
