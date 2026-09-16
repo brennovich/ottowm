@@ -127,8 +127,8 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(win.positionSetCount, 0)
     }
 
-    func testFillTakesTheHalfOfTheFrameAMaximizeFills() {
-        XCTAssertEqual(reframe(100, .fill(.west, restoring: nil)), [.filled(100, from: originalFrame)])
+    func testTileTakesTheHalfOfTheFrameAMaximizeFills() {
+        XCTAssertEqual(reframe(100, .tile(.west, restoring: nil)), [.filled(100, from: originalFrame)])
         XCTAssertEqual(win.frame, CGRect(x: 15, y: 53, width: 873.5, height: 1052))
     }
 

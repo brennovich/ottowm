@@ -29,14 +29,14 @@ func visibleFrame() -> CGRect {
     )
 }
 
-// Where toggle-maximize takes a window.
+// Where maximize takes a window.
 func maximizedFrame() -> CGRect {
     visibleFrame().insetBy(dx: fillInset, dy: fillInset)
 }
 
-// Where `fill <direction>` takes a window. The two halves of an axis leave the gap between
+// Where `tile <direction>` takes a window. The two halves of an axis leave the gap between
 // them, so two windows, one in each half, cover exactly the maximized frame.
-func filledFrame(_ direction: Direction) -> CGRect {
+func tiledFrame(_ direction: Direction) -> CGRect {
     let bounds = maximizedFrame()
     let isVertical = direction == .north || direction == .south
     let width = isVertical ? bounds.width : (bounds.width - fillInset) / 2

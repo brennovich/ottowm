@@ -7,7 +7,7 @@ enum FrameChange: Equatable {
     case park(from: CGRect?)
     case unpark(CGRect?)
     case maximize(restoring: CGRect?)
-    case fill(Direction, restoring: CGRect?)
+    case tile(Direction, restoring: CGRect?)
 
     var logDescription: String {
         switch self {
@@ -17,7 +17,7 @@ enum FrameChange: Equatable {
         case .park: "park"
         case .unpark: "unpark"
         case let .maximize(restoring): "maximize\(Self.suffix(restoring))"
-        case let .fill(direction, restoring): "fill \(direction.rawValue)\(Self.suffix(restoring))"
+        case let .tile(direction, restoring): "tile \(direction.rawValue)\(Self.suffix(restoring))"
         }
     }
 

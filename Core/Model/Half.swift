@@ -1,6 +1,6 @@
 import CoreGraphics
 
-/// The half of `bounds` on the side `direction` names, which is where a fill sends a window:
+/// The half of `bounds` on the side `direction` names, which is where a tile sends a window:
 /// north and south split the height and keep the full width, east and west split the width.
 /// The two halves stay `gap` apart, each giving up half of it.
 struct Half {

@@ -65,30 +65,30 @@ session.expect("the \(movable.name) window shrank \(Int(moveWindowStep))pt narro
     $0.stands(at: CGRect(origin: start.origin, size: CGSize(width: start.width - moveWindowStep, height: start.height)))
 }
 
-// A fill and a maximize both put the window back on the second press, and the frame they
-// put it back to is the one it was standing at when the first press filled it.
+// A tile and a maximize both put the window back on the second press, and the frame they
+// put it back to is the one it was standing at before the first press.
 for direction in [Direction.west, .east] {
     movable.putBack()
     report("posting lopt-ctrl-\(direction == .west ? "h" : "l")")
-    fillHalf(direction)
-    session.expect("the \(movable.name) window filled the \(direction.rawValue) half", [movable]) {
-        $0.stands(at: filledFrame(direction), sizedWithin: refitTolerance)
+    tileHalf(direction)
+    session.expect("the \(movable.name) window tiled to the \(direction.rawValue) half", [movable]) {
+        $0.stands(at: tiledFrame(direction), sizedWithin: refitTolerance)
     }
 
     report("posting lopt-ctrl-\(direction == .west ? "h" : "l") again")
-    fillHalf(direction)
-    session.expect("the \(movable.name) window went back to where it filled from", [movable]) { $0.isAsItWas }
+    tileHalf(direction)
+    session.expect("the \(movable.name) window went back to where it was tiled from", [movable]) { $0.isAsItWas }
 }
 
 movable.putBack()
 report("posting lopt-ctrl-m")
-toggleMaximize()
+maximize()
 session.expect("the \(movable.name) window maximized", [movable]) {
     $0.stands(at: maximizedFrame(), sizedWithin: refitTolerance)
 }
 
 report("posting lopt-ctrl-m again")
-toggleMaximize()
+maximize()
 session.expect("the \(movable.name) window went back to where it maximized from", [movable]) { $0.isAsItWas }
 
 // The workspace scenes below read the frame every window started at, which the actions
@@ -100,7 +100,7 @@ movable.putBack()
 // front puts the window back rather than filling a screen it already fills.
 report("posting lopt-ctrl-m with the \(terminal.name) tab in front")
 terminal.focus()
-toggleMaximize()
+maximize()
 session.expect("the tabbed window maximized", [terminal]) {
     $0.stands(at: maximizedFrame(), sizedWithin: refitTolerance)
 }
@@ -108,7 +108,7 @@ session.expect("the tabbed window maximized", [terminal]) {
 report("bringing the \(tab.name) forward and posting lopt-ctrl-m")
 tab.bringToFront()
 tab.focus()
-toggleMaximize()
+maximize()
 session.expect("the tabbed window went back to where it maximized from", [tab]) {
     $0.stands(at: terminal.originalFrame, sizedWithin: refitTolerance)
 }

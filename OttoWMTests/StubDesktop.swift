@@ -45,7 +45,7 @@ final class StubDesktop: Desktop {
             switch request.change {
             case let .park(from: known): return .parked(request.windowId, from: known ?? win.snapshot().frame)
             case .unpark, .step, .resize, .center: return .active(request.windowId)
-            case let .maximize(restoring), let .fill(_, restoring):
+            case let .maximize(restoring), let .tile(_, restoring):
                 guard restoring == nil else { return .active(request.windowId) }
                 return .filled(request.windowId, from: win.snapshot().frame)
             }

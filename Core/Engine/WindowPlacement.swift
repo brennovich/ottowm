@@ -162,7 +162,7 @@ final class WindowPlacement {
         }
     }
 
-    /// - Parameter change: takes the frame a maximize or a fill of the window goes back to.
+    /// - Parameter change: takes the frame a maximize or a tile of the window goes back to.
     func reframe(_ win: WindowSnapshot, _ change: (_ restoring: CGRect?) -> FrameChange) {
         let requested = change(restoringFrames.restoringFrame(of: win.id))
         Log.engine.info("\(requested.logDescription) \(win.logDescription)")

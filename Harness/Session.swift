@@ -35,7 +35,7 @@ struct Subject {
     }
 
     // Whether the window is at a frame, the size included, for a scene that asserts a
-    // maximize or a fill: isWhereItWas reads the origin alone, which a window still filling
+    // maximize or a tile: isWhereItWas reads the origin alone, which a window still filling
     // the screen satisfies as well as one put back.
     //
     // The size is allowed more room than the origin because an application takes the

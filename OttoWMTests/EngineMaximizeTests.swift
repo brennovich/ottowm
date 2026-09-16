@@ -14,13 +14,13 @@ final class EngineMaximizeTests: EngineTestCase {
 
     func testATabOpenedWhileMaximizedKeepsTheFrameOnceTheOthersClose() {
         let win = focus(100)
-        engine.handle(.toggleMaximize)
+        engine.handle(.maximize)
         let tab = create(StubWindow(id: 101, frame: frame, tabCount: 2))
 
         engine.handle(.destroyed(win.id))
         focused = tab
         desktop.clearCalls()
-        engine.handle(.toggleMaximize)
+        engine.handle(.maximize)
 
         XCTAssertEqual(desktop.reframeCalls.map(\.change), [.maximize(restoring: frame)])
     }
@@ -30,14 +30,14 @@ final class EngineMaximizeTests: EngineTestCase {
     /// workspace and back does not.
     func testAWindowThatVisitedAnotherWorkspaceCanStillBePutBack() {
         let win = focus(100)
-        engine.handle(.toggleMaximize)
+        engine.handle(.maximize)
 
         moveFocusedWindow(win, to: 2)
         engine.switchToWorkspace(2)
         focused = win
         desktop.clearCalls()
 
-        engine.handle(.toggleMaximize)
+        engine.handle(.maximize)
 
         XCTAssertEqual(desktop.reframeCalls.map(\.change), [.maximize(restoring: frame)])
     }

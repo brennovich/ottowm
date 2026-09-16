@@ -93,8 +93,8 @@ Workspaces are created on demand:
 | move-window&nbsp;`D`&nbsp;`[N]`   | Move the focused window N points `D`                                                                  |
 | resize&nbsp;`C`&nbsp;`[N]`        | Resize the focused window, N points, 15 by default: `C` is `wider`, `narrower`, `taller` or `shorter` |
 | center-window                     | Center the focused window on the screen, keeping its size                                             |
-| toggle-maximize                   | Fill the screen with the focused window (toggable)                                                    |
-| fill&nbsp;`D`                     | Fill the half of the screen `D` leads to (toggable)                                                   |
+| maximize                          | Fill the screen with the focused window (toggable)                                                    |
+| tile&nbsp;`D`                     | Tile the focused window to the half of the screen `D` leads to (toggable)                             |
 | quit                              | Quit OttoWM, putting every parked window back                                                         |
 | restart                           | Read the config file again and rebind the keys                                                        |
 

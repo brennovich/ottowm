@@ -28,7 +28,7 @@ let moveWindowStep: CGFloat = 15
 let centerKeyCode: CGKeyCode = 8
 let maximizeKeyCode: CGKeyCode = 46
 
-// The h/j/k/l the bundled focus, move-window and fill bindings share in
+// The h/j/k/l the bundled focus, move-window and tile bindings share in
 // Core/Input/ottowm, told apart by the modifiers each one carries.
 enum Direction: String {
     case north, east, south, west
@@ -94,15 +94,15 @@ func resizeWindow(_ change: ResizeChange) {
     post(keyCode, leftOptionControlShift)
 }
 
-func fillHalf(_ direction: Direction) {
-    post(keyCode(for: direction, action: "fill"), leftOptionControl)
+func tileHalf(_ direction: Direction) {
+    post(keyCode(for: direction, action: "tile"), leftOptionControl)
 }
 
 func centerWindow() {
     post(centerKeyCode, leftOptionControl)
 }
 
-func toggleMaximize() {
+func maximize() {
     post(maximizeKeyCode, leftOptionControl)
 }
 

@@ -7,8 +7,8 @@ enum Action: Equatable {
     case moveWindow(Step)
     case resize(Resize)
     case centerWindow
-    case toggleMaximize
-    case fill(Direction)
+    case maximize
+    case tile(Direction)
 
     static func parse(_ text: String) -> Result<Action, ConfigError.Reason> {
         let parts = text.split(separator: " ").map(String.init)
@@ -31,7 +31,7 @@ enum Action: Equatable {
 
     private static let actionsByVerb: [String: Action] = [
         "center-window": .centerWindow,
-        "toggle-maximize": .toggleMaximize,
+        "maximize": .maximize,
     ]
 
     private static let argumentActionsByVerb: [String: (
@@ -41,7 +41,7 @@ enum Action: Equatable {
         "switch-to-workspace": (1 ... 1, { workspace($0[0]).map(Action.switchToWorkspace) }),
         "move-window-to-workspace": (1 ... 1, { workspace($0[0]).map(Action.moveWindowToWorkspace) }),
         "focus": (1 ... 1, { word($0[0], or: ConfigError.Reason.invalidDirection).map(Action.focus) }),
-        "fill": (1 ... 1, { word($0[0], or: ConfigError.Reason.invalidDirection).map(Action.fill) }),
+        "tile": (1 ... 1, { word($0[0], or: ConfigError.Reason.invalidDirection).map(Action.tile) }),
         "move-window": (1 ... 2, {
             withPoints($0, or: ConfigError.Reason.invalidDirection) { .moveWindow(Step(direction: $0, points: $1)) }
         }),

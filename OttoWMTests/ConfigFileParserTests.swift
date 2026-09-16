@@ -17,8 +17,8 @@ final class ConfigFileParserTests: XCTestCase {
         lopt-shift-h = move-window west
         lopt-shift-l = move-window east 100
         lopt-ctrl-c = center-window
-        lopt-m = toggle-maximize
-        lopt-ctrl-h = fill west
+        lopt-m = maximize
+        lopt-ctrl-h = tile west
         lopt-ctrl-shift-l = resize wider
         lopt-ctrl-shift-j = resize taller 60
         """
@@ -35,8 +35,8 @@ final class ConfigFileParserTests: XCTestCase {
                 "lopt-shift-h": .action(.moveWindow(Step(direction: .west, points: 15))),
                 "lopt-shift-l": .action(.moveWindow(Step(direction: .east, points: 100))),
                 "lopt-ctrl-c": .action(.centerWindow),
-                "lopt-m": .action(.toggleMaximize),
-                "lopt-ctrl-h": .action(.fill(.west)),
+                "lopt-m": .action(.maximize),
+                "lopt-ctrl-h": .action(.tile(.west)),
                 "lopt-ctrl-shift-l": .action(.resize(Resize(change: .wider, points: 15))),
                 "lopt-ctrl-shift-j": .action(.resize(Resize(change: .taller, points: 60))),
             ]))

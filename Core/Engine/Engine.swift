@@ -136,8 +136,8 @@ final class Engine {
         case let .resize(resize):
             reframeFocusedWindow(operation: "resize", keepingMaximized: true) { _ in .resize(resize) }
         case .centerWindow: reframeFocusedWindow(operation: "center-window") { _ in .center }
-        case .toggleMaximize: reframeFocusedWindow(operation: "toggle-maximize") { .maximize(restoring: $0) }
-        case let .fill(direction): reframeFocusedWindow(operation: "fill") { .fill(direction, restoring: $0) }
+        case .maximize: reframeFocusedWindow(operation: "maximize") { .maximize(restoring: $0) }
+        case let .tile(direction): reframeFocusedWindow(operation: "tile") { .tile(direction, restoring: $0) }
         }
     }
 

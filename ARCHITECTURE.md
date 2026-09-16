@@ -23,14 +23,14 @@ OttoWM is a headless agent that offers several workspaces on one native macOS Sp
 WindowEvent  = created(WindowSnapshot) | focused(WindowSnapshot) | destroyed(id) | minimized(id) | unminimized(WindowSnapshot)
 Binding      = action(Action) | quit | restart
 Action       = switchToWorkspace(n) | moveWindowToWorkspace(n) | focus(direction) | moveWindow(step)
-             | resize(resize) | centerWindow | toggleMaximize | fill(direction)
+             | resize(resize) | centerWindow | maximize | tile(direction)
 Direction    = north | east | south | west                       // "focus east" in the config
 Step         = (direction, points)                               // "move-window east 15" in the config
 Resize       = (change, points)                                  // "resize wider 15" in the config
 KeyCombo     = (keyCode, [ModifierKey: ModifierSide])            // "lopt-shift-1"
 FrameChange  = step(Step) | resize(Resize) | center               // what a window's frame is asked to become
              | park(frame?) | unpark(frame?) | maximize(frame?)  // carrying the frame to record, or to go back to
-             | fill(direction, frame?)
+             | tile(direction, frame?)
 FrameRequest = (windowId, change: FrameChange)                   // what the desktop is asked to do
 FrameOutcome = parked(id, from: frame) | filled(id, from: frame) | active(id) | gone(id)
 Display      = (id, fullFrame, visibleFrame)                     // top-left coordinates
@@ -90,7 +90,7 @@ flowchart LR
 | `Step`                        | Model     | One move of a window in points, and where it lands within the screen.                   |
 | `Resize`                      | Model     | One resize of a window in points from its top left corner, kept within the screen.      |
 | `Half`                        | Model     | One side of a rect, taking half of it, with the gap kept between the two halves.        |
-| `FrameChange`                 | Model     | What a frame is asked to become: step, resize, center, maximize, fill, park or unpark.   |
+| `FrameChange`                 | Model     | What a frame is asked to become: step, resize, center, maximize, tile, park or unpark.   |
 | `ParkedWindows`               | Model     | The windows parked at the hidden edge, and the frame each one was parked from.          |
 | `RestoringFrames`             | Model     | The frame each maximized or filled window restores to, shared by its tabs.              |
 | `DisplayLayouts`              | Model     | The last frame each window had on each display, kept after the display disconnects.     |
@@ -307,7 +307,7 @@ sequenceDiagram
     Engine->>Navigation: focusedWindowOfCurrentWorkspace()
     Note over Engine: nothing for a parked window
     Engine->>WindowPlacement: reframe(window, the FrameChange the action asks for)
-    WindowPlacement->>RestoringFrames: restoringFrame(of: id), for a maximize or a fill
+    WindowPlacement->>RestoringFrames: restoringFrame(of: id), for a maximize or a tile
     WindowPlacement->>Desktop: reframe(id, change)
     Desktop-->>WindowPlacement: filled from a frame, active, or gone
     WindowPlacement->>RestoringFrames: record(what came back)

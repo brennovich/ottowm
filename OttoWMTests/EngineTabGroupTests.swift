@@ -24,13 +24,13 @@ final class EngineTabGroupTests: EngineTestCase {
         let host = create(StubWindow(id: 300, appName: "Terminal", frame: stood))
         let merged = create(StubWindow(id: 301, appName: "Terminal", frame: CGRect(x: 1200, y: 0, width: 800, height: 600)))
         focused = host
-        engine.handle(.toggleMaximize)
+        engine.handle(.maximize)
 
         merged.tabs = 2
         merged.moveTo(host.frame)
         focused = merged
         desktop.clearCalls()
-        engine.handle(.toggleMaximize)
+        engine.handle(.maximize)
 
         XCTAssertEqual(desktop.reframeCalls.map(\.change), [.maximize(restoring: stood)])
     }
