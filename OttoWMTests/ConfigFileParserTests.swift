@@ -15,12 +15,10 @@ final class ConfigFileParserTests: XCTestCase {
         lopt-r = restart
         lopt-h = focus west
         lopt-shift-h = move-window west
-        lopt-shift-l = move-window east 100
         lopt-ctrl-c = center-window
         lopt-m = maximize
         lopt-ctrl-h = tile west
         lopt-ctrl-shift-l = resize wider
-        lopt-ctrl-shift-j = resize taller 60
         """
 
         XCTAssertEqual(
@@ -32,13 +30,11 @@ final class ConfigFileParserTests: XCTestCase {
                 "lopt-q": .quit,
                 "lopt-r": .restart,
                 "lopt-h": .action(.focus(.west)),
-                "lopt-shift-h": .action(.moveWindow(Step(direction: .west, points: 15))),
-                "lopt-shift-l": .action(.moveWindow(Step(direction: .east, points: 100))),
+                "lopt-shift-h": .action(.moveWindow(.west)),
                 "lopt-ctrl-c": .action(.centerWindow),
                 "lopt-m": .action(.maximize),
                 "lopt-ctrl-h": .action(.tile(.west)),
-                "lopt-ctrl-shift-l": .action(.resize(Resize(change: .wider, points: 15))),
-                "lopt-ctrl-shift-j": .action(.resize(Resize(change: .taller, points: 60))),
+                "lopt-ctrl-shift-l": .action(.resize(.wider)),
             ]))
         )
     }
@@ -58,6 +54,18 @@ final class ConfigFileParserTests: XCTestCase {
 
         for testCase in cases {
             XCTAssertEqual(try ConfigFileParser.parse(testCase.text).get().showsPager, testCase.showsPager, testCase.name)
+        }
+    }
+
+    func testParsesTheSpacingSetting() throws {
+        let cases: [(name: String, text: String, spacing: CGFloat)] = [
+            ("15 without a spacing line", "lopt-q = quit", 15),
+            ("set by spacing = 30", "spacing = 30", 30),
+            ("the last spacing line wins", "spacing = 30\nspacing = 40", 40),
+        ]
+
+        for testCase in cases {
+            XCTAssertEqual(try ConfigFileParser.parse(testCase.text).get().spacing, testCase.spacing, testCase.name)
         }
     }
 
@@ -87,6 +95,16 @@ final class ConfigFileParserTests: XCTestCase {
                 "a pager setting that is neither on nor off",
                 "lopt-q = quit\npager = maybe",
                 ConfigError(line: 2, reason: .invalidPager("maybe"))
+            ),
+            (
+                "a spacing that is not a number",
+                "spacing = abc",
+                ConfigError(line: 1, reason: .invalidSpacing("abc"))
+            ),
+            (
+                "a spacing below one point",
+                "spacing = 0",
+                ConfigError(line: 1, reason: .invalidSpacing("0"))
             ),
         ])
     }
@@ -123,40 +141,30 @@ final class ConfigFileParserTests: XCTestCase {
                 "lalt-1 = focus sideways",
                 ConfigError(line: 1, reason: .invalidDirection("sideways"))
             ),
-        ])
-    }
-
-    func testStepActionErrors() {
-        assertErrors([
             (
-                "an action that takes a direction and a step, given a third argument",
-                "lalt-1 = move-window east 15 fast",
-                ConfigError(line: 1, reason: .malformedAction("move-window east 15 fast"))
-            ),
-            (
-                "a step action with an invalid direction",
+                "a move with an invalid direction",
                 "lalt-1 = move-window sideways",
                 ConfigError(line: 1, reason: .invalidDirection("sideways"))
-            ),
-            (
-                "a step action with a step that is not a number",
-                "lalt-1 = move-window east abc",
-                ConfigError(line: 1, reason: .invalidStep("abc"))
-            ),
-            (
-                "a step action with a step below one point",
-                "lalt-1 = move-window east 0",
-                ConfigError(line: 1, reason: .invalidStep("0"))
             ),
             (
                 "a resize with an unknown change",
                 "lalt-1 = resize sideways",
                 ConfigError(line: 1, reason: .invalidResize("sideways"))
             ),
+        ])
+    }
+
+    func testMoveAndResizeTakeNoAmount() {
+        assertErrors([
             (
-                "a resize with a step that is not a number",
-                "lalt-1 = resize wider abc",
-                ConfigError(line: 1, reason: .invalidStep("abc"))
+                "a move given an amount",
+                "lalt-1 = move-window east 15",
+                ConfigError(line: 1, reason: .malformedAction("move-window east 15"))
+            ),
+            (
+                "a resize given an amount",
+                "lalt-1 = resize wider 15",
+                ConfigError(line: 1, reason: .malformedAction("resize wider 15"))
             ),
         ])
     }

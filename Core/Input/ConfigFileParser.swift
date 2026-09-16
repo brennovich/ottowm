@@ -1,7 +1,9 @@
 import Foundation
 
 enum ConfigFileParser {
-    private typealias Settings = (bindings: [KeyCombo: Binding], showsPager: Bool)
+    private typealias Settings = (bindings: [KeyCombo: Binding], showsPager: Bool, spacing: CGFloat)
+
+    private static let defaults: Settings = (bindings: [:], showsPager: true, spacing: Config.defaultSpacing)
 
     static func parse(_ text: String) -> Result<Config, ConfigError> {
         text
@@ -9,7 +11,7 @@ enum ConfigFileParser {
             .enumerated()
             .map { (number: $0.offset + 1, text: $0.element.prefix { $0 != "#" }.trimmed) }
             .filter { !$0.text.isEmpty }
-            .reduce(.success((bindings: [:], showsPager: true))) { (acc: Result<Settings, ConfigError>, line) in
+            .reduce(.success(defaults)) { (acc: Result<Settings, ConfigError>, line) in
                 acc.flatMap { settings in
                     guard let separator = line.text.range(of: "="),
                           case let key = line.text[..<separator.lowerBound].trimmed, !key.isEmpty
@@ -19,19 +21,29 @@ enum ConfigFileParser {
                         .mapError { ConfigError(line: line.number, reason: $0) }
                 }
             }
-            .map { Config($0.bindings, showsPager: $0.showsPager) }
+            .map { Config($0.bindings, showsPager: $0.showsPager, spacing: $0.spacing) }
     }
 
     private static func parse(_ key: String, _ value: String, into settings: Settings) -> Result<Settings, ConfigError.Reason> {
-        guard key == "pager" else {
+        var settings = settings
+
+        switch key {
+        case "pager":
+            guard value == "on" || value == "off" else { return .failure(.invalidPager(value)) }
+            settings.showsPager = value == "on"
+        case "spacing":
+            guard let spacing = Int(value), spacing >= 1 else { return .failure(.invalidSpacing(value)) }
+            settings.spacing = CGFloat(spacing)
+        default:
             return KeyCombo.parse(key)
                 .flatMap { combo in Binding.parse(value).map { [combo: $0] } }
-                .map { (bindings: settings.bindings.merging($0, uniquingKeysWith: { _, new in new }), showsPager: settings.showsPager) }
+                .map { bindings in
+                    settings.bindings.merge(bindings, uniquingKeysWith: { _, new in new })
+                    return settings
+                }
         }
 
-        guard value == "on" || value == "off" else { return .failure(.invalidPager(value)) }
-
-        return .success((bindings: settings.bindings, showsPager: value == "on"))
+        return .success(settings)
     }
 }
 

@@ -131,10 +131,10 @@ final class Engine {
         case let .switchToWorkspace(workspace): switchToWorkspace(workspace)
         case let .moveWindowToWorkspace(workspace): moveFocusedWindow(toWorkspace: workspace)
         case let .focus(direction): focusWindow(direction)
-        case let .moveWindow(step):
-            reframeFocusedWindow(operation: "move-window", keepingMaximized: true) { _ in .step(step) }
-        case let .resize(resize):
-            reframeFocusedWindow(operation: "resize", keepingMaximized: true) { _ in .resize(resize) }
+        case let .moveWindow(direction):
+            reframeFocusedWindow(operation: "move-window", keepingMaximized: true) { _ in .move(direction) }
+        case let .resize(change):
+            reframeFocusedWindow(operation: "resize", keepingMaximized: true) { _ in .resize(change) }
         case .centerWindow: reframeFocusedWindow(operation: "center-window") { _ in .center }
         case .maximize: reframeFocusedWindow(operation: "maximize") { .maximize(restoring: $0) }
         case let .tile(direction): reframeFocusedWindow(operation: "tile") { .tile(direction, restoring: $0) }

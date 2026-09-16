@@ -1,8 +1,8 @@
 import CoreGraphics
 
 enum FrameChange: Equatable {
-    case step(Step)
-    case resize(Resize)
+    case move(Direction)
+    case resize(Resize.Change)
     case center
     case park(from: CGRect?)
     case unpark(CGRect?)
@@ -11,8 +11,8 @@ enum FrameChange: Equatable {
 
     var logDescription: String {
         switch self {
-        case let .step(step): "move \(step.direction.rawValue) by \(step.points)"
-        case let .resize(resize): "resize \(resize.change.rawValue) by \(resize.points)"
+        case let .move(direction): "move \(direction.rawValue)"
+        case let .resize(change): "resize \(change.rawValue)"
         case .center: "center"
         case .park: "park"
         case .unpark: "unpark"

@@ -72,7 +72,7 @@ mkdir -p ~/.config/ottowm
 cp /Applications/OttoWM.app/Contents/Resources/ottowm ~/.config/ottowm/
 ```
 
-One `key combo = action` per line. Blank lines and anything after a `#` are skipped; there is no quoting and no sections:
+One `key combo = action` or `setting = value` per line. Blank lines and anything after a `#` are skipped; there is no quoting and no sections:
 
 ```
 lopt-1 = switch-to-workspace 1
@@ -85,20 +85,22 @@ hyper-5 = switch-to-workspace 5
 
 Workspaces are created on demand:
 
-| Action                            | Effect                                                                                                |
-|-----------------------------------|-------------------------------------------------------------------------------------------------------|
-| switch-to-workspace&nbsp;`N`      | Switch to workspace N                                                                                 |
-| move-window-to-workspace&nbsp;`N` | Move the focused window to workspace N                                                                |
-| focus&nbsp;`D`                    | Focus the window `D` leads to: `north`, `east`, `south` or `west`                                     |
-| move-window&nbsp;`D`&nbsp;`[N]`   | Move the focused window N points `D`                                                                  |
-| resize&nbsp;`C`&nbsp;`[N]`        | Resize the focused window, N points, 15 by default: `C` is `wider`, `narrower`, `taller` or `shorter` |
-| center-window                     | Center the focused window on the screen, keeping its size                                             |
-| maximize                          | Fill the screen with the focused window (toggable)                                                    |
-| tile&nbsp;`D`                     | Tile the focused window to the half of the screen `D` leads to (toggable)                             |
-| quit                              | Quit OttoWM, putting every parked window back                                                         |
-| restart                           | Read the config file again and rebind the keys                                                        |
+| Action                            | Effect                                                                                           |
+|-----------------------------------|--------------------------------------------------------------------------------------------------|
+| switch-to-workspace&nbsp;`N`      | Switch to workspace N                                                                            |
+| move-window-to-workspace&nbsp;`N` | Move the focused window to workspace N                                                           |
+| focus&nbsp;`D`                    | Focus the window `D` leads to: `north`, `east`, `south` or `west`                                |
+| move-window&nbsp;`D`              | Move the focused window `D` by the spacing                                                       |
+| resize&nbsp;`C`                   | Resize the focused window by the spacing: `C` is `wider`, `narrower`, `taller` or `shorter`      |
+| center-window                     | Center the focused window on the screen, keeping its size                                        |
+| maximize                          | Fill the screen with the focused window (toggable)                                               |
+| tile&nbsp;`D`                     | Tile the focused window to the half of the screen `D` leads to (toggable)                        |
+| quit                              | Quit OttoWM, putting every parked window back                                                    |
+| restart                           | Read the config file again and rebind the keys                                                   |
 
 `pager = off` hides the tab in the bottom right corner that shows the current workspace and covers the windows parked there. It is on by default, and `restart` applies a change.
+
+`spacing = N` is the number of points kept between a maximized window and the screen edges and between two tiled windows, and the amount `move-window` and `resize` change a window by. It defaults to 15, takes a whole number from 1, and `restart` applies a change.
 
 The `restart` action reloads the config without a relaunch: the windows stay where they are. A file that does not parse leaves the bindings already up in place. Errors show up in the log:
 

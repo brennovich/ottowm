@@ -47,12 +47,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let windowSystem = WindowSystem.system(windowEvents: windowEvents, applications: applications)
         let pager = Pager()
+        let desktop = OffscreenParkingDesktop(screens: MainScreen(), window: applications.findWindow(by:), spacing: config.spacing)
 
         let engine = Engine.system(
-            desktop: OffscreenParkingDesktop(
-                screens: MainScreen(),
-                window: applications.findWindow(by:)
-            ),
+            desktop: desktop,
             windowSystem: windowSystem,
             workspaces: Workspaces(
                 tabGroups: TabGroups(tabCount: windowSystem.tabCount(of:), frame: windowSystem.frame(of:)),
@@ -66,7 +64,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let bindings = Bindings.system(
             config: config,
-            reloaded: { pager.isShown = $0.showsPager },
+            reloaded: {
+                pager.isShown = $0.showsPager
+                desktop.spacing = $0.spacing
+            },
             handler: { [lifecycle] binding in
                 switch binding {
                 case let .action(action): engine.handle(action)

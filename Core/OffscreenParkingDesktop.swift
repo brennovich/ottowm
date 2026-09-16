@@ -10,7 +10,7 @@ final class OffscreenParkingDesktop: Desktop {
     private static let filledTolerance: CGFloat = 30
 
     private let screens: any Screens
-    private let inset: CGFloat
+    var spacing: CGFloat
     private let window: (CGWindowID) -> (any Window)?
     private let notificationCenter: NotificationCenter
     private let screenNotificationCenter: NotificationCenter
@@ -22,12 +22,12 @@ final class OffscreenParkingDesktop: Desktop {
     init(
         screens: any Screens,
         window: @escaping (CGWindowID) -> (any Window)?,
-        inset: CGFloat = 15,
+        spacing: CGFloat,
         notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
         screenNotificationCenter: NotificationCenter = .default
     ) {
         self.screens = screens
-        self.inset = inset
+        self.spacing = spacing
         display = screens.main ?? .unknown
         hiddenEdge = HiddenEdge(display: display)
         self.window = window
@@ -112,7 +112,7 @@ final class OffscreenParkingDesktop: Desktop {
             switch request.change {
             case let .unpark(parkedFrom?), let .park(from: parkedFrom?): return .parked(request.windowId, from: parkedFrom)
             case let .maximize(restoring?), let .tile(_, restoring?): return .filled(request.windowId, from: restoring)
-            case .step, .resize, .center, .park, .unpark, .maximize, .tile: return .active(request.windowId)
+            case .move, .resize, .center, .park, .unpark, .maximize, .tile: return .active(request.windowId)
             }
         }
 
@@ -133,16 +133,18 @@ final class OffscreenParkingDesktop: Desktop {
             return (hiddenEdge.frame(parking: onScreen), .parked(windowId, from: onScreen))
         case let .unpark(parkedFrom):
             return (onScreenFrame(for: windowId, replacing: parkedFrom ?? current), .active(windowId))
-        case let .step(step):
+        case let .move(direction):
+            let step = Step(direction: direction, points: spacing)
             return (step.frame(moving: current, within: display.visibleFrame), .active(windowId))
-        case let .resize(resize):
+        case let .resize(change):
+            let resize = Resize(change: change, points: spacing)
             return (resize.frame(resizing: current, within: display.visibleFrame), .active(windowId))
         case .center:
             return (centered(current.size), .active(windowId))
         case let .maximize(restoring):
             return destination(current, filling: filled, restoring: restoring, of: windowId)
         case let .tile(direction, restoring):
-            let half = Half(direction: direction).frame(within: filled, gap: inset)
+            let half = Half(direction: direction).frame(within: filled, gap: spacing)
             return destination(current, filling: half, restoring: restoring, of: windowId)
         }
     }
@@ -165,7 +167,7 @@ final class OffscreenParkingDesktop: Desktop {
     }
 
     private var filled: CGRect {
-        display.visibleFrame.insetBy(dx: inset, dy: inset)
+        display.visibleFrame.insetBy(dx: spacing, dy: spacing)
     }
 
     /// Whether the window covers the target, within a tolerance.

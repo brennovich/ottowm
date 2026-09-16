@@ -18,6 +18,7 @@ final class OffscreenParkingDesktopTests: XCTestCase {
     private lazy var desktop = OffscreenParkingDesktop(
         screens: screens,
         window: { [weak self] id in self?.windows[id] },
+        spacing: 15,
         notificationCenter: center,
         screenNotificationCenter: center
     )
@@ -48,29 +49,37 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         return outcomes
     }
 
-    func testStepMovesTheWindowWithoutAnimating() {
-        reframe(100, .step(Step(direction: .east, points: 15)))
+    func testMoveShiftsTheWindowByTheSpacingWithoutAnimating() {
+        desktop.spacing = 30
 
-        XCTAssertEqual(win.frame, originalFrame.offsetBy(dx: 15, dy: 0))
+        reframe(100, .move(.east))
+
+        XCTAssertEqual(win.frame, originalFrame.offsetBy(dx: 30, dy: 0))
         XCTAssertEqual(win.animatedWriteCount, 0)
     }
 
-    func testStepStopsAtTheVisibleFrame() {
-        reframe(100, .step(Step(direction: .north, points: 500)))
+    func testMoveStopsAtTheVisibleFrame() {
+        desktop.spacing = 500
+
+        reframe(100, .move(.north))
 
         XCTAssertEqual(win.frame.minY, Display.standard.visibleFrame.minY)
     }
 
-    func testResizeChangesTheSizeFromTheTopLeftWithoutAnimating() {
-        reframe(100, .resize(Resize(change: .wider, points: 15)))
+    func testResizeChangesTheSizeByTheSpacingFromTheTopLeftWithoutAnimating() {
+        desktop.spacing = 30
 
-        XCTAssertEqual(win.frame, CGRect(x: 100, y: 100, width: 815, height: 600))
+        reframe(100, .resize(.wider))
+
+        XCTAssertEqual(win.frame, CGRect(x: 100, y: 100, width: 830, height: 600))
         XCTAssertEqual(win.positionSetCount, 0)
         XCTAssertEqual(win.animatedWriteCount, 0)
     }
 
     func testResizeStopsAtTheVisibleFrame() {
-        reframe(100, .resize(Resize(change: .taller, points: 5000)))
+        desktop.spacing = 5000
+
+        reframe(100, .resize(.taller))
 
         XCTAssertEqual(win.frame.maxY, Display.standard.visibleFrame.maxY)
     }
@@ -89,9 +98,11 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(oversized.frame, CGRect(x: -104, y: -21, width: 2000, height: 1200))
     }
 
-    func testMaximizeFillsTheVisibleFrameInsetOnEveryEdge() {
+    func testMaximizeFillsTheVisibleFrameInsetByTheSpacingOnEveryEdge() {
+        desktop.spacing = 30
+
         XCTAssertEqual(reframe(100, .maximize(restoring: nil)), [.filled(100, from: originalFrame)])
-        XCTAssertEqual(win.frame, CGRect(x: 15, y: 53, width: 1762, height: 1052))
+        XCTAssertEqual(win.frame, CGRect(x: 30, y: 68, width: 1732, height: 1022))
         XCTAssertEqual(win.animatedWriteCount, 0)
     }
 
@@ -127,9 +138,11 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(win.positionSetCount, 0)
     }
 
-    func testTileTakesTheHalfOfTheFrameAMaximizeFills() {
+    func testTileTakesTheHalfOfTheFrameAMaximizeFillsKeepingTheSpacingAsTheGap() {
+        desktop.spacing = 30
+
         XCTAssertEqual(reframe(100, .tile(.west, restoring: nil)), [.filled(100, from: originalFrame)])
-        XCTAssertEqual(win.frame, CGRect(x: 15, y: 53, width: 873.5, height: 1052))
+        XCTAssertEqual(win.frame, CGRect(x: 30, y: 68, width: 851, height: 1022))
     }
 
     /// One record serves every target, so a window in one half still fills the screen
@@ -145,13 +158,13 @@ final class OffscreenParkingDesktopTests: XCTestCase {
     }
 
     func testReportsAWindowThatNoLongerExists() {
-        XCTAssertEqual(reframe(999, .step(Step(direction: .east, points: 15))), [.gone(999)])
+        XCTAssertEqual(reframe(999, .move(.east)), [.gone(999)])
     }
 
-    func testStepLeavesAMinimizedWindowAlone() {
+    func testMoveLeavesAMinimizedWindowAlone() {
         win.isMinimized = true
 
-        XCTAssertEqual(reframe(100, .step(Step(direction: .east, points: 15))), [.active(100)])
+        XCTAssertEqual(reframe(100, .move(.east)), [.active(100)])
 
         XCTAssertEqual(win.frame, originalFrame)
     }

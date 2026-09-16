@@ -35,13 +35,11 @@ final class EngineLifecycleTests: EngineTestCase {
         XCTAssertEqual(neighbor.focusCount, 1)
 
         desktop.clearCalls()
-        let step = Step(direction: .south, points: 40)
-        let resize = Resize(change: .wider, points: 40)
-        engine.handle(.moveWindow(step))
-        engine.handle(.resize(resize))
+        engine.handle(.moveWindow(.south))
+        engine.handle(.resize(.wider))
         engine.handle(.centerWindow)
 
-        XCTAssertEqual(desktop.reframeCalls.map(\.change), [.step(step), .resize(resize), .center])
+        XCTAssertEqual(desktop.reframeCalls.map(\.change), [.move(.south), .resize(.wider), .center])
 
         engine.handle(.moveWindowToWorkspace(2))
 

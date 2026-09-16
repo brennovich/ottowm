@@ -23,6 +23,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
     private lazy var desktop: OffscreenParkingDesktop = OffscreenParkingDesktop(
         screens: screens,
         window: { [weak self] in self?.windows[$0] },
+        spacing: 15,
         notificationCenter: center,
         screenNotificationCenter: center
     )

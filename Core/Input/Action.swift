@@ -1,11 +1,9 @@
-import CoreGraphics
-
 enum Action: Equatable {
     case switchToWorkspace(Int)
     case moveWindowToWorkspace(Int)
     case focus(Direction)
-    case moveWindow(Step)
-    case resize(Resize)
+    case moveWindow(Direction)
+    case resize(Resize.Change)
     case centerWindow
     case maximize
     case tile(Direction)
@@ -27,8 +25,6 @@ enum Action: Equatable {
         return action.parse(arguments)
     }
 
-    private static let defaultStep: CGFloat = 15
-
     private static let actionsByVerb: [String: Action] = [
         "center-window": .centerWindow,
         "maximize": .maximize,
@@ -42,24 +38,9 @@ enum Action: Equatable {
         "move-window-to-workspace": (1 ... 1, { workspace($0[0]).map(Action.moveWindowToWorkspace) }),
         "focus": (1 ... 1, { word($0[0], or: ConfigError.Reason.invalidDirection).map(Action.focus) }),
         "tile": (1 ... 1, { word($0[0], or: ConfigError.Reason.invalidDirection).map(Action.tile) }),
-        "move-window": (1 ... 2, {
-            withPoints($0, or: ConfigError.Reason.invalidDirection) { .moveWindow(Step(direction: $0, points: $1)) }
-        }),
-        "resize": (1 ... 2, {
-            withPoints($0, or: ConfigError.Reason.invalidResize) { .resize(Resize(change: $0, points: $1)) }
-        }),
+        "move-window": (1 ... 1, { word($0[0], or: ConfigError.Reason.invalidDirection).map(Action.moveWindow) }),
+        "resize": (1 ... 1, { word($0[0], or: ConfigError.Reason.invalidResize).map(Action.resize) }),
     ]
-
-    /// `verb WORD [N]`: a word from `Word`'s cases, then the points, 15 when left out.
-    private static func withPoints<Word: RawRepresentable>(
-        _ arguments: [String],
-        or reason: (String) -> ConfigError.Reason,
-        _ make: (Word, CGFloat) -> Action
-    ) -> Result<Action, ConfigError.Reason> where Word.RawValue == String {
-        word(arguments[0], or: reason).flatMap { word in
-            points(arguments.count == 2 ? arguments[1] : nil).map { make(word, $0) }
-        }
-    }
 
     private static func workspace(_ text: String) -> Result<Int, ConfigError.Reason> {
         guard let workspace = Int(text), workspace >= 1 else { return .failure(.invalidWorkspace(text)) }
@@ -74,12 +55,5 @@ enum Action: Equatable {
         guard let word = Word(rawValue: text) else { return .failure(reason(text)) }
 
         return .success(word)
-    }
-
-    private static func points(_ text: String?) -> Result<CGFloat, ConfigError.Reason> {
-        guard let text else { return .success(defaultStep) }
-        guard let points = Int(text), points >= 1 else { return .failure(.invalidStep(text)) }
-
-        return .success(CGFloat(points))
     }
 }

@@ -232,7 +232,7 @@ final class WindowPlacementTests: EngineTestCase {
         let win = add(StubWindow(id: 100))
         placement.assign(win.snapshot(), to: 1)
         placement.reframe(win.snapshot()) { .maximize(restoring: $0) }
-        placement.reframe(win.snapshot()) { _ in .step(Step(direction: .east, points: 15)) }
+        placement.reframe(win.snapshot()) { _ in .move(.east) }
         desktop.clearCalls()
 
         placement.reframe(win.snapshot()) { .maximize(restoring: $0) }

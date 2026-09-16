@@ -6,6 +6,11 @@
 # a badge component that shows the current workspace.
 pager = on
 
+# Points kept between a maximized window and the screen edges and between two
+# tiled windows, and the amount move-window and resize change a window by.
+# 15 when left out.
+# spacing = 15
+
 # Go to a workspace: 4 Workspaces example
 lopt-1 = switch-to-workspace 1
 lopt-2 = switch-to-workspace 2
@@ -24,13 +29,13 @@ lopt-j = focus south
 lopt-k = focus north
 lopt-l = focus east
 
-# Move the focused window a direction, 15 points by default
+# Move the focused window a direction, by the spacing
 lopt-shift-h = move-window west
 lopt-shift-j = move-window south
 lopt-shift-k = move-window north
 lopt-shift-l = move-window east
 
-# Resize the focused window from its top left corner, 15 points by default
+# Resize the focused window from its top left corner, by the spacing
 lopt-ctrl-shift-h = resize narrower
 lopt-ctrl-shift-j = resize taller
 lopt-ctrl-shift-k = resize shorter

@@ -22,13 +22,13 @@ OttoWM is a headless agent that offers several workspaces on one native macOS Sp
 ```
 WindowEvent  = created(WindowSnapshot) | focused(WindowSnapshot) | destroyed(id) | minimized(id) | unminimized(WindowSnapshot)
 Binding      = action(Action) | quit | restart
-Action       = switchToWorkspace(n) | moveWindowToWorkspace(n) | focus(direction) | moveWindow(step)
-             | resize(resize) | centerWindow | maximize | tile(direction)
+Action       = switchToWorkspace(n) | moveWindowToWorkspace(n) | focus(direction) | moveWindow(direction)
+             | resize(change) | centerWindow | maximize | tile(direction)
 Direction    = north | east | south | west                       // "focus east" in the config
-Step         = (direction, points)                               // "move-window east 15" in the config
-Resize       = (change, points)                                  // "resize wider 15" in the config
+Step         = (direction, points)                               // "move-window east" in the config, points from spacing
+Resize       = (change, points)                                  // "resize wider" in the config, points from spacing
 KeyCombo     = (keyCode, [ModifierKey: ModifierSide])            // "lopt-shift-1"
-FrameChange  = step(Step) | resize(Resize) | center               // what a window's frame is asked to become
+FrameChange  = move(direction) | resize(change) | center         // what a window's frame is asked to become
              | park(frame?) | unpark(frame?) | maximize(frame?)  // carrying the frame to record, or to go back to
              | tile(direction, frame?)
 FrameRequest = (windowId, change: FrameChange)                   // what the desktop is asked to do
@@ -73,7 +73,7 @@ flowchart LR
 | Component                     | Category  | Description                                                                             |
 |-------------------------------|-----------|-----------------------------------------------------------------------------------------|
 | `ConfigFile`                  | Input     | Reads the user's config file, or the bundled one.                                       |
-| `Config`                      | Input     | The `KeyCombo → Binding` table, indexed by key code, and whether the pager shows.       |
+| `Config`                      | Input     | The `KeyCombo → Binding` table, indexed by key code, the pager and the spacing.         |
 | `Bindings`                    | Input     | The bindings currently up: `start`, `stop`, `reload`.                                   |
 | `Hotkeys`                     | Input     | A session `CGEventTap` on keyDown, running on a thread of its own.                      |
 | `SecureInput`                 | Input     | The window server flag that withholds keystrokes from every tap while it is set.        |
@@ -87,10 +87,10 @@ flowchart LR
 | `Workspace`                   | Model     | The windows of one workspace and the order they were focused in.                        |
 | `TabGroups`                   | Model     | Infers which windows are tabs of one another. Reads tab counts and frames on demand.    |
 | `Neighbors`                   | Model     | The windows around one frame, and which of them a focus move lands on.                  |
-| `Step`                        | Model     | One move of a window in points, and where it lands within the screen.                   |
-| `Resize`                      | Model     | One resize of a window in points from its top left corner, kept within the screen.      |
+| `Step`                        | Model     | One move of a window by the spacing, and where it lands within the screen.              |
+| `Resize`                      | Model     | One resize of a window by the spacing from its top left corner, kept within the screen. |
 | `Half`                        | Model     | One side of a rect, taking half of it, with the gap kept between the two halves.        |
-| `FrameChange`                 | Model     | What a frame is asked to become: step, resize, center, maximize, tile, park or unpark.   |
+| `FrameChange`                 | Model     | What a frame is asked to become: move, resize, center, maximize, tile, park or unpark.  |
 | `ParkedWindows`               | Model     | The windows parked at the hidden edge, and the frame each one was parked from.          |
 | `OriginalFrames`              | Model     | The frame each maximized or filled window restores to, shared by its tabs.              |
 | `DisplayLayouts`              | Model     | The last frame each window had on each display, kept after the display disconnects.     |
@@ -215,6 +215,8 @@ flowchart LR
     Lifecycle --> ConfigAlert
     AppDelegate -->|isShown| Pager
     Bindings -->|reloaded Config| Pager
+    AppDelegate -->|spacing| Desktop
+    Bindings -->|reloaded Config| Desktop
 ```
 
 ## Flows
