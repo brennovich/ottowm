@@ -17,6 +17,8 @@
 
 <hr>
 
+![OttoWM preview](assets/preview.png)
+
 OttoWM fakes multiple workspaces on a **single native macOS Space**. No native Spaces, no animations, no Mission Control involved.
 
 Some important features:
