@@ -31,6 +31,16 @@ final class StateFileTests: XCTestCase {
         }
     }
 
+    func testIdentifiesTheLoginSessionByItsAuditSessionAndTheBootTime() throws {
+        let session = try XCTUnwrap(CGSessionCopyCurrentDictionary() as? [String: Any])
+        let auditSession = try XCTUnwrap(session["kCGSSessionAuditIDKey"] as? Int)
+        var bootTime = timeval()
+        var size = MemoryLayout<timeval>.size
+        XCTAssertEqual(sysctlbyname("kern.boottime", &bootTime, &size, nil, 0), 0)
+
+        XCTAssertEqual(StateFile.currentLoginSession(), "\(auditSession)-\(bootTime.tv_sec).\(bootTime.tv_usec)")
+    }
+
     func testLoadsWhatItSavedInTheCurrentLoginSession() {
         let stateFile = StateFile(environment: ["XDG_STATE_HOME": directory.path])
 

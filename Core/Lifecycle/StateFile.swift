@@ -41,7 +41,10 @@ struct StateFile {
     }
 
     func save(_ state: SavedState) {
-        guard let loginSession else { return }
+        guard let loginSession else {
+            Log.state.error("cannot read the login session, not writing \(url.path)")
+            return
+        }
 
         do {
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -51,8 +54,16 @@ struct StateFile {
         }
     }
 
-    /// The key is not documented. The window server draws a new UUID at every login.
-    private static func currentLoginSession() -> String? {
-        (CGSessionCopyCurrentDictionary() as? [String: Any])?["CGSSessionUniqueSessionUUID"] as? String
+    /// The kernel gives each login a new audit session id and restarts the count at boot, so the id
+    /// is paired with the boot time.
+    static func currentLoginSession() -> String? {
+        var auditInfo = auditinfo_addr_t()
+        guard getaudit_addr(&auditInfo, Int32(MemoryLayout<auditinfo_addr_t>.size)) == 0 else { return nil }
+
+        var bootTime = timeval()
+        var size = MemoryLayout<timeval>.size
+        guard sysctlbyname("kern.boottime", &bootTime, &size, nil, 0) == 0 else { return nil }
+
+        return "\(auditInfo.ai_asid)-\(bootTime.tv_sec).\(bootTime.tv_usec)"
     }
 }
