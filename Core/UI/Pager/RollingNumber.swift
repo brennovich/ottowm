@@ -20,34 +20,30 @@ final class RollingNumber {
         self.value = value
         self.duration = duration
 
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        layer.frame = CGRect(origin: .zero, size: size)
-        let lineHeight = ceil(font.ascender - font.descender + font.leading)
-        for text in [number, leavingNumber] {
-            text.frame = CGRect(x: 0, y: (size.height - lineHeight) / 2, width: size.width, height: lineHeight)
-            text.font = font
-            text.fontSize = font.pointSize
-            text.foregroundColor = color.cgColor
-            text.alignmentMode = .center
-            if blurs {
-                text.filters = [Self.blur()]
+        CATransaction.withoutActions {
+            layer.frame = CGRect(origin: .zero, size: size)
+            let lineHeight = ceil(font.ascender - font.descender + font.leading)
+            for text in [number, leavingNumber] {
+                text.frame = CGRect(x: 0, y: (size.height - lineHeight) / 2, width: size.width, height: lineHeight)
+                text.font = font
+                text.fontSize = font.pointSize
+                text.foregroundColor = color.cgColor
+                text.alignmentMode = .center
+                if blurs {
+                    text.filters = [Self.blur()]
+                }
+                // The new string is drawn when the outermost open transaction commits. If that transaction
+                // allows actions, it adds a `contents` crossfade from the old digit to the new one.
+                text.actions = ["contents": NSNull()]
+                layer.addSublayer(text)
             }
-            // The new string is drawn when the outermost open transaction commits. If that transaction
-            // allows actions, it adds a `contents` crossfade from the old digit to the new one.
-            text.actions = ["contents": NSNull()]
-            layer.addSublayer(text)
+            number.string = "\(value)"
+            leavingNumber.opacity = 0
         }
-        number.string = "\(value)"
-        leavingNumber.opacity = 0
-        CATransaction.commit()
     }
 
     func set(_ value: Int) {
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        number.string = "\(value)"
-        CATransaction.commit()
+        CATransaction.withoutActions { number.string = "\(value)" }
         self.value = value
     }
 
@@ -55,13 +51,12 @@ final class RollingNumber {
         // In a flipped layer tree a negative offset is above.
         let entryOffset = value > self.value ? -Self.distance : Self.distance
 
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        leavingNumber.string = number.string
-        number.string = "\(value)"
-        leavingNumber.add(rollAnimation(from: .resting, to: .away(by: -entryOffset)), forKey: Self.animationKey)
-        number.add(rollAnimation(from: .away(by: entryOffset), to: .resting), forKey: Self.animationKey)
-        CATransaction.commit()
+        CATransaction.withoutActions {
+            leavingNumber.string = number.string
+            number.string = "\(value)"
+            leavingNumber.add(rollAnimation(from: .resting, to: .away(by: -entryOffset)), forKey: Self.animationKey)
+            number.add(rollAnimation(from: .away(by: entryOffset), to: .resting), forKey: Self.animationKey)
+        }
         self.value = value
     }
 

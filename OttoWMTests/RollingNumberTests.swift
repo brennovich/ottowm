@@ -1,13 +1,13 @@
 import XCTest
 
 extension RollingNumber {
-    static func stub(duration: TimeInterval = 0.05, blurs: Bool = true) -> RollingNumber {
+    static func stub(blurs: Bool = true) -> RollingNumber {
         RollingNumber(
             value: 1,
             size: CGSize(width: 20, height: 18),
             font: .systemFont(ofSize: 12),
             color: .black,
-            duration: duration,
+            duration: 0.05,
             blurs: blurs
         )
     }

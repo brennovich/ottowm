@@ -122,8 +122,7 @@ flowchart LR
 | `Lifecycle`                   | Lifecycle | The transitions once it owns windows: `quit`, SIGTERM, relaunch, reload, unlock.        |
 | `AccessibilityAlert`          | UI        | The accessibility permission alerts: what they say and how they show.                   |
 | `ConfigAlert`                 | UI        | The config error alert UI.                                                              |
-| `Pager`                       | UI        | The tab in the bottom right corner: the current workspace, over the parked windows.     |
-| `ScreenCorners`               | UI        | The rounded masks on the other three screen corners, shown and placed with the pager.   |
+| `Pager`                       | UI        | The workspace tab over the parked windows, and the rounded masks on the other corners.  |
 
 ### Input
 

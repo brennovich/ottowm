@@ -1,37 +1,38 @@
 import AppKit
 
-/// A layer-hosting view whose content slides between the view bounds and a hidden offset.
+/// A layer-hosting view whose content slides between the view bounds and a hidden offset. The content starts hidden.
 /// The content and its sublayers use a top left origin.
 class SlidingView: NSView {
+    static let animationKey = "ottowm.slide"
+
     private let content: CALayer
-    private let slide: Transition
+    private let hiddenTransform: CATransform3D
+    private let duration: TimeInterval
     private(set) var isRevealed = false
 
     /// `hiddenOffset` is in top left coordinates.
-    init(content: CALayer, size: CGSize, hiddenOffset: CGSize) {
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        defer { CATransaction.commit() }
-
+    init(content: CALayer, size: CGSize, hiddenOffset: CGSize, duration: TimeInterval = 0.3) {
         let bounds = CGRect(origin: .zero, size: size)
-        content.frame = bounds
         self.content = content
-        slide = Transition(
-            layer: content,
-            hidden: CATransform3DMakeTranslation(hiddenOffset.width, hiddenOffset.height, 0),
-            duration: Pager.transitionDuration
-        )
+        self.duration = duration
+        hiddenTransform = CATransform3DMakeTranslation(hiddenOffset.width, hiddenOffset.height, 0)
         super.init(frame: bounds)
-        let root = CALayer()
-        layer = root
-        wantsLayer = true
 
-        // AppKit resets the flip on the view's own layer, so it is set on a sublayer.
-        let flipped = CALayer()
-        flipped.frame = bounds
-        flipped.isGeometryFlipped = true
-        flipped.addSublayer(content)
-        root.addSublayer(flipped)
+        CATransaction.withoutActions {
+            // The frame is computed through the transform, so it is set first.
+            content.frame = bounds
+            content.transform = hiddenTransform
+            let root = CALayer()
+            layer = root
+            wantsLayer = true
+
+            // AppKit resets the flip on the view's own layer, so it is set on a sublayer.
+            let flipped = CALayer()
+            flipped.frame = bounds
+            flipped.isGeometryFlipped = true
+            flipped.addSublayer(content)
+            root.addSublayer(flipped)
+        }
     }
 
     @available(*, unavailable)
@@ -46,13 +47,27 @@ class SlidingView: NSView {
 
     func reveal() {
         isRevealed = true
-        slide.show()
+        slide(to: CATransform3DIdentity, then: {})
     }
 
     /// `done` runs once the content has slid out, or when a reveal interrupts the slide.
     func conceal(then done: @escaping () -> Void) {
         isRevealed = false
-        slide.hide(then: done)
+        slide(to: hiddenTransform, then: done)
+    }
+
+    private func slide(to transform: CATransform3D, then done: @escaping () -> Void) {
+        let animation = CABasicAnimation(keyPath: "transform")
+        // Starts from the on-screen value, so a reveal that interrupts a conceal turns back without a jump.
+        animation.fromValue = (content.presentation() ?? content).transform
+        animation.duration = duration
+        animation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+
+        CATransaction.withoutActions {
+            CATransaction.setCompletionBlock(done)
+            content.transform = transform
+            content.add(animation, forKey: Self.animationKey)
+        }
     }
 
     private func setContentsScale(_ scale: CGFloat, in layer: CALayer) {
