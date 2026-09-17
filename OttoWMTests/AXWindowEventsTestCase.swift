@@ -15,7 +15,7 @@ class AXWindowEventsTestCase: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        windowEvents.onEvent = { [weak self] in self?.events.append($0) }
+        windowEvents.startWatching { [weak self] in self?.events.append($0) }
     }
 
     @discardableResult

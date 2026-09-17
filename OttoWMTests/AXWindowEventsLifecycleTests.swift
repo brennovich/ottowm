@@ -47,6 +47,18 @@ final class AXWindowEventsLifecycleTests: AXWindowEventsTestCase {
         XCTAssertNil(applications.findWindow(by: 200))
     }
 
+    func testEverySubscriptionReceivesEachEventOnce() {
+        var second: [WindowEvent] = []
+        windowEvents.startWatching { second.append($0) }
+        harness.addWindow(pid: 901, id: 100)
+        start(app)
+
+        windowEvents.stop(app)
+
+        XCTAssertEqual(events.descriptions, ["destroyed(100)"])
+        XCTAssertEqual(second.descriptions, ["destroyed(100)"])
+    }
+
     func testScansReportNoEvent() {
         harness.addWindow(pid: 901, id: 100)
         start(app)

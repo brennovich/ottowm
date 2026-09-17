@@ -13,8 +13,6 @@ final class AXWindowEvents {
         var all: [WindowSnapshot] { windows + (focused.map { [$0] } ?? []) }
     }
 
-    var onEvent: ((WindowEvent) -> Void)?
-
     private let applications: Applications
     private let makeNotifications: (pid_t, @escaping (AXUIElement, String) -> Void) -> AXNotifications?
     private let makeWindow: (AXUIElement, NSRunningApplication) -> AXWindow
@@ -24,6 +22,7 @@ final class AXWindowEvents {
     private let isAlive: (AXWindow) -> Bool
     private let screenIsLocked: () -> Bool
     private var suspected: Set<AXWindow> = []
+    private var handlers: [(WindowEvent) -> Void] = []
 
     init(
         applications: Applications,
@@ -50,6 +49,10 @@ final class AXWindowEvents {
         self.listedWindows = listedWindows
         self.isAlive = isAlive
         self.screenIsLocked = screenIsLocked
+    }
+
+    func startWatching(_ handler: @escaping (WindowEvent) -> Void) {
+        handlers.append(handler)
     }
 
     func start(_ app: NSRunningApplication) -> Attempt? {
@@ -84,7 +87,7 @@ final class AXWindowEvents {
         let windowIds = Set(application.windows.map(\.id))
         applications.remove(by: app.processIdentifier)
         for windowId in windowIds.sorted() {
-            onEvent?(.destroyed(windowId))
+            report(.destroyed(windowId))
         }
     }
 
@@ -146,7 +149,7 @@ final class AXWindowEvents {
         suspected = stillSuspected
         for windowId in confirmed {
             Log.windows.info("window died unannounced id=\(windowId)")
-            onEvent?(.destroyed(windowId))
+            report(.destroyed(windowId))
         }
     }
 
@@ -158,7 +161,11 @@ final class AXWindowEvents {
             return
         }
 
-        onEvent?(event)
+        report(event)
+    }
+
+    private func report(_ event: WindowEvent) {
+        for handler in handlers { handler(event) }
     }
 
     private func event(

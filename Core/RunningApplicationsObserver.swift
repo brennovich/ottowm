@@ -49,7 +49,7 @@ final class RunningApplicationsObserver {
 
     func start(_ handler: @escaping (WindowEvent) -> Void) -> [WindowSnapshot] {
         self.handler = handler
-        windowEvents.onEvent = { [weak self] in self?.handler?($0) }
+        windowEvents.startWatching { [weak self] in self?.handler?($0) }
 
         let windows = scan(runningApplications().filter(canSubscribe), windowEvents.start).flatMap(\.all)
 

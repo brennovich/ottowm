@@ -104,7 +104,7 @@ final class AXWindowEventsTests: AXWindowEventsTestCase {
         let harness = AXWindowEventsHarness()
         let windowEvents = harness.windowEvents
         var events: [WindowEvent] = []
-        windowEvents.onEvent = { events.append($0) }
+        windowEvents.startWatching { events.append($0) }
         let target = element(harness)
         _ = windowEvents.start(app)
 
