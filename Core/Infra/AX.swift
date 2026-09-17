@@ -16,6 +16,7 @@ struct AXAttribute: Hashable, RawRepresentable {
     static let role = AXAttribute(rawValue: kAXRoleAttribute)
     static let size = AXAttribute(rawValue: kAXSizeAttribute)
     static let subrole = AXAttribute(rawValue: kAXSubroleAttribute)
+    static let window = AXAttribute(rawValue: kAXWindowAttribute)
     static let windows = AXAttribute(rawValue: kAXWindowsAttribute)
 
     static let fullScreen = AXAttribute(rawValue: "AXFullScreen")
@@ -25,6 +26,7 @@ struct AXAttribute: Hashable, RawRepresentable {
 struct AXRole: Hashable, RawRepresentable {
     let rawValue: String
 
+    static let sheet = AXRole(rawValue: kAXSheetRole)
     static let standardWindow = AXRole(rawValue: kAXStandardWindowSubrole)
 
     static let tabGroup = AXRole(rawValue: "AXTabGroup")
@@ -119,6 +121,16 @@ extension AXUIElement {
         return Dictionary(uniqueKeysWithValues: zip(attributes, raw.discardingAXErrors).compactMap { key, value in
             value.map { (key, $0) }
         })
+    }
+
+    /// The window a sheet belongs to, the element itself otherwise.
+    ///
+    /// An application reports the sheet it shows as its focused window. A sheet is absent
+    /// from the window list, carries no subrole and moves with the window it belongs to, so
+    /// that window is the one to act on.
+    var owningWindow: AXUIElement {
+        guard AXRole(value(of: .role)) == .sheet else { return self }
+        return elementValue(of: .window) ?? self
     }
 
     func elementValue(of attribute: AXAttribute) -> AXUIElement? {

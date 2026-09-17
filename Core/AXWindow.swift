@@ -131,7 +131,7 @@ final class AXWindow: Window, WindowLogDescribing {
     static func focused(of app: NSRunningApplication) -> AXWindow? {
         let appElement = AXUIElementCreateApplication(app.processIdentifier)
         guard let element = appElement.elementValue(of: .focusedWindow) else { return nil }
-        return AXWindow(element: element, application: app)
+        return AXWindow(element: element.owningWindow, application: app)
     }
 
     func tabCount() -> Int {

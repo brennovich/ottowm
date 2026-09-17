@@ -173,7 +173,7 @@ final class AXWindowEvents {
         case kAXFocusedWindowChangedNotification:
             // A window already attached is returned from the registry: a repeated focus is
             // still an event, and the stored window has its id without a read.
-            return app.attach(makeWindow(element, app.running)).window.map { .focused($0.snapshot()) }
+            return app.attach(makeWindow(element.owningWindow, app.running)).window.map { .focused($0.snapshot()) }
         case kAXUIElementDestroyedNotification:
             return app.detach(element: element).map { WindowEvent.destroyed($0.id) }
         case kAXWindowMiniaturizedNotification:
