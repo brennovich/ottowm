@@ -14,5 +14,5 @@ protocol Desktop {
     func isMaximized(_ frame: CGRect) -> Bool
     func focus(_ windowId: CGWindowID) -> Bool
     func startWatching(_ handler: @escaping (DesktopEvent) -> Void)
-    func repark(_ windows: [ParkedWindow])
+    func repark(_ windows: [CGWindowID: CGRect])
 }

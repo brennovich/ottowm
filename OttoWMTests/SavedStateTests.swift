@@ -11,7 +11,7 @@ final class SavedStateTests: XCTestCase {
             return SavedState(
                 display: .standard,
                 workspaces: Workspaces.Record(current: 1, workspaces: [1: workspace]),
-                parkedWindows: windowIds.map { ParkedWindow(windowId: $0, parkedFrom: frame) },
+                parkedWindows: frames,
                 originalFrames: frames,
                 displayLayouts: [Display.standard.id: frames]
             )

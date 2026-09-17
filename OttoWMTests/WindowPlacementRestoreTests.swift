@@ -8,7 +8,7 @@ final class WindowPlacementRestoreTests: EngineTestCase {
         placement.restore(windows.map { $0.snapshot() }, from: state)
     }
 
-    func testRestoreParksTheWindowsSavedInAnotherWorkspace() {
+    func testRestoreParksOnlyTheWindowsSavedInAnotherWorkspace() {
         let active = add(StubWindow(id: 100))
         let other = add(StubWindow(id: 200, frame: parkedFrom))
 
@@ -17,10 +17,11 @@ final class WindowPlacementRestoreTests: EngineTestCase {
         XCTAssertEqual(workspaces.current, 2)
         XCTAssertEqual(workspaces.workspace(for: 100), 1)
         XCTAssertEqual(workspaces.workspace(for: 200), 2)
-        XCTAssertEqual(placement.parked, [ParkedWindow(windowId: 100, parkedFrom: active.frame)])
+        XCTAssertEqual(placement.parked, [100: active.frame])
+        XCTAssertEqual(desktop.reframeCalls.map(\.windowId), [100])
     }
 
-    func testRestoreKeepsAWindowSavedAsParkedAtTheHiddenEdge() {
+    func testRestoreParksAWindowSavedAsParkedAgainFromItsSavedFrame() {
         let active = add(StubWindow(id: 100))
         let stuck = add(StubWindow(id: 200, frame: hiddenEdgeFrame(size: parkedFrom.size)))
         let state = savedState([(active, 1), (stuck, 2)], parked: [200: parkedFrom], original: [100: parkedFrom])
@@ -28,8 +29,7 @@ final class WindowPlacementRestoreTests: EngineTestCase {
         restore([active, stuck], from: state)
 
         XCTAssertEqual(desktop.recoveredWindowIds, [100])
-        XCTAssertFalse(desktop.reframeCalls.contains { $0.windowId == 200 })
-        XCTAssertEqual(desktop.reparkedWindowIds, [[200]])
+        XCTAssertEqual(desktop.reframeCalls.map(\.change), [.park(from: parkedFrom)])
         XCTAssertEqual(placement.savedState, state)
     }
 
@@ -57,7 +57,7 @@ final class WindowPlacementRestoreTests: EngineTestCase {
 
         restore([active, stuck], from: savedState([(active, 1), (stuck, 2)], parked: [200: parkedFrom], on: .external))
 
-        XCTAssertEqual(desktop.reframeCalls.filter { $0.windowId == 200 }.map(\.change), [.park(from: fitted)])
+        XCTAssertEqual(placement.parked, [200: fitted])
     }
 
     func testRestoreWithoutAStateTakesEveryWindowIntoWorkspaceOne() {

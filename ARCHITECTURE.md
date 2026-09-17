@@ -245,8 +245,9 @@ sequenceDiagram
     AppDelegate->>StateFile: load()
     AppDelegate->>Engine: start(windows:, restoring: the SavedState, if any)
     Engine->>WindowPlacement: restore(windows, from: the SavedState)
+    WindowPlacement->>Desktop: reframe(park every window of another workspace)
     WindowPlacement->>Desktop: recover(windows the state does not hold as parked)
-    Desktop-->>WindowPlacement: the same windows, parked ones back on screen
+    Desktop-->>WindowPlacement: the same windows, the ones stuck at the hidden edge back on screen
     WindowPlacement->>Workspaces: assign each one no workspace holds to the current workspace
     Engine->>Desktop: startWatching(DesktopEvent handler)
     AppDelegate->>Pager: isEnabled = the pager setting

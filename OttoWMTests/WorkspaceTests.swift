@@ -33,6 +33,12 @@ final class WorkspaceTests: XCTestCase {
         }
     }
 
+    func testKeepingDropsTheOtherWindowsFromTheListAndTheFocusHistory() {
+        let workspace = makeWorkspace([.add(100), .add(200), .recordFocus(200), .recordFocus(100)])
+
+        XCTAssertEqual(workspace.keeping([200]), makeWorkspace([.add(200), .recordFocus(200)]))
+    }
+
     func testNextWindowToFocus() {
         let cases: [(name: String, steps: [Step], nextWindowToFocus: CGWindowID?)] = [
             ("no windows", [], nil),

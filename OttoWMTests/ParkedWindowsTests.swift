@@ -51,14 +51,4 @@ final class ParkedWindowsTests: XCTestCase {
             XCTAssertEqual(parked.parkedFrom(of: 100), testCase.parkedFrom, testCase.name)
         }
     }
-
-    func testAllListsEveryParkedWindowInIdOrder() {
-        parked.park(300, from: frame)
-        parked.park(100, from: frame.offsetBy(dx: 10, dy: 0))
-        parked.park(200, from: frame.offsetBy(dx: 20, dy: 0))
-        parked.forget(200)
-
-        XCTAssertEqual(parked.all.map(\.windowId), [100, 300])
-        XCTAssertEqual(parked.all.map(\.parkedFrom), [frame.offsetBy(dx: 10, dy: 0), frame])
-    }
 }

@@ -5,7 +5,7 @@ import CoreGraphics
 struct SavedState: Codable, Equatable {
     let display: Display
     let workspaces: Workspaces.Record
-    let parkedWindows: [ParkedWindow]
+    let parkedWindows: [CGWindowID: CGRect]
     let originalFrames: [CGWindowID: CGRect]
     let displayLayouts: [DisplayID: [CGWindowID: CGRect]]
 
@@ -13,7 +13,7 @@ struct SavedState: Codable, Equatable {
         SavedState(
             display: display,
             workspaces: workspaces.keeping(windowIds),
-            parkedWindows: parkedWindows.filter { windowIds.contains($0.windowId) },
+            parkedWindows: parkedWindows.filter { windowIds.contains($0.key) },
             originalFrames: originalFrames.filter { windowIds.contains($0.key) },
             displayLayouts: displayLayouts.mapValues { $0.filter { windowIds.contains($0.key) } }
         )

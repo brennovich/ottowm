@@ -138,7 +138,7 @@ class EngineTestCase: XCTestCase {
         return SavedState(
             display: display,
             workspaces: Workspaces.Record(current: current, workspaces: workspaces),
-            parkedWindows: parked.sorted { $0.key < $1.key }.map { ParkedWindow(windowId: $0.key, parkedFrom: $0.value) },
+            parkedWindows: parked,
             originalFrames: original,
             displayLayouts: [display.id: frames]
         )

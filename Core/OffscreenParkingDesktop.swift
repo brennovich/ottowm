@@ -95,16 +95,16 @@ final class OffscreenParkingDesktop: Desktop {
         ]
     }
 
-    func repark(_ windows: [ParkedWindow]) {
-        for parked in windows {
-            guard let win = window(parked.windowId),
+    func repark(_ windows: [CGWindowID: CGRect]) {
+        for (windowId, parkedFrom) in windows {
+            guard let win = window(windowId),
                   let frame = win.movableFrame(),
                   !hiddenEdge.holds(frame)
             else { continue }
 
-            let hidden = hiddenEdge.frame(parking: parked.parkedFrom)
+            let hidden = hiddenEdge.frame(parking: parkedFrom)
             move(win, from: frame, to: hidden)
-            Log.desktop.info("re-hid id=\(parked.windowId) pulled back to \(frame), to=\(hidden)")
+            Log.desktop.info("re-hid id=\(windowId) pulled back to \(frame), to=\(hidden)")
         }
     }
 

@@ -143,9 +143,7 @@ extension Workspaces {
         let workspaces: [Int: Workspace]
 
         func keeping(_ windowIds: Set<CGWindowID>) -> Record {
-            Record(current: current, workspaces: workspaces.mapValues { workspace in
-                workspace.windowIds.filter { !windowIds.contains($0) }.reduce(into: workspace) { $0.remove($1) }
-            })
+            Record(current: current, workspaces: workspaces.mapValues { $0.keeping(windowIds) })
         }
     }
 

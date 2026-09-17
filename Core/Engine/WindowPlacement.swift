@@ -42,7 +42,7 @@ final class WindowPlacement {
         parkedWindows.isParked(windowId)
     }
 
-    var parked: [ParkedWindow] {
+    var parked: [CGWindowID: CGRect] {
         parkedWindows.all
     }
 
@@ -186,27 +186,22 @@ final class WindowPlacement {
     }
 
     /// Puts the windows back in the workspaces the state holds them in, and takes the others
-    /// into the current workspace. A window the state holds as parked stays at the hidden
-    /// edge; any other window found there is brought back on screen.
+    /// into the current workspace. Every window of another workspace goes to the hidden edge,
+    /// one the state holds as parked from its saved frame: a crash may have left it on
+    /// screen. Any other window found at the hidden edge is brought back on screen.
     func restore(_ windows: [WindowSnapshot], from saved: SavedState?) {
         if let saved {
             load(saved.keeping(Set(windows.filter { admission.verdict(for: $0) == .admit }.map(\.id))))
-        }
-
-        let recovered = desktop.recover(windows.filter { !parkedWindows.isParked($0.id) })
-
-        if let saved {
-            let placements = workspaces.allWindowIds.sorted()
-                .map { (windowId: $0, parked: workspaces.workspace(for: $0) != workspaces.current) }
-            place(placements).gone.forEach { drop($0, reason: "gone") }
-
             if saved.display.id != desktop.display.id {
                 relocate(DisplayChange(from: saved.display, to: desktop.display))
             }
-            desktop.repark(parkedWindows.all)
+
+            let parking = workspaces.allWindowIds.subtracting(workspaces.windowIds(in: workspaces.current))
+            let requests = parking.sorted().map { FrameRequest(windowId: $0, change: .park(from: parkedWindows.parkedFrom(of: $0))) }
+            apply(requests).gone.forEach { drop($0, reason: "gone") }
         }
 
-        for win in recovered {
+        for win in desktop.recover(windows.filter { !parkedWindows.isParked($0.id) }) {
             assign(win, to: workspaces.current)
         }
     }
@@ -222,14 +217,14 @@ final class WindowPlacement {
     }
 
     func restoreParkedWindows() {
-        let restoring = parkedWindows.all.map { (windowId: $0.windowId, parked: false) }
+        let restoring = parkedWindows.all.keys.sorted().map { (windowId: $0, parked: false) }
         Log.engine.info("restoring \(restoring.count) parked windows")
         place(restoring)
     }
 
     private func load(_ saved: SavedState) {
         workspaces.load(saved.workspaces)
-        saved.parkedWindows.forEach { parkedWindows.park($0.windowId, from: $0.parkedFrom) }
+        saved.parkedWindows.forEach { parkedWindows.park($0.key, from: $0.value) }
         originalFrames.load(saved.originalFrames)
         layouts.load(saved.displayLayouts)
         Log.state.notice("restored \(workspaces.allWindowIds.count) windows, workspace \(workspaces.current)")

@@ -71,7 +71,7 @@ final class StubDesktop: Desktop {
         self.handler = handler
     }
 
-    func repark(_ windows: [ParkedWindow]) {
-        reparkedWindowIds.append(windows.map(\.windowId))
+    func repark(_ windows: [CGWindowID: CGRect]) {
+        reparkedWindowIds.append(windows.keys.sorted())
     }
 }

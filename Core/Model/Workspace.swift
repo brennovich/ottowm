@@ -17,6 +17,10 @@ struct Workspace: Codable, Equatable {
         focusHistory.removeAll { $0 == windowId }
     }
 
+    func keeping(_ windowIds: Set<CGWindowID>) -> Workspace {
+        Workspace(windowIds: self.windowIds.filter(windowIds.contains), focusHistory: focusHistory.filter(windowIds.contains))
+    }
+
     mutating func recordFocus(on windowId: CGWindowID) {
         guard windowIds.contains(windowId) else { return }
 

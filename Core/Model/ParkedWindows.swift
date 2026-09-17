@@ -1,15 +1,10 @@
 import CoreGraphics
 
-struct ParkedWindow: Codable, Equatable {
-    let windowId: CGWindowID
-    let parkedFrom: CGRect
-}
-
 final class ParkedWindows {
     private var parked: [CGWindowID: CGRect] = [:]
 
-    var all: [ParkedWindow] {
-        parked.sorted { $0.key < $1.key }.map { ParkedWindow(windowId: $0.key, parkedFrom: $0.value) }
+    var all: [CGWindowID: CGRect] {
+        parked
     }
 
     func isParked(_ windowId: CGWindowID) -> Bool {

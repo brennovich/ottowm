@@ -7,7 +7,7 @@ final class StateFileTests: XCTestCase {
     private let state = SavedState(
         display: .standard,
         workspaces: Workspaces.Record(current: 2, workspaces: [:]),
-        parkedWindows: [],
+        parkedWindows: [:],
         originalFrames: [:],
         displayLayouts: [:]
     )

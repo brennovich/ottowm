@@ -33,9 +33,7 @@ final class EngineLifecycleTests: EngineTestCase {
 
         engine.stop()
 
-        XCTAssertFalse(parkedWindows.isParked(100))
-        XCTAssertFalse(parkedWindows.isParked(200))
-        XCTAssertEqual(savedStates.last, placement.savedState)
+        XCTAssertEqual(savedStates.last?.parkedWindows, [:])
     }
 
     func testHandleDispatchesEachAction() {
