@@ -16,8 +16,10 @@ final class TransitionTests: XCTestCase {
         (layer.animation(forKey: Transition.animationKey) as? CABasicAnimation)?.fromValue as? CATransform3D
     }
 
-    private func wait(_ interval: TimeInterval) {
-        RunLoop.current.run(until: Date(timeIntervalSinceNow: interval))
+    private func advance(to time: TimeInterval) {
+        CATransaction.flush()
+        layer.timeOffset = time
+        CATransaction.flush()
     }
 
     func testTheLayerStartsHidden() {
@@ -44,10 +46,11 @@ final class TransitionTests: XCTestCase {
     }
 
     func testAShowDuringAHideStartsFromWhereTheLayerIs() throws {
+        layer.speed = 0
         transition.show()
-        wait(duration * 1.5)
+        advance(to: duration * 1.5)
         transition.hide {}
-        wait(duration / 2)
+        advance(to: duration * 2)
 
         transition.show()
 
