@@ -68,20 +68,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Timer.scheduledTimer(withTimeInterval: stateSaveInterval, repeats: true) { _ in engine.saveState() }
         pager.isEnabled = config.showsPager
 
-        let bindings = Bindings.system(
-            config: config,
-            reloaded: {
-                pager.isEnabled = $0.showsPager
-                desktop.spacing = $0.spacing
-            },
-            handler: { [lifecycle] binding in
-                switch binding {
-                case let .action(action): engine.handle(action)
-                case .quit: lifecycle.quit()
-                case .restart: lifecycle.reload()
-                }
+        let bindings = Bindings.system(config: config) { [lifecycle] binding in
+            switch binding {
+            case let .action(action): engine.handle(action)
+            case .quit: lifecycle.quit()
+            case .restart: lifecycle.reload()
             }
-        )
+        }
+        bindings.startWatching { config in
+            pager.isEnabled = config.showsPager
+            desktop.spacing = config.spacing
+        }
         self.bindings = bindings
 
         bindings.start()

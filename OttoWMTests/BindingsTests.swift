@@ -7,10 +7,9 @@ final class BindingsTests: XCTestCase {
     private var handedOn: [Config] = []
 
     private func makeBindings(_ config: Config) -> Bindings {
-        Bindings(
+        let bindings = Bindings(
             config: config,
             load: { self.loads.removeFirst() },
-            reloaded: { self.handedOn.append($0) },
             tap: { config in
                 let tap = self.built.count
                 self.built.append(config)
@@ -20,6 +19,8 @@ final class BindingsTests: XCTestCase {
                 )
             }
         )
+        bindings.startWatching { self.handedOn.append($0) }
+        return bindings
     }
 
     func testTapsTheConfigItWasBuiltWithAndTakesTheSameTapBackAfterItWasReleased() throws {

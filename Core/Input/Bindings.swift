@@ -5,20 +5,22 @@ final class Bindings {
     }
 
     private let load: () -> Result<Config, ConfigError>
-    private let reloaded: (Config) -> Void
     private let tap: (Config) -> Tap
     private var current: Tap
+    private var handler: (Config) -> Void = { _ in }
 
     init(
         config: Config,
         load: @escaping () -> Result<Config, ConfigError> = { ConfigFile.load() },
-        reloaded: @escaping (Config) -> Void,
         tap: @escaping (Config) -> Tap
     ) {
         self.load = load
-        self.reloaded = reloaded
         self.tap = tap
         current = tap(config)
+    }
+
+    func startWatching(_ handler: @escaping (Config) -> Void) {
+        self.handler = handler
     }
 
     func start() {
@@ -40,7 +42,7 @@ final class Bindings {
             current = tap(config)
             start()
             Log.app.notice("config reloaded")
-            reloaded(config)
+            handler(config)
 
             return nil
         case let .failure(error):
@@ -52,12 +54,8 @@ final class Bindings {
 }
 
 extension Bindings {
-    static func system(
-        config: Config,
-        reloaded: @escaping (Config) -> Void,
-        handler: @escaping (Binding) -> Void
-    ) -> Bindings {
-        Bindings(config: config, reloaded: reloaded) { config in
+    static func system(config: Config, handler: @escaping (Binding) -> Void) -> Bindings {
+        Bindings(config: config) { config in
             let hotkeys = Hotkeys(keyCodeMatcher: config.binding, handler: handler)
             return Tap(start: hotkeys.start, stop: hotkeys.stop)
         }
