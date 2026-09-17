@@ -1,8 +1,15 @@
 import XCTest
 
 extension RollingNumber {
-    static func stub(duration: TimeInterval = 0.05) -> RollingNumber {
-        RollingNumber(value: 1, size: CGSize(width: 20, height: 18), font: .systemFont(ofSize: 12), color: .black, duration: duration)
+    static func stub(duration: TimeInterval = 0.05, blurs: Bool = true) -> RollingNumber {
+        RollingNumber(
+            value: 1,
+            size: CGSize(width: 20, height: 18),
+            font: .systemFont(ofSize: 12),
+            color: .black,
+            duration: duration,
+            blurs: blurs
+        )
     }
 
     var shownValue: String? {
@@ -14,6 +21,10 @@ extension RollingNumber {
         let roll = entering?.animation(forKey: RollingNumber.animationKey) as? CAAnimationGroup
         let move = roll?.animations?.first { ($0 as? CABasicAnimation)?.keyPath == "transform" } as? CABasicAnimation
         return (move?.fromValue as? CATransform3D)?.m42
+    }
+
+    var filterNames: [[String]] {
+        texts.map { ($0.filters ?? []).compactMap { ($0 as? CIFilter)?.name } }
     }
 
     var rolling: [[String]] {
@@ -46,6 +57,17 @@ final class RollingNumberTests: XCTestCase {
             number.roll(to: testCase.to)
 
             XCTAssertEqual(number.entryOffset, testCase.entryOffset, testCase.name)
+        }
+    }
+
+    func testTheNumbersCarryTheBlurOnlyWhenBlurring() {
+        let cases: [(name: String, blurs: Bool, filterNames: [[String]])] = [
+            ("blurring", true, [["blur"], ["blur"]]),
+            ("not blurring", false, [[], []]),
+        ]
+
+        for testCase in cases {
+            XCTAssertEqual(RollingNumber.stub(blurs: testCase.blurs).filterNames, testCase.filterNames, testCase.name)
         }
     }
 

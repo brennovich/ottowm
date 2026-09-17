@@ -1,4 +1,5 @@
 import AppKit
+import Metal
 
 final class PagerTabView: SlidingView {
     private let number: RollingNumber
@@ -39,7 +40,9 @@ final class PagerTabView: SlidingView {
             size: PagerTab.badge.size,
             font: .systemFont(ofSize: 12, weight: .bold),
             color: .black,
-            duration: Pager.workspaceChangeDuration
+            duration: Pager.workspaceChangeDuration,
+            // `MTLCreateSystemDefaultDevice` switches a dual GPU Mac to the discrete GPU, `MTLCopyAllDevices` does not.
+            blurs: !MTLCopyAllDevices().isEmpty
         )
     }
 

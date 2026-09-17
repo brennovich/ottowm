@@ -2,6 +2,7 @@ import AppKit
 
 /// A number that rolls to a new value, modelled on SwiftUI's `numericText`: the old value leaves while the new one
 /// enters, both offset, blurred and scaled down. The blur needs `layerUsesCoreImageFilters` on the hosting view.
+/// Without `blurs` the numbers carry no filter: a Mac with no Metal device draws a filtered text layer blank.
 final class RollingNumber {
     static let distance: CGFloat = 7
     static let animationKey = "ottowm.roll"
@@ -15,7 +16,7 @@ final class RollingNumber {
     private let duration: TimeInterval
     private var value: Int
 
-    init(value: Int, size: CGSize, font: NSFont, color: NSColor, duration: TimeInterval) {
+    init(value: Int, size: CGSize, font: NSFont, color: NSColor, duration: TimeInterval, blurs: Bool) {
         self.value = value
         self.duration = duration
 
@@ -29,7 +30,9 @@ final class RollingNumber {
             text.fontSize = font.pointSize
             text.foregroundColor = color.cgColor
             text.alignmentMode = .center
-            text.filters = [Self.blur()]
+            if blurs {
+                text.filters = [Self.blur()]
+            }
             // The new string is drawn when the outermost open transaction commits. If that transaction
             // allows actions, it adds a `contents` crossfade from the old digit to the new one.
             text.actions = ["contents": NSNull()]
