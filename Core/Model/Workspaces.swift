@@ -17,14 +17,14 @@ final class Workspaces {
     private var workspaces: [Int: Workspace] = [:]
     private var tabGroups: TabGroups
 
-    private var handler: (WorkspaceEvent) -> Void = { _ in }
+    private var handlers: [(WorkspaceEvent) -> Void] = []
 
     init(tabGroups: TabGroups) {
         self.tabGroups = tabGroups
     }
 
     func startWatching(_ handler: @escaping (WorkspaceEvent) -> Void) {
-        self.handler = handler
+        handlers.append(handler)
     }
 
     var allWindowIds: Set<CGWindowID> {
@@ -108,7 +108,7 @@ final class Workspaces {
             recordFocus(on: windowId, in: current)
         }
         current = targetWorkspace
-        handler(.switched(targetWorkspace))
+        report(.switched(targetWorkspace))
 
         return (
             activating: windowIds(in: targetWorkspace),
@@ -118,6 +118,10 @@ final class Workspaces {
 
     var nextWindowToFocus: CGWindowID? {
         workspaces[current]?.nextWindowToFocus
+    }
+
+    private func report(_ event: WorkspaceEvent) {
+        for handler in handlers { handler(event) }
     }
 
     private func workspaceOfTabGroup(for window: WindowSnapshot) -> Int? {
@@ -154,6 +158,6 @@ extension Workspaces {
     func load(_ record: Record) {
         workspaces = record.workspaces
         current = record.current
-        handler(.switched(current))
+        report(.switched(current))
     }
 }

@@ -22,7 +22,7 @@ final class EngineFullScreenTests: EngineTestCase {
 
         win2.isFullScreen = false
         offScreenWindowIds = []
-        desktop.handler?(.nativeSpaceChange)
+        desktop.report(.nativeSpaceChange)
 
         XCTAssertEqual(workspaces.current, 1)
     }

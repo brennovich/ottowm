@@ -10,7 +10,7 @@ final class EngineDisplayChangeTests: EngineTestCase {
         desktop.clearCalls()
         desktop.display = .external
 
-        desktop.handler?(.displayChange(DisplayChange(from: .standard, to: .external)))
+        desktop.report(.displayChange(DisplayChange(from: .standard, to: .external)))
 
         XCTAssertEqual(desktop.reframeBatches, [[100, 200]])
     }
@@ -21,7 +21,7 @@ final class EngineDisplayChangeTests: EngineTestCase {
         let parked = create(StubWindow(id: 200))
         moveFocusedWindow(parked, to: 2)
 
-        desktop.handler?(.screenParametersChange)
+        desktop.report(.screenParametersChange)
 
         XCTAssertEqual(desktop.reparkedWindowIds, [[200]])
     }
@@ -33,7 +33,7 @@ final class EngineDisplayChangeTests: EngineTestCase {
         screenIsLocked = true
         desktop.display = .external
 
-        desktop.handler?(.displayChange(DisplayChange(from: .standard, to: .external)))
+        desktop.report(.displayChange(DisplayChange(from: .standard, to: .external)))
 
         XCTAssertEqual(desktop.reframeBatches, [])
 
@@ -53,8 +53,8 @@ final class EngineDisplayChangeTests: EngineTestCase {
         let win = create(StubWindow(id: 100))
         desktop.clearCalls()
         screenIsLocked = true
-        desktop.handler?(.displayChange(DisplayChange(from: .standard, to: .external)))
-        desktop.handler?(.displayChange(DisplayChange(from: .external, to: third)))
+        desktop.report(.displayChange(DisplayChange(from: .standard, to: .external)))
+        desktop.report(.displayChange(DisplayChange(from: .external, to: third)))
         desktop.display = third
 
         screenIsLocked = false

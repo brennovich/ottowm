@@ -9,7 +9,7 @@ final class StubDesktop: Desktop {
     private(set) var reframeBatches: [[CGWindowID]] = []
     private(set) var recoveredWindowIds: [CGWindowID] = []
     private(set) var reparkedWindowIds: [[CGWindowID]] = []
-    private(set) var handler: ((DesktopEvent) -> Void)?
+    private var handlers: [(DesktopEvent) -> Void] = []
 
     var recoveredFrames: [CGWindowID: CGRect] = [:]
     var maximizedFrame: CGRect?
@@ -68,7 +68,11 @@ final class StubDesktop: Desktop {
     }
 
     func startWatching(_ handler: @escaping (DesktopEvent) -> Void) {
-        self.handler = handler
+        handlers.append(handler)
+    }
+
+    func report(_ event: DesktopEvent) {
+        for handler in handlers { handler(event) }
     }
 
     func repark(_ windows: [CGWindowID: CGRect]) {

@@ -38,6 +38,19 @@ final class WorkspacesTests: XCTestCase {
         }
     }
 
+    func testEverySubscriptionReceivesEachEventOnce() {
+        var first: [WorkspaceEvent] = []
+        var second: [WorkspaceEvent] = []
+        let model = makeWorkspaces()
+        model.startWatching { first.append($0) }
+        model.startWatching { second.append($0) }
+
+        _ = model.switchTo(2, leavingFocusOn: nil)
+
+        XCTAssertEqual(first, [.switched(2)])
+        XCTAssertEqual(second, [.switched(2)])
+    }
+
     func testWindowAssignment() {
         let cases: [(name: String, assignments: Assignments, windowsByWorkspace: [Int: [CGWindowID]])] = [
             ("assign single window", [(100, 1)], [1: [100]]),
