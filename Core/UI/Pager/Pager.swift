@@ -1,19 +1,42 @@
 import AppKit
 
 /// The tab in the bottom right corner with the current workspace, and the masks that round the other three screen corners.
+/// The tab retracts while a window overlaps it.
 final class Pager {
     private let tab = PagerTabView()
     private let tabPanel: OverlayPanel
     private let corners: [(corner: ScreenCorner, panel: OverlayPanel)]
     private let radius = ScreenCorner.radius(on: ProcessInfo.processInfo.operatingSystemVersion)
+    private let windowFrames: () -> [CGWindowID: CGRect]
+    private let isOnScreen: (CGWindowID) -> Bool
+    private let schedule: (TimeInterval, @escaping () -> Void) -> Void
     private var shown = false
+    private var tabArea = TabArea(display: .unknown)
+    private var checkScheduled = false
+    private var checkCount = 0
+    private var observers: [NSObjectProtocol] = []
 
     var isEnabled: Bool {
         get { shown }
         set { newValue ? reveal() : dismiss(then: {}) }
     }
 
-    init(workspaces: Workspaces, desktop: any Desktop) {
+    /// `schedule` delays the check by 50ms: without the delay, the main queue runs a check between two window events of one
+    /// workspace switch, and a switch between two workspaces that both cover the tab starts a restore and turns it back.
+    init(
+        workspaces: Workspaces,
+        desktop: any Desktop,
+        startWatchingWindows: (@escaping (WindowEvent) -> Void) -> Void,
+        windowFrames: @escaping () -> [CGWindowID: CGRect],
+        isOnScreen: @escaping (CGWindowID) -> Bool,
+        schedule: @escaping (TimeInterval, @escaping () -> Void) -> Void = {
+            DispatchQueue.main.asyncAfter(deadline: .now() + $0, execute: $1)
+        },
+        notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter
+    ) {
+        self.windowFrames = windowFrames
+        self.isOnScreen = isOnScreen
+        self.schedule = schedule
         // One level below pop-up menus: above every window and the Dock, below a menu opened over the corner.
         tabPanel = OverlayPanel(level: NSWindow.Level(rawValue: NSWindow.Level.popUpMenu.rawValue - 1), content: tab)
         // Same level as the Hammerspoon RoundedCorners spoon: above every window and menu.
@@ -24,7 +47,14 @@ final class Pager {
         place(on: desktop.display)
         workspaces.startWatching { [weak self] event in self?.handle(event) }
         desktop.startWatching { [weak self] event in self?.handle(event) }
+        startWatchingWindows { [weak self] _ in self?.scheduleCheck() }
+        // Hiding an application reports no window event.
+        observers = [NSWorkspace.didHideApplicationNotification, NSWorkspace.didUnhideApplicationNotification].map {
+            notificationCenter.addObserver(forName: $0, object: nil, queue: .main) { [weak self] _ in self?.scheduleCheck() }
+        }
     }
+
+    var isRetracted: Bool { tab.isRetracted }
 
     /// `done` runs once the tab has slid out, or at once when the pager is not shown. A reveal during the slide runs it early.
     /// The masks slide out with the tab, for the same duration.
@@ -46,17 +76,57 @@ final class Pager {
 
     private func handle(_ event: DesktopEvent) {
         switch event {
-        case let .displayChange(change): place(on: change.to)
-        case .nativeSpaceChange, .screenParametersChange: break
+        case let .displayChange(change):
+            place(on: change.to)
+            scheduleCheck()
+        // The window list covers only the current Space.
+        case .nativeSpaceChange: scheduleCheck()
+        case .screenParametersChange: break
+        }
+    }
+
+    /// The events of one change join the check the first of them scheduled.
+    private func scheduleCheck() {
+        guard !checkScheduled else { return }
+
+        checkScheduled = true
+        schedule(0.05) { [weak self] in
+            guard let self else { return }
+
+            checkScheduled = false
+            guard shown else { return }
+
+            check()
+            checkCount += 1
+            // Some applications (Ghostty) update the window list up to 130ms after they report a new frame.
+            // A newer check drops this recheck, since its own recheck reads the list later.
+            let count = checkCount
+            schedule(0.13) { [weak self] in
+                guard let self, checkCount == count else { return }
+
+                check()
+            }
+        }
+    }
+
+    /// The tab is not shown on a full screen Space, and the window list there holds that Space's windows only.
+    private func check() {
+        guard shown, isOnScreen(CGWindowID(tabPanel.windowNumber)) else { return }
+
+        if tabArea.isOverlapped(by: windowFrames()) {
+            tab.retract()
+        } else {
+            tab.restore()
         }
     }
 
     /// `display` is the one the desktop parks windows on.
     private func place(on display: Display) {
+        tabArea = TabArea(display: display)
         let primaryHeight = NSScreen.screens.first?.frame.height ?? display.fullFrame.height
         let screenFrame = display.fullFrame.flipped(primaryHeight: primaryHeight)
 
-        tabPanel.setFrame(PagerTabView.frame(in: screenFrame), display: true)
+        tabPanel.setFrame(tabArea.frame.flipped(primaryHeight: primaryHeight), display: true)
         for (corner, panel) in corners {
             panel.setFrame(corner.frame(in: screenFrame, radius: radius), display: true)
         }
@@ -70,6 +140,7 @@ final class Pager {
         for (_, panel) in corners {
             panel.reveal()
         }
+        scheduleCheck()
     }
 
     private static func mask(of corner: ScreenCorner, radius: CGFloat) -> SlidingView {

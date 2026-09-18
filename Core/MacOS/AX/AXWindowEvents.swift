@@ -159,6 +159,8 @@ final class AXWindowEvents: WindowEvents {
             return app.findWindow(element: element).map { .minimized($0.id) }
         case kAXWindowDeminiaturizedNotification:
             return app.findWindow(element: element).map { .unminimized($0.snapshot()) }
+        case kAXWindowMovedNotification, kAXWindowResizedNotification:
+            return .reframed
         default:
             return nil
         }

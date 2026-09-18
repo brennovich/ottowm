@@ -13,6 +13,8 @@ final class Subscription {
     private static let applicationNotifications = [
         kAXWindowCreatedNotification,
         kAXFocusedWindowChangedNotification,
+        kAXWindowMovedNotification,
+        kAXWindowResizedNotification,
     ]
 
     private static let windowNotifications = [

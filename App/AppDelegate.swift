@@ -59,7 +59,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let workspaces = Workspaces(
             tabGroups: TabGroups(tabCount: windowSystem.tabCount(of:), frame: windowSystem.frame(of:))
         )
-        let pager = Pager(workspaces: workspaces, desktop: desktop)
+        let pager = Pager(
+            workspaces: workspaces,
+            desktop: desktop,
+            startWatchingWindows: windowEvents.startWatching,
+            windowFrames: { onScreenWindowFrames(level: Int(CGWindowLevelForKey(.normalWindow))) },
+            isOnScreen: isWindowOnScreen
+        )
         self.pager = pager
 
         let engine = engine(desktop: desktop, windowSystem: windowSystem, workspaces: workspaces)

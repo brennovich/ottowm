@@ -6,4 +6,5 @@ enum WindowEvent: Equatable {
     case destroyed(CGWindowID)
     case minimized(CGWindowID)
     case unminimized(WindowSnapshot)
+    case reframed
 }

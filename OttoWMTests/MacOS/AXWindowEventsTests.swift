@@ -30,6 +30,18 @@ final class AXWindowEventsTests: AXWindowEventsTestCase {
         }
     }
 
+    func testMovedAndResizedAreReportedWithoutReadingTheWindow() {
+        start()
+        let element = harness.makeElement(id: 42)
+
+        notify(element, kAXWindowMovedNotification)
+        notify(element, kAXWindowResizedNotification)
+
+        XCTAssertEqual(events.descriptions, ["reframed", "reframed"])
+        XCTAssertEqual(harness.ax.reads(of: element), [])
+        XCTAssertEqual(harness.ax.windowIdReads(of: element), 0)
+    }
+
     func testFocusedNotificationForAKnownWindowIsReportedAgain() {
         let element = harness.addWindow(pid: 901, id: 100)
         start()

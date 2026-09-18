@@ -96,6 +96,8 @@ final class Engine {
     }
 
     func handle(_ event: WindowEvent) {
+        // A resize drag sends a stream of these, and none changes a workspace.
+        if case .reframed = event { return }
         guard !screenIsLocked() else {
             Log.engine.debug("window event ignored: the screen is locked")
             return
@@ -103,30 +105,35 @@ final class Engine {
 
         windowSystem.duringOperation("window-event") {
             fullScreenReturns.follow()
+            apply(event)
+        }
+    }
 
-            switch event {
-            case let .created(win):
-                enrollment.enroll(win, to: workspaces.current)
-            case let .focused(win):
-                placement.remember(win)
-                navigation.follow(win)
-            case let .destroyed(windowId):
-                if !placement.drop(windowId, reason: "destroyed") {
-                    navigation.restore()
-                }
-            case let .minimized(windowId):
-                guard workspaces.workspace(for: windowId) != nil else { return }
-
-                for memberId in workspaces.tabGroupMembers(of: windowId) {
-                    placement.drop(memberId, reason: "minimized")
-                }
-
+    private func apply(_ event: WindowEvent) {
+        switch event {
+        case let .created(win):
+            enrollment.enroll(win, to: workspaces.current)
+        case let .focused(win):
+            placement.remember(win)
+            navigation.follow(win)
+        case let .destroyed(windowId):
+            if !placement.drop(windowId, reason: "destroyed") {
                 navigation.restore()
-            case let .unminimized(win):
-                for recovered in desktop.recover([win]) {
-                    placement.assign(recovered, to: workspaces.current)
-                }
             }
+        case let .minimized(windowId):
+            guard workspaces.workspace(for: windowId) != nil else { return }
+
+            for memberId in workspaces.tabGroupMembers(of: windowId) {
+                placement.drop(memberId, reason: "minimized")
+            }
+
+            navigation.restore()
+        case let .unminimized(win):
+            for recovered in desktop.recover([win]) {
+                placement.assign(recovered, to: workspaces.current)
+            }
+        case .reframed:
+            break
         }
     }
 

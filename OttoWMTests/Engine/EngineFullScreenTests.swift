@@ -38,6 +38,15 @@ final class EngineFullScreenTests: EngineTestCase {
         XCTAssertEqual(workspaces.current, 1)
     }
 
+    func testReframedWindowStartsNoOperation() {
+        let win2 = sendWindowFullScreenAndLeave()
+        let reads = win2.snapshotReadCount
+
+        engine.handle(.reframed)
+
+        XCTAssertEqual(win2.snapshotReadCount, reads)
+    }
+
     private func sendWindowFullScreenAndLeave() -> StubWindow {
         create(StubWindow(id: 100))
         let win2 = create(StubWindow(id: 200))

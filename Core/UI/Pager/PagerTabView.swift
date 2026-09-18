@@ -11,19 +11,23 @@ final class PagerTabView: SlidingView {
     private static let shoulderHeightFraction: CGFloat = 0.25
     private static let cornerWidth: CGFloat = 24
     private static let cornerHandleFraction: CGFloat = 0.8
+    /// Covers the parked windows' 1px slivers; their 30pt shadow shows past it. At spacing 20 a maximized window ends where it starts.
+    private static let retractedWidth: CGFloat = 20
+    private static let retractDuration: TimeInterval = 0.2
 
     private let number: RollingNumber
+    let shapeLayer: CAShapeLayer
+    let badgeLayer: CALayer
+    private(set) var isRetracted = false
 
     init(number: RollingNumber = PagerTabView.badgeNumber()) {
         self.number = number
-        super.init(content: CATransaction.withoutActions { Self.tab(number: number) }, size: Self.size, hiddenOffset: Self.size)
+        let (tab, shapeLayer, badgeLayer) = CATransaction.withoutActions { Self.tab(number: number) }
+        self.shapeLayer = shapeLayer
+        self.badgeLayer = badgeLayer
+        super.init(content: tab, size: Self.size, hiddenOffset: Self.size)
         // `CALayer.filters` has no effect on macOS unless the view allows Core Image filters.
         layerUsesCoreImageFilters = true
-    }
-
-    /// `screenFrame` is in AppKit coordinates. The bottom right corner is where `HiddenEdge` parks windows.
-    static func frame(in screenFrame: CGRect) -> CGRect {
-        CGRect(x: screenFrame.maxX - size.width, y: screenFrame.minY, width: size.width, height: size.height)
     }
 
     func show(workspace: Int) {
@@ -32,8 +36,40 @@ final class PagerTabView: SlidingView {
         number.roll(to: workspace)
     }
 
-    private static func tab(number: RollingNumber) -> CALayer {
+    /// Squeezes the shape against the screen edge and moves the badge past it.
+    func retract() {
+        guard !isRetracted else { return }
+
+        isRetracted = true
+        animate(
+            shape: CATransform3DMakeScale(Self.retractedWidth / Self.size.width, 1, 1),
+            badge: CATransform3DMakeTranslation(Self.size.width - Self.badge.minX, 0, 0)
+        )
+    }
+
+    func restore() {
+        guard isRetracted else { return }
+
+        isRetracted = false
+        animate(shape: CATransform3DIdentity, badge: CATransform3DIdentity)
+    }
+
+    /// The implicit actions start from the on-screen value, so a restore during a retract turns back without a jump.
+    private func animate(shape: CATransform3D, badge: CATransform3D) {
+        CATransaction.begin()
+        CATransaction.setAnimationDuration(Self.retractDuration)
+        CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: .easeInEaseOut))
+        shapeLayer.transform = shape
+        badgeLayer.transform = badge
+        CATransaction.commit()
+    }
+
+    private static func tab(number: RollingNumber) -> (CALayer, CAShapeLayer, CALayer) {
         let shape = CAShapeLayer()
+        // Anchored to the right edge, so a scale keeps that edge on the screen edge.
+        shape.bounds = CGRect(origin: .zero, size: size)
+        shape.anchorPoint = CGPoint(x: 1, y: 0.5)
+        shape.position = CGPoint(x: size.width, y: size.height / 2)
         shape.path = path(in: CGRect(origin: .zero, size: size))
         shape.fillColor = NSColor.black.cgColor
 
@@ -47,7 +83,7 @@ final class PagerTabView: SlidingView {
         let tab = CALayer()
         tab.addSublayer(shape)
         tab.addSublayer(badgeLayer)
-        return tab
+        return (tab, shape, badgeLayer)
     }
 
     private static func path(in rect: CGRect) -> CGPath {

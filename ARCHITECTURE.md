@@ -63,7 +63,7 @@ flowchart LR
     Engine -->|reframe, focus, read| macOS
     Engine -->|assign, switch| Model
     Model -->|WorkspaceEvent| UI
-    macOS -->|DesktopEvent| UI
+    macOS -->|WindowEvent, DesktopEvent| UI
 ```
 
 The messages on the arrows:
@@ -73,6 +73,7 @@ Action         = switchToWorkspace(n) | moveWindowToWorkspace(n) | focus(directi
                | resize(change) | centerWindow | maximize | tile(direction)
 Binding        = action(Action) | quit | restart
 WindowEvent    = created(snapshot) | focused(snapshot) | destroyed(id) | minimized(id) | unminimized(snapshot)
+               | reframed
 DesktopEvent   = nativeSpaceChange | displayChange(from: Display, to: Display) | screenParametersChange
 WorkspaceEvent = switched(n)
 ```
@@ -158,6 +159,7 @@ While `Lifecycle.screenIsLocked` is set, `Engine` drops window events and defers
 flowchart LR
     Workspaces -->|WorkspaceEvent| Pager
     Desktop -->|DesktopEvent| Pager
+    AXWindowEvents -->|WindowEvent| Pager
     Bindings -->|reloaded Config| Pager
     Lifecycle -->|dismiss| Pager
 ```
@@ -220,7 +222,7 @@ flowchart LR
 | `Lifecycle`                   | Lifecycle | The transitions once it owns windows: `quit`, SIGTERM, relaunch, reload, unlock.        |
 | `AccessibilityAlert`          | UI        | The accessibility permission alerts: what they say and how they show.                   |
 | `ConfigAlert`                 | UI        | The config error alert UI.                                                              |
-| `Pager`                       | UI        | The workspace tab over the parked windows, and the rounded masks on the other corners.  |
+| `Pager`                       | UI        | The workspace tab over the parked windows, retracted under a window, and corner masks.  |
 
 The pager draws with Core Animation. SwiftUI used substantially more CPU on Intel Macs.
 

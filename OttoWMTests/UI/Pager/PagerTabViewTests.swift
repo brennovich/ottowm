@@ -1,10 +1,25 @@
 import XCTest
 
 final class PagerTabViewTests: XCTestCase {
-    func testTheTabSitsInTheBottomRightCornerOfTheScreen() {
-        let screenFrame = CGRect(x: 1792, y: -200, width: 2560, height: 1440)
+    private let bounds = CGRect(origin: .zero, size: PagerTabView.size)
+    private let view = PagerTabView(number: .stub())
 
-        XCTAssertEqual(PagerTabView.frame(in: screenFrame), CGRect(x: 4298, y: -200, width: 54, height: 58))
+    func testRetractSqueezesTheShapeAgainstTheRightEdgeAndMovesTheBadgeOut() {
+        view.retract()
+
+        XCTAssertEqual(view.shapeLayer.frame, CGRect(x: bounds.maxX - 20, y: 0, width: 20, height: bounds.height))
+        XCTAssertGreaterThanOrEqual(view.badgeLayer.frame.minX, bounds.maxX)
+        XCTAssertTrue(view.isRetracted)
+    }
+
+    func testRestoreReturnsTheShapeAndTheBadgeToTheirFullFrames() {
+        view.retract()
+
+        view.restore()
+
+        XCTAssertEqual(view.shapeLayer.frame, bounds)
+        XCTAssertEqual(view.badgeLayer.frame, PagerTabView.badge)
+        XCTAssertFalse(view.isRetracted)
     }
 
     func testTheNumberRollsOnlyWhileTheTabIsRevealed() {
