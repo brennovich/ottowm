@@ -52,12 +52,6 @@ struct TabGroups {
         members(of: windowId).filter { $0 != windowId }
     }
 
-    func siblings(of window: WindowSnapshot) -> [CGWindowID] {
-        guard windowToGroup[window.id] == nil else { return siblings(of: window.id) }
-
-        return group(representing: window).flatMap { groups[$0]?.windowIds } ?? []
-    }
-
     mutating func remove(_ windowId: CGWindowID) {
         guard let groupId = windowToGroup.removeValue(forKey: windowId),
               var group = groups[groupId] else { return }

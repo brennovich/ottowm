@@ -331,6 +331,16 @@ final class WindowPlacementTests: EngineTestCase {
         }
     }
 
+    func testClosedWindowsReadsNoSnapshotOfAWindowStillOnScreen() {
+        let win = add(StubWindow(id: 100))
+        placement.assign(win.snapshot(), to: 1)
+        let reads = win.snapshotReadCount
+
+        _ = placement.closedWindows()
+
+        XCTAssertEqual(win.snapshotReadCount, reads)
+    }
+
     func testKeepsAWindowThatWentFullScreen() {
         let (active, _) = seedActiveAndParkedWindows()
 
@@ -349,7 +359,7 @@ final class WindowPlacementTests: EngineTestCase {
         placement.releaseToFullScreen(100, from: 1)
 
         XCTAssertNil(workspaces.workspace(for: 100))
-        XCTAssertEqual(workspaces.membership(of: win.snapshot(), whenNew: 2), .fullScreen(1))
+        XCTAssertEqual(workspaces.membership(of: 100), .fullScreen(1))
     }
 
     func testFollowBackFromFullScreenSwitchesToTheWorkspaceBeforeAssigning() {

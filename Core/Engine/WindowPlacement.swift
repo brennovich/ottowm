@@ -157,8 +157,8 @@ final class WindowPlacement {
     /// without a snapshot has left the registry, so its `destroyed` event is on its way.
     func closedWindows() -> [CGWindowID] {
         workspaces.windowIds(in: workspaces.current).filter { windowId in
-            guard let snapshot = windowSystem.snapshot(of: windowId) else { return false }
-            return !showsAnyTab(of: windowId) && !snapshot.isMinimized && !snapshot.isFullScreen
+            guard !showsAnyTab(of: windowId), let snapshot = windowSystem.snapshot(of: windowId) else { return false }
+            return !snapshot.isMinimized && !snapshot.isFullScreen
         }
     }
 

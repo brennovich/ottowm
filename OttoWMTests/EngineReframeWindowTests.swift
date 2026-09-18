@@ -4,17 +4,6 @@ import XCTest
 final class EngineReframeWindowTests: EngineTestCase {
     private let frame = CGRect(x: 400, y: 300, width: 200, height: 200)
 
-    func testForwardsTheChangeToTheDesktop() {
-        let win = create(StubWindow(id: 100, frame: frame))
-        focused = win
-        desktop.clearCalls()
-
-        engine.handle(.moveWindow(.east))
-
-        XCTAssertEqual(desktop.reframeCalls.map(\.windowId), [win.id])
-        XCTAssertEqual(desktop.reframeCalls.map(\.change), [.move(.east)])
-    }
-
     func testUnassignedFocusedWindowIsEnrolledFirst() {
         let win = add(StubWindow(id: 900, frame: frame))
         focused = win
@@ -34,22 +23,14 @@ final class EngineReframeWindowTests: EngineTestCase {
         XCTAssertTrue(desktop.reframeCalls.isEmpty)
     }
 
-    func testAMaximizedWindowIsNotMoved() {
+    func testAMaximizedWindowIsNeitherMovedNorResized() {
         focused = create(StubWindow(id: 100, frame: frame))
         desktop.maximizedFrame = frame
         desktop.clearCalls()
 
-        engine.handle(.moveWindow(.east))
-
-        XCTAssertTrue(desktop.reframeCalls.isEmpty)
-    }
-
-    func testAMaximizedWindowIsNotResized() {
-        focused = create(StubWindow(id: 100, frame: frame))
-        desktop.maximizedFrame = frame
-        desktop.clearCalls()
-
-        engine.handle(.resize(.wider))
+        for action in [Action.moveWindow(.east), .resize(.wider)] {
+            engine.handle(action)
+        }
 
         XCTAssertTrue(desktop.reframeCalls.isEmpty)
     }

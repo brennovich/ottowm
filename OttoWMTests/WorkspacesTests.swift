@@ -4,10 +4,15 @@ import XCTest
 final class WorkspacesTests: XCTestCase {
     private typealias Assignments = [(window: CGWindowID, workspace: Int)]
 
+    private var tabCountReads = 0
+
     private func makeWorkspaces(tabbed: Set<CGWindowID> = []) -> Workspaces {
         Workspaces(
             tabGroups: TabGroups(
-                tabCount: { tabbed.contains($0) ? 2 : 1 },
+                tabCount: { [weak self] in
+                    self?.tabCountReads += 1
+                    return tabbed.contains($0) ? 2 : 1
+                },
                 frame: { makeSnapshot($0).frame }
             )
         )
@@ -143,25 +148,17 @@ final class WorkspacesTests: XCTestCase {
         let model = makeWorkspaces()
         model.recordFullScreen(100, leaving: 5)
 
-        XCTAssertEqual(model.membership(of: makeSnapshot(100), whenNew: 1), .fullScreen(5))
+        XCTAssertEqual(model.membership(of: 100), .fullScreen(5))
     }
 
     func testMembershipOfAnAssignedWindow() {
         let model = makeWorkspaces(assigning: [(100, 2)])
 
-        XCTAssertEqual(model.membership(of: makeSnapshot(100), whenNew: 1), .assigned(2))
+        XCTAssertEqual(model.membership(of: 100), .assigned(2))
     }
 
-    func testMembershipOfAnUnknownWindowLandsOnTheFallback() {
-        XCTAssertEqual(makeWorkspaces().membership(of: makeSnapshot(100), whenNew: 4), .unassigned(4))
-    }
-
-    func testMembershipOfAnUnknownWindowLandsOnItsTabGroupWorkspace() {
-        let model = makeWorkspaces(tabbed: [100, 200])
-        model.assign(makeSnapshot(100, appName: "Safari"), to: 3)
-
-        XCTAssertEqual(model.membership(of: makeSnapshot(200, appName: "Safari"), whenNew: 1), .unassigned(3))
-        XCTAssertNil(model.workspace(for: 200))
+    func testMembershipOfAnUnknownWindowIsUnassigned() {
+        XCTAssertEqual(makeWorkspaces().membership(of: 100), .unassigned)
     }
 
     func testAssignConsumesTheWorkspaceLeftForFullScreen() {
@@ -169,7 +166,7 @@ final class WorkspacesTests: XCTestCase {
         model.recordFullScreen(100, leaving: 5)
 
         XCTAssertEqual(model.assign(makeSnapshot(100), to: 1), 5)
-        XCTAssertEqual(model.membership(of: makeSnapshot(100), whenNew: 1), .assigned(5))
+        XCTAssertEqual(model.membership(of: 100), .assigned(5))
     }
 
     func testATabGroupOutranksTheWorkspaceLeftForFullScreen() {
@@ -186,7 +183,7 @@ final class WorkspacesTests: XCTestCase {
 
         model.remove(100)
 
-        XCTAssertEqual(model.membership(of: makeSnapshot(100), whenNew: 1), .unassigned(1))
+        XCTAssertEqual(model.membership(of: 100), .unassigned)
     }
 
     func testMovingAWindowDropsTheWorkspaceLeftForFullScreen() {
@@ -195,7 +192,7 @@ final class WorkspacesTests: XCTestCase {
 
         model.move(100, to: 4)
 
-        XCTAssertEqual(model.membership(of: makeSnapshot(100), whenNew: 1), .assigned(4))
+        XCTAssertEqual(model.membership(of: 100), .assigned(4))
     }
 
     func testAssignWindowToWorkspaceKeepsATabGroupWhereItAlreadyIsAndReportsIt() {
@@ -207,6 +204,16 @@ final class WorkspacesTests: XCTestCase {
         XCTAssertEqual(model.workspace(for: 100), 1)
         XCTAssertEqual(model.workspace(for: 200), 1)
         XCTAssertEqual(model.nextWindowToFocus, 200)
+    }
+
+    func testAssignMatchesTheTabGroupOfAWindowOnce() {
+        let model = makeWorkspaces(tabbed: [100, 200])
+        model.assign(makeSnapshot(100, appName: "Safari"), to: 1)
+        tabCountReads = 0
+
+        model.assign(makeSnapshot(200, appName: "Safari"), to: 2)
+
+        XCTAssertEqual(tabCountReads, 1)
     }
 
     func testMoveWindowToWorkspaceMovesTheWindowAndItsTabGroup() {

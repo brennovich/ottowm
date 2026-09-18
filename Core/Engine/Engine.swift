@@ -163,14 +163,14 @@ final class Engine {
 
     func switchToWorkspace(_ workspace: Int) {
         windowSystem.duringOperation("switch-to-workspace") {
-            if let focused = windowSystem.focused(), focused.isFullScreen,
-               let previous = workspaces.workspace(for: focused.id) {
+            let focused = windowSystem.focused()
+            if let focused, focused.isFullScreen, let previous = workspaces.workspace(for: focused.id) {
                 placement.releaseToFullScreen(focused.id, from: previous)
             }
 
             // A tab brought to the front joins its group here, so the tab it hid is not
             // dropped as a window that left the desktop.
-            if let focused = windowSystem.focused() {
+            if let focused {
                 placement.assign(focused, to: workspaces.current)
             }
 

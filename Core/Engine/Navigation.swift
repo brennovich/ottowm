@@ -38,14 +38,14 @@ final class Navigation {
             return
         }
 
-        switch workspaces.membership(of: win, whenNew: workspaces.current) {
+        switch workspaces.membership(of: win.id) {
         case let .fullScreen(workspace):
             guard !placement.followBackFromFullScreen(win, to: workspace) else { return }
-            enroll(win, into: workspaces.current)
+            enroll(win)
         case let .assigned(workspace):
             workspaces.recordFocus(on: win.id, in: workspace)
-        case let .unassigned(workspace):
-            enroll(win, into: workspace)
+        case .unassigned:
+            enroll(win)
         }
     }
 
@@ -79,7 +79,7 @@ final class Navigation {
         let currentWorkspace = workspaces.current
 
         if let osFocused = windowSystem.focused() {
-            switch workspaces.membership(of: osFocused, whenNew: currentWorkspace) {
+            switch workspaces.membership(of: osFocused.id) {
             case let .fullScreen(workspace):
                 if placement.followBackFromFullScreen(osFocused, to: workspace) { return true }
             case let .assigned(workspace) where workspace == currentWorkspace:
@@ -123,8 +123,8 @@ final class Navigation {
         return focused
     }
 
-    private func enroll(_ win: WindowSnapshot, into workspace: Int) {
-        guard let assigned = enrollment.enroll(win, to: workspace), assigned != workspaces.current else { return }
+    private func enroll(_ win: WindowSnapshot) {
+        guard let assigned = enrollment.enroll(win, to: workspaces.current), assigned != workspaces.current else { return }
         navigate(to: win.id)
     }
 }

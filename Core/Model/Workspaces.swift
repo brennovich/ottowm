@@ -8,7 +8,7 @@ final class Workspaces {
     enum Membership: Equatable {
         case fullScreen(Int)
         case assigned(Int)
-        case unassigned(Int)
+        case unassigned
     }
 
     private(set) var fullScreenWindows: [CGWindowID: Int] = [:]
@@ -43,10 +43,10 @@ final class Workspaces {
         workspaces[workspace]?.windowIds ?? []
     }
 
-    func membership(of window: WindowSnapshot, whenNew fallback: Int) -> Membership {
-        if let workspace = fullScreenWindows[window.id] { return .fullScreen(workspace) }
-        if let assigned = workspace(for: window.id) { return .assigned(assigned) }
-        return .unassigned(workspaceOfTabGroup(for: window) ?? fallback)
+    func membership(of windowId: CGWindowID) -> Membership {
+        if let workspace = fullScreenWindows[windowId] { return .fullScreen(workspace) }
+        if let assigned = workspace(for: windowId) { return .assigned(assigned) }
+        return .unassigned
     }
 
     func recordFullScreen(_ windowId: CGWindowID, leaving workspace: Int) {
@@ -55,9 +55,9 @@ final class Workspaces {
 
     @discardableResult
     func assign(_ window: WindowSnapshot, to workspace: Int) -> Int {
-        let target = workspaceOfTabGroup(for: window) ?? fullScreenWindows[window.id] ?? workspace
-        fullScreenWindows.removeValue(forKey: window.id)
+        let leftForFullScreen = fullScreenWindows.removeValue(forKey: window.id)
         tabGroups.add(window)
+        let target = workspaceOfTabGroup(of: window.id) ?? leftForFullScreen ?? workspace
         assignTabGroup(of: window.id, to: target)
         recordFocus(on: window.id, in: target)
         return target
@@ -124,8 +124,8 @@ final class Workspaces {
         for handler in handlers { handler(event) }
     }
 
-    private func workspaceOfTabGroup(for window: WindowSnapshot) -> Int? {
-        tabGroups.siblings(of: window).lazy.compactMap { self.workspace(for: $0) }.first
+    private func workspaceOfTabGroup(of windowId: CGWindowID) -> Int? {
+        tabGroups.siblings(of: windowId).lazy.compactMap { self.workspace(for: $0) }.first
     }
 
     private func assignTabGroup(of windowId: CGWindowID, to workspace: Int) {

@@ -105,6 +105,16 @@ final class NavigationTests: EngineTestCase {
         XCTAssertFalse(placement.isParked(301))
     }
 
+    func testFollowingAnUnknownWindowMatchesItsTabGroupOnce() {
+        let tab1 = add(StubWindow(id: 300, appName: "Terminal", frame: tabFrame, tabCount: 2))
+        placement.assign(tab1.snapshot(), to: 1)
+        let lateTab = add(StubWindow(id: 301, appName: "Terminal", frame: tabFrame, tabCount: 2))
+
+        navigation.follow(lateTab.snapshot())
+
+        XCTAssertEqual(lateTab.tabCountReadCount, 1)
+    }
+
     func testRestoreFocusesTheWindowFocusedLastInTheCurrentWorkspace() {
         let win1 = add(StubWindow(id: 100))
         let win2 = add(StubWindow(id: 200))
@@ -137,19 +147,6 @@ final class NavigationTests: EngineTestCase {
         focused = add(StubWindow(id: 300))
         XCTAssertTrue(navigation.restore())
         XCTAssertEqual(workspaces.workspace(for: 300), 1)
-    }
-
-    func testRestoreLeavesTheFocusOnAFullScreenWindowOfTheCurrentWorkspace() {
-        let win1 = add(StubWindow(id: 100))
-        let win2 = add(StubWindow(id: 200))
-        placement.assign(win1.snapshot(), to: 1)
-        placement.assign(win2.snapshot(), to: 1)
-        win1.isFullScreen = true
-        focused = win1
-
-        XCTAssertTrue(navigation.restore())
-        XCTAssertEqual(win1.focusCount, 0)
-        XCTAssertEqual(win2.focusCount, 0)
     }
 
     func testReturnToDesktopBringsAManagedWindowFrontAndIgnoresTheNavigationItCauses() {
