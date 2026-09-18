@@ -3,15 +3,23 @@ import ApplicationServices
 import CoreGraphics
 
 final class AXWindowEventsHarness {
-    var elements: [pid_t: [AXUIElement]] = [:]
-    var windowIds: [AXUIElement: CGWindowID] = [:]
-    var focusedElements: [pid_t: AXUIElement] = [:]
+    let ax = StubAXAccess()
+    var elements: [pid_t: [AXUIElement]] = [:] {
+        didSet { setApplicationAttribute(.windows, from: oldValue, to: elements) { $0 as NSArray } }
+    }
+    var focusedElements: [pid_t: AXUIElement] = [:] {
+        didSet { setApplicationAttribute(.focusedWindow, from: oldValue, to: focusedElements) { $0 } }
+    }
     var failingNotificationPids: Set<pid_t> = []
     var unreadyPids: Set<pid_t> = []
     var unsupportedPids: Set<pid_t> = []
-    var deadElements: Set<AXUIElement> = []
+    var deadElements: Set<AXUIElement> = [] {
+        didSet {
+            for element in oldValue { ax.statuses[element] = nil }
+            for element in deadElements { ax.statuses[element] = .invalidUIElement }
+        }
+    }
     var screenIsLocked = false
-    var frontmost: AXWindow?
     var onSubscribe: (() -> Void)?
 
     // The start scan subscribes the applications on several threads at once, so what it
@@ -20,14 +28,10 @@ final class AXWindowEventsHarness {
     private var subscriptions: [pid_t: [(element: AXUIElement, notification: String)]] = [:]
     private var notificationCallbacks: [pid_t: (AXUIElement, String) -> Void] = [:]
     private var invalidations: [pid_t] = []
-    private var built: [AXUIElement] = []
-
-    private var nextElementToken: pid_t = 5000
 
     var subscribed: [pid_t: [(element: AXUIElement, notification: String)]] { locked { subscriptions } }
     var callbacks: [pid_t: (AXUIElement, String) -> Void] { locked { notificationCallbacks } }
     var invalidatedPids: [pid_t] { locked { invalidations } }
-    var builtElements: [AXUIElement] { locked { built } }
 
     lazy var applications = Applications()
 
@@ -46,31 +50,13 @@ final class AXWindowEventsHarness {
                 invalidate: { self.locked { self.invalidations.append(pid) } }
             )
         },
-        makeWindow: { element, app in
-            self.locked { self.built.append(element) }
-            return self.window(element, of: app)
-        },
-        frontmostWindow: { self.frontmost },
-        focusedWindow: { self.focusedWindow(of: $0) },
-        listedWindows: { app in
-            (self.elements[app.processIdentifier] ?? []).map { self.window($0, of: app) }
-        },
-        isAlive: { !self.deadElements.contains($0.element) },
+        access: ax.access,
         screenIsLocked: { self.screenIsLocked }
     )
 
-    func window(_ element: AXUIElement, of app: NSRunningApplication) -> AXWindow {
-        AXWindow(element: element, application: app, id: windowIds[element] ?? 0)
-    }
-
-    func focusedWindow(of app: NSRunningApplication) -> AXWindow? {
-        focusedElements[app.processIdentifier].map { window($0, of: app) }
-    }
-
     func makeElement(id: CGWindowID) -> AXUIElement {
-        let element = AXUIElementCreateApplication(nextElementToken)
-        nextElementToken += 1
-        windowIds[element] = id
+        let element = ax.makeElement()
+        ax.windowIds[element] = id
         return element
     }
 
@@ -79,6 +65,22 @@ final class AXWindowEventsHarness {
         let element = makeElement(id: id)
         elements[pid, default: []].append(element)
         return element
+    }
+
+    func setFrontmost(_ element: AXUIElement, of app: NSRunningApplication) {
+        ax.frontmost = app
+        focusedElements[app.processIdentifier] = element
+    }
+
+    private func setApplicationAttribute<Value>(
+        _ attribute: AXAttribute,
+        from old: [pid_t: Value],
+        to new: [pid_t: Value],
+        _ object: (Value) -> AnyObject
+    ) {
+        for pid in Set(old.keys).union(new.keys) {
+            ax.attributes[AXUIElementCreateApplication(pid), default: [:]][attribute] = new[pid].map(object)
+        }
     }
 
     private func locked<T>(_ body: () -> T) -> T {

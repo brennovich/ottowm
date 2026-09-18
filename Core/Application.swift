@@ -27,8 +27,7 @@ final class Application {
 
     private let channel: AXNotifications
     private let subscription: Subscription
-    private let focusedWindow: (NSRunningApplication) -> AXWindow?
-    private let listedWindows: (NSRunningApplication) -> [AXWindow]
+    private let access: AXAccess
     private var attached: [AXUIElement: AXWindow] = [:]
     private var windowsById: [CGWindowID: AXWindow] = [:]
 
@@ -36,17 +35,11 @@ final class Application {
     var name: String { running.localizedName ?? "" }
     var windows: [AXWindow] { Array(attached.values) }
 
-    init(
-        _ running: NSRunningApplication,
-        channel: AXNotifications,
-        focusedWindow: @escaping (NSRunningApplication) -> AXWindow? = AXWindow.focused(of:),
-        listedWindows: @escaping (NSRunningApplication) -> [AXWindow] = AXWindow.all(of:)
-    ) {
+    init(_ running: NSRunningApplication, channel: AXNotifications, access: AXAccess = .live) {
         self.running = running
         self.channel = channel
         self.subscription = .application(pid: running.processIdentifier, channel: channel)
-        self.focusedWindow = focusedWindow
-        self.listedWindows = listedWindows
+        self.access = access
     }
 
     func scan() -> Scan {
@@ -54,7 +47,7 @@ final class Application {
         guard outcome == .active else { return Scan(subscription: outcome, windows: [], focused: nil) }
 
         let focused = attachFocusedWindow()
-        let windows = listedWindows(running).compactMap { window -> AXWindow? in
+        let windows = AXWindow.all(of: running, access: access).compactMap { window -> AXWindow? in
             guard case let .attached(attached) = attach(window) else { return nil }
             return attached
         }
@@ -98,7 +91,7 @@ final class Application {
     }
 
     private func attachFocusedWindow() -> AXWindow? {
-        guard running.isActive, let window = focusedWindow(running) else { return nil }
+        guard running.isActive, let window = AXWindow.focused(of: running, access: access) else { return nil }
 
         return attach(window).window
     }

@@ -15,11 +15,7 @@ final class AXWindowEvents {
 
     private let applications: Applications
     private let makeNotifications: (pid_t, @escaping (AXUIElement, String) -> Void) -> AXNotifications?
-    private let makeWindow: (AXUIElement, NSRunningApplication) -> AXWindow
-    private let frontmostWindow: () -> AXWindow?
-    private let focusedWindow: (NSRunningApplication) -> AXWindow?
-    private let listedWindows: (NSRunningApplication) -> [AXWindow]
-    private let isAlive: (AXWindow) -> Bool
+    private let access: AXAccess
     private let screenIsLocked: () -> Bool
     private var suspected: Set<AXWindow> = []
     private var handlers: [(WindowEvent) -> Void] = []
@@ -28,26 +24,12 @@ final class AXWindowEvents {
         applications: Applications,
         makeNotifications: @escaping (pid_t, @escaping (AXUIElement, String) -> Void) -> AXNotifications?
             = AXNotifications.of,
-        makeWindow: @escaping (AXUIElement, NSRunningApplication) -> AXWindow
-            = AXWindow.init(element:application:),
-        frontmostWindow: @escaping () -> AXWindow? = AXWindow.focused,
-        focusedWindow: @escaping (NSRunningApplication) -> AXWindow? = AXWindow.focused(of:),
-        listedWindows: @escaping (NSRunningApplication) -> [AXWindow] = AXWindow.all(of:),
-        isAlive: @escaping (AXWindow) -> Bool = { window in
-            var value: CFTypeRef?
-            return trace(.read, AXAttribute.role.rawValue) {
-                AXUIElementCopyAttributeValue(window.element, AXAttribute.role.rawValue as CFString, &value)
-            } != .invalidUIElement
-        },
+        access: AXAccess = .live,
         screenIsLocked: @escaping () -> Bool = { false }
     ) {
         self.applications = applications
         self.makeNotifications = makeNotifications
-        self.makeWindow = makeWindow
-        self.frontmostWindow = frontmostWindow
-        self.focusedWindow = focusedWindow
-        self.listedWindows = listedWindows
-        self.isAlive = isAlive
+        self.access = access
         self.screenIsLocked = screenIsLocked
     }
 
@@ -67,9 +49,7 @@ final class AXWindowEvents {
             return nil
         }
 
-        let application = Application(
-            app, channel: notifications, focusedWindow: focusedWindow, listedWindows: listedWindows
-        )
+        let application = Application(app, channel: notifications, access: access)
         applications.add(application)
 
         let attempt = attempt(of: application.scan())
@@ -118,7 +98,7 @@ final class AXWindowEvents {
     /// here or through the focus notification. Nil for a window without an id, or of an
     /// application that is not watched and that the registry could not reach anyway.
     func adoptFocusedWindow() -> WindowSnapshot? {
-        guard let window = frontmostWindow(), let application = applications.find(by: window.pid) else {
+        guard let window = AXWindow.focused(access: access), let application = applications.find(by: window.pid) else {
             return nil
         }
 
@@ -137,7 +117,7 @@ final class AXWindowEvents {
         var stillSuspected: Set<AXWindow> = []
 
         for application in applications.all {
-            for window in application.windows where !isAlive(window) {
+            for window in application.windows where !window.isAlive() {
                 guard suspected.contains(window) else {
                     stillSuspected.insert(window)
                     continue
@@ -175,12 +155,14 @@ final class AXWindowEvents {
     ) -> WindowEvent? {
         switch notification {
         case kAXWindowCreatedNotification:
-            guard case let .attached(attached) = app.attach(makeWindow(element, app.running)) else { return nil }
+            let window = AXWindow(element: element, application: app.running, access: access)
+            guard case let .attached(attached) = app.attach(window) else { return nil }
             return .created(attached.snapshot())
         case kAXFocusedWindowChangedNotification:
             // A window already attached is returned from the registry: a repeated focus is
             // still an event, and the stored window has its id without a read.
-            return app.attach(makeWindow(element.owningWindow, app.running)).window.map { .focused($0.snapshot()) }
+            let window = AXWindow.owning(element, of: app.running, access: access)
+            return app.attach(window).window.map { .focused($0.snapshot()) }
         case kAXUIElementDestroyedNotification:
             return app.detach(element: element).map { WindowEvent.destroyed($0.id) }
         case kAXWindowMiniaturizedNotification:

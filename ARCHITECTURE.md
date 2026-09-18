@@ -109,7 +109,8 @@ flowchart LR
 | `Subscription`                | macOS     | The AX notifications one element is subscribed to, and whether the attempt succeeded.   |
 | `AXNotifications`             | macOS     | The AX notification channel of one process: subscribe an element, invalidate the lot.   |
 | `Window`                      | macOS     | The window operations the desktop needs: snapshot, frames, moves, focus, tabs.          |
-| `AXWindow`                    | macOS     | One window: snapshot, frame writes, focus, tab count.                                   |
+| `AXWindow`                    | macOS     | One window: snapshot, frame writes, focus, tab count, read through `AXAccess`.          |
+| `AXAccess`                    | macOS     | The raw AX calls: reads, writes, actions, window id, activation, frontmost application. |
 | `MainScreen`                  | macOS     | The main display as a `Display`, the `Screens` the desktop reads.                       |
 | `OperationCache`              | macOS     | Holds one AX or CG read for the length of an operation.                                 |
 | `RoundTrips`                  | macOS     | Prices an operation in the calls it makes out of the process: how many, of what, cost.  |
@@ -196,6 +197,7 @@ flowchart TB
     Application --> AXWindow
     Subscription --> AXNotifications
     AXWindowEvents --> AXWindow
+    AXWindow --> AXAccess
 ```
 
 `AXWindowEvents` pushes the AX notifications of the watched applications and the sweep. A scan (`start`, `discover` or `inventory`) returns what it found, and `RunningApplicationsObserver` decides what to announce.

@@ -5,13 +5,11 @@ import XCTest
 
 final class ApplicationTests: XCTestCase {
     private let app = StubRunningApplication(pid: 901)
+    private let ax = StubAXAccess()
+    private let appElement = AXUIElementCreateApplication(901)
     private var watched: [(element: AXUIElement, notification: String)] = []
     private var invalidated = false
     private var answer = AXError.success
-    private var listed: [AXWindow] = []
-    private var focused: AXWindow?
-    private var listings = 0
-    private var focusedReads = 0
 
     private lazy var application = Application(
         app,
@@ -22,25 +20,28 @@ final class ApplicationTests: XCTestCase {
             },
             invalidate: { self.invalidated = true }
         ),
-        focusedWindow: { _ in
-            self.focusedReads += 1
-            return self.focused
-        },
-        listedWindows: { _ in
-            self.listings += 1
-            return self.listed
-        }
+        access: ax.access
     )
 
     private func window(id: CGWindowID, element: AXUIElement = AXUIElementCreateApplication(5000)) -> AXWindow {
-        AXWindow(element: element, application: app, id: id)
+        AXWindow(element: element, application: app, id: id, access: ax.access)
+    }
+
+    private func list(_ windows: [AXWindow]) {
+        for window in windows { ax.windowIds[window.element] = window.id }
+        ax.attributes[appElement, default: [:]][.windows] = windows.map(\.element) as NSArray
+    }
+
+    private func focus(_ window: AXWindow) {
+        ax.windowIds[window.element] = window.id
+        ax.attributes[appElement, default: [:]][.focusedWindow] = window.element
     }
 
     func testScanSubscribesTheApplicationAndAttachesTheListedWindowsItDoesNotHold() {
         let held = window(id: 42, element: AXUIElementCreateApplication(5000))
         let new = window(id: 43, element: AXUIElementCreateApplication(5001))
         application.attach(held)
-        listed = [held, new]
+        list([held, new])
 
         let scan = application.scan()
 
@@ -53,40 +54,39 @@ final class ApplicationTests: XCTestCase {
 
     func testScanOfAnApplicationThatDoesNotReplyReadsNoWindow() {
         answer = .cannotComplete
-        listed = [window(id: 42)]
-        focused = window(id: 300, element: AXUIElementCreateApplication(5002))
+        list([window(id: 42)])
+        focus(window(id: 300, element: AXUIElementCreateApplication(5002)))
 
         let scan = application.scan()
 
         XCTAssertEqual(scan.subscription, .unreachable)
         XCTAssertEqual(scan.windows, [])
         XCTAssertNil(scan.focused)
-        XCTAssertEqual(listings, 0)
-        XCTAssertEqual(focusedReads, 0)
+        XCTAssertEqual(ax.reads(of: appElement), [])
         XCTAssertEqual(application.windows, [])
     }
 
     func testScanAttachesTheFocusedWindowOfTheActiveApplicationFirstAndReturnsItApart() {
         let tab = window(id: 300, element: AXUIElementCreateApplication(5002))
         let other = window(id: 42, element: AXUIElementCreateApplication(5000))
-        focused = tab
-        listed = [tab, other]
+        focus(tab)
+        list([tab, other])
 
         let scan = application.scan()
 
-        XCTAssertIdentical(scan.focused, tab)
+        XCTAssertEqual(scan.focused, tab)
         XCTAssertEqual(scan.windows, [other])
-        XCTAssertIdentical(application.findWindow(by: 300), tab)
+        XCTAssertEqual(application.findWindow(by: 300), tab)
     }
 
     func testScanLeavesTheFocusedWindowOfAnInactiveApplicationUnread() {
         app.activated = false
-        focused = window(id: 300, element: AXUIElementCreateApplication(5002))
+        focus(window(id: 300, element: AXUIElementCreateApplication(5002)))
 
         let scan = application.scan()
 
         XCTAssertNil(scan.focused)
-        XCTAssertEqual(focusedReads, 0)
+        XCTAssertEqual(ax.reads(of: .focusedWindow, on: appElement), 0)
         XCTAssertEqual(application.windows, [])
     }
 
@@ -108,10 +108,11 @@ final class ApplicationTests: XCTestCase {
         application.attach(first)
         let count = watched.count
 
-        let attachment = application.attach(AXWindow(element: element, application: app))
+        let attachment = application.attach(AXWindow(element: element, application: app, access: ax.access))
 
         XCTAssertEqual(attachment, .known(first))
         XCTAssertIdentical(attachment.window, first)
+        XCTAssertEqual(ax.windowIdReads(of: element), 0)
         XCTAssertEqual(watched.count, count)
     }
 

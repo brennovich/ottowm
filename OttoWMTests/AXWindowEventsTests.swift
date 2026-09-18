@@ -50,7 +50,7 @@ final class AXWindowEventsTests: AXWindowEventsTestCase {
         XCTAssertEqual(events.descriptions, ["created(42)"])
     }
 
-    func testNotificationsOnAnAttachedWindowDoNotBuildAWindow() {
+    func testNotificationsOnAnAttachedWindowDoNotReadItsIdAgain() {
         let element = harness.addWindow(pid: 901, id: 100)
         start()
 
@@ -59,7 +59,7 @@ final class AXWindowEventsTests: AXWindowEventsTestCase {
         notify(element, kAXUIElementDestroyedNotification)
 
         XCTAssertEqual(events.descriptions, ["minimized(100)", "unminimized(100)", "destroyed(100)"])
-        XCTAssertEqual(harness.builtElements, [])
+        XCTAssertEqual(harness.ax.windowIdReads(of: element), 1)
     }
 
     func testNotificationsOfAnApplicationNoLongerWatchedAreDropped() {
@@ -76,7 +76,7 @@ final class AXWindowEventsTests: AXWindowEventsTestCase {
     func testAdoptFocusedWindowAttachesTheWindowInFrontOnceAndReturnsIt() {
         start()
         let tab = harness.makeElement(id: 300)
-        harness.frontmost = harness.window(tab, of: app)
+        harness.setFrontmost(tab, of: app)
 
         XCTAssertEqual(windowEvents.adoptFocusedWindow()?.id, 300)
         XCTAssertEqual(applications.findWindow(by: 300)?.element, tab)
@@ -89,7 +89,7 @@ final class AXWindowEventsTests: AXWindowEventsTestCase {
     }
 
     func testAdoptFocusedWindowOfAnUnwatchedApplicationReturnsNil() {
-        harness.frontmost = harness.window(harness.makeElement(id: 300), of: app)
+        harness.setFrontmost(harness.makeElement(id: 300), of: app)
 
         XCTAssertNil(windowEvents.adoptFocusedWindow())
         XCTAssertNil(applications.findWindow(by: 300))

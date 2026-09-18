@@ -2,12 +2,6 @@ import AppKit
 import ApplicationServices
 import CoreGraphics
 
-// Unexported symbol to retrieve the CGWindowID that ties an AX element to the
-// window server list.
-@_silgen_name("_AXUIElementGetWindow")
-@discardableResult
-private func _AXUIElementGetWindow(_ element: AXUIElement, _ id: inout CGWindowID) -> AXError
-
 /// A window of a running application, driven through the Accessibility API.
 ///
 /// Holds the element and its application because the API is split between them:
@@ -19,22 +13,21 @@ private func _AXUIElementGetWindow(_ element: AXUIElement, _ id: inout CGWindowI
 final class AXWindow: Window, WindowLogDescribing {
     let element: AXUIElement
     let application: NSRunningApplication
+    private let access: AXAccess
 
-    init(element: AXUIElement, application: NSRunningApplication) {
+    init(element: AXUIElement, application: NSRunningApplication, access: AXAccess = .live) {
         self.element = element
         self.application = application
+        self.access = access
     }
 
-    convenience init(element: AXUIElement, application: NSRunningApplication, id: CGWindowID) {
-        self.init(element: element, application: application)
+    convenience init(element: AXUIElement, application: NSRunningApplication, id: CGWindowID, access: AXAccess = .live) {
+        self.init(element: element, application: application, access: access)
         self.id = id
     }
 
     lazy var id: CGWindowID = {
-        var windowId: CGWindowID = 0
-        let result = trace(.read, "AXWindowID") {
-            _AXUIElementGetWindow(element, &windowId)
-        }
+        let (result, windowId) = access.windowId(element)
         if result != .success || windowId == 0 {
             Log.window.debug("window id lookup failed app=\(self.appName) err=\(result.rawValue)")
         }
@@ -45,7 +38,7 @@ final class AXWindow: Window, WindowLogDescribing {
     var pid: pid_t { application.processIdentifier }
 
     func snapshot() -> WindowSnapshot {
-        let attributes = element.values(of: [
+        let attributes = access.values(element, [
             .subrole,
             .closeButton,
             .minimizeButton,
@@ -68,7 +61,7 @@ final class AXWindow: Window, WindowLogDescribing {
     }
 
     func movableFrame() -> CGRect? {
-        let attributes = element.values(of: [.minimized, .position, .size])
+        let attributes = access.values(element, [.minimized, .position, .size])
         guard (attributes[.minimized] as? Bool) != true else { return nil }
 
         return frame(position: attributes[.position], size: attributes[.size])
@@ -81,7 +74,7 @@ final class AXWindow: Window, WindowLogDescribing {
     /// Credited to yabai and Rectangle, via AeroSpace.
     func withoutAnimations<T>(_ body: () -> T) -> T {
         let appElement = AXUIElementCreateApplication(application.processIdentifier)
-        let enhanced = appElement.value(of: .enhancedUserInterface) as? Bool == true
+        let enhanced = access.copyValue(appElement, .enhancedUserInterface).value as? Bool == true
 
         if enhanced { setEnhancedUserInterface(appElement, false) }
         defer { if enhanced { setEnhancedUserInterface(appElement, true) } }
@@ -89,27 +82,23 @@ final class AXWindow: Window, WindowLogDescribing {
     }
 
     func setPosition(_ origin: CGPoint) {
-        let result = element.setValue(origin, for: .position)
+        let result = access.setValue(element, .position, origin.axValue)
         if result != .success {
             Log.window.error("set position failed \(self.logDescription) err=\(result.rawValue) target=\(origin)")
         }
     }
 
     func setSize(_ size: CGSize) {
-        let result = element.setValue(size, for: .size)
+        let result = access.setValue(element, .size, size.axValue)
         if result != .success {
             Log.window.error("set size failed \(self.logDescription) err=\(result.rawValue) target=\(size)")
         }
     }
 
     func focus() {
-        let raiseResult = trace(.action, kAXRaiseAction) {
-            AXUIElementPerformAction(element, kAXRaiseAction as CFString)
-        }
-        let mainResult = element.setValue(true, for: .main)
-        let activated = trace(.action, "activate") {
-            application.activate(options: AXWindow.activationOptions)
-        }
+        let raiseResult = access.perform(element, kAXRaiseAction)
+        let mainResult = access.setValue(element, .main, kCFBooleanTrue)
+        let activated = access.activate(application)
         if raiseResult != .success || mainResult != .success {
             Log.window.error("focus failed \(self.logDescription) raise=\(raiseResult.rawValue) main=\(mainResult.rawValue)")
         } else if !activated {
@@ -117,46 +106,61 @@ final class AXWindow: Window, WindowLogDescribing {
         }
     }
 
-    static func focused() -> AXWindow? {
-        trace(.read, "frontmostApplication") { NSWorkspace.shared.frontmostApplication }
-            .flatMap(focused(of:))
+    static func focused(access: AXAccess) -> AXWindow? {
+        access.frontmostApplication().flatMap { focused(of: $0, access: access) }
     }
 
-    static func all(of app: NSRunningApplication) -> [AXWindow] {
+    static func all(of app: NSRunningApplication, access: AXAccess) -> [AXWindow] {
         let appElement = AXUIElementCreateApplication(app.processIdentifier)
-        let elements = appElement.value(of: .windows) as? [AXUIElement] ?? []
-        return elements.map { AXWindow(element: $0, application: app) }
+        let elements = access.copyValue(appElement, .windows).value as? [AXUIElement] ?? []
+        return elements.map { AXWindow(element: $0, application: app, access: access) }
     }
 
-    static func focused(of app: NSRunningApplication) -> AXWindow? {
+    static func focused(of app: NSRunningApplication, access: AXAccess) -> AXWindow? {
         let appElement = AXUIElementCreateApplication(app.processIdentifier)
-        guard let element = appElement.elementValue(of: .focusedWindow) else { return nil }
-        return AXWindow(element: element.owningWindow, application: app)
+        guard let element = elementValue(access.copyValue(appElement, .focusedWindow).value) else { return nil }
+        return owning(element, of: app, access: access)
+    }
+
+    /// The window a sheet belongs to, the element itself otherwise.
+    ///
+    /// An application reports the sheet it shows as its focused window. A sheet is absent
+    /// from the window list, carries no subrole and moves with the window it belongs to, so
+    /// that window is the one to act on.
+    static func owning(_ element: AXUIElement, of app: NSRunningApplication, access: AXAccess) -> AXWindow {
+        let isSheet = AXRole(access.copyValue(element, .role).value) == .sheet
+        let owner = isSheet ? elementValue(access.copyValue(element, .window).value) : nil
+        return AXWindow(element: owner ?? element, application: app, access: access)
+    }
+
+    func isAlive() -> Bool {
+        access.copyValue(element, .role).status != .invalidUIElement
     }
 
     func tabCount() -> Int {
-        guard let children = element.value(of: .children) as? [AXUIElement] else {
+        guard let children = access.copyValue(element, .children).value as? [AXUIElement] else {
             Log.window.debug("tabCount children read failed \(self.logDescription), assuming 1")
             return 1
         }
         let tabs = children.lazy
             .compactMap { child -> [AXUIElement]? in
-                let attributes = child.values(of: [.role, .children])
+                let attributes = self.access.values(child, [.role, .children])
                 guard AXRole(attributes[.role]) == .tabGroup else { return nil }
                 return attributes[.children] as? [AXUIElement]
             }
             .first ?? []
 
-        return max(tabs.filter { AXRole($0.value(of: .role)) == .radioButton }.count, 1)
+        return max(tabs.filter { AXRole(access.copyValue($0, .role).value) == .radioButton }.count, 1)
     }
 
-    private static var activationOptions: NSApplication.ActivationOptions {
-        if #available(macOS 14.0, *) { return [] }
-        return .activateIgnoringOtherApps
+    private static func elementValue(_ value: AnyObject?) -> AXUIElement? {
+        guard let value else { return nil }
+        // swiftlint:disable:next force_cast
+        return (value as! AXUIElement)
     }
 
     private func setEnhancedUserInterface(_ appElement: AXUIElement, _ enabled: Bool) {
-        let result = appElement.setValue(enabled, for: .enhancedUserInterface)
+        let result = access.setValue(appElement, .enhancedUserInterface, enabled ? kCFBooleanTrue : kCFBooleanFalse)
         if result != .success {
             Log.window.debug("enhanced user interface \(enabled) failed \(self.logDescription) err=\(result.rawValue)")
         }

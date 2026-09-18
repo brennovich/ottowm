@@ -1,3 +1,4 @@
+import AppKit
 import ApplicationServices
 import CoreGraphics
 
@@ -98,65 +99,76 @@ private func axObserverCallback(
     box.callback(element, notification as String)
 }
 
-extension AXUIElement {
-    func value(of attribute: AXAttribute) -> AnyObject? {
-        var value: CFTypeRef?
-        let status = trace(.read, attribute.rawValue) {
-            AXUIElementCopyAttributeValue(self, attribute.rawValue as CFString, &value)
+/// The raw Accessibility calls. `.live` traces each one as a round trip.
+struct AXAccess {
+    let copyValue: (AXUIElement, AXAttribute) -> (status: AXError, value: AnyObject?)
+    let values: (AXUIElement, [AXAttribute]) -> [AXAttribute: AnyObject]
+    let setValue: (AXUIElement, AXAttribute, CFTypeRef) -> AXError
+    let perform: (AXUIElement, String) -> AXError
+    let windowId: (AXUIElement) -> (status: AXError, id: CGWindowID)
+    let activate: (NSRunningApplication) -> Bool
+    let frontmostApplication: () -> NSRunningApplication?
+
+    static let live = AXAccess(
+        copyValue: { element, attribute in
+            var value: CFTypeRef?
+            let status = trace(.read, attribute.rawValue) {
+                AXUIElementCopyAttributeValue(element, attribute.rawValue as CFString, &value)
+            }
+            return (status, status == .success ? value : nil)
+        },
+        values: { element, attributes in
+            var result: CFArray?
+            let status = trace(.read, attributes.map(\.rawValue).joined(separator: "+")) {
+                AXUIElementCopyMultipleAttributeValues(
+                    element, attributes.map(\.rawValue) as CFArray, AXCopyMultipleAttributeOptions(rawValue: 0), &result
+                )
+            }
+            guard status == .success, let raw = result as? [AnyObject], raw.count == attributes.count else {
+                return [:]
+            }
+            return Dictionary(uniqueKeysWithValues: zip(attributes, raw.discardingAXErrors).compactMap { key, value in
+                value.map { (key, $0) }
+            })
+        },
+        setValue: { element, attribute, value in
+            trace(.write, attribute.rawValue) {
+                AXUIElementSetAttributeValue(element, attribute.rawValue as CFString, value)
+            }
+        },
+        perform: { element, action in
+            trace(.action, action) {
+                AXUIElementPerformAction(element, action as CFString)
+            }
+        },
+        windowId: { element in
+            var id: CGWindowID = 0
+            let status = trace(.read, "AXWindowID") {
+                _AXUIElementGetWindow(element, &id)
+            }
+            return (status, id)
+        },
+        activate: { application in
+            trace(.action, "activate") {
+                application.activate(options: activationOptions)
+            }
+        },
+        frontmostApplication: {
+            trace(.read, "frontmostApplication") { NSWorkspace.shared.frontmostApplication }
         }
-        guard status == .success else { return nil }
-        return value
-    }
+    )
 
-    func values(of attributes: [AXAttribute]) -> [AXAttribute: AnyObject] {
-        var result: CFArray?
-        let status = trace(.read, attributes.map(\.rawValue).joined(separator: "+")) {
-            AXUIElementCopyMultipleAttributeValues(
-                self, attributes.map(\.rawValue) as CFArray, AXCopyMultipleAttributeOptions(rawValue: 0), &result
-            )
-        }
-        guard status == .success, let raw = result as? [AnyObject], raw.count == attributes.count else {
-            return [:]
-        }
-        return Dictionary(uniqueKeysWithValues: zip(attributes, raw.discardingAXErrors).compactMap { key, value in
-            value.map { (key, $0) }
-        })
-    }
-
-    /// The window a sheet belongs to, the element itself otherwise.
-    ///
-    /// An application reports the sheet it shows as its focused window. A sheet is absent
-    /// from the window list, carries no subrole and moves with the window it belongs to, so
-    /// that window is the one to act on.
-    var owningWindow: AXUIElement {
-        guard AXRole(value(of: .role)) == .sheet else { return self }
-        return elementValue(of: .window) ?? self
-    }
-
-    func elementValue(of attribute: AXAttribute) -> AXUIElement? {
-        guard let value = value(of: attribute) else { return nil }
-        // swiftlint:disable:next force_cast
-        return (value as! AXUIElement)
-    }
-
-    func setValue(_ point: CGPoint, for attribute: AXAttribute) -> AXError {
-        setValue(point.axValue, for: attribute)
-    }
-
-    func setValue(_ size: CGSize, for attribute: AXAttribute) -> AXError {
-        setValue(size.axValue, for: attribute)
-    }
-
-    func setValue(_ flag: Bool, for attribute: AXAttribute) -> AXError {
-        setValue(flag ? kCFBooleanTrue! : kCFBooleanFalse!, for: attribute)
-    }
-
-    private func setValue(_ value: CFTypeRef, for attribute: AXAttribute) -> AXError {
-        trace(.write, attribute.rawValue) {
-            AXUIElementSetAttributeValue(self, attribute.rawValue as CFString, value)
-        }
+    private static var activationOptions: NSApplication.ActivationOptions {
+        if #available(macOS 14.0, *) { return [] }
+        return .activateIgnoringOtherApps
     }
 }
+
+// Unexported symbol to retrieve the CGWindowID that ties an AX element to the
+// window server list.
+@_silgen_name("_AXUIElementGetWindow")
+@discardableResult
+private func _AXUIElementGetWindow(_ element: AXUIElement, _ id: inout CGWindowID) -> AXError
 
 extension Array where Element == AnyObject {
     var discardingAXErrors: [AnyObject?] {
