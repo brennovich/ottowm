@@ -90,8 +90,8 @@ struct Subject {
     }
 
     // Nil when this window is the one a hotkey would act on, otherwise where the focus
-    // actually is. Asked for the way OttoWM asks in Core/AXWindow.focused(), the focused
-    // window of the frontmost application.
+    // actually is. Asked for the way OttoWM asks in Core/MacOS/AX/AXWindow.focused(), the
+    // focused window of the frontmost application.
     func lacksFocus() -> String? {
         guard let frontmost = NSWorkspace.shared.frontmostApplication else { return "nothing is frontmost" }
         guard frontmost.bundleIdentifier == bundleId else {

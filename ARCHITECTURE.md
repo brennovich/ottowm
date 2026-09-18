@@ -204,10 +204,10 @@ flowchart LR
 | `DisplayLayouts`              | Model     | The last frame each window had on each display, kept after the display disconnects.     |
 | `Fit`                         | Model     | One frame moved between two visible frames, each axis keeping its share of the room.    |
 | `SavedState`                  | Model     | What the state file holds, less the windows no longer open.                             |
-| `Desktop`                     | macOS     | The protocol the engine moves, parks and focuses windows through.                       |
+| `Desktop`                     | Engine    | The protocol the engine moves, parks and focuses windows through.                       |
 | `ParkingDesktop`              | macOS     | The `Desktop` that parks windows at the hidden edge and reports `DesktopEvent`s.        |
 | `HiddenEdge`                  | Model     | Where a parked window sits, and whether a frame sits there.                             |
-| `WindowSystem`                | macOS     | The focused window, the on-screen window frames, and the tab count of a window.         |
+| `WindowSystem`                | Engine    | The focused window, the on-screen window frames, and the tab count of a window.         |
 | `RunningApplicationsObserver` | macOS     | The `NSWorkspace` notifications of the applications' lifecycle, and what to announce.   |
 | `ApplicationFilter`           | macOS     | Which applications are worth an AX subscription: not OttoWM, the lock screen or WebKit. |
 | `WindowEvents`                | macOS     | The window events and the scans the observer reads: start, discover, inventory, stop.   |
@@ -216,7 +216,7 @@ flowchart LR
 | `Application`                 | macOS     | One watched application: its channel and subscription, the windows it reads, their ids. |
 | `Subscription`                | macOS     | The AX notifications one element is subscribed to, and whether the attempt succeeded.   |
 | `AXNotifications`             | macOS     | The AX notification channel of one process: subscribe an element, invalidate the lot.   |
-| `Window`                      | macOS     | The window operations the desktop needs: snapshot, frames, moves, focus, tabs.          |
+| `Window`                      | Engine    | The window operations the desktop needs: snapshot, frames, moves, focus, tabs.          |
 | `AXWindow`                    | macOS     | One window: snapshot, frame writes, focus, tab count, read through `AXAccess`.          |
 | `AXAccess`                    | macOS     | The raw AX calls: reads, writes, actions, window id, activation, frontmost application. |
 | `Screens`                     | macOS     | The protocol the desktop reads the main display through.                                |
