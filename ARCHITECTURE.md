@@ -17,29 +17,6 @@ OttoWM is a headless agent that offers several workspaces on one native macOS Sp
 | Frame          | A rect in top-left coordinates.                                                                               |
 | Operation      | One unit of engine work. The focused window and the list of on-screen window ids are read at most once in it. |
 
-## Key types
-
-```
-WindowEvent  = created(WindowSnapshot) | focused(WindowSnapshot) | destroyed(id) | minimized(id) | unminimized(WindowSnapshot)
-Binding      = action(Action) | quit | restart
-Action       = switchToWorkspace(n) | moveWindowToWorkspace(n) | focus(direction) | moveWindow(direction)
-             | resize(change) | centerWindow | maximize | tile(direction)
-Direction    = north | east | south | west                       // "focus east" in the config
-Step         = (direction, points)                               // "move-window east" in the config, points from spacing
-Resize       = (change, points)                                  // "resize wider" in the config, points from spacing
-KeyCombo     = (keyCode, [ModifierKey: ModifierSide])            // "lopt-shift-1"
-FrameChange  = move(direction) | resize(change) | center         // what a window's frame is asked to become
-             | park(frame?) | unpark(frame?) | maximize(frame?)  // carrying the frame to record, or to go back to
-             | tile(direction, frame?)
-FrameRequest = (windowId, change: FrameChange)                   // what the desktop is asked to do
-FrameOutcome = parked(id, from: frame) | filled(id, from: frame) | active(id) | gone(id)
-Display      = (id, fullFrame, visibleFrame)                     // top-left coordinates
-DisplayChange = (from: Display, to: Display)                     // keepsDisplay when the id is the same
-DesktopEvent = nativeSpaceChange | displayChange(DisplayChange) | screenParametersChange
-WorkspaceEvent = switched(n)
-WindowSnapshot(id, appName, isStandard, hasCloseButton, hasMinimizeButton, isFullScreen, isMinimized, frame)
-```
-
 ## Level 1: System context
 
 ```mermaid
@@ -89,6 +66,17 @@ flowchart LR
     macOS -->|DesktopEvent| UI
 ```
 
+The messages on the arrows:
+
+```
+Action         = switchToWorkspace(n) | moveWindowToWorkspace(n) | focus(direction) | moveWindow(direction)
+               | resize(change) | centerWindow | maximize | tile(direction)
+Binding        = action(Action) | quit | restart
+WindowEvent    = created(snapshot) | focused(snapshot) | destroyed(id) | minimized(id) | unminimized(snapshot)
+DesktopEvent   = nativeSpaceChange | displayChange(from: Display, to: Display) | screenParametersChange
+WorkspaceEvent = switched(n)
+```
+
 `AppDelegate` builds every component and wires them with closures. The diagrams below show the calls made after startup.
 
 ### Input
@@ -116,35 +104,34 @@ flowchart LR
     Workspaces --> Workspace & TabGroups
 ```
 
-Every engine component reads the focused window and snapshots through `WindowSystem`, and reads membership from `Workspaces`.
+Every engine component reads the focused window and snapshots through `WindowSystem`, and reads membership from `Workspaces`. `TabGroups` reads tab counts and frames through `WindowSystem` when a window is assigned.
 
 ### macOS boundary
 
 ```mermaid
-flowchart TB
-    Engine -->|recover, reframe, focus, repark| Desktop
+flowchart LR
+    Engine -->|"Desktop: recover, reframe, focus, repark"| ParkingDesktop
     Engine -->|focused, frames, snapshot| WindowSystem
-    TabGroups -->|tabCount, frame| WindowSystem
     RunningApplicationsObserver -->|WindowEvent| Engine
 
-    subgraph desktop [Desktop]
-        Desktop -.-|implemented by| ParkingDesktop
-        ParkingDesktop -->|Screens| MainScreen
-        ParkingDesktop --> WorkArea --> HiddenEdge
-    end
-
-    subgraph windows [Window events]
-        RunningApplicationsObserver --> ApplicationFilter
-        RunningApplicationsObserver -->|WindowEvents| AXWindowEvents
-        AXWindowEvents --> Applications --> Application
-        Application --> Subscription & AXNotifications & AXWindow
-        AXWindow --> AXAccess
-    end
-
+    ParkingDesktop -->|"Screens: main"| MainScreen
     ParkingDesktop -->|findWindow| Applications
-    WindowSystem -->|findWindow| Applications
+    ParkingDesktop -->|"Window: move, focus"| AXWindow
+
     WindowSystem -->|adoptFocusedWindow| AXWindowEvents
+    WindowSystem -->|on-screen frames| CGWindowList
+    WindowSystem -->|findWindow| Applications
+    WindowSystem -->|"Window: snapshot, frame, tabCount"| AXWindow
+
+    RunningApplicationsObserver --> ApplicationFilter
+    RunningApplicationsObserver -->|"WindowEvents: start, discover, inventory, sweep"| AXWindowEvents
+    AXWindowEvents -->|add, find, remove| Applications
+    Applications -->|holds| Application
+    Application --> Subscription & AXNotifications & AXWindow
+    AXWindow --> AXAccess
 ```
+
+`Desktop`, `WindowSystem` and `Window` belong to the engine. `AppDelegate` hands `ParkingDesktop` and `WindowSystem` `Applications.findWindow` as a closure, so neither depends on `Applications`. `ParkingDesktop` computes target frames with `WorkArea` and `HiddenEdge`, which read no system state.
 
 `AXWindowEvents` pushes the AX notifications and the sweep. A scan (`start`, `discover`, `inventory`) returns what it found, and `RunningApplicationsObserver` decides what to announce.
 
@@ -241,14 +228,12 @@ The pager draws with Core Animation. SwiftUI used substantially more CPU on Inte
 
 ### Startup
 
+`AppDelegate` passes two gates before it reads any window. `ConfigGate.load()` returns the `Config`, quits, or relaunches once the user fixed the file. `AccessibilityPermission.request()` returns granted, quits, or relaunches after the grant.
+
+It then restores the windows:
+
 ```mermaid
 sequenceDiagram
-    AppDelegate->>ConfigGate: load()
-    ConfigGate->>ConfigFile: load()
-    ConfigFile-->>ConfigGate: Config, or a ConfigError
-    ConfigGate-->>AppDelegate: Config, quit, or relaunch once the user fixed the file
-    AppDelegate->>AccessibilityPermission: request()
-    AccessibilityPermission-->>AppDelegate: granted, quit, or relaunch after the grant
     AppDelegate->>RunningApplicationsObserver: start(handler)
     RunningApplicationsObserver-->>AppDelegate: the windows found while subscribing
     AppDelegate->>StateFile: load()
@@ -259,10 +244,9 @@ sequenceDiagram
     Desktop-->>WindowPlacement: the same windows, the ones stuck at the hidden edge back on screen
     WindowPlacement->>Workspaces: assign each one no workspace holds to the current workspace
     Engine->>Desktop: startWatching(DesktopEvent handler)
-    AppDelegate->>Pager: isEnabled = the pager setting
-    AppDelegate->>Bindings: start()
-    AppDelegate->>Engine: saveState() every 10 seconds
 ```
+
+Last, `AppDelegate` saves the state every 10 seconds, enables the pager if the config asks for it, starts the bindings, and watches SIGTERM, the screen lock and the accessibility trust.
 
 ### State file
 
