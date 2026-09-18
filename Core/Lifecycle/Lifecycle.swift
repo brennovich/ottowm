@@ -6,7 +6,7 @@ final class Lifecycle {
     private let stop: () -> Void
     private let resume: () -> Void
     private let reloadBindings: () -> ConfigError?
-    private let ask: (ConfigError) -> ConfigAlert.Response
+    private let ask: (ConfigError) -> ConfigGate.Response
     private let screenLock: ScreenLock
     private let exit: (Int32) -> Void
     private let launchNewInstance: (@escaping () -> Void) -> Void
@@ -22,7 +22,7 @@ final class Lifecycle {
         stop: @escaping () -> Void,
         resume: @escaping () -> Void,
         reloadBindings: @escaping () -> ConfigError?,
-        ask: @escaping (ConfigError) -> ConfigAlert.Response = { ConfigAlert.ask($0, .reload) },
+        ask: @escaping (ConfigError) -> ConfigGate.Response,
         screenLock: ScreenLock = ScreenLock(),
         exit: @escaping (Int32) -> Void = { Darwin.exit($0) },
         launchNewInstance: @escaping (@escaping () -> Void) -> Void = Lifecycle.newInstance,

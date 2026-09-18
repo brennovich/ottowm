@@ -12,6 +12,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             engine?.resync(windows: applicationsObserver.resync())
         },
         reloadBindings: { [weak self] in self?.bindings?.reload() },
+        ask: { ConfigAlert.ask($0, .reload) },
         dismiss: { [weak self] done in
             guard let pager = self?.pager else { return done() }
             pager.dismiss(then: done)
@@ -28,7 +29,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let config: Config
-        switch ConfigGate(relaunch: lifecycle.relaunch).load() {
+        switch ConfigGate(ask: { ConfigAlert.ask($0, .boot) }, relaunch: lifecycle.relaunch).load() {
         case let .loaded(loaded):
             config = loaded
         case .relaunching:
@@ -38,7 +39,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             exit(EXIT_FAILURE)
         }
 
-        let permission = AccessibilityPermission(relaunch: lifecycle.relaunch)
+        let permission = AccessibilityPermission(ask: AccessibilityAlert.ask, relaunch: lifecycle.relaunch)
         switch permission.request() {
         case .granted:
             break

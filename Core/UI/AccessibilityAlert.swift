@@ -3,17 +3,7 @@ import AppKit
 /// The alerts asking for the Accessibility permission: open System Settings, or restart.
 /// `.confirm` is the button of the request, `.quit` the dismissal.
 enum AccessibilityAlert {
-    enum Request {
-        case openSettings
-        case restart
-    }
-
-    enum Response {
-        case confirm
-        case quit
-    }
-
-    static func ask(_ request: Request) -> Response {
+    static func ask(_ request: AccessibilityPermission.Request) -> AccessibilityPermission.Response {
         NSApp.setActivationPolicy(.regular)
 
         let alert = NSAlert()
@@ -41,7 +31,7 @@ enum AccessibilityAlert {
             NSApp.activate(ignoringOtherApps: true)
         }
 
-        let response: Response = alert.runModal() == .alertFirstButtonReturn ? .confirm : .quit
+        let response: AccessibilityPermission.Response = alert.runModal() == .alertFirstButtonReturn ? .confirm : .quit
         alert.window.orderOut(nil)
 
         return response

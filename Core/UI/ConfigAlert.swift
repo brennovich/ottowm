@@ -8,14 +8,9 @@ enum ConfigAlert {
         case reload
     }
 
-    enum Response {
-        case restart
-        case dismiss
-    }
-
     private static let errorWidth: CGFloat = 260
 
-    static func ask(_ error: ConfigError, _ request: Request) -> Response {
+    static func ask(_ error: ConfigError, _ request: Request) -> ConfigGate.Response {
         let policy = NSApp.activationPolicy()
         NSApp.setActivationPolicy(.regular)
 
@@ -43,7 +38,7 @@ enum ConfigAlert {
 
         NSApp.activate(ignoringOtherApps: true)
 
-        let response: Response = alert.runModal() == .alertFirstButtonReturn ? .restart : .dismiss
+        let response: ConfigGate.Response = alert.runModal() == .alertFirstButtonReturn ? .restart : .dismiss
         alert.window.orderOut(nil)
         NSApp.setActivationPolicy(policy)
 

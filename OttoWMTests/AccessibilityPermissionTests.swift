@@ -2,8 +2,8 @@ import XCTest
 
 final class AccessibilityPermissionTests: XCTestCase {
     private var trusted = false
-    private var requests: [AccessibilityAlert.Request] = []
-    private var responses: [AccessibilityAlert.Response] = []
+    private var requests: [AccessibilityPermission.Request] = []
+    private var responses: [AccessibilityPermission.Response] = []
     private var waits: [TimeInterval] = []
     private var waitsWhenAsked: [Int] = []
     private var openedSettings = false
@@ -33,9 +33,9 @@ final class AccessibilityPermissionTests: XCTestCase {
         struct TestCase {
             let name: String
             let trusted: Bool
-            let responses: [AccessibilityAlert.Response]
+            let responses: [AccessibilityPermission.Response]
             let outcome: AccessibilityPermission.Outcome
-            let requests: [AccessibilityAlert.Request]
+            let requests: [AccessibilityPermission.Request]
             let openedSettings: Bool
             let relaunches: Int
         }

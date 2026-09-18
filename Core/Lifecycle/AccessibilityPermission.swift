@@ -10,10 +10,20 @@ struct AccessibilityPermission {
         case quit
     }
 
+    enum Request {
+        case openSettings
+        case restart
+    }
+
+    enum Response {
+        case confirm
+        case quit
+    }
+
     static let settingsCooldownSeconds: TimeInterval = 3
 
     var isTrusted: () -> Bool = { AXIsProcessTrusted() }
-    var ask: (AccessibilityAlert.Request) -> AccessibilityAlert.Response = AccessibilityAlert.ask
+    var ask: (Request) -> Response
     var openSettings: () -> Void = {
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = true

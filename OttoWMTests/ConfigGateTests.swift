@@ -2,7 +2,7 @@ import XCTest
 
 final class ConfigGateTests: XCTestCase {
     private var asked: [ConfigError] = []
-    private var response: ConfigAlert.Response = .dismiss
+    private var response: ConfigGate.Response = .dismiss
     private var relaunches = 0
 
     private func makeGate(_ result: Result<Config, ConfigError>) -> ConfigGate {
@@ -34,7 +34,7 @@ final class ConfigGateTests: XCTestCase {
 
     func testRecoverRelaunchesOnRestartAndQuitsOnDismiss() {
         let error = ConfigError(line: 1, reason: .syntax("lalt-1 switch-to-workspace 1"))
-        let cases: [(response: ConfigAlert.Response, outcome: ConfigGate.Outcome, relaunches: Int)] = [
+        let cases: [(response: ConfigGate.Response, outcome: ConfigGate.Outcome, relaunches: Int)] = [
             (.restart, .relaunching, 1),
             (.dismiss, .quit, 0),
         ]

@@ -6,7 +6,7 @@ final class LifecycleTests: XCTestCase {
     private let center = NotificationCenter()
     private var reloadError: ConfigError?
     private var asked: [ConfigError] = []
-    private var response: ConfigAlert.Response = .dismiss
+    private var response: ConfigGate.Response = .dismiss
     private var whileAsking: (() -> Void)?
     private var dismissed: (() -> Void)?
 
