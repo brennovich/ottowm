@@ -26,6 +26,13 @@ final class AXWindowEventsLifecycleTests: AXWindowEventsTestCase {
         XCTAssertNil(start(app))
     }
 
+    func testScansReportAnApplicationThatDoesNotReplyAsUnreachable() {
+        harness.unreadyPids = [901]
+
+        XCTAssertEqual(start(app)?.subscription, .unreachable)
+        XCTAssertEqual(windowEvents.inventory(app)?.subscription, .unreachable)
+    }
+
     func testStartReturnsNilWhenTheNotificationChannelCannotBeMade() {
         harness.failingNotificationPids = [901]
         harness.addWindow(pid: 901, id: 100)

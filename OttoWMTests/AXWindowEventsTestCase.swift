@@ -19,7 +19,7 @@ class AXWindowEventsTestCase: XCTestCase {
     }
 
     @discardableResult
-    func start(_ application: NSRunningApplication? = nil) -> AXWindowEvents.Attempt? {
+    func start(_ application: NSRunningApplication? = nil) -> ScanAttempt? {
         windowEvents.start(application ?? app)
     }
 

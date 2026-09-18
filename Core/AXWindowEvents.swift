@@ -2,17 +2,7 @@ import AppKit
 import ApplicationServices
 import CoreGraphics
 
-final class AXWindowEvents {
-    /// The result of a scan. `focused` is kept out of `windows` so the caller can announce
-    /// it as a focus change.
-    struct Attempt {
-        let windows: [WindowSnapshot]
-        let focused: WindowSnapshot?
-        let subscription: Subscription.Outcome
-
-        var all: [WindowSnapshot] { windows + (focused.map { [$0] } ?? []) }
-    }
-
+final class AXWindowEvents: WindowEvents {
     private let applications: Applications
     private let makeNotifications: (pid_t, @escaping (AXUIElement, String) -> Void) -> AXNotifications?
     private let access: AXAccess
@@ -37,7 +27,7 @@ final class AXWindowEvents {
         handlers.append(handler)
     }
 
-    func start(_ app: NSRunningApplication) -> Attempt? {
+    func start(_ app: NSRunningApplication) -> ScanAttempt? {
         let pid = app.processIdentifier
         guard applications.find(by: pid) == nil else { return nil }
         let notify = { [weak self] (element: AXUIElement, notification: String) in
@@ -71,7 +61,7 @@ final class AXWindowEvents {
         }
     }
 
-    func discover(_ app: NSRunningApplication) -> Attempt? {
+    func discover(_ app: NSRunningApplication) -> ScanAttempt? {
         guard let application = applications.find(by: app.processIdentifier) else { return nil }
 
         return attempt(of: application.scan())
@@ -81,11 +71,11 @@ final class AXWindowEvents {
     ///
     /// Window events are dropped while the screen is locked, so the registry and the
     /// workspaces drift apart behind the login window, and only a full read closes the gap.
-    func inventory(_ app: NSRunningApplication) -> Attempt? {
+    func inventory(_ app: NSRunningApplication) -> ScanAttempt? {
         guard let application = applications.find(by: app.processIdentifier) else { return nil }
 
         let subscription = application.scan().subscription
-        return Attempt(
+        return ScanAttempt(
             windows: application.windows.map { $0.snapshot() },
             focused: nil,
             subscription: subscription
@@ -174,8 +164,8 @@ final class AXWindowEvents {
         }
     }
 
-    private func attempt(of scan: Application.Scan) -> Attempt {
-        Attempt(
+    private func attempt(of scan: Application.Scan) -> ScanAttempt {
+        ScanAttempt(
             windows: scan.windows.map { $0.snapshot() },
             focused: scan.focused?.snapshot(),
             subscription: scan.subscription

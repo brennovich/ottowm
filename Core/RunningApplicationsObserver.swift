@@ -3,7 +3,7 @@ import AppKit
 private let initialRetryDelay: TimeInterval = 0.1
 
 final class RunningApplicationsObserver {
-    private let windowEvents: AXWindowEvents
+    private let windowEvents: any WindowEvents
     private let canSubscribe: (NSRunningApplication) -> Bool
     private let scheduleRetry: (TimeInterval, @escaping () -> Void) -> Void
     private let whenFinishedLaunching: (NSRunningApplication, @escaping () -> Void) -> Void
@@ -21,7 +21,7 @@ final class RunningApplicationsObserver {
     ]
 
     init(
-        windowEvents: AXWindowEvents,
+        windowEvents: any WindowEvents,
         canSubscribe: @escaping (NSRunningApplication) -> Bool = ApplicationFilter().includes,
         scheduleRetry: @escaping (TimeInterval, @escaping () -> Void) -> Void = Backoff.onMainQueue,
         whenFinishedLaunching: @escaping (NSRunningApplication, @escaping () -> Void) -> Void = { app, finished in
@@ -70,8 +70,8 @@ final class RunningApplicationsObserver {
 
     private func scan(
         _ apps: [NSRunningApplication],
-        _ attempt: (NSRunningApplication) -> AXWindowEvents.Attempt?
-    ) -> [AXWindowEvents.Attempt] {
+        _ attempt: (NSRunningApplication) -> ScanAttempt?
+    ) -> [ScanAttempt] {
         let attempts = Concurrently.map(apps) { app in attempt(app).map { (app: app, attempt: $0) } }.compactMap { $0 }
 
         let deadline = now().addingTimeInterval(Self.subscriptionGracePeriod)
@@ -121,7 +121,7 @@ final class RunningApplicationsObserver {
         scan([app], windowEvents.start).forEach(announce)
     }
 
-    private func announce(_ attempt: AXWindowEvents.Attempt) {
+    private func announce(_ attempt: ScanAttempt) {
         for window in attempt.windows {
             Log.observer.info("announcing \(window.logDescription)")
             handler?(.created(window))

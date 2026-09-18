@@ -106,6 +106,7 @@ final class StubWindow: Window {
         if !Self.locked({ Self.suspendedPids.contains(pid) }) { animatedWriteCount += 1 }
     }
 
+    @discardableResult
     private static func locked<T>(_ body: () -> T) -> T {
         lock.lock()
         defer { lock.unlock() }

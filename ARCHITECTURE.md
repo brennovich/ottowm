@@ -103,6 +103,7 @@ flowchart LR
 | `WindowSystem`                | macOS     | The focused window, the on-screen window frames, and the tab count of a window.         |
 | `RunningApplicationsObserver` | macOS     | The `NSWorkspace` notifications of the applications' lifecycle, and what to announce.   |
 | `ApplicationFilter`           | macOS     | Which applications are worth an AX subscription: not OttoWM, the lock screen or WebKit. |
+| `WindowEvents`                | macOS     | The window events and the scans the observer reads: start, discover, inventory, stop.   |
 | `AXWindowEvents`              | macOS     | The AX notifications of the watched applications, as `WindowEvent`s.                    |
 | `Applications`                | macOS     | The applications watched, and the window each `CGWindowID` belongs to.                  |
 | `Application`                 | macOS     | One watched application: its channel and subscription, the windows it reads, their ids. |

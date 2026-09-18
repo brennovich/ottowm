@@ -1,6 +1,4 @@
 import AppKit
-import ApplicationServices
-import CoreGraphics
 import XCTest
 
 final class RunningApplicationsObserverTests: XCTestCase {
@@ -8,9 +6,7 @@ final class RunningApplicationsObserverTests: XCTestCase {
 
     func testStartReturnsTheWindowsOfRunningAppsWithTheFocusedOneAmongThem() {
         harness.apps = [StubRunningApplication(pid: 901)]
-        harness.addWindow(pid: 901, id: 100)
-        harness.addWindow(pid: 901, id: 200)
-        harness.focusedElements[901] = harness.makeElement(id: 300)
+        harness.scans[901] = .active([100, 200], focused: 300)
 
         let snapshots = harness.start()
 
@@ -23,36 +19,36 @@ final class RunningApplicationsObserverTests: XCTestCase {
     // process delays every application behind it.
     func testStartOverlapsTheApplicationsItSubscribes() {
         harness.apps = (1...8).map { StubRunningApplication(pid: pid_t(900 + $0)) }
-        let firstSubscribe = DispatchSemaphore(value: 1)
-        let anotherSubscribe = DispatchSemaphore(value: 0)
-        harness.windows.onSubscribe = {
-            if firstSubscribe.wait(timeout: .now()) == .success {
-                XCTAssertEqual(anotherSubscribe.wait(timeout: .now() + 2), .success)
+        let firstStart = DispatchSemaphore(value: 1)
+        let anotherStart = DispatchSemaphore(value: 0)
+        harness.windowEvents.onStart = {
+            if firstStart.wait(timeout: .now()) == .success {
+                XCTAssertEqual(anotherStart.wait(timeout: .now() + 2), .success)
             } else {
-                anotherSubscribe.signal()
+                anotherStart.signal()
             }
         }
 
         _ = harness.start()
 
-        XCTAssertEqual(harness.callbacks.count, 8)
+        XCTAssertEqual(harness.windowEvents.startedPids.count, 8)
     }
 
     func testStartSubscribesOnlyTheApplicationsTheFilterIncludes() {
         harness.apps = [StubRunningApplication(pid: 901), StubRunningApplication(pid: 902)]
-        harness.addWindow(pid: 901, id: 100)
-        harness.addWindow(pid: 902, id: 200)
+        harness.scans[901] = .active([100])
+        harness.scans[902] = .active([200])
         harness.excludedPids = [902]
 
         XCTAssertEqual(harness.start().map(\.id), [100])
-        XCTAssertEqual(Array(harness.callbacks.keys), [901])
+        XCTAssertEqual(harness.windowEvents.startedPids, [901])
     }
 
-    func testStartSkipsAppWhenObserverCreationFails() {
+    func testStartLeavesOutAnApplicationThatCannotBeWatched() {
         harness.apps = [StubRunningApplication(pid: 901), StubRunningApplication(pid: 902)]
-        harness.addWindow(pid: 901, id: 100)
-        harness.addWindow(pid: 902, id: 200)
-        harness.windows.failingNotificationPids = [901]
+        harness.scans[901] = .active([100])
+        harness.scans[902] = .active([200])
+        harness.windowEvents.failingNotificationPids = [901]
 
         XCTAssertEqual(harness.start().map(\.id), [200])
     }
@@ -61,66 +57,53 @@ final class RunningApplicationsObserverTests: XCTestCase {
     // would postpone the windows that are on screen right now.
     func testStartObservesAnApplicationThatHasNotFinishedLaunching() {
         harness.apps = [StubRunningApplication(pid: 901, hasFinishedLaunching: false)]
-        harness.addWindow(pid: 901, id: 100)
+        harness.scans[901] = .active([100])
 
         XCTAssertEqual(harness.start().map(\.id), [100])
         XCTAssertTrue(harness.pendingLaunches.isEmpty)
     }
 
-    // The translation itself is covered by AXWindowEventsTests; what matters here is
-    // that the events a watched application reports reach the handler `start` installs.
-    func testEventsOfAWatchedApplicationReachTheHandler() {
-        harness.apps = [StubRunningApplication(pid: 901)]
-        let window = harness.addWindow(pid: 901, id: 100)
+    func testWindowEventsReachTheHandler() {
         _ = harness.start()
 
-        harness.callbacks[901]?(harness.makeElement(id: 42), kAXWindowCreatedNotification)
-        harness.callbacks[901]?(window, kAXUIElementDestroyedNotification)
+        harness.windowEvents.report(.destroyed(100))
 
-        XCTAssertEqual(harness.eventDescriptions, ["created(42)", "destroyed(100)"])
+        XCTAssertEqual(harness.eventDescriptions, ["destroyed(100)"])
     }
 
-    func testApplicationLaunchObservesAndEmitsExistingWindowsWithTheFocusedOneAsFocused() {
+    func testApplicationLaunchAnnouncesTheWindowsFoundAndThenTheFocusedOne() {
         _ = harness.start()
-        let app = StubRunningApplication(pid: 901)
-        harness.addWindow(pid: 901, id: 100)
-        harness.focusedElements[901] = harness.makeElement(id: 300)
+        harness.scans[901] = .active([100], focused: 300)
 
-        harness.post(NSWorkspace.didLaunchApplicationNotification, app)
+        harness.post(NSWorkspace.didLaunchApplicationNotification, StubRunningApplication(pid: 901))
 
         XCTAssertEqual(harness.eventDescriptions, ["created(100)", "focused(300)"])
-        XCTAssertNotNil(harness.callbacks[901])
     }
 
     func testApplicationLaunchWaitsForTheApplicationToFinishLaunching() {
         let app = StubRunningApplication(pid: 901, hasFinishedLaunching: false)
         _ = harness.start()
-        harness.addWindow(pid: 901, id: 100)
+        harness.scans[901] = .active([100])
 
         harness.post(NSWorkspace.didLaunchApplicationNotification, app)
 
-        XCTAssertEqual(harness.events, [])
-        XCTAssertNil(harness.callbacks[901])
-        XCTAssertTrue(harness.scheduledRetries.isEmpty)
+        XCTAssertEqual(harness.windowEvents.startedPids, [])
 
         app.hasFinishedLaunching = true
         harness.runPendingLaunches()
 
         XCTAssertEqual(harness.eventDescriptions, ["created(100)"])
-        XCTAssertNotNil(harness.callbacks[901])
     }
 
-    func testApplicationLaunchWithUnreadyAccessibilityIsRetriedUntilItReplies() {
-        let app = StubRunningApplication(pid: 901)
-        harness.unreadyPids = [901]
+    func testApplicationLaunchThatDoesNotReplyIsRetriedUntilItReplies() {
         _ = harness.start()
+        harness.scans[901] = .unreachable
 
-        harness.post(NSWorkspace.didLaunchApplicationNotification, app)
+        harness.post(NSWorkspace.didLaunchApplicationNotification, StubRunningApplication(pid: 901))
 
         XCTAssertEqual(harness.events, [])
 
-        harness.unreadyPids = []
-        harness.addWindow(pid: 901, id: 100)
+        harness.scans[901] = .active([100])
         harness.runScheduledRetries()
 
         XCTAssertEqual(harness.eventDescriptions, ["created(100)"])
@@ -130,18 +113,16 @@ final class RunningApplicationsObserverTests: XCTestCase {
     // An application that subscribed and lists no window is not broken: its window, when
     // it opens one, arrives as a notification or on the scan its activation runs.
     func testApplicationThatSubscribesWithoutWindowsIsNotRetried() {
-        let app = StubRunningApplication(pid: 901)
         _ = harness.start()
 
-        harness.post(NSWorkspace.didLaunchApplicationNotification, app)
+        harness.post(NSWorkspace.didLaunchApplicationNotification, StubRunningApplication(pid: 901))
 
-        XCTAssertEqual(harness.events, [])
         XCTAssertTrue(harness.scheduledRetries.isEmpty)
     }
 
     func testRetryWaitsTwiceAsLongAfterEachAttempt() {
         harness.apps = [StubRunningApplication(pid: 901)]
-        harness.unreadyPids = [901]
+        harness.scans[901] = .unreachable
         _ = harness.start()
 
         for _ in 1...4 { harness.runScheduledRetries() }
@@ -151,7 +132,7 @@ final class RunningApplicationsObserverTests: XCTestCase {
 
     func testSubscriptionIsGivenUpOnceTheSubscriptionWindowHasPassed() {
         harness.apps = [StubRunningApplication(pid: 901)]
-        harness.unreadyPids = [901]
+        harness.scans[901] = .unreachable
         _ = harness.start()
         let started = harness.clock
         var attempts = 0
@@ -171,7 +152,7 @@ final class RunningApplicationsObserverTests: XCTestCase {
     // still waking up. Waiting out the grace period on it only spends the attempts again.
     func testSubscriptionIsNotRetriedForAProcessWithoutNotificationSupport() {
         harness.apps = [StubRunningApplication(pid: 901)]
-        harness.windows.unsupportedPids = [901]
+        harness.scans[901] = .unsupported
 
         _ = harness.start()
 
@@ -180,40 +161,33 @@ final class RunningApplicationsObserverTests: XCTestCase {
 
     func testApplicationLaunchSubscribesOnlyTheApplicationsTheFilterIncludes() {
         _ = harness.start()
-        harness.addWindow(pid: 901, id: 100)
-        harness.addWindow(pid: 902, id: 200)
         harness.excludedPids = [902]
 
         harness.post(NSWorkspace.didLaunchApplicationNotification, StubRunningApplication(pid: 901))
         harness.post(NSWorkspace.didLaunchApplicationNotification, StubRunningApplication(pid: 902))
 
-        XCTAssertEqual(harness.eventDescriptions, ["created(100)"])
-        XCTAssertEqual(Array(harness.callbacks.keys), [901])
+        XCTAssertEqual(harness.windowEvents.startedPids, [901])
     }
 
-    func testApplicationTerminationStopsObservingTheApplicationAndReportsItsWindowsDestroyed() {
-        let app = StubRunningApplication(pid: 901)
-        harness.apps = [app]
-        harness.addWindow(pid: 901, id: 100)
+    func testApplicationTerminationStopsWatchingTheApplication() {
         _ = harness.start()
 
-        harness.post(NSWorkspace.didTerminateApplicationNotification, app)
+        harness.post(NSWorkspace.didTerminateApplicationNotification, StubRunningApplication(pid: 901))
 
-        XCTAssertEqual(harness.windows.invalidatedPids, [901])
-        XCTAssertEqual(harness.eventDescriptions, ["destroyed(100)"])
+        XCTAssertEqual(harness.windowEvents.calls, [.stop(901)])
     }
 
-    func testApplicationActivationScansAndEmitsFocus() {
+    // A window closed by its button while its application is in the background takes no
+    // activation with it, so every activation sweeps the windows of every application.
+    func testApplicationActivationSweepsAndThenAnnouncesWhatTheApplicationOpened() {
         let app = StubRunningApplication(pid: 901)
         harness.apps = [app]
-        harness.addWindow(pid: 901, id: 100)
         _ = harness.start()
-        let focused = harness.addWindow(pid: 901, id: 200)
-        harness.addWindow(pid: 901, id: 300)
-        harness.focusedElements[901] = focused
+        harness.scans[901] = .active([300], focused: 200)
 
         harness.post(NSWorkspace.didActivateApplicationNotification, app)
 
+        XCTAssertEqual(harness.windowEvents.calls.suffix(2), [.sweep, .discover(901)])
         XCTAssertEqual(harness.eventDescriptions, ["created(300)", "focused(200)"])
     }
 
@@ -221,41 +195,20 @@ final class RunningApplicationsObserverTests: XCTestCase {
         let app = StubRunningApplication(pid: 901)
         harness.apps = [app]
         _ = harness.start()
-        harness.addWindow(pid: 901, id: 100)
         harness.excludedPids = [901]
 
         harness.post(NSWorkspace.didActivateApplicationNotification, app)
 
-        XCTAssertEqual(harness.eventDescriptions, [])
+        XCTAssertEqual(harness.windowEvents.calls, [.start(901)])
     }
 
-    // A window closed by its button while its application is in the background takes no
-    // activation with it, so the sweep cannot be scoped to the application activated.
-    func testApplicationActivationSweepsTheWindowsOfEveryApplication() {
-        let activated = StubRunningApplication(pid: 901)
-        harness.apps = [activated, StubRunningApplication(pid: 902)]
-        harness.addWindow(pid: 901, id: 100)
-        let dead = harness.addWindow(pid: 902, id: 200)
+    func testRetryDoesNotSweep() {
+        harness.apps = [StubRunningApplication(pid: 901)]
+        harness.scans[901] = .unreachable
         _ = harness.start()
-        harness.deadElements = [dead]
-
-        harness.post(NSWorkspace.didActivateApplicationNotification, activated)
-        harness.post(NSWorkspace.didActivateApplicationNotification, activated)
-
-        XCTAssertEqual(harness.eventDescriptions, ["destroyed(200)"])
-    }
-
-    func testRetryDoesNotSweepTheWindowsOfOtherApplications() {
-        harness.apps = [StubRunningApplication(pid: 901), StubRunningApplication(pid: 902)]
-        harness.unreadyPids = [901]
-        let dead = harness.addWindow(pid: 902, id: 200)
-        _ = harness.start()
-        harness.deadElements = [dead]
 
         harness.runScheduledRetries()
-        harness.runScheduledRetries()
 
-        XCTAssertEqual(harness.events, [])
-        XCTAssertFalse(harness.scheduledRetries.isEmpty)
+        XCTAssertEqual(harness.windowEvents.calls, [.start(901), .discover(901)])
     }
 }

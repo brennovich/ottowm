@@ -1,9 +1,7 @@
 import AppKit
-import ApplicationServices
-import CoreGraphics
 
 final class RunningApplicationsObserverHarness {
-    let windows = AXWindowEventsHarness()
+    let windowEvents = StubWindowEvents()
     let center = NotificationCenter()
     var apps: [NSRunningApplication] = []
     var excludedPids: Set<pid_t> = []
@@ -18,7 +16,7 @@ final class RunningApplicationsObserverHarness {
     private(set) var pendingLaunches: [() -> Void] = []
 
     lazy var observer = RunningApplicationsObserver(
-        windowEvents: windows.windowEvents,
+        windowEvents: windowEvents,
         canSubscribe: { !self.excludedPids.contains($0.processIdentifier) },
         scheduleRetry: { delay, work in
             self.retryDelays.append(delay)
@@ -30,31 +28,13 @@ final class RunningApplicationsObserverHarness {
         runningApplications: { self.apps }
     )
 
-    var callbacks: [pid_t: (AXUIElement, String) -> Void] { windows.callbacks }
-    var focusedElements: [pid_t: AXUIElement] {
-        get { windows.focusedElements }
-        set { windows.focusedElements = newValue }
-    }
-    var unreadyPids: Set<pid_t> {
-        get { windows.unreadyPids }
-        set { windows.unreadyPids = newValue }
-    }
-    var deadElements: Set<AXUIElement> {
-        get { windows.deadElements }
-        set { windows.deadElements = newValue }
+    var scans: [pid_t: ScanAttempt] {
+        get { windowEvents.scans }
+        set { windowEvents.scans = newValue }
     }
 
     func start() -> [WindowSnapshot] {
         observer.start { self.events.append($0) }
-    }
-
-    func makeElement(id: CGWindowID) -> AXUIElement {
-        windows.makeElement(id: id)
-    }
-
-    @discardableResult
-    func addWindow(pid: pid_t, id: CGWindowID) -> AXUIElement {
-        windows.addWindow(pid: pid, id: id)
     }
 
     func runPendingLaunches() {

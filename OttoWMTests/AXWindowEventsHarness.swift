@@ -12,7 +12,6 @@ final class AXWindowEventsHarness {
     }
     var failingNotificationPids: Set<pid_t> = []
     var unreadyPids: Set<pid_t> = []
-    var unsupportedPids: Set<pid_t> = []
     var deadElements: Set<AXUIElement> = [] {
         didSet {
             for element in oldValue { ax.statuses[element] = nil }
@@ -20,7 +19,6 @@ final class AXWindowEventsHarness {
         }
     }
     var screenIsLocked = false
-    var onSubscribe: (() -> Void)?
 
     // The start scan subscribes the applications on several threads at once, so what it
     // records is read and written from all of them.
@@ -42,9 +40,7 @@ final class AXWindowEventsHarness {
             self.locked { self.notificationCallbacks[pid] = callback }
             return AXNotifications(
                 subscribe: { element, notification in
-                    self.onSubscribe?()
                     self.locked { self.subscriptions[pid, default: []].append((element, notification)) }
-                    if self.unsupportedPids.contains(pid) { return .notificationUnsupported }
                     return self.unreadyPids.contains(pid) ? .cannotComplete : .success
                 },
                 invalidate: { self.locked { self.invalidations.append(pid) } }
