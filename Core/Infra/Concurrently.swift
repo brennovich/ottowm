@@ -1,16 +1,16 @@
 import Foundation
 
 enum Concurrently {
-    static func map<Element, Result>(over groups: [[Element]], _ body: ([Element]) -> [Result]) -> [Result] {
-        guard groups.count > 1 else { return groups.first.map(body) ?? [] }
+    static func map<Element, Result>(_ elements: [Element], _ body: (Element) -> Result) -> [Result] {
+        guard elements.count > 1 else { return elements.map(body) }
 
-        var results = [[Result]](repeating: [], count: groups.count)
+        var results: [Result?] = Array(repeating: nil, count: elements.count)
         results.withUnsafeMutableBufferPointer { buffer in
-            DispatchQueue.concurrentPerform(iterations: groups.count) { index in
-                buffer[index] = body(groups[index])
+            DispatchQueue.concurrentPerform(iterations: elements.count) { index in
+                buffer[index] = body(elements[index])
             }
         }
 
-        return results.flatMap { $0 }
+        return results.map { $0! }
     }
 }

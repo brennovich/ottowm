@@ -72,9 +72,7 @@ final class RunningApplicationsObserver {
         _ apps: [NSRunningApplication],
         _ attempt: (NSRunningApplication) -> AXWindowEvents.Attempt?
     ) -> [AXWindowEvents.Attempt] {
-        let attempts = Concurrently.map(over: apps.map { [$0] }) {
-            $0.compactMap { app in attempt(app).map { (app: app, attempt: $0) } }
-        }
+        let attempts = Concurrently.map(apps) { app in attempt(app).map { (app: app, attempt: $0) } }.compactMap { $0 }
 
         let deadline = now().addingTimeInterval(Self.subscriptionGracePeriod)
         for started in attempts where started.attempt.subscription == .unreachable {

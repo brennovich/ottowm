@@ -7,7 +7,9 @@ protocol Window: AnyObject {
     func snapshot() -> WindowSnapshot
     func tabCount() -> Int
     func movableFrame() -> CGRect?
-    func withoutAnimations(_ body: () -> Void)
+    /// Suspends the frame animations of the application for `body`, which may write the
+    /// frames of every window of that application.
+    func withoutAnimations<T>(_ body: () -> T) -> T
     func setPosition(_ origin: CGPoint)
     func setSize(_ size: CGSize)
     func focus()

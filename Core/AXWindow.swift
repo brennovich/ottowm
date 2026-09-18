@@ -79,13 +79,13 @@ final class AXWindow: Window, WindowLogDescribing {
     /// mid animation returns the old position.
     ///
     /// Credited to yabai and Rectangle, via AeroSpace.
-    func withoutAnimations(_ body: () -> Void) {
+    func withoutAnimations<T>(_ body: () -> T) -> T {
         let appElement = AXUIElementCreateApplication(application.processIdentifier)
         let enhanced = appElement.value(of: .enhancedUserInterface) as? Bool == true
 
         if enhanced { setEnhancedUserInterface(appElement, false) }
-        body()
-        if enhanced { setEnhancedUserInterface(appElement, true) }
+        defer { if enhanced { setEnhancedUserInterface(appElement, true) } }
+        return body()
     }
 
     func setPosition(_ origin: CGPoint) {

@@ -20,10 +20,12 @@ final class StubWindow: Window {
     private(set) var movableFrameCount = 0
     private(set) var tabCountReadCount = 0
     private(set) var animatedWriteCount = 0
+    private(set) var withoutAnimationsCount = 0
     private(set) var positionSetThread: Thread?
     var onSetPosition: (() -> Void)?
 
-    private var animationsDisabled = false
+    private static let lock = NSLock()
+    private static var suspendedPids: Set<pid_t> = []
 
     init(
         id: CGWindowID,
@@ -73,10 +75,11 @@ final class StubWindow: Window {
         return isMinimized ? nil : frame
     }
 
-    func withoutAnimations(_ body: () -> Void) {
-        animationsDisabled = true
-        body()
-        animationsDisabled = false
+    func withoutAnimations<T>(_ body: () -> T) -> T {
+        withoutAnimationsCount += 1
+        Self.locked { Self.suspendedPids.insert(pid) }
+        defer { Self.locked { Self.suspendedPids.remove(pid) } }
+        return body()
     }
 
     func setPosition(_ origin: CGPoint) {
@@ -100,6 +103,12 @@ final class StubWindow: Window {
     }
 
     private func countAnimatedWrite() {
-        if !animationsDisabled { animatedWriteCount += 1 }
+        if !Self.locked({ Self.suspendedPids.contains(pid) }) { animatedWriteCount += 1 }
+    }
+
+    private static func locked<T>(_ body: () -> T) -> T {
+        lock.lock()
+        defer { lock.unlock() }
+        return body()
     }
 }

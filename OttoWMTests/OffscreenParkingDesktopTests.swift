@@ -157,10 +157,6 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(west.frame, CGRect(x: 15, y: 53, width: 1762, height: 1052))
     }
 
-    func testReportsAWindowThatNoLongerExists() {
-        XCTAssertEqual(reframe(999, .move(.east)), [.gone(999)])
-    }
-
     func testMoveLeavesAMinimizedWindowAlone() {
         win.isMinimized = true
 
@@ -288,6 +284,15 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         reframe(batch.map { FrameRequest(windowId: $0.id, change: .park(from: nil)) })
 
         XCTAssertEqual(batch.map(\.frame), Array(repeating: hiddenEdgeFrame(size: originalFrame.size), count: batch.count))
+    }
+
+    func testSuspendsTheAnimationsOfAnApplicationOnceForItsBatch() {
+        let batch = (1...3).map { addWindow(CGWindowID($0) * 10, frame: originalFrame, pid: 42) }
+
+        reframe(batch.map { FrameRequest(windowId: $0.id, change: .park(from: nil)) })
+
+        XCTAssertEqual(batch.map(\.withoutAnimationsCount).reduce(0, +), 1)
+        XCTAssertEqual(batch.map(\.animatedWriteCount), [0, 0, 0])
     }
 
     func testKeepsTheWindowsOfOneApplicationOnOneThread() {

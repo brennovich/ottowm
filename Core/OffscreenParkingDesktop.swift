@@ -16,9 +16,10 @@ final class OffscreenParkingDesktop: Desktop {
     private let screenNotificationCenter: NotificationCenter
 
     private(set) var display: Display
-    private var hiddenEdge: HiddenEdge
     private var observers: [(center: NotificationCenter, token: any NSObjectProtocol)] = []
     private var handlers: [(DesktopEvent) -> Void] = []
+
+    private var hiddenEdge: HiddenEdge { HiddenEdge(display: display) }
 
     init(
         screens: any Screens,
@@ -30,7 +31,6 @@ final class OffscreenParkingDesktop: Desktop {
         self.screens = screens
         self.spacing = spacing
         display = screens.main ?? .unknown
-        hiddenEdge = HiddenEdge(display: display)
         self.window = window
         self.notificationCenter = notificationCenter
         self.screenNotificationCenter = screenNotificationCenter
@@ -44,7 +44,7 @@ final class OffscreenParkingDesktop: Desktop {
 
             Log.desktop.info("recovering \(snapshot.logDescription) stuck at hidden edge")
             let recovered = centered(snapshot.frame.size)
-            move(win, from: snapshot.frame, to: recovered)
+            win.withoutAnimations { move(win, from: snapshot.frame, to: recovered) }
             return snapshot.moved(to: recovered)
         }
     }
@@ -63,9 +63,8 @@ final class OffscreenParkingDesktop: Desktop {
             moves.append(Move(request: request, window: win))
         }
 
-        return outcomes + Concurrently.map(over: Array(Dictionary(grouping: moves, by: \.window.pid).values)) {
-            $0.map(apply)
-        }
+        let batches = Array(Dictionary(grouping: moves, by: \.window.pid).values)
+        return outcomes + Concurrently.map(batches, apply).flatMap { $0 }
     }
 
     func isMaximized(_ frame: CGRect) -> Bool {
@@ -103,9 +102,17 @@ final class OffscreenParkingDesktop: Desktop {
             else { continue }
 
             let hidden = hiddenEdge.frame(parking: parkedFrom)
-            move(win, from: frame, to: hidden)
+            win.withoutAnimations { move(win, from: frame, to: hidden) }
             Log.desktop.info("re-hid id=\(windowId) pulled back to \(frame), to=\(hidden)")
         }
+    }
+
+    /// `AXEnhancedUserInterface` belongs to the application, so one batch of its windows turns
+    /// it off once.
+    private func apply(_ batch: [Move]) -> [FrameOutcome] {
+        guard let first = batch.first else { return [] }
+
+        return first.window.withoutAnimations { batch.map(apply) }
     }
 
     private func apply(_ requested: Move) -> FrameOutcome {
@@ -206,10 +213,8 @@ final class OffscreenParkingDesktop: Desktop {
     }
 
     private func move(_ win: any Window, from current: CGRect, to target: CGRect) {
-        win.withoutAnimations {
-            if current.origin != target.origin { win.setPosition(target.origin) }
-            if current.size != target.size { win.setSize(target.size) }
-        }
+        if current.origin != target.origin { win.setPosition(target.origin) }
+        if current.size != target.size { win.setSize(target.size) }
     }
 
     /// The notification also follows a Dock or menu bar change, and macOS posts it more than
@@ -223,7 +228,6 @@ final class OffscreenParkingDesktop: Desktop {
 
         let left = display
         display = entered
-        hiddenEdge = HiddenEdge(display: entered)
         Log.desktop.info("display changed from \(left.logDescription) to \(entered.logDescription)")
         report(.displayChange(DisplayChange(from: left, to: entered)))
     }
