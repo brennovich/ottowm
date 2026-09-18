@@ -10,7 +10,7 @@ let terminationTimeout: TimeInterval = 5
 let tapSettleSeconds: TimeInterval = 1
 let windowSettleSeconds: TimeInterval = 2
 
-// Core/HiddenEdge.swift parks a window 1px past the right edge, and macOS
+// Core/Model/HiddenEdge.swift parks a window 1px past the right edge, and macOS
 // clamps it back by an unspecified amount. HiddenEdge.holds allows the same 10px.
 let hiddenEdgeMargin: CGFloat = 10
 let restoreTolerance: CGFloat = 2

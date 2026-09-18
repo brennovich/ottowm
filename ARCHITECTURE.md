@@ -206,7 +206,7 @@ flowchart LR
 | `SavedState`                  | Model     | What the state file holds, less the windows no longer open.                             |
 | `Desktop`                     | macOS     | The protocol the engine moves, parks and focuses windows through.                       |
 | `ParkingDesktop`              | macOS     | The `Desktop` that parks windows at the hidden edge and reports `DesktopEvent`s.        |
-| `HiddenEdge`                  | macOS     | Where a parked window sits, and whether a frame sits there.                             |
+| `HiddenEdge`                  | Model     | Where a parked window sits, and whether a frame sits there.                             |
 | `WindowSystem`                | macOS     | The focused window, the on-screen window frames, and the tab count of a window.         |
 | `RunningApplicationsObserver` | macOS     | The `NSWorkspace` notifications of the applications' lifecycle, and what to announce.   |
 | `ApplicationFilter`           | macOS     | Which applications are worth an AX subscription: not OttoWM, the lock screen or WebKit. |

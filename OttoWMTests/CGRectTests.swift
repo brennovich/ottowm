@@ -1,6 +1,6 @@
 import XCTest
 
-final class MainScreenTests: XCTestCase {
+final class CGRectTests: XCTestCase {
     func testFlipsBetweenBottomLeftAndTopLeftCoordinates() {
         let cases: [(name: String, cocoa: CGRect, primaryHeight: CGFloat, expected: CGRect)] = [
             (
