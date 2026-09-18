@@ -64,3 +64,10 @@ type_body_length:
 file_length:
   warning: 450
   error: 600
+
+custom_rules:
+  platform_import:
+    included: "Core/(Model|Engine)/"
+    regex: "^import (AppKit|ApplicationServices|Cocoa)$"
+    message: "Model and Engine do not import AppKit or ApplicationServices"
+    severity: error
