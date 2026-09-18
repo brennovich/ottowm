@@ -1,13 +1,4 @@
-enum Action: Equatable {
-    case switchToWorkspace(Int)
-    case moveWindowToWorkspace(Int)
-    case focus(Direction)
-    case moveWindow(Direction)
-    case resize(Resize.Change)
-    case centerWindow
-    case maximize
-    case tile(Direction)
-
+extension Action {
     static func parse(_ text: String) -> Result<Action, ConfigError.Reason> {
         let parts = text.split(separator: " ").map(String.init)
 
