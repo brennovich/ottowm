@@ -31,6 +31,17 @@ struct FrameRequest: Equatable {
     let change: FrameChange
 }
 
+extension FrameRequest {
+    /// The outcome to record when the window's frame cannot be read: the frame the request carries is kept.
+    var knownOutcome: FrameOutcome {
+        switch change {
+        case let .unpark(parkedFrom?), let .park(from: parkedFrom?): .parked(windowId, from: parkedFrom)
+        case let .maximize(restoring?), let .tile(_, restoring?): .filled(windowId, from: restoring)
+        case .move, .resize, .center, .park, .unpark, .maximize, .tile: .active(windowId)
+        }
+    }
+}
+
 enum FrameOutcome: Hashable {
     case parked(CGWindowID, from: CGRect)
     case filled(CGWindowID, from: CGRect)

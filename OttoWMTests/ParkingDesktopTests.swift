@@ -4,7 +4,7 @@ import XCTest
 private let originalFrame = CGRect(x: 100, y: 100, width: 800, height: 600)
 private let pulledBackFrame = CGRect(x: 200, y: 300, width: 800, height: 600)
 
-final class OffscreenParkingDesktopTests: XCTestCase {
+final class ParkingDesktopTests: XCTestCase {
     private let win = StubWindow(id: 100, frame: originalFrame)
     private let center = NotificationCenter()
     private let screens = StubScreen(main: .standard)
@@ -15,7 +15,7 @@ final class OffscreenParkingDesktopTests: XCTestCase {
 
     private let parkedWindows = ParkedWindows()
 
-    private lazy var desktop = OffscreenParkingDesktop(
+    private lazy var desktop = ParkingDesktop(
         screens: screens,
         window: { [weak self] id in self?.windows[id] },
         spacing: 15,
@@ -49,7 +49,7 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         return outcomes
     }
 
-    func testMoveShiftsTheWindowByTheSpacingWithoutAnimating() {
+    func testReframeWritesTheFrameOfTheWorkAreaWithoutAnimating() {
         desktop.spacing = 30
 
         reframe(100, .move(.east))
@@ -58,133 +58,27 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(win.animatedWriteCount, 0)
     }
 
-    func testMoveStopsAtTheVisibleFrame() {
-        desktop.spacing = 500
+    func testAWriteSetsOnlyThePartOfTheFrameThatChanges() {
+        let resized = addWindow(101, frame: originalFrame)
 
-        reframe(100, .move(.north))
+        reframe([
+            FrameRequest(windowId: win.id, change: .move(.east)),
+            FrameRequest(windowId: resized.id, change: .resize(.wider)),
+        ])
 
-        XCTAssertEqual(win.frame.minY, Display.standard.visibleFrame.minY)
+        XCTAssertEqual(win.sizeSetCount, 0)
+        XCTAssertEqual(resized.positionSetCount, 0)
     }
 
-    func testResizeChangesTheSizeByTheSpacingFromTheTopLeftWithoutAnimating() {
-        desktop.spacing = 30
-
-        reframe(100, .resize(.wider))
-
-        XCTAssertEqual(win.frame, CGRect(x: 100, y: 100, width: 830, height: 600))
-        XCTAssertEqual(win.positionSetCount, 0)
-        XCTAssertEqual(win.animatedWriteCount, 0)
-    }
-
-    func testResizeStopsAtTheVisibleFrame() {
-        desktop.spacing = 5000
-
-        reframe(100, .resize(.taller))
-
-        XCTAssertEqual(win.frame.maxY, Display.standard.visibleFrame.maxY)
-    }
-
-    func testCenterPutsTheWindowInTheMiddleOfTheVisibleFrame() {
-        reframe(100, .center)
-
-        XCTAssertEqual(win.frame, CGRect(x: 496, y: 279, width: 800, height: 600))
-    }
-
-    func testCenterPushesAWindowLargerThanTheVisibleFrameOffscreen() {
-        let oversized = addWindow(101, frame: CGRect(x: 0, y: 0, width: 2000, height: 1200))
-
-        reframe(oversized.id, .center)
-
-        XCTAssertEqual(oversized.frame, CGRect(x: -104, y: -21, width: 2000, height: 1200))
-    }
-
-    func testMaximizeFillsTheVisibleFrameInsetByTheSpacingOnEveryEdge() {
-        desktop.spacing = 30
-
-        XCTAssertEqual(reframe(100, .maximize(restoring: nil)), [.filled(100, from: originalFrame)])
-        XCTAssertEqual(win.frame, CGRect(x: 30, y: 68, width: 1732, height: 1022))
-        XCTAssertEqual(win.animatedWriteCount, 0)
-    }
-
-    /// A window rarely settles at the frame it was given: Terminal rounds its height to
-    /// whole rows. A window within the tolerance counts as filling the target.
-    func testMaximizeTakesAWindowShortOfTheFilledFrameBackToTheFrameHandedIn() {
-        let short = addWindow(101, frame: CGRect(x: 15, y: 53, width: 1762, height: 1051))
-
-        XCTAssertEqual(reframe(short.id, .maximize(restoring: originalFrame)), [.active(short.id)])
-        XCTAssertEqual(short.frame, originalFrame)
-    }
-
-    /// A window that already fills the screen has no frame to restore to, and its current
-    /// frame must not be recorded: restoring it would leave the window filled. The window
-    /// settles a few points short of the filled frame, which still counts as filled.
-    func testMaximizeLeavesAFilledWindowAloneWithNothingToRestore() {
-        let shortOfFilled = CGRect(x: 15, y: 53, width: 1762, height: 1045)
-        let filled = addWindow(101, frame: shortOfFilled)
-
-        XCTAssertEqual(reframe(filled.id, .maximize(restoring: nil)), [.active(filled.id)])
-        XCTAssertEqual(filled.frame, shortOfFilled)
-    }
-
-    func testAFrameWithinTheToleranceOfTheFilledFrameCountsAsMaximized() {
+    func testIsMaximizedDelegatesToTheFilledFrame() {
         XCTAssertTrue(desktop.isMaximized(CGRect(x: 15, y: 53, width: 1762, height: 1045)))
         XCTAssertFalse(desktop.isMaximized(originalFrame))
     }
 
-    func testRestoringAWindowThatIsNotMovableKeepsTheFrameToGoBackTo() {
+    func testAWindowThatIsNotMovableIsNotWrittenAndKeepsItsKnownOutcome() {
         win.isMinimized = true
 
         XCTAssertEqual(reframe(100, .maximize(restoring: originalFrame)), [.filled(100, from: originalFrame)])
-        XCTAssertEqual(win.positionSetCount, 0)
-    }
-
-    func testTileTakesTheHalfOfTheFrameAMaximizeFillsKeepingTheSpacingAsTheGap() {
-        desktop.spacing = 30
-
-        XCTAssertEqual(reframe(100, .tile(.west, restoring: nil)), [.filled(100, from: originalFrame)])
-        XCTAssertEqual(win.frame, CGRect(x: 30, y: 68, width: 851, height: 1022))
-    }
-
-    /// One record serves every target, so a window in one half still fills the screen
-    /// rather than restoring to the frame that record holds.
-    func testFillingAcrossTargetsMovesOnRatherThanRestoring() {
-        let west = addWindow(101, frame: CGRect(x: 15, y: 53, width: 873.5, height: 1052))
-
-        XCTAssertEqual(
-            reframe(west.id, .maximize(restoring: originalFrame)),
-            [.filled(west.id, from: CGRect(x: 15, y: 53, width: 873.5, height: 1052))]
-        )
-        XCTAssertEqual(west.frame, CGRect(x: 15, y: 53, width: 1762, height: 1052))
-    }
-
-    func testMoveLeavesAMinimizedWindowAlone() {
-        win.isMinimized = true
-
-        XCTAssertEqual(reframe(100, .move(.east)), [.active(100)])
-
-        XCTAssertEqual(win.frame, originalFrame)
-    }
-
-    func testParkingCapturesTheFrameAndUnparkingRestoresIt() {
-        XCTAssertEqual(reframe(100, .park(from: nil)), [.parked(100, from: originalFrame)])
-        XCTAssertEqual(win.frame, hiddenEdgeFrame(size: originalFrame.size))
-
-        XCTAssertEqual(unpark(100), [.active(100)])
-        XCTAssertEqual(win.frame, originalFrame)
-        XCTAssertEqual(win.sizeSetCount, 0)
-    }
-
-    func testParkingFromAKnownFrameHidesTheWindowSizedByItWhereverItSits() {
-        let known = CGRect(x: 50, y: 60, width: 640, height: 480)
-
-        XCTAssertEqual(reframe(100, .park(from: known)), [.parked(100, from: known)])
-        XCTAssertEqual(win.frame, hiddenEdgeFrame(size: known.size))
-    }
-
-    func testParkingAMinimizedWindowFromAKnownFrameKeepsIt() {
-        win.isMinimized = true
-
-        XCTAssertEqual(reframe(100, .park(from: originalFrame)), [.parked(100, from: originalFrame)])
         XCTAssertEqual(win.positionSetCount, 0)
     }
 
@@ -197,43 +91,6 @@ final class OffscreenParkingDesktopTests: XCTestCase {
         XCTAssertEqual(win.sizeSetCount, 1)
         XCTAssertEqual(win.frame, originalFrame)
         XCTAssertEqual(win.animatedWriteCount, 0)
-    }
-
-    func testParkingNeverRecordsAHiddenEdgeFrameAsTheFrameParkedFrom() {
-        let strandedFrame = hiddenEdgeFrame(size: originalFrame.size)
-        addWindow(200, frame: strandedFrame)
-
-        XCTAssertEqual(reframe(200, .park(from: nil)), [.parked(200, from: CGRect(x: 496, y: 279, width: 800, height: 600))])
-    }
-
-    func testUnparkingRecoversAStrandedWindowItNeverParked() {
-        let strandedFrame = hiddenEdgeFrame(size: originalFrame.size)
-        let stranded = addWindow(200, frame: strandedFrame)
-
-        XCTAssertEqual(unpark(200), [.active(200)])
-        XCTAssertEqual(stranded.frame, CGRect(x: 496, y: 279, width: 800, height: 600))
-    }
-
-    func testUnparkingLeavesAWindowOnScreenAlone() {
-        XCTAssertEqual(unpark(100), [.active(100)])
-        XCTAssertEqual(win.positionSetCount, 0)
-        XCTAssertEqual(win.frame, originalFrame)
-    }
-
-    func testParkingAMinimizedWindowRecordsNothing() {
-        win.isMinimized = true
-
-        XCTAssertEqual(reframe(100, .park(from: nil)), [.active(100)])
-        XCTAssertEqual(win.positionSetCount, 0)
-    }
-
-    func testUnparkingAMinimizedWindowKeepsTheFrameItWasParkedFrom() {
-        reframe(100, .park(from: nil))
-        win.isMinimized = true
-
-        XCTAssertEqual(unpark(100), [.parked(100, from: originalFrame)])
-        XCTAssertEqual(parkedWindows.parkedFrom(of: 100), originalFrame)
-        XCTAssertEqual(win.positionSetCount, 1)
     }
 
     func testReportsAMissingWindowWhetherItWasParkedOrNeverSeen() {

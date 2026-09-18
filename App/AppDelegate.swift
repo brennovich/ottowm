@@ -101,8 +101,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
-    private func parkingDesktop(spacing: CGFloat) -> OffscreenParkingDesktop {
-        OffscreenParkingDesktop(
+    private func parkingDesktop(spacing: CGFloat) -> ParkingDesktop {
+        ParkingDesktop(
             screens: MainScreen(),
             window: applications.findWindow(by:),
             spacing: spacing

@@ -1,12 +1,12 @@
 import AppKit
 
-// Core/OffscreenParkingDesktop.swift insets the visible frame by this much before filling
+// Core/Model/WorkArea.swift insets the visible frame by this much before filling
 // it, and leaves the same gap between the two halves of an axis.
 let fillInset: CGFloat = 15
 
 // Terminal fits its window to whole rows, 17pt at the default font, so a window handed a
 // filled frame settles a row short of it. Core/Model/TabGroups.swift and
-// OffscreenParkingDesktop.filledTolerance allow the same 30.
+// WorkArea.filledTolerance allow the same 30.
 let refitTolerance: CGFloat = 30
 
 // The frames below are worked out here rather than read from the app: the harness drives

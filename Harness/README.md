@@ -10,6 +10,7 @@ Shared machinery for the acceptance run in `Acceptance/` and the benchmark in `B
 | `Hotkeys.swift` | Posts the bundled key combos as real key events into the session event tap                         |
 | `Screen.swift`  | Where the window actions take a window, worked out from the screen the same way the app does it   |
 | `Tabs.swift`    | Shows the tab bar, makes a tabbed window out of two, and brings either of its tabs to the front    |
+| `Sheet.swift`   | Opens the Page Setup sheet on the window in front, and dismisses it                                |
 | `Report.swift`  | Output, failure, and the wait every check is built on                                              |
 
 There is no target of its own to build. Each run compiles the harness into its own binary, `make build/acceptance` and `make build/benchmark`, which is also how CI builds the one it is about to run before it grants permissions to anything.
@@ -52,7 +53,7 @@ Windows the run opened are closed on the way out and applications it launched ar
 `Session.start` hands back the windows as `Subject`s, each one carrying the frame it read once everything had settled, which is the frame it goes back to after every switch:
 
 - `subject.isWhereItWas` — within 2px of that frame.
-- `subject.stands(at:sizedWithin:)` — at a frame the scene worked out, the size included, which `isWhereItWas` says nothing about: a window still filling the screen is as much at its old origin as one put back. `Screen.swift` works out the frames the window actions take, mirroring `Core/OffscreenParkingDesktop.swift` and `Core/Model/Half.swift` rather than importing them, so a change made in only one of them fails the run. The size is allowed more room than the origin because an application takes the position it is handed but rounds the size to one it can take, Terminal to the nearest whole row.
+- `subject.stands(at:sizedWithin:)` — at a frame the scene worked out, the size included, which `isWhereItWas` says nothing about: a window still filling the screen is as much at its old origin as one put back. `Screen.swift` works out the frames the window actions take, mirroring `Core/Model/WorkArea.swift` and `Core/Model/Half.swift` rather than importing them, so a change made in only one of them fails the run. The size is allowed more room than the origin because an application takes the position it is handed but rounds the size to one it can take, Terminal to the nearest whole row.
 - `subject.isAsItWas` — the frame it was read at, size included, and `subject.putBack()` writes it back for a scene that leaves the window elsewhere and is followed by one that reads where it started.
 - `subject.bringToFront()` — the tab this window is, in front. Everything above reads the window an application lists, and a tabbed application lists one tab at a time; the others report the frame they had when they last were in front, and accept a frame written to them without the window moving. The tab bar's buttons are pressed in turn rather than picked out by title, since Terminal titles each one after the process running in it.
 - `session.isParked(subject)` — at the hidden edge, allowing the same 10px `HiddenEdge.holds` allows, since macOS clamps a window parked 1px past the right edge back by an unspecified amount.

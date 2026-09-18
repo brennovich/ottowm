@@ -91,6 +91,7 @@ flowchart LR
 | `Step`                        | Model     | One move of a window by the spacing, and where it lands within the screen.              |
 | `Resize`                      | Model     | One resize of a window by the spacing from its top left corner, kept within the screen. |
 | `Half`                        | Model     | One side of a rect, taking half of it, with the gap kept between the two halves.        |
+| `WorkArea`                    | Model     | Where a frame change sends a window on a display, and the outcome to record.            |
 | `FrameChange`                 | Model     | What a frame is asked to become: move, resize, center, maximize, tile, park or unpark.  |
 | `ParkedWindows`               | Model     | The windows parked at the hidden edge, and the frame each one was parked from.          |
 | `OriginalFrames`              | Model     | The frame each maximized or filled window restores to, shared by its tabs.              |
@@ -179,7 +180,8 @@ flowchart TB
     TabGroups -->|tabCount, frame| WindowSystem
     RunningApplicationsObserver -->|WindowEvent| Engine
     Desktop --> MainScreen
-    Desktop --> HiddenEdge
+    Desktop --> WorkArea
+    WorkArea --> HiddenEdge
     Desktop -->|DesktopEvent| Pager
     Desktop --> Applications
     WindowSystem -->|adoptFocusedWindow| AXWindowEvents

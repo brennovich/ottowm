@@ -20,7 +20,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         return self.windows.reduce(into: [CGWindowID: CGRect]()) { $0[$1.key] = $1.value.frame }
     }
 
-    private lazy var desktop: OffscreenParkingDesktop = OffscreenParkingDesktop(
+    private lazy var desktop: ParkingDesktop = ParkingDesktop(
         screens: screens,
         window: { [weak self] in self?.windows[$0] },
         spacing: 15,

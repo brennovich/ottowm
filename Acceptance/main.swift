@@ -2,8 +2,9 @@ import CoreGraphics
 
 // Scenario, the focus hotkeys walk the focus around a desk arranged in the four quarters
 // of the screen. The window actions take the window they are pointed at to a frame the run
-// works out for itself, and put it back on the second press. One of the desk's windows
-// shows two tabs, and what is asked of either of them is asked of the window both stand in.
+// works out for itself, and put it back on the second press. An action asked with a sheet
+// in front moves the window the sheet belongs to. One of the desk's windows shows two
+// tabs, and what is asked of either of them is asked of the window both stand in.
 // A window sent to another workspace parks at the hidden edge and comes back, and the desk
 // it was standing on goes with the workspace it belongs to. The restart hotkey picks up a
 // binding the run adds while it is up, and the quit hotkey ends it, with whatever is parked
@@ -91,6 +92,15 @@ session.expect("the \(movable.name) window maximized", [movable]) {
 report("posting lopt-ctrl-m again")
 maximize()
 session.expect("the \(movable.name) window went back to where it maximized from", [movable]) { $0.isAsItWas }
+
+// An application showing a sheet reports the sheet as its focused window. The action is
+// asked of the window the sheet belongs to, which the sheet moves with.
+movable.putBack()
+report("opening Page Setup in \(movable.name) and posting lopt-ctrl-c")
+let sheet = showPageSetupSheet(ofApplication: movable.bundleId, named: movable.name)
+centerWindow()
+session.expect("the \(movable.name) window showing a sheet centered", [movable]) { $0.stands(at: centeredFrame(start.size)) }
+dismissSheet(sheet, ofApplication: movable.bundleId, named: movable.name)
 
 // The workspace scenes below read the frame every window started at, which the actions
 // above left the movable one away from.
