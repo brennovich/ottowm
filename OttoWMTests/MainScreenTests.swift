@@ -1,7 +1,7 @@
 import XCTest
 
 final class MainScreenTests: XCTestCase {
-    func testTopLeftFrameFromCocoa() {
+    func testFlipsBetweenBottomLeftAndTopLeftCoordinates() {
         let cases: [(name: String, cocoa: CGRect, primaryHeight: CGFloat, expected: CGRect)] = [
             (
                 "primary full frame is a no-op",
@@ -27,17 +27,17 @@ final class MainScreenTests: XCTestCase {
                 900,
                 CGRect(x: 1440, y: -180, width: 1920, height: 1080)
             ),
+            (
+                "the flip is its own inverse",
+                CGRect(x: 1440, y: -180, width: 1920, height: 1080),
+                900,
+                CGRect(x: 1440, y: 0, width: 1920, height: 1080)
+            ),
         ]
 
         for testCase in cases {
-            let result = testCase.cocoa.flippedToTopLeft(primaryHeight: testCase.primaryHeight)
+            let result = testCase.cocoa.flipped(primaryHeight: testCase.primaryHeight)
             XCTAssertEqual(result, testCase.expected, testCase.name)
         }
-    }
-
-    func testBottomLeftFrameFromTopLeft() {
-        let topLeft = CGRect(x: 1440, y: -180, width: 1920, height: 1080)
-
-        XCTAssertEqual(topLeft.flippedToBottomLeft(primaryHeight: 900), CGRect(x: 1440, y: 0, width: 1920, height: 1080))
     }
 }

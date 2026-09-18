@@ -2,17 +2,15 @@ import AppKit
 import CoreGraphics
 
 extension CGRect {
-    func flippedToTopLeft(primaryHeight: CGFloat) -> CGRect {
+    /// Converts between AppKit's bottom left coordinates and top left coordinates. The flip is
+    /// its own inverse.
+    func flipped(primaryHeight: CGFloat) -> CGRect {
         CGRect(
             x: origin.x,
             y: primaryHeight - origin.y - height,
             width: width,
             height: height
         )
-    }
-
-    func flippedToBottomLeft(primaryHeight: CGFloat) -> CGRect {
-        flippedToTopLeft(primaryHeight: primaryHeight)
     }
 }
 
@@ -23,8 +21,8 @@ struct MainScreen: Screens {
 
         return Display(
             id: screen.displayID,
-            fullFrame: screen.frame.flippedToTopLeft(primaryHeight: primaryHeight),
-            visibleFrame: screen.visibleFrame.flippedToTopLeft(primaryHeight: primaryHeight)
+            fullFrame: screen.frame.flipped(primaryHeight: primaryHeight),
+            visibleFrame: screen.visibleFrame.flipped(primaryHeight: primaryHeight)
         )
     }
 }
