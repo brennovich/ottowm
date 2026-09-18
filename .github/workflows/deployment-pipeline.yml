@@ -7,7 +7,7 @@ on:
 
 jobs:
   version:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.read.outputs.version }}
       build: ${{ steps.read.outputs.build }}
@@ -137,7 +137,7 @@ jobs:
   release:
     needs: [version, acceptance]
     if: github.ref == 'refs/heads/main' && needs.version.outputs.untagged == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     concurrency:
