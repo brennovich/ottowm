@@ -40,36 +40,142 @@ WorkspaceEvent = switched(n)
 WindowSnapshot(id, appName, isStandard, hasCloseButton, hasMinimizeButton, isFullScreen, isMinimized, frame)
 ```
 
-## Level 1: Context
+## Level 1: System context
 
 ```mermaid
 flowchart LR
     user([User])
-    config[(Config file)]
     otto["OttoWM"]
     macos["macOS"]
 
     user -->|key combos| otto
     user -->|Cmd-Tab, Dock, Mission Control| macos
-    config -->|bindings| otto
     otto -->|moves and focuses windows| macos
     macos -->|window events| otto
 ```
 
-## Level 2: Subsystems
+## Level 2: Containers
+
+```mermaid
+flowchart LR
+    config[("config file<br/>$XDG_CONFIG_HOME/ottowm")]
+    state[("state file<br/>$XDG_STATE_HOME/ottowm")]
+    otto["OttoWM<br/>LSUIElement agent"]
+    ax["Accessibility API"]
+    tap["CGEventTap"]
+    ws["NSWorkspace, NSScreen,<br/>distributed notifications"]
+    cg["CGWindowList"]
+
+    config -->|bindings, spacing, pager| otto
+    otto <-->|workspaces, parked windows| state
+    tap -->|keyDown| otto
+    ax <-->|window notifications, reads, writes| otto
+    ws -->|app launch and quit, Space change,<br/>display change, screen lock| otto
+    cg -->|on-screen window frames| otto
+```
+
+## Level 3: Components
 
 ```mermaid
 flowchart LR
     Input -->|Action| Engine
     Input -->|quit, restart| Lifecycle
     Lifecycle -->|reload| Input
-    macOS["macOS boundary"] -->|WindowEvent| Engine
+    Lifecycle -->|stop, resync| Engine
+    macOS["macOS boundary"] -->|WindowEvent, DesktopEvent| Engine
     Engine -->|reframe, focus, read| macOS
     Engine -->|assign, switch| Model
-    Lifecycle -->|start, stop, screen lock| Engine
+    Model -->|WorkspaceEvent| UI
+    macOS -->|DesktopEvent| UI
 ```
 
-## Level 3: Components
+`AppDelegate` builds every component and wires them with closures. The diagrams below show the calls made after startup.
+
+### Input
+
+```mermaid
+flowchart LR
+    ConfigFile -->|Config| Bindings
+    Bindings -->|"(keyCode, flags) → Binding?"| Hotkeys
+    Hotkeys -->|Action| Engine
+    Hotkeys -->|quit, restart| Lifecycle
+```
+
+The tap thread matches the key and dispatches the action to the main queue. Accessibility writes are only allowed on the main queue.
+
+### Engine and model
+
+```mermaid
+flowchart LR
+    Engine --> Navigation & FullScreenReturns & WindowEnrollment & WindowPlacement
+    Engine --> Neighbors
+    FullScreenReturns --> Navigation
+    Navigation --> WindowEnrollment --> WindowPlacement
+    WindowPlacement --> Admission
+    WindowPlacement --> Workspaces & ParkedWindows & OriginalFrames & DisplayLayouts & SavedState
+    Workspaces --> Workspace & TabGroups
+```
+
+Every engine component reads the focused window and snapshots through `WindowSystem`, and reads membership from `Workspaces`.
+
+### macOS boundary
+
+```mermaid
+flowchart TB
+    Engine -->|recover, reframe, focus, repark| Desktop
+    Engine -->|focused, frames, snapshot| WindowSystem
+    TabGroups -->|tabCount, frame| WindowSystem
+    RunningApplicationsObserver -->|WindowEvent| Engine
+
+    subgraph desktop [Desktop]
+        Desktop -.-|implemented by| ParkingDesktop
+        ParkingDesktop -->|Screens| MainScreen
+        ParkingDesktop --> WorkArea --> HiddenEdge
+    end
+
+    subgraph windows [Window events]
+        RunningApplicationsObserver --> ApplicationFilter
+        RunningApplicationsObserver -->|WindowEvents| AXWindowEvents
+        AXWindowEvents --> Applications --> Application
+        Application --> Subscription & AXNotifications & AXWindow
+        AXWindow --> AXAccess
+    end
+
+    ParkingDesktop -->|findWindow| Applications
+    WindowSystem -->|findWindow| Applications
+    WindowSystem -->|adoptFocusedWindow| AXWindowEvents
+```
+
+`AXWindowEvents` pushes the AX notifications and the sweep. A scan (`start`, `discover`, `inventory`) returns what it found, and `RunningApplicationsObserver` decides what to announce.
+
+### Lifecycle
+
+```mermaid
+flowchart LR
+    AppDelegate --> ConfigGate --> ConfigAlert
+    AppDelegate --> AccessibilityPermission --> AccessibilityAlert
+    AccessibilityPermission -->|trust lost, regained| Bindings
+    ConfigGate & AccessibilityPermission -->|relaunch| Lifecycle
+    ScreenLock -->|unlocked| Lifecycle
+    Lifecycle -->|stop, resync| Engine
+    Lifecycle -->|reload| Bindings
+    Lifecycle -->|failed reload| ConfigAlert
+    Engine -->|save| StateFile
+```
+
+While `Lifecycle.screenIsLocked` is set, `Engine` drops window events and defers display changes, and `AXWindowEvents` skips the sweep.
+
+### UI
+
+```mermaid
+flowchart LR
+    Workspaces -->|WorkspaceEvent| Pager
+    Desktop -->|DesktopEvent| Pager
+    Bindings -->|reloaded Config| Pager
+    Lifecycle -->|dismiss| Pager
+```
+
+### Component index
 
 | Component                     | Category  | Description                                                                             |
 |-------------------------------|-----------|-----------------------------------------------------------------------------------------|
@@ -98,7 +204,8 @@ flowchart LR
 | `DisplayLayouts`              | Model     | The last frame each window had on each display, kept after the display disconnects.     |
 | `Fit`                         | Model     | One frame moved between two visible frames, each axis keeping its share of the room.    |
 | `SavedState`                  | Model     | What the state file holds, less the windows no longer open.                             |
-| `Desktop`                     | macOS     | Moves, parks and focuses windows on the native Space.                                   |
+| `Desktop`                     | macOS     | The protocol the engine moves, parks and focuses windows through.                       |
+| `ParkingDesktop`              | macOS     | The `Desktop` that parks windows at the hidden edge and reports `DesktopEvent`s.        |
 | `HiddenEdge`                  | macOS     | Where a parked window sits, and whether a frame sits there.                             |
 | `WindowSystem`                | macOS     | The focused window, the on-screen window frames, and the tab count of a window.         |
 | `RunningApplicationsObserver` | macOS     | The `NSWorkspace` notifications of the applications' lifecycle, and what to announce.   |
@@ -112,7 +219,8 @@ flowchart LR
 | `Window`                      | macOS     | The window operations the desktop needs: snapshot, frames, moves, focus, tabs.          |
 | `AXWindow`                    | macOS     | One window: snapshot, frame writes, focus, tab count, read through `AXAccess`.          |
 | `AXAccess`                    | macOS     | The raw AX calls: reads, writes, actions, window id, activation, frontmost application. |
-| `MainScreen`                  | macOS     | The main display as a `Display`, the `Screens` the desktop reads.                       |
+| `Screens`                     | macOS     | The protocol the desktop reads the main display through.                                |
+| `MainScreen`                  | macOS     | The `Screens` over `NSScreen`: the main display as a `Display`.                         |
 | `OperationCache`              | macOS     | Holds one AX or CG read for the length of an operation.                                 |
 | `RoundTrips`                  | macOS     | Prices an operation in the calls it makes out of the process: how many, of what, cost.  |
 | `Signposts`                   | macOS     | The operation and round-trip intervals Instruments records.                             |
@@ -127,111 +235,7 @@ flowchart LR
 | `ConfigAlert`                 | UI        | The config error alert UI.                                                              |
 | `Pager`                       | UI        | The workspace tab over the parked windows, and the rounded masks on the other corners.  |
 
-### Input
-
-```mermaid
-flowchart LR
-    ConfigFile -->|Config| Bindings
-    Bindings -->|"(keyCode, flags) → Binding?"| Hotkeys
-    Hotkeys -->|Action| Engine
-    Hotkeys -->|quit, restart| Lifecycle
-    Lifecycle -->|reload| Bindings
-```
-
-The tap thread matches the key and dispatches the action to the main queue, the only thread the accessibility writes are allowed on.
-
-### Engine and model
-
-```mermaid
-flowchart LR
-    Engine --> WindowPlacement
-    Engine --> WindowEnrollment
-    Engine --> Navigation
-    Engine --> FullScreenReturns
-    Engine --> Workspaces
-    Engine --> Neighbors
-    WindowEnrollment --> WindowPlacement
-    WindowPlacement --> Admission
-    Navigation --> WindowEnrollment
-    Navigation --> WindowPlacement
-    FullScreenReturns --> Navigation
-    FullScreenReturns --> WindowPlacement
-    WindowPlacement --> Workspaces
-    WindowPlacement --> ParkedWindows
-    WindowPlacement --> OriginalFrames
-    WindowPlacement --> DisplayLayouts
-    WindowPlacement --> SavedState
-    OriginalFrames --> Workspaces
-    Navigation --> Workspaces
-    Workspaces --> Workspace
-    Workspaces --> TabGroups
-    Workspaces -->|WorkspaceEvent| Pager
-```
-
-### macOS boundary
-
-```mermaid
-flowchart TB
-    Engine -->|recover, focus, repark| Desktop
-    Desktop -->|DesktopEvent| Engine
-    WindowPlacement -->|reframe| Desktop
-    Navigation -->|focus| Desktop
-    Engine -->|focused, frames| WindowSystem
-    Admission & WindowPlacement & Navigation -->|focused, shows, snapshot| WindowSystem
-    WindowEnrollment & FullScreenReturns -->|snapshot| WindowSystem
-    TabGroups -->|tabCount, frame| WindowSystem
-    RunningApplicationsObserver -->|WindowEvent| Engine
-    Desktop --> MainScreen
-    Desktop --> WorkArea
-    WorkArea --> HiddenEdge
-    Desktop -->|DesktopEvent| Pager
-    Desktop --> Applications
-    WindowSystem -->|adoptFocusedWindow| AXWindowEvents
-    WindowSystem -->|findWindow| Applications
-    RunningApplicationsObserver -->|includes| ApplicationFilter
-    RunningApplicationsObserver -->|start, discover, inventory, stop, sweepDeadWindows| AXWindowEvents
-    AXWindowEvents -->|WindowEvent| RunningApplicationsObserver
-    AXWindowEvents -->|add, find, remove| Applications
-    Applications --> Application
-    Application --> Subscription
-    Application --> AXNotifications
-    Application --> AXWindow
-    Subscription --> AXNotifications
-    AXWindowEvents --> AXWindow
-    AXWindow --> AXAccess
-```
-
-`AXWindowEvents` pushes the AX notifications of the watched applications and the sweep. A scan (`start`, `discover` or `inventory`) returns what it found, and `RunningApplicationsObserver` decides what to announce.
-
-### Lifecycle
-
-```mermaid
-flowchart LR
-    AppDelegate --> ConfigGate
-    ConfigGate --> ConfigAlert
-    AppDelegate --> AccessibilityPermission
-    AccessibilityPermission --> AccessibilityAlert
-    AppDelegate --> Engine
-    AppDelegate --> Bindings
-    AccessibilityPermission -->|trust lost, regained| Bindings
-    AppDelegate --> Lifecycle
-    AppDelegate -->|load| StateFile
-    Engine -->|save| StateFile
-    Lifecycle --> ScreenLock
-    Lifecycle -->|stop, resync| Engine
-    Lifecycle -->|screenIsLocked| Engine
-    Lifecycle -->|screenIsLocked| AXWindowEvents
-    Lifecycle -->|resync| RunningApplicationsObserver
-    AccessibilityPermission -->|relaunch| Lifecycle
-    ConfigGate -->|relaunch| Lifecycle
-    Lifecycle -->|reload| Bindings
-    Lifecycle --> ConfigAlert
-    AppDelegate -->|isEnabled| Pager
-    Lifecycle -->|dismiss| Pager
-    Bindings -->|reloaded Config| Pager
-    AppDelegate -->|spacing| Desktop
-    Bindings -->|reloaded Config| Desktop
-```
+The pager draws with Core Animation. SwiftUI used substantially more CPU on Intel Macs.
 
 ## Flows
 
@@ -289,10 +293,6 @@ sequenceDiagram
         Navigation->>Desktop: focus any managed window
     end
 ```
-
-### Pager
-
-It is the UI element that displays the current workspace at the bottom right of the screen, besides the useful information it also hides the drop shadow of parked windows. It relies on Core Animation, as SwiftUI is rather inefficient on non-apple-silicon hardware, somehow the CPU usage is substantially higher.
 
 ### Move window to workspace
 
@@ -377,7 +377,7 @@ The frame a window had on the display left is not read at the change: macOS may 
 
 ```mermaid
 sequenceDiagram
-    Note over Desktop: the screen parameters notification names a main display<br/>other than the one held; the same display again is reported as screenParametersChange
+    Note over Desktop: the screen parameters notification names a main display<br/>other than the one held. The same display again is reported as screenParametersChange
     Desktop->>Engine: displayChange(left → entered)
     Note over Engine: held until the unlock while the screen is locked:<br/>the accessibility reads fail behind it
     Engine->>WindowPlacement: relocate(the change)
@@ -423,6 +423,7 @@ sequenceDiagram
         Bindings->>Hotkeys: stop()
         Bindings->>Hotkeys: start() a new tap over the new Config
         Bindings->>Pager: isEnabled = the pager setting
+        Bindings->>Desktop: spacing = the config spacing
     else it does not
         Bindings-->>Lifecycle: the error that kept the bindings already up
         Lifecycle->>ConfigAlert: ask(error)
