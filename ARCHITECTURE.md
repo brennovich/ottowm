@@ -285,11 +285,9 @@ sequenceDiagram
     end
 ```
 
-A window the desktop reports gone is no longer managed.
-
 ### Pager
 
-The pager is the tab that displays the current workspace at the bottom right of the screen, and the corner masks that add a rounded shape to the screen. It uses Core Animation on boot, quit and workspace switch.
+It is the UI element that displays the current workspace at the bottom right of the screen, besides the useful information it also hides the drop shadow of parked windows. It relies on Core Animation, as SwiftUI is rather inefficient on non-apple-silicon hardware, somehow the CPU usage is substantially higher.
 
 ### Move window to workspace
 
