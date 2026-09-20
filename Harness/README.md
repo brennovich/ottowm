@@ -8,9 +8,10 @@ Shared machinery for the acceptance run in `Acceptance/` and the benchmark in `B
 | `Desk.swift`    | Stages the configuration a run is bound to and the windows it drives, and opens each one           |
 | `AX.swift`      | The accessibility reads: a window's frame, an application's windows, a window's title, a menu item |
 | `Hotkeys.swift` | Posts the bundled key combos as real key events into the session event tap                         |
-| `Screen.swift`  | Where the window actions take a window, worked out from the screen the same way the app does it   |
+| `Screen.swift`  | Where the window actions take a window, worked out from the screen the same way the app does it    |
 | `Tabs.swift`    | Shows the tab bar, makes a tabbed window out of two, and brings either of its tabs to the front    |
 | `Sheet.swift`   | Opens the Page Setup sheet on the window in front, and dismisses it                                |
+| `Pager.swift`   | The windows OttoWM puts up on its own, and the secure event input flag the cue follows             |
 | `Report.swift`  | Output, failure, and the wait every check is built on                                              |
 
 There is no target of its own to build. Each run compiles the harness into its own binary, `make build/acceptance` and `make build/benchmark`, which is also how CI builds the one it is about to run before it grants permissions to anything.

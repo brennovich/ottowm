@@ -6,10 +6,11 @@ import CoreGraphics
 // in front moves the window the sheet belongs to. One of the desk's windows shows two
 // tabs, and what is asked of either of them is asked of the window both stand in.
 // A window sent to another workspace parks at the hidden edge and comes back, and the desk
-// it was standing on goes with the workspace it belongs to. The restart hotkey picks up a
-// binding the run adds while it is up, and the quit hotkey ends it, with whatever is parked
-// when it fires handed back before OttoWM goes. OttoWM launched again puts every window back
-// in the workspace it was in when the last one quit.
+// it was standing on goes with the workspace it belongs to. The pager puts up its cue while
+// the run holds secure event input. The restart hotkey picks up a binding the run adds while
+// it is up, and the quit hotkey ends it, with whatever is parked when it fires handed back
+// before OttoWM goes. OttoWM launched again puts every window back in the workspace it was
+// in when the last one quit.
 
 var session = Session.start(arranged: true, tabbed: true)
 let movable = session.movable
@@ -162,6 +163,36 @@ report("posting lopt-2")
 switchToWorkspace(2)
 session.expect("the \(movable.name) window came back", [movable]) { $0.isWhereItWas }
 session.expect("the rest of the desk parked", session.others, session.isParked)
+
+// The cue shows while an application holds secure event input, which this run takes the way
+// a password field does. It is one more window of OttoWM's own, at the bottom right corner
+// under the tab, and it goes when the flag is cleared.
+let pagerBefore = Set(pagerWindows(of: session.ottowm.processIdentifier).keys)
+
+report("taking secure event input")
+holdSecureEventInput()
+eventually("the cue shows at the bottom right corner") {
+    let shown = pagerWindows(of: session.ottowm.processIdentifier)
+    let appeared = shown.filter { !pagerBefore.contains($0.key) }
+
+    guard appeared.count == 1, let cue = appeared.first else {
+        return "\(appeared.count) windows of OttoWM's own appeared"
+    }
+    let corner = pagerCorner()
+    guard abs(cue.value.maxX - corner.x) <= restoreTolerance,
+          abs(cue.value.maxY - corner.y) <= restoreTolerance
+    else { return "the window that appeared is at \(cue.value), not at \(corner)" }
+
+    return nil
+}
+
+report("releasing secure event input")
+releaseSecureEventInput()
+eventually("the cue went with the flag") {
+    let shown = Set(pagerWindows(of: session.ottowm.processIdentifier).keys)
+
+    return shown.subtracting(pagerBefore).isEmpty ? nil : "\(shown.subtracting(pagerBefore).count) still on screen"
+}
 
 report("binding lopt-5 to workspace 1 and posting hyper-r")
 session.rebind("lopt-5 = switch-to-workspace 1")
