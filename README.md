@@ -113,49 +113,49 @@ hyper-5 = switch-to-workspace 5
   <tr>
     <td>switch-to-workspace&nbsp;<code>N</code></td>
     <td>Action</td>
-    <td>left&nbsp;⌥ + 1–4</td>
+    <td>&nbsp;⌥ + 1–4</td>
     <td>Switch to workspace N</td>
   </tr>
   <tr>
     <td>move-window-to-workspace&nbsp;<code>N</code></td>
     <td>Action</td>
-    <td>left&nbsp;⌥⇧ + 1–4</td>
+    <td>&nbsp;⌥⇧ + 1–4</td>
     <td>Move the focused window to workspace N</td>
   </tr>
   <tr>
     <td>focus&nbsp;<code>D</code></td>
     <td>Action</td>
-    <td>left&nbsp;⌥ + H/J/K/L</td>
+    <td>&nbsp;⌥ + H/J/K/L</td>
     <td>Focus the window <code>D</code> leads to: <code>north</code>, <code>east</code>, <code>south</code> or <code>west</code></td>
   </tr>
   <tr>
     <td>move-window&nbsp;<code>D</code></td>
     <td>Action</td>
-    <td>left&nbsp;⌥⇧ + H/J/K/L</td>
+    <td>&nbsp;⌥⇧ + H/J/K/L</td>
     <td>Move the focused window <code>D</code> by the spacing</td>
   </tr>
   <tr>
     <td>resize&nbsp;<code>C</code></td>
     <td>Action</td>
-    <td>left&nbsp;⌥⌃⇧ + H/J/K/L</td>
+    <td>&nbsp;⌥⌃⇧ + H/J/K/L</td>
     <td>Resize the focused window by the spacing: <code>C</code> is <code>wider</code>, <code>narrower</code>, <code>taller</code> or <code>shorter</code></td>
   </tr>
   <tr>
     <td>center-window</td>
     <td>Action</td>
-    <td>left&nbsp;⌥⌃ + C</td>
+    <td>&nbsp;⌥⌃ + C</td>
     <td>Center the focused window on the screen, keeping its size</td>
   </tr>
   <tr>
     <td>maximize</td>
     <td>Action</td>
-    <td>left&nbsp;⌥⌃ + M</td>
+    <td>&nbsp;⌥⌃ + M</td>
     <td>Fill the screen with the focused window (toggable)</td>
   </tr>
   <tr>
     <td>tile&nbsp;<code>D</code></td>
     <td>Action</td>
-    <td>left&nbsp;⌥⌃ + H/J/K/L</td>
+    <td>&nbsp;⌥⌃ + H/J/K/L</td>
     <td>Tile the focused window to the half of the screen <code>D</code> leads to (toggable)</td>
   </tr>
   <tr>
@@ -184,7 +184,7 @@ hyper-5 = switch-to-workspace 5
   </tr>
 </table>
 
-**Note**: _⌘ Command, ⌃ Control, ⌥ Option, ⇧ Shift. By default only the **left** Option key triggers the default workspace bindings; the right one is left free for typing special characters™._
+**Note**: _⌘ Command, ⌃ Control, ⌥ Option, ⇧ Shift. By default only the **left** Option (`lopt`) key triggers the default workspace bindings; the right one is left free for typing special characters™. You can always rebind to use both with `opt` instead._
 
 ## Debugging
 
