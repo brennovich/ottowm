@@ -4,10 +4,10 @@ import AppKit
 /// The tab retracts while a window overlaps it, and the cue pulses under it while an app holds secure event input.
 final class Pager {
     private let tab = PagerTabView()
-    private let tabPanel: OverlayPanel
+    private let tabPanel: any Panel
     private let cue = CueView()
-    private let cuePanel: OverlayPanel
-    private let corners: [(corner: ScreenCorner, panel: OverlayPanel)]
+    private let cuePanel: any Panel
+    private let corners: [(corner: ScreenCorner, panel: any Panel)]
     private let radius = ScreenCorner.radius(on: ProcessInfo.processInfo.operatingSystemVersion)
     private let windowFrames: () -> [CGWindowID: CGRect]
     private let isOnScreen: (CGWindowID) -> Bool
@@ -33,6 +33,7 @@ final class Pager {
         windowFrames: @escaping () -> [CGWindowID: CGRect],
         isOnScreen: @escaping (CGWindowID) -> Bool,
         startWatchingSecureInput: (@escaping (Bool) -> Void) -> Void,
+        panel: (NSWindow.Level, SlidingView) -> any Panel = { OverlayPanel(level: $0, content: $1) },
         schedule: @escaping (TimeInterval, @escaping () -> Void) -> Void = {
             DispatchQueue.main.asyncAfter(deadline: .now() + $0, execute: $1)
         },
@@ -43,13 +44,13 @@ final class Pager {
         self.schedule = schedule
         // One level below pop-up menus: above every window and the Dock, below a menu opened over the corner.
         let tabLevel = NSWindow.Level(rawValue: NSWindow.Level.popUpMenu.rawValue - 1)
-        tabPanel = OverlayPanel(level: tabLevel, content: tab)
+        tabPanel = panel(tabLevel, tab)
         // Below the tab, which hides where a ring starts.
-        cuePanel = OverlayPanel(level: NSWindow.Level(rawValue: tabLevel.rawValue - 1), content: cue)
+        cuePanel = panel(NSWindow.Level(rawValue: tabLevel.rawValue - 1), cue)
         // Same level as the Hammerspoon RoundedCorners spoon: above every window and menu.
         let maskLevel = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 1)
         let radius = radius
-        corners = ScreenCorner.allCases.map { ($0, OverlayPanel(level: maskLevel, content: Self.mask(of: $0, radius: radius))) }
+        corners = ScreenCorner.allCases.map { ($0, panel(maskLevel, Self.mask(of: $0, radius: radius))) }
 
         place(on: desktop.display)
         workspaces.startWatching { [weak self] event in self?.handle(event) }

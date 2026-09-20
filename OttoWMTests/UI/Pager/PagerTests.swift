@@ -23,6 +23,7 @@ final class PagerTests: XCTestCase {
         },
         isOnScreen: { _ in self.tabOnScreen },
         startWatchingSecureInput: { self.secureInputHandler = $0 },
+        panel: StubPanel.init,
         schedule: { self.scheduled.append(($0, $1)) },
         notificationCenter: center
     )
