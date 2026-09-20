@@ -81,12 +81,12 @@ The app is ad-hoc signed, so Gatekeeper refuses it as coming from an unidentifie
 
 OttoWM expects a few macOS settings to be in place. They all live in System Settings → Desktop & Dock, under Mission Control and Dock.
 
-| Setting                                                 | Value | Why                                                                                         |
-| ------------------------------------------------------- | ----- | ------------------------------------------------------------------------------------------- |
-| Group windows by application                            | on    | Mission Control shows the windows of an app together, so parked windows stay out of the way |
-| Displays have separate Spaces                           | on    | Each display keeps its own Space, so a workspace switch stays on one display                |
-| Automatically rearrange Spaces based on most recent use | off   | The Space order stays fixed, so the Space OttoWM runs on does not move                      |
-| Automatically hide and show the Dock                    | on    | The Dock does not cover the parked windows and the Pager in the bottom right corner         |
+| Setting                                                 | Value | Why                                                                          |
+| ------------------------------------------------------- | ----- | ---------------------------------------------------------------------------- |
+| Group windows by application                            | on    | Fixes the positioning of windows on Mission Control                          |
+| Displays have separate Spaces                           | on    | Each display keeps its own Space, so a workspace switch stays on one display |
+| Automatically rearrange Spaces based on most recent use | off   | The Space order stays fixed, so the Space OttoWM runs on does not move       |
+| Automatically hide and show the Dock                    | on    | Keep the parked windows as hidden as possible                                |
 
 ```sh
 defaults write com.apple.dock expose-group-apps -bool true
