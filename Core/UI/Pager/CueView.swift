@@ -1,7 +1,7 @@
 import AppKit
 
-/// Red copies of the tab shape rising from under the tab, spreading past it and fading: the cue that an app holds
-/// secure event input, where no binding works. It runs for as long as the flag stays set.
+/// Copies of the tab shape rising from under the tab, spreading past it and fading, running as long as the flag stays set:
+///   - Red: the cue that an app holds secure event input, where no binding works.
 final class CueView: SlidingView {
     /// Rounded up, since `NSWindow` rounds a fractional content size up: a ring anchored at the fractional
     /// size would land inside the panel and leave a gap against the screen edge.
@@ -22,8 +22,6 @@ final class CueView: SlidingView {
     /// exactly when it leaves the tab's outline and fades only while it travels outward.
     private static let emergeShare = 0.2
     private static let lineWidth: CGFloat = 1
-    /// A stroke is centred on the path, which softens the ring's outer edge, so the ring is masked with a filled copy
-    /// of its own path and the drawn width is doubled: half of it lands outside the mask and is cut.
     private static let drawnWidth = lineWidth * 2
 
     let rings: CAReplicatorLayer
@@ -56,7 +54,6 @@ final class CueView: SlidingView {
         }
     }
 
-    /// Squeezes the rings the way the tab squeezes, so they spread from the shape that is on screen.
     func retract() {
         guard !isRetracted else { return }
 

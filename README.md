@@ -19,38 +19,50 @@
 
 ![OttoWM preview](assets/preview.png)
 
-OttoWM fakes multiple workspaces on a **single native macOS Space**. No native Spaces, no Space switch animations, no Mission Control involved.
-
-Some important features:
-- Native Tabbed windows (Terminal, Ghostty, Finder, …) support
-- Plays nice with macOS features:
-  - You can create native macOS Spaces, OttoWM just ignores them
-  - Compatible with native interaction: if you reach a hidden window via Cmd-Tab, the Dock, or Mission Control, OttoWM autoswitches to that window's workspace
-  - Fullscreen apps are ignored
+OttoWM is a window manager for macOS under intense development.
 
 Some important foundations:
 - No dependency on third-party libraries or frameworks
 - Relies on macOS public APIs only (up until now)
 - Backwards compatibility, it works on macOS Big Sur onwards
 
-### Hotkeys
+## Features
 
-Out of the box (bundled config):
+It brings the workflow of a common Linux window manager to macOS, without fighting with Mission Control:
 
-| Binding                                                                 | Action                                                                                    |
-|-------------------------------------------------------------------------|-------------------------------------------------------------------------------------------|
-| left&nbsp;Option&nbsp;+&nbsp;1–4                                        | Switch to workspace                                                                       |
-| left&nbsp;Option&nbsp;+&nbsp;Shift&nbsp;+&nbsp;1–4                      | Move focused window to workspace                                                          |
-| left&nbsp;Option&nbsp;+&nbsp;H/J/K/L                                    | Focus the window to the west/south/north/east                                             |
-| left&nbsp;Option&nbsp;+&nbsp;Shift&nbsp;+&nbsp;H/J/K/L                  | Move the focused window west/south/north/east                                             |
-| left&nbsp;Option&nbsp;+&nbsp;Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;H/J/K/L | Make the focused window narrower/taller/shorter/wider                                     |
-| left&nbsp;Option&nbsp;+&nbsp;Ctrl&nbsp;+&nbsp;C                         | Center the focused window, keeping its size                                               |
-| left&nbsp;Option&nbsp;+&nbsp;Ctrl&nbsp;+&nbsp;M                         | Fill the screen with the focused window, or put it back                                   |
-| left&nbsp;Option&nbsp;+&nbsp;Ctrl&nbsp;+&nbsp;H/J/K/L                   | Fill the west/south/north/east half of the screen with the focused window, or put it back |
-| Cmd&nbsp;+&nbsp;Ctrl&nbsp;+&nbsp;Option&nbsp;+&nbsp;Shift&nbsp;+&nbsp;Q | Quit OttoWM                                                                               |
-| Cmd&nbsp;+&nbsp;Ctrl&nbsp;+&nbsp;Option&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R | Reload the config                                                                         |
+- Native macOS Spaces keep working, whatever happens there won't affect OttoWM
+- Full screen apps are restored to their respective state when leaving full screen
+- Reaching a window through Cmd-Tab, the Dock or Mission Control switches to its workspace
 
-> Only the **left** Option key triggers the default workspace bindings; the right one is left free for typing special characters™.
+### Workspaces
+
+Multiple workspaces on a **single native macOS Space**: no Space switch animation, no Mission Control. A window that leaves a workspace is parked in the bottom right corner, a point of it left on screen, and comes back to the frame it had, with the focus it had.
+
+### Pager
+
+OttoWM relies on the same strategy as [AeroSpace](https://nikitabobko.github.io/AeroSpace/guide#emulation-of-virtual-workspaces), a tiny portion of windows accumulates in the bottom right corner, so the Pager covers this spot while offering nice other features.
+
+<table>
+  <tr>
+    <th width="33%" align="center">Current workspace badge</th>
+    <th width="33%" align="center">Smart auto-hide</th>
+    <th width="33%" align="center">Secure input cue</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="assets/current-workspace-badge.gif" alt="Current workspace badge" width="200"></td>
+    <td align="center"><img src="assets/smart-autohide.gif" alt="Smart auto-hide" width="200"></td>
+    <td align="center"><img src="assets/secure-input-cue.gif" alt="Secure input cue" width="200"></td>
+  </tr>
+  <tr>
+    <td valign="top">The tab tells which workspace is current.</td>
+    <td valign="top">It squeezes against the screen edge while a window reaches into the corner, and comes back once the corner is free.</td>
+    <td valign="top">A pulse cue irradiates while an app holds secure input, e.g. a password field is focused, Password.app auth: every keystroke is withheld from OttoWM, so no binding works.</td>
+  </tr>
+</table>
+
+### Tabbed windows
+
+Native tab groups (Terminal, Ghostty, Finder, …) count as one window: sending a tab to another workspace takes the whole group, and the group comes back with the tab that was active.
 
 ## Install
 
@@ -74,36 +86,39 @@ mkdir -p ~/.config/ottowm
 cp /Applications/OttoWM.app/Contents/Resources/ottowm ~/.config/ottowm/
 ```
 
-One `key combo = action` or `setting = value` per line. Blank lines and anything after a `#` are skipped; there is no quoting and no sections:
-
 ```
+# This is a comment
+
+# One `key combo = action`
 lopt-1 = switch-to-workspace 1
+
+# or `setting = value` per line
+spacing = 20
+
 lopt-shift-1 = move-window-to-workspace 1
 lopt-h = focus west
 lopt-shift-h = move-window west
 
+# CMD+Ctrl+Option+Shift+Q quits OttoWM
 hyper-5 = switch-to-workspace 5
 ```
 
-Workspaces are created on demand:
+| Entry                             | Type    | Default                                                                 | Description                                                                                            |
+|-----------------------------------|---------|-------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------|
+| switch-to-workspace&nbsp;`N`      | Action  | left&nbsp;Option&nbsp;+&nbsp;1–4                                        | Switch to workspace N                                                                                  |
+| move-window-to-workspace&nbsp;`N` | Action  | left&nbsp;Option&nbsp;+&nbsp;Shift&nbsp;+&nbsp;1–4                      | Move the focused window to workspace N                                                                 |
+| focus&nbsp;`D`                    | Action  | left&nbsp;Option&nbsp;+&nbsp;H/J/K/L                                    | Focus the window `D` leads to: `north`, `east`, `south` or `west`                                      |
+| move-window&nbsp;`D`              | Action  | left&nbsp;Option&nbsp;+&nbsp;Shift&nbsp;+&nbsp;H/J/K/L                  | Move the focused window `D` by the spacing                                                             |
+| resize&nbsp;`C`                   | Action  | left&nbsp;Option&nbsp;+&nbsp;Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;H/J/K/L | Resize the focused window by the spacing: `C` is `wider`, `narrower`, `taller` or `shorter`            |
+| center-window                     | Action  | left&nbsp;Option&nbsp;+&nbsp;Ctrl&nbsp;+&nbsp;C                         | Center the focused window on the screen, keeping its size                                              |
+| maximize                          | Action  | left&nbsp;Option&nbsp;+&nbsp;Ctrl&nbsp;+&nbsp;M                         | Fill the screen with the focused window (toggable)                                                     |
+| tile&nbsp;`D`                     | Action  | left&nbsp;Option&nbsp;+&nbsp;Ctrl&nbsp;+&nbsp;H/J/K/L                   | Tile the focused window to the half of the screen `D` leads to (toggable)                              |
+| quit                              | Action  | Cmd&nbsp;+&nbsp;Ctrl&nbsp;+&nbsp;Option&nbsp;+&nbsp;Shift&nbsp;+&nbsp;Q | Quit OttoWM, putting every parked window back                                                          |
+| restart                           | Action  | Cmd&nbsp;+&nbsp;Ctrl&nbsp;+&nbsp;Option&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R | Read the config file again and rebind the keys                                                         |
+| pager&nbsp;=&nbsp;`off`           | Setting | `on`                                                                    | Hide the tab in the bottom right corner that shows the current workspace and covers the parked windows |
+| spacing&nbsp;=&nbsp;`N`           | Setting | `15`                                                                    | Number of points for the _gap_, the `move-window` _step_ and the `resize` change                       |
 
-| Action                            | Effect                                                                                           |
-|-----------------------------------|--------------------------------------------------------------------------------------------------|
-| switch-to-workspace&nbsp;`N`      | Switch to workspace N                                                                            |
-| move-window-to-workspace&nbsp;`N` | Move the focused window to workspace N                                                           |
-| focus&nbsp;`D`                    | Focus the window `D` leads to: `north`, `east`, `south` or `west`                                |
-| move-window&nbsp;`D`              | Move the focused window `D` by the spacing                                                       |
-| resize&nbsp;`C`                   | Resize the focused window by the spacing: `C` is `wider`, `narrower`, `taller` or `shorter`      |
-| center-window                     | Center the focused window on the screen, keeping its size                                        |
-| maximize                          | Fill the screen with the focused window (toggable)                                               |
-| tile&nbsp;`D`                     | Tile the focused window to the half of the screen `D` leads to (toggable)                        |
-| quit                              | Quit OttoWM, putting every parked window back                                                    |
-| restart                           | Read the config file again and rebind the keys                                                   |
-
-- `pager = off` hides the tab in the bottom right corner that shows the current workspace and covers the parked windows, and the cue that pulses around it. The tab retracts while a window overlaps it.
-- Red rings spread from under the tab while an app holds secure input, the state a password field puts macOS in: every keystroke is then withheld from OttoWM and no binding works.
-- `spacing = N` is the number of points for _gap_, and the `move-window` _step_, and `resize` change. It defaults to 15.
-- `restart` action reloads the config without a relaunch.
+**Note**: _by default only the **left** Option key triggers the default workspace bindings; the right one is left free for typing special characters™._
 
 ## Debugging
 
