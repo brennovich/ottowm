@@ -77,6 +77,37 @@ open /Applications/OttoWM.app
 
 The app is ad-hoc signed, so Gatekeeper refuses it as coming from an unidentified developer until you clear the quarantine attribute. OttoWM needs Accessibility permission; grant it in System Settings → Privacy & Security → Accessibility on first launch.
 
+## Requirements
+
+OttoWM expects a few macOS settings to be in place. They all live in System Settings → Desktop & Dock, under Mission Control and Dock.
+
+| Setting                                                 | Value | Why                                                                                         |
+| ------------------------------------------------------- | ----- | ------------------------------------------------------------------------------------------- |
+| Group windows by application                            | on    | Mission Control shows the windows of an app together, so parked windows stay out of the way |
+| Displays have separate Spaces                           | on    | Each display keeps its own Space, so a workspace switch stays on one display                |
+| Automatically rearrange Spaces based on most recent use | off   | The Space order stays fixed, so the Space OttoWM runs on does not move                      |
+| Automatically hide and show the Dock                    | on    | The Dock does not cover the parked windows and the Pager in the bottom right corner         |
+
+```sh
+defaults write com.apple.dock expose-group-apps -bool true
+defaults write com.apple.spaces spans-displays -bool false
+defaults write com.apple.dock mru-spaces -bool false
+defaults write com.apple.dock autohide -bool true
+killall Dock
+```
+
+`spans-displays` only takes effect after a log out.
+
+To restore the macOS defaults:
+
+```sh
+defaults delete com.apple.dock expose-group-apps
+defaults delete com.apple.spaces spans-displays
+defaults delete com.apple.dock mru-spaces
+defaults delete com.apple.dock autohide
+killall Dock
+```
+
 ## Configuration
 
 You can define your own bindings by creating a `~/.config/ottowm/ottowm`, it's a good idea to start from the default:
