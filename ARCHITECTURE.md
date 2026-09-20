@@ -162,6 +162,7 @@ flowchart LR
     AXWindowEvents -->|WindowEvent| Pager
     Bindings -->|reloaded Config| Pager
     Lifecycle -->|dismiss| Pager
+    SecureInput -->|flag| Pager
 ```
 
 ### Component index
@@ -172,7 +173,7 @@ flowchart LR
 | `Config`                      | Input     | The `KeyCombo → Binding` table, indexed by key code, the pager and the spacing.         |
 | `Bindings`                    | Input     | The bindings currently up: `start`, `stop`, `reload`.                                   |
 | `Hotkeys`                     | Input     | A session `CGEventTap` on keyDown, running on a thread of its own.                      |
-| `SecureInput`                 | Input     | The window server flag that withholds keystrokes from every tap while it is set.        |
+| `SecureInput`                 | Input     | The window server flag that withholds keystrokes from every tap: its value and changes. |
 | `Engine`                      | Engine    | Runs each window event and action as one operation over the five parts below.           |
 | `Admission`                   | Engine    | Whether a window can be taken now, may be worth reading again, or never qualifies.      |
 | `WindowPlacement`             | Engine    | Keeps a window's workspace membership and its desktop placement in step.                |
@@ -222,7 +223,7 @@ flowchart LR
 | `Lifecycle`                   | Lifecycle | The transitions once it owns windows: `quit`, SIGTERM, relaunch, reload, unlock.        |
 | `AccessibilityAlert`          | UI        | The accessibility permission alerts: what they say and how they show.                   |
 | `ConfigAlert`                 | UI        | The config error alert UI.                                                              |
-| `Pager`                       | UI        | The workspace tab over the parked windows, retracted under a window, and corner masks.  |
+| `Pager`                       | UI        | The workspace tab over the parked windows, the cue under it, and the corner masks.      |
 
 The pager draws with Core Animation. SwiftUI used substantially more CPU on Intel Macs.
 

@@ -11,4 +11,14 @@ final class SecureInputTests: XCTestCase {
         DisableSecureEventInput()
         XCTAssertFalse(SecureInput().isActive())
     }
+
+    func testWatchingReportsTheFlagAtOnce() {
+        addTeardownBlock { DisableSecureEventInput() }
+        var reports: [Bool] = []
+        EnableSecureEventInput()
+
+        SecureInput().startWatching { reports.append($0) }
+
+        XCTAssertEqual(reports, [true])
+    }
 }

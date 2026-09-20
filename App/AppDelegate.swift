@@ -64,7 +64,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             desktop: desktop,
             startWatchingWindows: windowEvents.startWatching,
             windowFrames: { onScreenWindowFrames(level: Int(CGWindowLevelForKey(.normalWindow))) },
-            isOnScreen: isWindowOnScreen
+            isOnScreen: isWindowOnScreen,
+            // No property: the watch retains the instance it runs on.
+            startWatchingSecureInput: SecureInput().startWatching
         )
         self.pager = pager
 

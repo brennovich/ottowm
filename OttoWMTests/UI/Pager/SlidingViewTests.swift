@@ -51,6 +51,18 @@ final class SlidingViewTests: XCTestCase {
         wait(for: [ended], timeout: 1)
     }
 
+    func testTheBackingScaleReachesAMaskUnderTheContent() {
+        let content = CALayer()
+        let masked = CALayer()
+        masked.mask = CALayer()
+        content.addSublayer(masked)
+        let view = SlidingView(content: content, size: size, hiddenOffset: hiddenOffset)
+
+        let window = NSWindow.offscreen(hosting: view)
+
+        XCTAssertEqual(masked.mask?.contentsScale, window.backingScaleFactor)
+    }
+
     func testARevealDuringAConcealStartsFromWhereTheContentIs() throws {
         content.speed = 0
         view.reveal()

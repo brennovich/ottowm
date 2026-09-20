@@ -1,16 +1,19 @@
 import AppKit
 
 /// The tab in the bottom right corner with the current workspace, and the masks that round the other three screen corners.
-/// The tab retracts while a window overlaps it.
+/// The tab retracts while a window overlaps it, and the cue pulses under it while an app holds secure event input.
 final class Pager {
     private let tab = PagerTabView()
     private let tabPanel: OverlayPanel
+    private let cue = CueView()
+    private let cuePanel: OverlayPanel
     private let corners: [(corner: ScreenCorner, panel: OverlayPanel)]
     private let radius = ScreenCorner.radius(on: ProcessInfo.processInfo.operatingSystemVersion)
     private let windowFrames: () -> [CGWindowID: CGRect]
     private let isOnScreen: (CGWindowID) -> Bool
     private let schedule: (TimeInterval, @escaping () -> Void) -> Void
     private var shown = false
+    private var secureInputIsActive = false
     private var tabArea = TabArea(display: .unknown)
     private var checkScheduled = false
     private var checkCount = 0
@@ -29,6 +32,7 @@ final class Pager {
         startWatchingWindows: (@escaping (WindowEvent) -> Void) -> Void,
         windowFrames: @escaping () -> [CGWindowID: CGRect],
         isOnScreen: @escaping (CGWindowID) -> Bool,
+        startWatchingSecureInput: (@escaping (Bool) -> Void) -> Void,
         schedule: @escaping (TimeInterval, @escaping () -> Void) -> Void = {
             DispatchQueue.main.asyncAfter(deadline: .now() + $0, execute: $1)
         },
@@ -38,7 +42,10 @@ final class Pager {
         self.isOnScreen = isOnScreen
         self.schedule = schedule
         // One level below pop-up menus: above every window and the Dock, below a menu opened over the corner.
-        tabPanel = OverlayPanel(level: NSWindow.Level(rawValue: NSWindow.Level.popUpMenu.rawValue - 1), content: tab)
+        let tabLevel = NSWindow.Level(rawValue: NSWindow.Level.popUpMenu.rawValue - 1)
+        tabPanel = OverlayPanel(level: tabLevel, content: tab)
+        // Below the tab, which hides where a ring starts.
+        cuePanel = OverlayPanel(level: NSWindow.Level(rawValue: tabLevel.rawValue - 1), content: cue)
         // Same level as the Hammerspoon RoundedCorners spoon: above every window and menu.
         let maskLevel = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 1)
         let radius = radius
@@ -48,6 +55,12 @@ final class Pager {
         workspaces.startWatching { [weak self] event in self?.handle(event) }
         desktop.startWatching { [weak self] event in self?.handle(event) }
         startWatchingWindows { [weak self] _ in self?.scheduleCheck() }
+        startWatchingSecureInput { [weak self] active in
+            guard let self else { return }
+
+            secureInputIsActive = active
+            updateCue()
+        }
         // Hiding an application reports no window event.
         observers = [NSWorkspace.didHideApplicationNotification, NSWorkspace.didUnhideApplicationNotification].map {
             notificationCenter.addObserver(forName: $0, object: nil, queue: .main) { [weak self] _ in self?.scheduleCheck() }
@@ -55,6 +68,8 @@ final class Pager {
     }
 
     var isRetracted: Bool { tab.isRetracted }
+    var isCueShown: Bool { cue.isRevealed }
+    var isCueRetracted: Bool { cue.isRetracted }
 
     /// `done` runs once the tab has slid out, or at once when the pager is not shown. A reveal during the slide runs it early.
     /// The masks slide out with the tab, for the same duration.
@@ -66,6 +81,7 @@ final class Pager {
             panel.conceal {}
         }
         tabPanel.conceal(then: done)
+        updateCue()
     }
 
     private func handle(_ event: WorkspaceEvent) {
@@ -115,8 +131,10 @@ final class Pager {
 
         if tabArea.isOverlapped(by: windowFrames()) {
             tab.retract()
+            cue.retract()
         } else {
             tab.restore()
+            cue.restore()
         }
     }
 
@@ -127,6 +145,8 @@ final class Pager {
         let screenFrame = display.fullFrame.flipped(primaryHeight: primaryHeight)
 
         tabPanel.setFrame(tabArea.frame.flipped(primaryHeight: primaryHeight), display: true)
+        let cueFrame = tabArea.frame.bottomRight(size: CueView.size)
+        cuePanel.setFrame(cueFrame.flipped(primaryHeight: primaryHeight), display: true)
         for (corner, panel) in corners {
             panel.setFrame(corner.frame(in: screenFrame, radius: radius), display: true)
         }
@@ -141,6 +161,20 @@ final class Pager {
             panel.reveal()
         }
         scheduleCheck()
+        updateCue()
+    }
+
+    /// The one rule for the cue: it shows while the pager is shown and an app holds secure event input.
+    /// The guard covers a repeated report of the flag.
+    private func updateCue() {
+        let shows = shown && secureInputIsActive
+        guard shows != cue.isRevealed else { return }
+
+        if shows {
+            cuePanel.reveal()
+        } else {
+            cuePanel.conceal {}
+        }
     }
 
     private static func mask(of corner: ScreenCorner, radius: CGFloat) -> SlidingView {

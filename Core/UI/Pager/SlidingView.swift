@@ -70,8 +70,12 @@ class SlidingView: NSView {
         }
     }
 
+    /// A mask is not a sublayer, so it is walked on its own: left at 1 it draws the edge it clips at half resolution on a 2x display.
     private func setContentsScale(_ scale: CGFloat, in layer: CALayer) {
         layer.contentsScale = scale
+        if let mask = layer.mask {
+            setContentsScale(scale, in: mask)
+        }
         for sublayer in layer.sublayers ?? [] {
             setContentsScale(scale, in: sublayer)
         }

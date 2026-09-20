@@ -7,13 +7,7 @@ struct TabArea {
     private let hiddenEdge: HiddenEdge
 
     init(display: Display) {
-        let size = PagerTabView.size
-        frame = CGRect(
-            x: display.fullFrame.maxX - size.width,
-            y: display.fullFrame.maxY - size.height,
-            width: size.width,
-            height: size.height
-        )
+        frame = display.fullFrame.bottomRight(size: TabShape.size)
         self.display = display
         hiddenEdge = HiddenEdge(display: display)
     }

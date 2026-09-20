@@ -100,7 +100,8 @@ Workspaces are created on demand:
 | quit                              | Quit OttoWM, putting every parked window back                                                    |
 | restart                           | Read the config file again and rebind the keys                                                   |
 
-- `pager = off` hides the tab in the bottom right corner that shows the current workspace and covers the parked windows. The tab retracts while a window overlaps it.
+- `pager = off` hides the tab in the bottom right corner that shows the current workspace and covers the parked windows, and the cue that pulses around it. The tab retracts while a window overlaps it.
+- Red rings spread from under the tab while an app holds secure input, the state a password field puts macOS in: every keystroke is then withheld from OttoWM and no binding works.
 - `spacing = N` is the number of points for _gap_, and the `move-window` _step_, and `resize` change. It defaults to 15.
 - `restart` action reloads the config without a relaunch.
 

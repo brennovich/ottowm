@@ -11,6 +11,7 @@ final class PagerTests: XCTestCase {
     private var listReads = 0
     private var tabOnScreen = true
     private var scheduled: [(delay: TimeInterval, block: () -> Void)] = []
+    private var secureInputHandler: ((Bool) -> Void)?
 
     private lazy var pager = Pager(
         workspaces: Workspaces(tabGroups: TabGroups(tabCount: { _ in 1 }, frame: { _ in nil })),
@@ -21,6 +22,7 @@ final class PagerTests: XCTestCase {
             return self.listed
         },
         isOnScreen: { _ in self.tabOnScreen },
+        startWatchingSecureInput: { self.secureInputHandler = $0 },
         schedule: { self.scheduled.append(($0, $1)) },
         notificationCenter: center
     )
@@ -32,6 +34,10 @@ final class PagerTests: XCTestCase {
 
     private func report(_ event: WindowEvent) {
         for handler in windowHandlers { handler(event) }
+    }
+
+    private func report(secureInput active: Bool) {
+        secureInputHandler?(active)
     }
 
     private func runScheduled() {
@@ -61,11 +67,43 @@ final class PagerTests: XCTestCase {
         report(.reframed)
         runScheduled()
         XCTAssertTrue(pager.isRetracted)
+        XCTAssertTrue(pager.isCueRetracted)
 
         listed = [1: away]
         report(.reframed)
         runScheduled()
         XCTAssertFalse(pager.isRetracted)
+        XCTAssertFalse(pager.isCueRetracted)
+    }
+
+    func testTheCueShowsWhileSecureInputIsSet() {
+        enable()
+
+        report(secureInput: true)
+        XCTAssertTrue(pager.isCueShown)
+
+        report(secureInput: false)
+        XCTAssertFalse(pager.isCueShown)
+    }
+
+    func testTheCueShowsOnlyOnceThePagerIsShown() {
+        report(secureInput: true)
+        XCTAssertFalse(pager.isCueShown)
+
+        enable()
+
+        XCTAssertTrue(pager.isCueShown)
+    }
+
+    func testTurningThePagerOffTakesTheCueWithIt() {
+        enable()
+        report(secureInput: true)
+        let done = expectation(description: "the pager has slid out")
+
+        pager.dismiss { done.fulfill() }
+
+        XCTAssertFalse(pager.isCueShown)
+        wait(for: [done], timeout: 1)
     }
 
     func testWhileTheTabIsNotOnScreenTheCheckLeavesItAsItIs() {

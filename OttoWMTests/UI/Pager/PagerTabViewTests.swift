@@ -1,7 +1,7 @@
 import XCTest
 
 final class PagerTabViewTests: XCTestCase {
-    private let bounds = CGRect(origin: .zero, size: PagerTabView.size)
+    private let bounds = CGRect(origin: .zero, size: TabShape.size)
     private let view = PagerTabView(number: .stub())
 
     func testRetractSqueezesTheShapeAgainstTheRightEdgeAndMovesTheBadgeOut() {
