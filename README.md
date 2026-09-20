@@ -103,22 +103,88 @@ lopt-shift-h = move-window west
 hyper-5 = switch-to-workspace 5
 ```
 
-| Entry                             | Type    | Default                                                                 | Description                                                                                            |
-|-----------------------------------|---------|-------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------|
-| switch-to-workspace&nbsp;`N`      | Action  | left&nbsp;Option&nbsp;+&nbsp;1–4                                        | Switch to workspace N                                                                                  |
-| move-window-to-workspace&nbsp;`N` | Action  | left&nbsp;Option&nbsp;+&nbsp;Shift&nbsp;+&nbsp;1–4                      | Move the focused window to workspace N                                                                 |
-| focus&nbsp;`D`                    | Action  | left&nbsp;Option&nbsp;+&nbsp;H/J/K/L                                    | Focus the window `D` leads to: `north`, `east`, `south` or `west`                                      |
-| move-window&nbsp;`D`              | Action  | left&nbsp;Option&nbsp;+&nbsp;Shift&nbsp;+&nbsp;H/J/K/L                  | Move the focused window `D` by the spacing                                                             |
-| resize&nbsp;`C`                   | Action  | left&nbsp;Option&nbsp;+&nbsp;Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;H/J/K/L | Resize the focused window by the spacing: `C` is `wider`, `narrower`, `taller` or `shorter`            |
-| center-window                     | Action  | left&nbsp;Option&nbsp;+&nbsp;Ctrl&nbsp;+&nbsp;C                         | Center the focused window on the screen, keeping its size                                              |
-| maximize                          | Action  | left&nbsp;Option&nbsp;+&nbsp;Ctrl&nbsp;+&nbsp;M                         | Fill the screen with the focused window (toggable)                                                     |
-| tile&nbsp;`D`                     | Action  | left&nbsp;Option&nbsp;+&nbsp;Ctrl&nbsp;+&nbsp;H/J/K/L                   | Tile the focused window to the half of the screen `D` leads to (toggable)                              |
-| quit                              | Action  | Cmd&nbsp;+&nbsp;Ctrl&nbsp;+&nbsp;Option&nbsp;+&nbsp;Shift&nbsp;+&nbsp;Q | Quit OttoWM, putting every parked window back                                                          |
-| restart                           | Action  | Cmd&nbsp;+&nbsp;Ctrl&nbsp;+&nbsp;Option&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R | Read the config file again and rebind the keys                                                         |
-| pager&nbsp;=&nbsp;`off`           | Setting | `on`                                                                    | Hide the tab in the bottom right corner that shows the current workspace and covers the parked windows |
-| spacing&nbsp;=&nbsp;`N`           | Setting | `15`                                                                    | Number of points for the _gap_, the `move-window` _step_ and the `resize` change                       |
+<table>
+  <tr>
+    <th width="27%" align="left">Entry</th>
+    <th width="10%" align="left">Type</th>
+    <th width="20%" align="left">Default</th>
+    <th width="43%" align="left">Description</th>
+  </tr>
+  <tr>
+    <td>switch-to-workspace&nbsp;<code>N</code></td>
+    <td>Action</td>
+    <td>left&nbsp;⌥ + 1–4</td>
+    <td>Switch to workspace N</td>
+  </tr>
+  <tr>
+    <td>move-window-to-workspace&nbsp;<code>N</code></td>
+    <td>Action</td>
+    <td>left&nbsp;⌥⇧ + 1–4</td>
+    <td>Move the focused window to workspace N</td>
+  </tr>
+  <tr>
+    <td>focus&nbsp;<code>D</code></td>
+    <td>Action</td>
+    <td>left&nbsp;⌥ + H/J/K/L</td>
+    <td>Focus the window <code>D</code> leads to: <code>north</code>, <code>east</code>, <code>south</code> or <code>west</code></td>
+  </tr>
+  <tr>
+    <td>move-window&nbsp;<code>D</code></td>
+    <td>Action</td>
+    <td>left&nbsp;⌥⇧ + H/J/K/L</td>
+    <td>Move the focused window <code>D</code> by the spacing</td>
+  </tr>
+  <tr>
+    <td>resize&nbsp;<code>C</code></td>
+    <td>Action</td>
+    <td>left&nbsp;⌥⌃⇧ + H/J/K/L</td>
+    <td>Resize the focused window by the spacing: <code>C</code> is <code>wider</code>, <code>narrower</code>, <code>taller</code> or <code>shorter</code></td>
+  </tr>
+  <tr>
+    <td>center-window</td>
+    <td>Action</td>
+    <td>left&nbsp;⌥⌃ + C</td>
+    <td>Center the focused window on the screen, keeping its size</td>
+  </tr>
+  <tr>
+    <td>maximize</td>
+    <td>Action</td>
+    <td>left&nbsp;⌥⌃ + M</td>
+    <td>Fill the screen with the focused window (toggable)</td>
+  </tr>
+  <tr>
+    <td>tile&nbsp;<code>D</code></td>
+    <td>Action</td>
+    <td>left&nbsp;⌥⌃ + H/J/K/L</td>
+    <td>Tile the focused window to the half of the screen <code>D</code> leads to (toggable)</td>
+  </tr>
+  <tr>
+    <td>quit</td>
+    <td>Action</td>
+    <td>⌘⌃⌥⇧ + Q</td>
+    <td>Quit OttoWM, putting every parked window back</td>
+  </tr>
+  <tr>
+    <td>restart</td>
+    <td>Action</td>
+    <td>⌘⌃⌥⇧ + R</td>
+    <td>Read the config file again and rebind the keys</td>
+  </tr>
+  <tr>
+    <td>pager&nbsp;=&nbsp;<code>off</code></td>
+    <td>Setting</td>
+    <td><code>on</code></td>
+    <td>Hide the tab in the bottom right corner that shows the current workspace and covers the parked windows</td>
+  </tr>
+  <tr>
+    <td>spacing&nbsp;=&nbsp;<code>N</code></td>
+    <td>Setting</td>
+    <td><code>15</code></td>
+    <td>Number of points for the <em>gap</em>, the <code>move-window</code> <em>step</em> and the <code>resize</code> change</td>
+  </tr>
+</table>
 
-**Note**: _by default only the **left** Option key triggers the default workspace bindings; the right one is left free for typing special characters™._
+**Note**: _⌘ Command, ⌃ Control, ⌥ Option, ⇧ Shift. By default only the **left** Option key triggers the default workspace bindings; the right one is left free for typing special characters™._
 
 ## Debugging
 
