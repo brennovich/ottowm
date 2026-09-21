@@ -24,7 +24,7 @@ OttoWM is a window manager for macOS under intense development.
 Some important foundations:
 - No dependency on third-party libraries or frameworks
 - Relies on macOS public APIs only (up until now)
-- Backwards compatibility, it works on macOS Monterey onwards
+- Backwards compatibility, it works on macOS Big Sur onwards
 
 ## Features
 
@@ -60,7 +60,7 @@ OttoWM relies on the same strategy as [AeroSpace](https://nikitabobko.github.io/
   </tr>
 </table>
 
-Option-click the tab to open the About window. A plain click on the tab goes nowhere: it would land on the parked window the tab covers and switch to its workspace.
+Option-click the tab to open the About window.
 
 ### Tabbed windows
 
@@ -227,7 +227,7 @@ hyper-5 = switch-to-workspace 5
 
 ## Debugging
 
-The About window (`hyper-a`, or Option-click on the pager tab) shows whether Accessibility is granted, whether the event tap listens, whether another app holds secure input, which config file is in use and whether the macOS settings above are set. **Copy diagnostics** puts all of it on the clipboard as text, and **Copy fixes** the `defaults write` lines of the settings that are not set.
+The About window (`hyper-a`, or Option-click on the pager tab) displays the all requirements and status statuses of the system, alongside with config and debug tools.
 
 ```sh
 log stream --level debug --predicate 'subsystem == "com.github.brennovich.ottowm"'
