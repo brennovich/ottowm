@@ -13,15 +13,16 @@ final class AppInfoTests: XCTestCase {
         return try XCTUnwrap(Bundle(url: url))
     }
 
-    func testVersionComesFromTheBundle() throws {
-        let bundle = try makeBundle(info: ["CFBundleShortVersionString": "9.9.9"])
+    func testTheValueComesFromTheBundleAndFallsBackWhenItDeclaresNone() throws {
+        let cases: [(name: String, info: [String: String]?, read: (Bundle) -> String, value: String)] = [
+            ("version", ["CFBundleShortVersionString": "9.9.9"], AppInfo.version, "9.9.9"),
+            ("version, none declared", nil, AppInfo.version, "unknown"),
+            ("build", ["CFBundleVersion": "1287"], AppInfo.build, "1287"),
+            ("build, none declared", nil, AppInfo.build, "unknown"),
+        ]
 
-        XCTAssertEqual(AppInfo.version(bundle), "9.9.9")
-    }
-
-    func testVersionFallsBackWhenTheBundleDeclaresNone() throws {
-        let bundle = try makeBundle(info: nil)
-
-        XCTAssertEqual(AppInfo.version(bundle), "unknown")
+        for testCase in cases {
+            XCTAssertEqual(testCase.read(try makeBundle(info: testCase.info)), testCase.value, testCase.name)
+        }
     }
 }

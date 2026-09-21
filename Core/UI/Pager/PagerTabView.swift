@@ -10,6 +10,9 @@ final class PagerTabView: SlidingView {
     let shapeLayer: CAShapeLayer
     let badgeLayer: CALayer
     private(set) var isRetracted = false
+    var optionClicked: (() -> Void)?
+
+    override var acceptsClicks: Bool { true }
 
     init(number: RollingNumber = PagerTabView.badgeNumber()) {
         self.number = number
@@ -19,6 +22,15 @@ final class PagerTabView: SlidingView {
         super.init(content: tab, size: TabShape.size, hiddenOffset: TabShape.size)
         // `CALayer.filters` has no effect on macOS unless the view allows Core Image filters.
         layerUsesCoreImageFilters = true
+    }
+
+    /// The first click in a window that is not key is an activation click unless the view claims it.
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func mouseDown(with event: NSEvent) {
+        guard event.modifierFlags.contains(.option) else { return }
+
+        optionClicked?()
     }
 
     func show(workspace: Int) {

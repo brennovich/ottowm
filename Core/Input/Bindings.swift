@@ -9,6 +9,10 @@ final class Bindings {
     private var current: Tap
     private var handler: (Config) -> Void = { _ in }
 
+    private(set) var isRunning = false
+    /// The error of the last reload, nil once a reload succeeded.
+    private(set) var lastError: ConfigError?
+
     init(
         config: Config,
         load: @escaping () -> Result<Config, ConfigError> = { ConfigFile.load() },
@@ -24,13 +28,15 @@ final class Bindings {
     }
 
     func start() {
-        if !current.start() {
+        isRunning = current.start()
+        if !isRunning {
             Log.app.error("event tap creation failed (check Accessibility permission)")
         }
     }
 
     func stop() {
         current.stop()
+        isRunning = false
     }
 
     /// - Returns: the error that left the bindings in place, or `nil` once the tap is over
@@ -42,11 +48,13 @@ final class Bindings {
             current = tap(config)
             start()
             Log.app.notice("config reloaded")
+            lastError = nil
             handler(config)
 
             return nil
         case let .failure(error):
             Log.app.error("unable to load a valid config, keeping the bindings already up")
+            lastError = error
 
             return error
         }

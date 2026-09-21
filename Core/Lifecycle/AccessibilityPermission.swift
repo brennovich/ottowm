@@ -21,17 +21,14 @@ struct AccessibilityPermission {
     }
 
     static let settingsCooldownSeconds: TimeInterval = 3
+    static let settingsURL = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
 
     var isTrusted: () -> Bool = { AXIsProcessTrusted() }
     var ask: (Request) -> Response
     var openSettings: () -> Void = {
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = true
-        NSWorkspace.shared.open(
-            URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!,
-            configuration: configuration,
-            completionHandler: nil
-        )
+        NSWorkspace.shared.open(settingsURL, configuration: configuration, completionHandler: nil)
     }
     var wait: (TimeInterval) -> Void = { seconds in
         let deadline = Date().addingTimeInterval(seconds)

@@ -13,6 +13,7 @@ final class ConfigFileParserTests: XCTestCase {
           hyper-f18   =   switch-to-workspace 12
         lopt-q = quit
         lopt-r = restart
+        lopt-a = about
         lopt-h = focus west
         lopt-shift-h = move-window west
         lopt-ctrl-c = center-window
@@ -29,6 +30,7 @@ final class ConfigFileParserTests: XCTestCase {
                 "hyper-f18": .action(.switchToWorkspace(12)),
                 "lopt-q": .quit,
                 "lopt-r": .restart,
+                "lopt-a": .about,
                 "lopt-h": .action(.focus(.west)),
                 "lopt-shift-h": .action(.moveWindow(.west)),
                 "lopt-ctrl-c": .action(.centerWindow),

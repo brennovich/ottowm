@@ -10,6 +10,9 @@ class SlidingView: NSView {
     private let duration: TimeInterval
     private(set) var isRevealed = false
 
+    /// Whether the panel holding the view takes clicks on the drawn content. False: every click reaches the window under it.
+    var acceptsClicks: Bool { false }
+
     /// `hiddenOffset` is in top left coordinates.
     init(content: CALayer, size: CGSize, hiddenOffset: CGSize, duration: TimeInterval = 0.3) {
         let bounds = CGRect(origin: .zero, size: size)
