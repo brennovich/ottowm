@@ -45,4 +45,15 @@ final class EngineReframeWindowTests: EngineTestCase {
 
         XCTAssertTrue(desktop.reframeCalls.isEmpty)
     }
+
+    func testReframingReadsNoTabCountWhenNoWindowOfTheAppStandsWhereTheFocusedOneDoes() {
+        let win = create(StubWindow(id: 100, appName: "Terminal", frame: frame))
+        create(StubWindow(id: 200, appName: "Terminal", frame: CGRect(x: 0, y: 0, width: 200, height: 200)))
+        focused = win
+        let before = windows.values.reduce(0) { $0 + $1.tabCountReadCount }
+
+        engine.handle(.moveWindow(.east))
+
+        XCTAssertEqual(windows.values.reduce(0) { $0 + $1.tabCountReadCount }, before)
+    }
 }

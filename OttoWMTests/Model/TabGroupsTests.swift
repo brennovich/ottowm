@@ -18,12 +18,16 @@ final class TabGroupsTests: XCTestCase {
 
     private var tabCounts: [CGWindowID: Int] = [:]
     private var frames: [CGWindowID: CGRect] = [:]
+    private var tabCountReads = 0
 
     private func makeTabGroups(_ windows: [TabbedWindow]) -> TabGroups {
         tabCounts = [:]
         frames = [:]
         var tabGroups = TabGroups(
-            tabCount: { [weak self] in self?.tabCounts[$0] ?? 1 },
+            tabCount: { [weak self] in
+                self?.tabCountReads += 1
+                return self?.tabCounts[$0] ?? 1
+            },
             frame: { [weak self] in self?.frames[$0] }
         )
         for window in windows {
@@ -121,6 +125,16 @@ final class TabGroupsTests: XCTestCase {
         add(tabbed(300, frame: maximized, tabCount: 3), to: &tabGroups)
 
         XCTAssertEqual(tabGroups.members(of: 100), [100, 200, 300])
+    }
+
+    func testTheTabCountIsReadOnlyWhenAGroupStandsWhereTheWindowDoes() {
+        var tabGroups = makeTabGroups([tabbed(100, tabCount: 2)])
+        tabCountReads = 0
+
+        add(tabbed(200, frame: CGRect(x: 900, y: 0, width: 800, height: 600), tabCount: 2), to: &tabGroups)
+
+        XCTAssertEqual(tabCountReads, 0)
+        XCTAssertEqual(tabGroups.members(of: 200), [200])
     }
 
     /// Two maximized windows share one frame, so the frame alone matches either group.

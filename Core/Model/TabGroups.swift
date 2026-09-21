@@ -69,18 +69,21 @@ struct TabGroups {
     /// holding as many windows as the tab reports tabs is full, and the tab of the other
     /// window opens its own group. The group the window is already in is no candidate, so a
     /// window is never matched against itself.
+    ///
+    /// The frames come first because the tab count walks the children of the window, and a
+    /// window standing where no group of its application does needs no count.
     private func group(representing window: WindowSnapshot) -> Int? {
-        let candidates = groups.filter { $0.value.appName == window.appName && $0.key != windowToGroup[window.id] }
-        guard !candidates.isEmpty else { return nil }
+        let standing = groups.filter { entry in
+            entry.value.appName == window.appName
+                && entry.key != windowToGroup[window.id]
+                && entry.value.windowIds.lazy.compactMap(frame).contains { stands(window, at: $0) }
+        }
+        guard !standing.isEmpty else { return nil }
 
         let tabs = tabCount(window.id)
         guard tabs > 1 else { return nil }
 
-        return candidates.first { entry in
-            guard entry.value.windowIds.count < tabs else { return false }
-
-            return entry.value.windowIds.lazy.compactMap(frame).contains { stands(window, at: $0) }
-        }?.key
+        return standing.first { $0.value.windowIds.count < tabs }?.key
     }
 
     /// Merging windows into tabs opens no window and posts no notification, so a window alone
