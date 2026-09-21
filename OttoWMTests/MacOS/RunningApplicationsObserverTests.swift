@@ -191,6 +191,29 @@ final class RunningApplicationsObserverTests: XCTestCase {
         XCTAssertEqual(harness.eventDescriptions, ["created(300)", "focused(200)"])
     }
 
+    // System Information, shown for About This Mac, is an LSUIElement application: macOS posts
+    // no launch notification for it, only an activation once its window is up.
+    func testApplicationActivationStartsWatchingAnApplicationThatPostedNoLaunch() {
+        let app = StubRunningApplication(pid: 901)
+        _ = harness.start()
+        harness.scans[901] = .active([300], focused: 200)
+
+        harness.post(NSWorkspace.didActivateApplicationNotification, app)
+
+        XCTAssertEqual(harness.windowEvents.calls, [.sweep, .discover(901), .start(901)])
+        XCTAssertEqual(harness.eventDescriptions, ["created(300)", "focused(200)"])
+    }
+
+    func testApplicationActivationRetriesAnApplicationThatDoesNotReplyYet() {
+        let app = StubRunningApplication(pid: 901)
+        _ = harness.start()
+        harness.scans[901] = .unreachable
+
+        harness.post(NSWorkspace.didActivateApplicationNotification, app)
+
+        XCTAssertEqual(harness.scheduledRetries.count, 1)
+    }
+
     func testApplicationActivationScansOnlyTheApplicationsTheFilterIncludes() {
         let app = StubRunningApplication(pid: 901)
         harness.apps = [app]

@@ -2,6 +2,15 @@ enum Binding: Equatable {
     case action(Action)
     case quit
     case restart
+    case about
+
+    /// Whether a held key fires the binding again on every autorepeat. A toggle would flip back.
+    var repeats: Bool {
+        switch self {
+        case .action: true
+        case .quit, .restart, .about: false
+        }
+    }
 
     static func parse(_ text: String) -> Result<Binding, ConfigError.Reason> {
         let parts = text.split(separator: " ")
@@ -17,5 +26,6 @@ enum Binding: Equatable {
     private static let bindingsByWord: [String: Binding] = [
         "quit": .quit,
         "restart": .restart,
+        "about": .about,
     ]
 }

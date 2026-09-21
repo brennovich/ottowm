@@ -92,6 +92,8 @@ final class Hotkeys {
             event.flags
         ) else { return Unmanaged.passUnretained(event) }
 
+        if !binding.repeats, event.getIntegerValueField(.keyboardEventAutorepeat) != 0 { return nil }
+
         Log.hotkey.info("hotkey → \(binding)")
         dispatch { [weak self] in self?.handler(binding) }
         return nil

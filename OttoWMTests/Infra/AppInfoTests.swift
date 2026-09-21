@@ -24,4 +24,16 @@ final class AppInfoTests: XCTestCase {
 
         XCTAssertEqual(AppInfo.version(bundle), "unknown")
     }
+
+    func testBuildComesFromTheBundle() throws {
+        let bundle = try makeBundle(info: ["CFBundleVersion": "1287"])
+
+        XCTAssertEqual(AppInfo.build(bundle), "1287")
+    }
+
+    func testBuildFallsBackWhenTheBundleDeclaresNone() throws {
+        let bundle = try makeBundle(info: nil)
+
+        XCTAssertEqual(AppInfo.build(bundle), "unknown")
+    }
 }

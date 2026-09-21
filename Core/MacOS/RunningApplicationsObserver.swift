@@ -138,7 +138,13 @@ final class RunningApplicationsObserver {
         guard let app = app(from: notification), canSubscribe(app) else { return }
 
         windowEvents.sweepDeadWindows()
-        if let attempt = windowEvents.discover(app) { announce(attempt) }
+        // macOS posts no launch notification for an LSUIElement application (System Information,
+        // shown for About This Mac), so the first activation is where it is started.
+        if let attempt = windowEvents.discover(app) {
+            announce(attempt)
+        } else {
+            announceWindows(of: app)
+        }
     }
 
     deinit {

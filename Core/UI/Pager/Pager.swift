@@ -33,6 +33,7 @@ final class Pager {
         windowFrames: @escaping () -> [CGWindowID: CGRect],
         isOnScreen: @escaping (CGWindowID) -> Bool,
         startWatchingSecureInput: (@escaping (Bool) -> Void) -> Void,
+        optionClicked: @escaping () -> Void = {},
         panel: (NSWindow.Level, SlidingView) -> any Panel = { OverlayPanel(level: $0, content: $1) },
         schedule: @escaping (TimeInterval, @escaping () -> Void) -> Void = {
             DispatchQueue.main.asyncAfter(deadline: .now() + $0, execute: $1)
@@ -42,6 +43,7 @@ final class Pager {
         self.windowFrames = windowFrames
         self.isOnScreen = isOnScreen
         self.schedule = schedule
+        tab.optionClicked = optionClicked
         // One level below pop-up menus: above every window and the Dock, below a menu opened over the corner.
         let tabLevel = NSWindow.Level(rawValue: NSWindow.Level.popUpMenu.rawValue - 1)
         tabPanel = panel(tabLevel, tab)

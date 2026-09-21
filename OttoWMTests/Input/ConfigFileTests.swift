@@ -32,6 +32,10 @@ final class ConfigFileTests: XCTestCase {
             config.binding(keyCode: 15, flags: [.leftCommand, .leftControl, .leftOption, .leftShift]),
             .restart
         )
+        XCTAssertEqual(
+            config.binding(keyCode: 0, flags: [.leftCommand, .leftControl, .leftOption, .leftShift]),
+            .about
+        )
     }
 
     func testRejectsAnUnparseableUserConfig() {
@@ -43,6 +47,25 @@ final class ConfigFileTests: XCTestCase {
 
     func testEmptyUserConfigBindsNothing() {
         XCTAssertEqual(load(userConfig: ""), .success(Config([:])))
+    }
+
+    func testWriteDefaultsPutsTheBundledConfigAtTheUserPathCreatingItsDirectory() throws {
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        addTeardownBlock { try? FileManager.default.removeItem(at: home) }
+
+        ConfigFile.writeDefaults(bundle: bundle, environment: ["HOME": home.path])
+
+        let bundled = try String(contentsOf: XCTUnwrap(bundle.url(forResource: "ottowm", withExtension: nil)), encoding: .utf8)
+        XCTAssertEqual(try String(contentsOf: home.appendingPathComponent(".config/ottowm/ottowm"), encoding: .utf8), bundled)
+    }
+
+    func testWriteDefaultsWritesNothingWhenTheBundledConfigIsMissing() {
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        addTeardownBlock { try? FileManager.default.removeItem(at: home) }
+
+        ConfigFile.writeDefaults(bundle: Bundle(for: XCTestCase.self), environment: ["HOME": home.path])
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: home.path))
     }
 
     func testBindsNothingWhenEvenTheBundledConfigIsUnavailable() {

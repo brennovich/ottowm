@@ -13,6 +13,7 @@ final class HotkeysTests: XCTestCase {
                 switch keyCode {
                 case 18: return .action(.switchToWorkspace(1))
                 case 20: return .action(.moveWindowToWorkspace(3))
+                case 0: return .about
                 default: return nil
                 }
             },
@@ -21,10 +22,21 @@ final class HotkeysTests: XCTestCase {
         )
     }
 
-    private func keyDown(_ keyCode: CGKeyCode, _ flags: CGEventFlags) throws -> CGEvent {
+    private func keyDown(_ keyCode: CGKeyCode, _ flags: CGEventFlags, repeats: Bool = false) throws -> CGEvent {
         let event = try XCTUnwrap(CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: true))
         event.flags = flags
+        event.setIntegerValueField(.keyboardEventAutorepeat, value: repeats ? 1 : 0)
         return event
+    }
+
+    func testAHeldKeyRepeatsAnActionAndNotAToggle() throws {
+        let hotkeys = makeHotkeys()
+
+        XCTAssertNil(hotkeys.handle(type: .keyDown, event: try keyDown(18, .leftOption, repeats: true)))
+        XCTAssertNil(hotkeys.handle(type: .keyDown, event: try keyDown(0, .leftOption, repeats: true)))
+        deferred.forEach { $0() }
+
+        XCTAssertEqual(received, [.action(.switchToWorkspace(1))])
     }
 
     func testHotkeysMatchedOnKeyCodeAndFlagsAreConsumedAndRunOffTheCallbackInOrder() throws {
@@ -44,7 +56,7 @@ final class HotkeysTests: XCTestCase {
 
     func testUnmatchedKeyPassesThroughWithoutDeferringAnything() throws {
         let hotkeys = makeHotkeys()
-        let event = try keyDown(0, .leftOption)
+        let event = try keyDown(1, .leftOption)
 
         XCTAssertTrue(hotkeys.handle(type: .keyDown, event: event)?.takeUnretainedValue() === event)
         XCTAssertEqual(deferred.count, 0)

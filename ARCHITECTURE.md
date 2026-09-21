@@ -215,6 +215,7 @@ flowchart LR
 | `RoundTrips`                  | macOS     | Prices an operation in the calls it makes out of the process: how many, of what, cost.  |
 | `Signposts`                   | macOS     | The operation and round-trip intervals Instruments records.                             |
 | `XDGDirectory`                | macOS     | The directory an XDG variable names, where the config and state files live.             |
+| `Requirements`                | macOS     | The macOS settings the README lists, read from their `defaults` domains.                |
 | `AppDelegate`                 | Lifecycle | The startup order.                                                                      |
 | `ConfigGate`                  | Lifecycle | The config startup gate: the error alert, and whether to relaunch or quit.              |
 | `StateFile`                   | Lifecycle | Reads and writes the state file, ignoring one saved in another login session.           |
@@ -224,6 +225,8 @@ flowchart LR
 | `AccessibilityAlert`          | UI        | The accessibility permission alerts: what they say and how they show.                   |
 | `ConfigAlert`                 | UI        | The config error alert UI.                                                              |
 | `Pager`                       | UI        | The workspace tab over the parked windows, the cue under it, and the corner masks.      |
+| `Status`                      | UI        | The About window: reads the report while it is up, runs its buttons.                    |
+| `StatusWindow`                | UI        | The About panel UI: identity, status grid, buttons and links.                           |
 
 The pager draws with Core Animation. SwiftUI used substantially more CPU on Intel Macs.
 

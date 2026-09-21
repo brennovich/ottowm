@@ -24,7 +24,7 @@ OttoWM is a window manager for macOS under intense development.
 Some important foundations:
 - No dependency on third-party libraries or frameworks
 - Relies on macOS public APIs only (up until now)
-- Backwards compatibility, it works on macOS Big Sur onwards
+- Backwards compatibility, it works on macOS Monterey onwards
 
 ## Features
 
@@ -59,6 +59,8 @@ OttoWM relies on the same strategy as [AeroSpace](https://nikitabobko.github.io/
     <td valign="top">A pulse cue irradiates while an app holds secure input, e.g. a password field is focused, Password.app auth: every keystroke is withheld from OttoWM, so no binding works.</td>
   </tr>
 </table>
+
+Option-click the tab to open the About window. A plain click on the tab goes nowhere: it would land on the parked window the tab covers and switch to its workspace.
 
 ### Tabbed windows
 
@@ -202,6 +204,12 @@ hyper-5 = switch-to-workspace 5
     <td>Read the config file again and rebind the keys</td>
   </tr>
   <tr>
+    <td>about</td>
+    <td>Action</td>
+    <td>⌘⌃⌥⇧ + A</td>
+    <td>Open the About window: version, Accessibility and hotkeys status, the config in use and the macOS settings above (toggable)</td>
+  </tr>
+  <tr>
     <td>pager&nbsp;=&nbsp;<code>off</code></td>
     <td>Setting</td>
     <td><code>on</code></td>
@@ -218,6 +226,8 @@ hyper-5 = switch-to-workspace 5
 **Note**: _⌘ Command, ⌃ Control, ⌥ Option, ⇧ Shift. By default only the **left** Option (`lopt`) key triggers the default workspace bindings; the right one is left free for typing special characters™. You can always rebind to use both with `opt` instead._
 
 ## Debugging
+
+The About window (`hyper-a`, or Option-click on the pager tab) shows whether Accessibility is granted, whether the event tap listens, whether another app holds secure input, which config file is in use and whether the macOS settings above are set. **Copy diagnostics** puts all of it on the clipboard as text.
 
 ```sh
 log stream --level debug --predicate 'subsystem == "com.github.brennovich.ottowm"'

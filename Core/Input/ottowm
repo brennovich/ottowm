@@ -58,3 +58,6 @@ hyper-q = quit
 
 # Reload the config file and the bindings it names
 hyper-r = restart
+
+# Open the About window: versions, permissions, config in use, macOS settings
+hyper-a = about

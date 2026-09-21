@@ -26,6 +26,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var bindings: Bindings?
     private var engine: Engine?
     private var pager: Pager?
+    private var status: Status?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let config: Config
@@ -59,15 +60,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let workspaces = Workspaces(
             tabGroups: TabGroups(tabCount: windowSystem.tabCount(of:), frame: windowSystem.frame(of:))
         )
-        let pager = Pager(
-            workspaces: workspaces,
-            desktop: desktop,
-            startWatchingWindows: windowEvents.startWatching,
-            windowFrames: { onScreenWindowFrames(level: Int(CGWindowLevelForKey(.normalWindow))) },
-            isOnScreen: isWindowOnScreen,
-            // No property: the watch retains the instance it runs on.
-            startWatchingSecureInput: SecureInput().startWatching
-        )
+        // No property: the watch retains the instance it runs on.
+        let secureInput = SecureInput()
+        let status = status(desktop: desktop, workspaces: workspaces, secureInput: secureInput)
+        self.status = status
+        let pager = pager(desktop: desktop, workspaces: workspaces, status: status, secureInput: secureInput)
         self.pager = pager
 
         let engine = engine(desktop: desktop, windowSystem: windowSystem, workspaces: workspaces)
@@ -82,6 +79,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             case let .action(action): engine.handle(action)
             case .quit: lifecycle.quit()
             case .restart: lifecycle.reload()
+            case .about: status.toggle()
             }
         }
         bindings.startWatching { config in
@@ -107,6 +105,36 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             workspaces: workspaces,
             screenIsLocked: { [lifecycle] in lifecycle.screenIsLocked },
             save: stateFile.save
+        )
+    }
+
+    private func pager(desktop: any Desktop, workspaces: Workspaces, status: Status, secureInput: SecureInput) -> Pager {
+        Pager(
+            workspaces: workspaces,
+            desktop: desktop,
+            startWatchingWindows: windowEvents.startWatching,
+            windowFrames: { onScreenWindowFrames(level: Int(CGWindowLevelForKey(.normalWindow))) },
+            isOnScreen: isWindowOnScreen,
+            startWatchingSecureInput: secureInput.startWatching,
+            optionClicked: { status.toggle() }
+        )
+    }
+
+    private func status(desktop: any Desktop, workspaces: Workspaces, secureInput: SecureInput) -> Status {
+        Status(
+            sources: StatusSources(
+                hotkeysListening: { [weak self] in self?.bindings?.isRunning ?? false },
+                secureInputHeld: secureInput.isActive,
+                workspace: { workspaces.current },
+                display: {
+                    let size = desktop.display.fullFrame.size
+                    return "\(Int(size.width))×\(Int(size.height))"
+                },
+                configError: { [weak self] in self?.bindings?.lastError }
+            ),
+            panel: StatusWindow(),
+            reload: { [lifecycle] in lifecycle.reload() },
+            quit: { [lifecycle] in lifecycle.quit() }
         )
     }
 
