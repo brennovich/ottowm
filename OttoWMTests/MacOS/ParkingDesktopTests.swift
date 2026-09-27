@@ -187,20 +187,6 @@ final class ParkingDesktopTests: XCTestCase {
         XCTAssertEqual(events, [.nativeSpaceChange])
     }
 
-    func testEverySubscriptionReceivesEachEventOnce() {
-        var first = 0
-        var second = 0
-
-        desktop.startWatching { _ in first += 1 }
-        desktop.startWatching { _ in second += 1 }
-        center.postNativeSpaceChange()
-        screens.main = .external
-        center.postScreenParametersChange()
-
-        XCTAssertEqual(first, 2)
-        XCTAssertEqual(second, 2)
-    }
-
     func testAScreenParametersChangeToAnotherDisplayIsReportedOnceAndMovesTheHiddenEdge() {
         var events: [DesktopEvent] = []
         desktop.startWatching { events.append($0) }

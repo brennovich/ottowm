@@ -16,7 +16,7 @@ final class ParkingDesktop: Desktop {
     private(set) var display: Display
 
     private var observers: [(center: NotificationCenter, token: any NSObjectProtocol)] = []
-    private var handlers: [(DesktopEvent) -> Void] = []
+    private var subscribers = Broadcast<DesktopEvent>()
     private var workArea: WorkArea { WorkArea(display: display, spacing: spacing) }
 
     init(
@@ -78,7 +78,7 @@ final class ParkingDesktop: Desktop {
     }
 
     func startWatching(_ handler: @escaping (DesktopEvent) -> Void) {
-        handlers.append(handler)
+        subscribers.watch(handler)
         guard observers.isEmpty else { return }
 
         observers = [
@@ -148,7 +148,7 @@ final class ParkingDesktop: Desktop {
     }
 
     private func report(_ event: DesktopEvent) {
-        for handler in handlers { handler(event) }
+        subscribers.report(event)
     }
 
     deinit {

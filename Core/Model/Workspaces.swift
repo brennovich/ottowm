@@ -17,14 +17,14 @@ final class Workspaces {
     private var workspaces: [Int: Workspace] = [:]
     private var tabGroups: TabGroups
 
-    private var handlers: [(WorkspaceEvent) -> Void] = []
+    private var subscribers = Broadcast<WorkspaceEvent>()
 
     init(tabGroups: TabGroups) {
         self.tabGroups = tabGroups
     }
 
     func startWatching(_ handler: @escaping (WorkspaceEvent) -> Void) {
-        handlers.append(handler)
+        subscribers.watch(handler)
     }
 
     var allWindowIds: Set<CGWindowID> {
@@ -121,7 +121,7 @@ final class Workspaces {
     }
 
     private func report(_ event: WorkspaceEvent) {
-        for handler in handlers { handler(event) }
+        subscribers.report(event)
     }
 
     private func workspaceOfTabGroup(of windowId: CGWindowID) -> Int? {

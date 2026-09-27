@@ -8,7 +8,7 @@ final class AXWindowEvents: WindowEvents {
     private let access: AXAccess
     private let screenIsLocked: () -> Bool
     private var suspected: Set<AXWindow> = []
-    private var handlers: [(WindowEvent) -> Void] = []
+    private var subscribers = Broadcast<WindowEvent>()
 
     init(
         applications: Applications,
@@ -24,7 +24,7 @@ final class AXWindowEvents: WindowEvents {
     }
 
     func startWatching(_ handler: @escaping (WindowEvent) -> Void) {
-        handlers.append(handler)
+        subscribers.watch(handler)
     }
 
     func start(_ app: NSRunningApplication) -> ScanAttempt? {
@@ -135,7 +135,7 @@ final class AXWindowEvents: WindowEvents {
     }
 
     private func report(_ event: WindowEvent) {
-        for handler in handlers { handler(event) }
+        subscribers.report(event)
     }
 
     private func event(
