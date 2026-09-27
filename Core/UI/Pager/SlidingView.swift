@@ -67,18 +67,18 @@ class SlidingView: NSView {
         guard !isRetracted else { return }
 
         isRetracted = true
-        TabShape.retracting { applyRetraction(true) }
+        TabShape.retracting { toggle(true) }
     }
 
     func restore() {
         guard isRetracted else { return }
 
         isRetracted = false
-        TabShape.retracting { applyRetraction(false) }
+        TabShape.retracting { toggle(false) }
     }
 
     /// Runs inside the retract transaction. The default does nothing: the corner masks never retract.
-    func applyRetraction(_ retracted: Bool) {}
+    func toggle(_ retracted: Bool) {}
 
     private func slide(to transform: CATransform3D, then done: @escaping () -> Void) {
         let animation = CABasicAnimation(keyPath: "transform")

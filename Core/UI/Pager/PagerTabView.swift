@@ -38,8 +38,7 @@ final class PagerTabView: SlidingView {
         number.roll(to: workspace)
     }
 
-    /// Retracted, the shape squeezes against the screen edge and the badge moves past it.
-    override func applyRetraction(_ retracted: Bool) {
+    override func toggle(_ retracted: Bool) {
         shapeLayer.transform = retracted ? TabShape.squeeze : CATransform3DIdentity
         badgeLayer.transform = retracted
             ? CATransform3DMakeTranslation(TabShape.size.width - Self.badge.minX, 0, 0)

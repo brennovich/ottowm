@@ -53,7 +53,7 @@ final class CueView: SlidingView {
         }
     }
 
-    override func applyRetraction(_ retracted: Bool) {
+    override func toggle(_ retracted: Bool) {
         rings.transform = retracted ? TabShape.squeeze : CATransform3DIdentity
     }
 

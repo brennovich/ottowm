@@ -92,7 +92,7 @@ final class SlidingViewTests: XCTestCase {
 private final class StubSlidingView: SlidingView {
     private(set) var applied: [Bool] = []
 
-    override func applyRetraction(_ retracted: Bool) {
+    override func toggle(_ retracted: Bool) {
         applied.append(retracted)
     }
 }
