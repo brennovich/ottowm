@@ -6,7 +6,8 @@ import CoreGraphics
 // in front moves the window the sheet belongs to. One of the desk's windows shows two
 // tabs, and what is asked of either of them is asked of the window both stand in.
 // A window sent to another workspace parks at the hidden edge and comes back, and the desk
-// it was standing on goes with the workspace it belongs to. The pager puts up its cue while
+// it was standing on goes with the workspace it belongs to. Activating the application of a
+// parked window switches to its workspace. The pager puts up its cue while
 // the run holds secure event input. The restart hotkey picks up a binding the run adds while
 // it is up, and the quit hotkey ends it, with whatever is parked when it fires handed back
 // before OttoWM goes. OttoWM launched again puts every window back in the workspace it was
@@ -159,10 +160,13 @@ moveWindowToWorkspace(2)
 session.expect("the \(movable.name) window parked at the hidden edge", [movable], session.isParked)
 session.expect("the rest of the desk stayed where it was", session.others) { $0.isWhereItWas }
 
-report("posting lopt-2")
-switchToWorkspace(2)
+// Cmd-Tab to an application whose only window is parked focuses that window, and the
+// workspace it belongs to comes with it.
+report("activating \(movable.name) the way Cmd-Tab does")
+movable.activateApplication()
 session.expect("the \(movable.name) window came back", [movable]) { $0.isWhereItWas }
 session.expect("the rest of the desk parked", session.others, session.isParked)
+session.expectFocused(movable)
 
 // The cue shows while an application holds secure event input, which this run takes the way
 // a password field does. It is one more window of OttoWM's own, at the bottom right corner

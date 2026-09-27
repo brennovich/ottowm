@@ -83,6 +83,17 @@ struct Subject {
         eventually("\(name) is focused", announce: false) { lacksFocus() }
     }
 
+    // Brings the application to the front the way Cmd-Tab does, leaving which window takes
+    // the focus to the application. No AX write is made to the window: focus() makes them,
+    // and each one is a focus notification OttoWM could act on instead of the activation.
+    func activateApplication() {
+        guard let application = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first else {
+            fail("\(name) is not running")
+        }
+
+        application.activate()
+    }
+
     // Whether this window has the focus right now, for a loop that polls without running
     // the main run loop and so cannot use lacksFocus below.
     var hasFocus: Bool {
