@@ -2,18 +2,6 @@ import CoreGraphics
 import XCTest
 
 final class EngineSwitchTests: EngineTestCase {
-    func testFocusedWindowIsRememberedPerWorkspaceAcrossSwitches() {
-        let win1 = create(StubWindow(id: 100))
-        let win2 = create(StubWindow(id: 200))
-        engine.handle(.focused(win1.snapshot()))
-
-        engine.switchToWorkspace(2)
-        engine.switchToWorkspace(1)
-
-        XCTAssertEqual(win1.focusCount, 1)
-        XCTAssertEqual(win2.focusCount, 0)
-    }
-
     func testSwitchToSameWorkspaceOnFrontmostDesktopIsNoOp() {
         let win = create(StubWindow(id: 100))
         desktop.clearCalls()

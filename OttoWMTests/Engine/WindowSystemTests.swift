@@ -20,11 +20,12 @@ final class WindowSystemTests: XCTestCase {
         XCTAssertEqual(reported.map(\.operation), ["switch-to-workspace"])
     }
 
-    func testTheOperationStillHoldsItsReadsForOneOperation() {
-        var reads = 0
+    func testAnOperationHoldsTheFocusedWindowAndTheOnScreenReads() {
+        var focusedReads = 0
+        var onScreenReads = 0
         let system = WindowSystem(
-            focusedWindow: OperationCache { reads += 1; return nil },
-            onScreenWindows: OperationCache { [:] },
+            focusedWindow: OperationCache { focusedReads += 1; return nil },
+            onScreenWindows: OperationCache { onScreenReads += 1; return [:] },
             window: { _ in nil },
             roundTrips: roundTrips
         )
@@ -32,8 +33,11 @@ final class WindowSystemTests: XCTestCase {
         system.duringOperation("switch-to-workspace") {
             _ = system.focused()
             _ = system.focused()
+            _ = system.shows(100)
+            _ = system.shows(100)
         }
 
-        XCTAssertEqual(reads, 1)
+        XCTAssertEqual(focusedReads, 1)
+        XCTAssertEqual(onScreenReads, 1)
     }
 }

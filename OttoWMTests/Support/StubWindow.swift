@@ -17,7 +17,6 @@ final class StubWindow: Window {
     private(set) var positionSetCount = 0
     private(set) var sizeSetCount = 0
     private(set) var focusCount = 0
-    private(set) var movableFrameCount = 0
     private(set) var tabCountReadCount = 0
     private(set) var animatedWriteCount = 0
     private(set) var withoutAnimationsCount = 0
@@ -71,8 +70,7 @@ final class StubWindow: Window {
     }
 
     func movableFrame() -> CGRect? {
-        movableFrameCount += 1
-        return isMinimized ? nil : frame
+        isMinimized ? nil : frame
     }
 
     func withoutAnimations<T>(_ body: () -> T) -> T {

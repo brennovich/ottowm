@@ -115,6 +115,17 @@ final class NavigationTests: EngineTestCase {
         XCTAssertEqual(lateTab.tabCountReadCount, 1)
     }
 
+    func testFollowingAWindowOfTheCurrentWorkspaceRecordsItAsFocusedLast() {
+        let win1 = add(StubWindow(id: 100))
+        let win2 = add(StubWindow(id: 200))
+        placement.assign(win1.snapshot(), to: 1)
+        placement.assign(win2.snapshot(), to: 1)
+
+        navigation.follow(win1.snapshot())
+
+        XCTAssertEqual(workspaces.nextWindowToFocus, 100)
+    }
+
     func testRestoreFocusesTheWindowFocusedLastInTheCurrentWorkspace() {
         let win1 = add(StubWindow(id: 100))
         let win2 = add(StubWindow(id: 200))
