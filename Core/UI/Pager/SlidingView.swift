@@ -5,6 +5,7 @@ import AppKit
 /// The content and its sublayers use a top left origin.
 class SlidingView: NSView {
     static let animationKey = "ottowm.slide"
+    static let defaultDuration: TimeInterval = 0.3
 
     private let content: CALayer
     private let hiddenTransform: CATransform3D
@@ -16,7 +17,7 @@ class SlidingView: NSView {
     var acceptsClicks: Bool { false }
 
     /// `hiddenOffset` is in top left coordinates.
-    init(content: CALayer, size: CGSize, hiddenOffset: CGSize, duration: TimeInterval = 0.3) {
+    init(content: CALayer, size: CGSize, hiddenOffset: CGSize, duration: TimeInterval = defaultDuration) {
         let bounds = CGRect(origin: .zero, size: size)
         self.content = content
         self.duration = duration

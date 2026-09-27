@@ -1,7 +1,7 @@
 import XCTest
 
 final class CueViewTests: XCTestCase {
-    private let view = CueView()
+    private let view = CueView(duration: 0.01)
     private lazy var window = NSWindow.offscreen(hosting: view)
     private let full = CGRect(
         x: CueView.size.width - TabShape.size.width,

@@ -27,11 +27,11 @@ final class CueView: SlidingView {
     let rings: CAReplicatorLayer
     let ring: CAShapeLayer
 
-    init() {
+    init(duration: TimeInterval = SlidingView.defaultDuration) {
         let (cue, rings, ring) = CATransaction.withoutActions { Self.cue() }
         self.rings = rings
         self.ring = ring
-        super.init(content: cue, size: Self.size, hiddenOffset: Self.size)
+        super.init(content: cue, size: Self.size, hiddenOffset: Self.size, duration: duration)
     }
 
     /// A reveal that interrupts a slide out leaves the running pulse alone, so it does not restart mid ring.

@@ -1,7 +1,7 @@
 import XCTest
 
 final class SlidingViewTests: XCTestCase {
-    private let duration: TimeInterval = 0.2
+    private let duration: TimeInterval = 0.01
     private let hiddenOffset = CGSize(width: 50, height: -50)
     private let content = CALayer()
     private let size = CGSize(width: 16, height: 16)
