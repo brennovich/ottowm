@@ -1,6 +1,7 @@
 import AppKit
 
 /// A layer-hosting view whose content slides between the view bounds and a hidden offset. The content starts hidden.
+/// It also retracts against the screen edge, which a subclass applies to its own layers.
 /// The content and its sublayers use a top left origin.
 class SlidingView: NSView {
     static let animationKey = "ottowm.slide"
@@ -9,6 +10,7 @@ class SlidingView: NSView {
     private let hiddenTransform: CATransform3D
     private let duration: TimeInterval
     private(set) var isRevealed = false
+    private(set) var isRetracted = false
 
     /// Whether the panel holding the view takes clicks on the drawn content. False: every click reaches the window under it.
     var acceptsClicks: Bool { false }
@@ -58,6 +60,24 @@ class SlidingView: NSView {
         isRevealed = false
         slide(to: hiddenTransform, then: done)
     }
+
+    /// The guard drops a repeat of the state the view is already in: applying it again restarts the animation mid slide.
+    func retract() {
+        guard !isRetracted else { return }
+
+        isRetracted = true
+        TabShape.retracting { applyRetraction(true) }
+    }
+
+    func restore() {
+        guard isRetracted else { return }
+
+        isRetracted = false
+        TabShape.retracting { applyRetraction(false) }
+    }
+
+    /// Runs inside the retract transaction. The default does nothing: the corner masks never retract.
+    func applyRetraction(_ retracted: Bool) {}
 
     private func slide(to transform: CATransform3D, then done: @escaping () -> Void) {
         let animation = CABasicAnimation(keyPath: "transform")

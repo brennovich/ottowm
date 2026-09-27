@@ -9,7 +9,6 @@ final class PagerTabView: SlidingView {
     private let number: RollingNumber
     let shapeLayer: CAShapeLayer
     let badgeLayer: CALayer
-    private(set) var isRetracted = false
     var optionClicked: (() -> Void)?
 
     override var acceptsClicks: Bool { true }
@@ -39,29 +38,12 @@ final class PagerTabView: SlidingView {
         number.roll(to: workspace)
     }
 
-    /// Squeezes the shape against the screen edge and moves the badge past it.
-    func retract() {
-        guard !isRetracted else { return }
-
-        isRetracted = true
-        animate(
-            shape: TabShape.squeeze,
-            badge: CATransform3DMakeTranslation(TabShape.size.width - Self.badge.minX, 0, 0)
-        )
-    }
-
-    func restore() {
-        guard isRetracted else { return }
-
-        isRetracted = false
-        animate(shape: CATransform3DIdentity, badge: CATransform3DIdentity)
-    }
-
-    private func animate(shape: CATransform3D, badge: CATransform3D) {
-        TabShape.retracting {
-            shapeLayer.transform = shape
-            badgeLayer.transform = badge
-        }
+    /// Retracted, the shape squeezes against the screen edge and the badge moves past it.
+    override func applyRetraction(_ retracted: Bool) {
+        shapeLayer.transform = retracted ? TabShape.squeeze : CATransform3DIdentity
+        badgeLayer.transform = retracted
+            ? CATransform3DMakeTranslation(TabShape.size.width - Self.badge.minX, 0, 0)
+            : CATransform3DIdentity
     }
 
     private static func tab(number: RollingNumber) -> (CALayer, CAShapeLayer, CALayer) {

@@ -26,7 +26,6 @@ final class CueView: SlidingView {
 
     let rings: CAReplicatorLayer
     let ring: CAShapeLayer
-    private(set) var isRetracted = false
 
     init() {
         let (cue, rings, ring) = CATransaction.withoutActions { Self.cue() }
@@ -54,18 +53,8 @@ final class CueView: SlidingView {
         }
     }
 
-    func retract() {
-        guard !isRetracted else { return }
-
-        isRetracted = true
-        TabShape.retracting { rings.transform = TabShape.squeeze }
-    }
-
-    func restore() {
-        guard isRetracted else { return }
-
-        isRetracted = false
-        TabShape.retracting { rings.transform = CATransform3DIdentity }
+    override func applyRetraction(_ retracted: Bool) {
+        rings.transform = retracted ? TabShape.squeeze : CATransform3DIdentity
     }
 
     private static func cue() -> (CALayer, CAReplicatorLayer, CAShapeLayer) {

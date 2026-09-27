@@ -76,4 +76,23 @@ final class SlidingViewTests: XCTestCase {
         XCTAssertGreaterThan(start.m41, 0)
         XCTAssertLessThan(start.m41, hidden.m41)
     }
+
+    func testTheRetractionIsAppliedOnlyWhenItChanges() {
+        let view = StubSlidingView(content: content, size: size, hiddenOffset: hiddenOffset)
+
+        view.retract()
+        view.retract()
+        view.restore()
+        view.restore()
+
+        XCTAssertEqual(view.applied, [true, false])
+    }
+}
+
+private final class StubSlidingView: SlidingView {
+    private(set) var applied: [Bool] = []
+
+    override func applyRetraction(_ retracted: Bool) {
+        applied.append(retracted)
+    }
 }
