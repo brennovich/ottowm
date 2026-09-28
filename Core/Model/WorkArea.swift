@@ -44,11 +44,6 @@ struct WorkArea {
     }
 
     /// Whether the window covers the target, within a tolerance.
-    ///
-    /// A window rarely settles at the size it was given: Terminal rounds its height to whole
-    /// rows, tens of points at a large font size. The current frame of a window within the
-    /// tolerance must not be recorded as the one to restore: restoring it would leave the
-    /// window filled.
     func fills(_ current: CGRect, _ target: CGRect) -> Bool {
         abs(current.minX - target.minX) <= Self.filledTolerance
             && abs(current.minY - target.minY) <= Self.filledTolerance
@@ -56,9 +51,6 @@ struct WorkArea {
             && abs(current.maxY - target.maxY) <= Self.filledTolerance
     }
 
-    /// A window already at the target is moved back to the frame it came from. Every
-    /// target shares one record of that frame, so whether the window is filled is decided by
-    /// its current frame, not by the presence of a record.
     private func frame(
         filling target: CGRect,
         from current: CGRect,

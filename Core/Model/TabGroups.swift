@@ -60,18 +60,6 @@ struct TabGroups {
         groups[groupId] = group.windowIds.isEmpty ? nil : group
     }
 
-    /// A tab opens at the frame of its window, so a group is matched on where a member is now
-    /// rather than where the group was first seen: a maximize in between moves every tab of
-    /// the window. A background tab reports the frame it had when it was last active, so every
-    /// member is tried and the one at the window's frame places the group.
-    ///
-    /// Two maximized windows share one frame, so the frame alone matches either group. A group
-    /// holding as many windows as the tab reports tabs is full, and the tab of the other
-    /// window opens its own group. The group the window is already in is no candidate, so a
-    /// window is never matched against itself.
-    ///
-    /// The frames come first because the tab count walks the children of the window, and a
-    /// window standing where no group of its application does needs no count.
     private func group(representing window: WindowSnapshot) -> Int? {
         let standing = groups.filter { entry in
             entry.value.appName == window.appName
@@ -86,10 +74,6 @@ struct TabGroups {
         return standing.first { $0.value.windowIds.count < tabs }?.key
     }
 
-    /// Merging windows into tabs opens no window and posts no notification, so a window alone
-    /// in the group it opened is matched again every time it is added: it joins the group of
-    /// the window it was merged into, and the group it leaves is dropped. A window that
-    /// already has siblings keeps its group.
     private mutating func join(_ window: WindowSnapshot, leaving opened: Int) {
         guard groups[opened]?.windowIds.count == 1, let joined = group(representing: window) else { return }
 
