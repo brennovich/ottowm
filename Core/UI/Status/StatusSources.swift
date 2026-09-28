@@ -23,4 +23,6 @@ struct StatusSources {
     var createConfig: () -> Void = { ConfigFile.writeDefaults() }
     var configError: () -> ConfigError?
     var readSetting: (String, String) -> Bool? = Requirements.read
+    var launchAtLogin: () -> LoginItem.State = LoginItem.state
+    var setLaunchAtLogin: (Bool) throws -> Void = LoginItem.set
 }

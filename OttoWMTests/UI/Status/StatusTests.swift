@@ -13,6 +13,9 @@ final class StatusTests: XCTestCase {
     private var opened: [URL] = []
     private var revealed: [URL] = []
     private var reloads = 0
+    private var launchAtLogin = LoginItem.State.off
+    private var loginItemRefused = false
+    private var openedLoginItems = 0
     private let configPath = URL(fileURLWithPath: "/tmp/ottowm/ottowm")
 
     private lazy var status = Status(
@@ -31,7 +34,12 @@ final class StatusTests: XCTestCase {
             configExists: { _ in self.configExists },
             createConfig: { self.configExists = true },
             configError: { self.configError },
-            readSetting: { _, _ in nil }
+            readSetting: { _, _ in nil },
+            launchAtLogin: { self.launchAtLogin },
+            setLaunchAtLogin: { on in
+                if self.loginItemRefused { throw LoginItemRefused() }
+                self.launchAtLogin = on ? .on : .off
+            }
         ),
         panel: panel,
         notificationCenter: notificationCenter,
@@ -40,6 +48,7 @@ final class StatusTests: XCTestCase {
         copy: { self.copied.append($0) },
         open: { self.opened.append($0) },
         reveal: { self.revealed.append($0) },
+        openLoginItems: { self.openedLoginItems += 1 },
         reload: {
             self.reloads += 1
             self.configError = ConfigError(line: 3, reason: .unknownAction("warp"))
@@ -116,6 +125,23 @@ final class StatusTests: XCTestCase {
         XCTAssertEqual(panel.rendered.map(\.configError), [nil, ConfigError(line: 3, reason: .unknownAction("warp"))])
     }
 
+    func testSettingLaunchAtLoginRendersTheStateReadAfterTheWrite() {
+        status.toggle()
+
+        status.perform(.setLaunchAtLogin(true))
+
+        XCTAssertEqual(panel.rendered.map(\.launchAtLogin), [.off, .on])
+    }
+
+    func testARefusedLaunchAtLoginWriteRendersTheUnchangedState() {
+        loginItemRefused = true
+        status.toggle()
+
+        status.perform(.setLaunchAtLogin(true))
+
+        XCTAssertEqual(panel.rendered.map(\.launchAtLogin), [.off, .off])
+    }
+
     func testTheOtherActionsAreHandedToTheirClosures() {
         status.toggle()
 
@@ -123,9 +149,13 @@ final class StatusTests: XCTestCase {
         status.perform(.revealConfig)
         status.perform(.copyDiagnostics)
         status.perform(.copyFixes)
+        status.perform(.openLoginItems)
 
         XCTAssertEqual(opened, [AccessibilityPermission.settingsURL])
         XCTAssertEqual(revealed, [configPath])
         XCTAssertEqual(copied, [panel.rendered[0].text, panel.rendered[0].fixes])
+        XCTAssertEqual(openedLoginItems, 1)
     }
 }
+
+private struct LoginItemRefused: Error {}

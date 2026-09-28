@@ -10,6 +10,7 @@ final class Status {
     private let copy: (String) -> Void
     private let open: (URL) -> Void
     private let reveal: (URL) -> Void
+    private let openLoginItems: () -> Void
     private let reload: () -> Void
     private var observer: NSObjectProtocol?
     private var skipNextActivation = false
@@ -26,6 +27,7 @@ final class Status {
         },
         open: @escaping (URL) -> Void = { NSWorkspace.shared.open($0) },
         reveal: @escaping (URL) -> Void = { NSWorkspace.shared.activateFileViewerSelecting([$0]) },
+        openLoginItems: @escaping () -> Void = LoginItem.openSettings,
         reload: @escaping () -> Void
     ) {
         self.sources = sources
@@ -36,6 +38,7 @@ final class Status {
         self.copy = copy
         self.open = open
         self.reveal = reveal
+        self.openLoginItems = openLoginItems
         self.reload = reload
         panel.perform = { [weak self] in self?.perform($0) }
         watchActivation()
@@ -68,6 +71,15 @@ final class Status {
             refresh()
         case .copyDiagnostics: copy(report().text)
         case .copyFixes: copy(report().fixes)
+        case let .setLaunchAtLogin(on):
+            do {
+                try sources.setLaunchAtLogin(on)
+            } catch {
+                Log.app.error("unable to \(on ? "register" : "unregister") the login item: \(error)")
+            }
+            // A refused write leaves the checkbox showing the value it was clicked to, so the state is read back.
+            refresh()
+        case .openLoginItems: openLoginItems()
         }
     }
 
@@ -106,6 +118,7 @@ final class Status {
             configPath: (path.path as NSString).abbreviatingWithTildeInPath,
             configExists: sources.configExists(path),
             configError: sources.configError(),
+            launchAtLogin: sources.launchAtLogin(),
             settings: Requirements.all.map { StatusReport.Setting(requirement: $0, value: $0.value(read: sources.readSetting)) }
         )
     }

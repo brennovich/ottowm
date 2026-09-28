@@ -17,6 +17,7 @@ struct StatusReport: Equatable {
     let configPath: String
     let configExists: Bool
     let configError: ConfigError?
+    let launchAtLogin: LoginItem.State
     let settings: [Setting]
 
     var configLine: String {
@@ -47,12 +48,24 @@ struct StatusReport: Equatable {
         if let configError {
             lines.append("Last reload: \(configError)")
         }
+        if let launchAtLoginLine {
+            lines += ["", "Launch at login: \(launchAtLoginLine)"]
+        }
         lines.append("")
         lines += settings.map { setting in
             "\(setting.requirement.name): \(Self.state(setting.value)), expected \(Self.state(setting.requirement.expected))"
         }
 
         return lines.joined(separator: "\n")
+    }
+
+    private var launchAtLoginLine: String? {
+        switch launchAtLogin {
+        case .on: "on"
+        case .off: "off"
+        case .needsApproval: "needs approval in Login Items"
+        case .unavailable: nil
+        }
     }
 
     private static func state(_ on: Bool) -> String { on ? "on" : "off" }

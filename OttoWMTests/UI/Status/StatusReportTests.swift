@@ -5,6 +5,7 @@ final class StatusReportTests: XCTestCase {
         configExists: Bool = true,
         configError: ConfigError? = nil,
         secureInputHeld: Bool = false,
+        launchAtLogin: LoginItem.State = .off,
         values: [Bool] = [true, true]
     ) -> StatusReport {
         StatusReport(
@@ -18,6 +19,7 @@ final class StatusReportTests: XCTestCase {
             configPath: "~/.config/ottowm/ottowm",
             configExists: configExists,
             configError: configError,
+            launchAtLogin: launchAtLogin,
             settings: [
                 StatusReport.Setting(requirement: Requirements.all[0], value: values[0]),
                 StatusReport.Setting(requirement: Requirements.all[2], value: values[1]),
@@ -45,7 +47,7 @@ final class StatusReportTests: XCTestCase {
     }
 
     func testTheTextListsEveryRowWithItsState() {
-        XCTAssertEqual(makeReport(secureInputHeld: true).text, """
+        XCTAssertEqual(makeReport(secureInputHeld: true, launchAtLogin: .needsApproval).text, """
         OttoWM 0.0.14 (1287)
         macOS 26.6.2 · Apple Silicon
 
@@ -55,6 +57,8 @@ final class StatusReportTests: XCTestCase {
         Display: 2560×1440
 
         Config: ~/.config/ottowm/ottowm
+
+        Launch at login: needs approval in Login Items
 
         Group windows by app: on, expected on
         Rearrange Spaces by use: on, expected off
@@ -71,5 +75,9 @@ final class StatusReportTests: XCTestCase {
         let report = makeReport(configError: ConfigError(line: 3, reason: .unknownAction("warp")))
 
         XCTAssertTrue(report.text.contains("Config: ~/.config/ottowm/ottowm\nLast reload: line 3: unknown action warp\n"))
+    }
+
+    func testTheTextLeavesOutLaunchAtLoginWhereMacOSHasNoLoginItemService() {
+        XCTAssertFalse(makeReport(launchAtLogin: .unavailable).text.contains("Launch at login"))
     }
 }

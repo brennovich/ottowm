@@ -8,6 +8,8 @@ enum StatusAction: Equatable {
     case reload
     case copyDiagnostics
     case copyFixes
+    case setLaunchAtLogin(Bool)
+    case openLoginItems
 }
 
 /// The window the About report is shown in. `StatusWindow` is the one the app runs with.

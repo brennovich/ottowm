@@ -18,6 +18,8 @@ final class StatusWindow: NSPanel, StatusPanel {
     private let settingsButton = ActionButton(title: "Open System Settings")
     private let fixesButton = ActionButton(title: "Copy fixes")
     private let diagnosticsButton = ActionButton(title: "Copy diagnostics")
+    private let launchAtLoginCheckbox = ActionButton(title: "Launch at login")
+    private let loginItemsButton = ActionButton(title: "Open Login Items")
     private let settings = Requirements.all.map { _ in StateView() }
     private var grid: NSGridView?
     /// The widest a value cell gets: a longer setting name wraps, a longer config path truncates.
@@ -61,6 +63,9 @@ final class StatusWindow: NSPanel, StatusPanel {
         createButton.isHidden = report.configExists
         configErrorLabel.stringValue = report.configError.map { "Last reload: \($0)" } ?? ""
         setRow(of: configErrorLabel, hidden: report.configError == nil)
+        launchAtLoginCheckbox.state = report.launchAtLogin == .off ? .off : .on
+        setRow(of: launchAtLoginCheckbox, hidden: report.launchAtLogin == .unavailable)
+        setRow(of: loginItemsButton, hidden: report.launchAtLogin != .needsApproval)
         for (setting, state) in zip(report.settings, settings) {
             state.set(healthy: setting.isMet, text: setting.requirement.name)
         }
@@ -109,6 +114,12 @@ final class StatusWindow: NSPanel, StatusPanel {
         createButton.pressed = { [weak self] in self?.perform?(.createConfig) }
         fixesButton.pressed = { [weak self] in self?.perform?(.copyFixes) }
         diagnosticsButton.pressed = { [weak self] in self?.perform?(.copyDiagnostics) }
+        launchAtLoginCheckbox.pressed = { [weak self] in
+            guard let self else { return }
+
+            perform?(.setLaunchAtLogin(launchAtLoginCheckbox.state == .on))
+        }
+        loginItemsButton.pressed = { [weak self] in self?.perform?(.openLoginItems) }
     }
 
     /// A hidden view keeps its grid row's height, so the row is hidden with it.
@@ -170,6 +181,7 @@ final class StatusWindow: NSPanel, StatusPanel {
         configLabel.widthAnchor.constraint(lessThanOrEqualToConstant: Self.valueWidth).isActive = true
         configErrorLabel.font = .monospacedSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
         configErrorLabel.preferredMaxLayoutWidth = Self.valueWidth
+        launchAtLoginCheckbox.setButtonType(.switch)
 
         let grid = NSGridView(views: [
             [Self.label("Accessibility"), accessibility],
@@ -180,6 +192,8 @@ final class StatusWindow: NSPanel, StatusPanel {
             [Self.label("Config"), configLabel],
             [NSGridCell.emptyContentView, Self.row(revealButton, reloadButton, createButton)],
             [NSGridCell.emptyContentView, configErrorLabel],
+            [Self.label("Startup"), launchAtLoginCheckbox],
+            [NSGridCell.emptyContentView, loginItemsButton],
         ] + settings.enumerated().map { index, state in
             [Self.label(index == 0 ? "macOS" : ""), state]
         } + [
@@ -194,6 +208,7 @@ final class StatusWindow: NSPanel, StatusPanel {
         // The config and the macOS settings are blocks of their own; a hidden row drops its padding with it, so the
         // gap is set on rows that are always up.
         grid.cell(for: displayLabel)?.row?.bottomPadding = 10
+        grid.cell(for: launchAtLoginCheckbox)?.row?.topPadding = 10
         if let first = settings.first {
             grid.cell(for: first)?.row?.topPadding = 10
         }
