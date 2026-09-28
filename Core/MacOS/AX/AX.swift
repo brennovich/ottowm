@@ -159,8 +159,11 @@ struct AXAccess {
     )
 
     private static var activationOptions: NSApplication.ActivationOptions {
-        if #available(macOS 14.0, *) { return [] }
-        return .activateIgnoringOtherApps
+        if #available(macOS 14.0, *) {
+            []
+        } else {
+            .activateIgnoringOtherApps
+        }
     }
 }
 
