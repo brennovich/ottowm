@@ -34,22 +34,32 @@ final class PagerTabViewTests: XCTestCase {
             let view = PagerTabView(number: .stub())
             view.optionClicked = { clicks += 1 }
             let window = NSWindow.offscreen(hosting: view)
-            let event = try XCTUnwrap(NSEvent.mouseEvent(
-                with: .leftMouseDown,
-                location: CGPoint(x: 40, y: 20),
-                modifierFlags: testCase.flags,
-                timestamp: 0,
-                windowNumber: window.windowNumber,
-                context: nil,
-                eventNumber: 0,
-                clickCount: 1,
-                pressure: 1
-            ))
 
-            view.mouseDown(with: event)
+            view.mouseDown(with: try mouseEvent(.leftMouseDown, flags: testCase.flags, in: window))
 
             XCTAssertEqual(clicks, testCase.reported, testCase.name)
         }
+    }
+
+    func testPressingShrinksTheTabTowardTheScreenCorner() throws {
+        let window = NSWindow.offscreen(hosting: view)
+
+        view.mouseDown(with: try mouseEvent(.leftMouseDown, in: window))
+
+        let pressed = view.bodyLayer.frame
+        XCTAssertLessThan(pressed.width, bounds.width)
+        XCTAssertLessThan(pressed.height, bounds.height)
+        XCTAssertEqual(pressed.maxX, bounds.maxX, accuracy: 0.001)
+        XCTAssertEqual(pressed.maxY, bounds.maxY, accuracy: 0.001)
+    }
+
+    func testReleasingReturnsTheTabToItsFullFrame() throws {
+        let window = NSWindow.offscreen(hosting: view)
+        view.mouseDown(with: try mouseEvent(.leftMouseDown, in: window))
+
+        view.mouseUp(with: try mouseEvent(.leftMouseUp, in: window))
+
+        XCTAssertEqual(view.bodyLayer.frame, bounds)
     }
 
     func testTheTabTakesTheFirstClickWhileItsPanelIsNotKey() {
@@ -79,5 +89,23 @@ final class PagerTabViewTests: XCTestCase {
             XCTAssertEqual(number.rolling, testCase.rolling, testCase.name)
             XCTAssertEqual(number.shownValue, "2", testCase.name)
         }
+    }
+
+    private func mouseEvent(
+        _ type: NSEvent.EventType,
+        flags: NSEvent.ModifierFlags = [],
+        in window: NSWindow
+    ) throws -> NSEvent {
+        try XCTUnwrap(NSEvent.mouseEvent(
+            with: type,
+            location: CGPoint(x: 40, y: 20),
+            modifierFlags: flags,
+            timestamp: 0,
+            windowNumber: window.windowNumber,
+            context: nil,
+            eventNumber: 0,
+            clickCount: 1,
+            pressure: 1
+        ))
     }
 }
