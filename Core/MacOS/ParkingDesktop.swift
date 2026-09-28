@@ -20,7 +20,7 @@ final class ParkingDesktop: Desktop {
     private var workArea: WorkArea { WorkArea(display: display, spacing: spacing) }
 
     init(
-        screens: any Screens,
+        screens: any Screens = MainScreen(),
         window: @escaping (CGWindowID) -> (any Window)?,
         spacing: CGFloat,
         notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,

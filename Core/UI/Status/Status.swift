@@ -16,7 +16,7 @@ final class Status {
 
     init(
         sources: StatusSources,
-        panel: any StatusPanel,
+        panel: any StatusPanel = StatusWindow(),
         notificationCenter: NotificationCenter = .default,
         canShow: @escaping () -> Bool = { NSApp.modalWindow == nil },
         isActive: @escaping () -> Bool = { NSApp.isActive },
