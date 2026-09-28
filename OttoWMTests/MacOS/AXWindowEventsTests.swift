@@ -16,6 +16,7 @@ final class AXWindowEventsTests: AXWindowEventsTestCase {
             (kAXWindowMiniaturizedNotification, false, 42, []),
             (kAXWindowDeminiaturizedNotification, true, 42, ["unminimized(42)"]),
             (kAXWindowDeminiaturizedNotification, false, 42, []),
+            (kAXWindowMovedNotification, true, 42, ["reframed(42)"]),
             ("AXSomethingElse", false, 42, []),
         ]
 

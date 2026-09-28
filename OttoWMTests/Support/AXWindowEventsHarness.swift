@@ -108,7 +108,7 @@ extension [WindowEvent] {
             case let .destroyed(id): "destroyed(\(id))"
             case let .minimized(id): "minimized(\(id))"
             case let .unminimized(win): "unminimized(\(win.id))"
-            case .reframed: "reframed"
+            case let .reframed(id): id.map { "reframed(\($0))" } ?? "reframed"
             }
         }
     }

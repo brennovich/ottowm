@@ -42,7 +42,7 @@ final class EngineFullScreenTests: EngineTestCase {
         let win2 = sendWindowFullScreenAndLeave()
         let reads = win2.snapshotReadCount
 
-        engine.handle(.reframed)
+        engine.handle(.reframed(nil))
 
         XCTAssertEqual(win2.snapshotReadCount, reads)
     }

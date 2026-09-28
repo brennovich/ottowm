@@ -29,6 +29,26 @@ final class EngineWindowEventTests: EngineTestCase {
         XCTAssertEqual(layouts.frame(of: 100, on: Display.standard.id), moved)
     }
 
+    func testAParkedWindowThatMovedIsParkedAgain() {
+        create(StubWindow(id: 100))
+        let parked = create(StubWindow(id: 200))
+        moveFocusedWindow(parked, to: 2)
+
+        engine.handle(.reframed(200))
+
+        XCTAssertEqual(desktop.reparkedWindowIds, [[200]])
+    }
+
+    func testAnActiveWindowThatMovedParksNothingAgain() {
+        create(StubWindow(id: 100))
+        let parked = create(StubWindow(id: 200))
+        moveFocusedWindow(parked, to: 2)
+
+        engine.handle(.reframed(100))
+
+        XCTAssertEqual(desktop.reparkedWindowIds, [])
+    }
+
     func testDestroyedWindowRestoresFocusToPreviousWindow() {
         let win1 = create(StubWindow(id: 100))
         engine.handle(.focused(win1.snapshot()))

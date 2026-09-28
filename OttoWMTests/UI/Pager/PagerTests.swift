@@ -65,13 +65,13 @@ final class PagerTests: XCTestCase {
         enable()
 
         listed = [1: over]
-        report(.reframed)
+        report(.reframed(nil))
         runScheduled()
         XCTAssertTrue(pager.isRetracted)
         XCTAssertTrue(pager.isCueRetracted)
 
         listed = [1: away]
-        report(.reframed)
+        report(.reframed(nil))
         runScheduled()
         XCTAssertFalse(pager.isRetracted)
         XCTAssertFalse(pager.isCueRetracted)
@@ -119,7 +119,7 @@ final class PagerTests: XCTestCase {
     func testTheWindowListIsReadAgain130msAfterACheck() {
         listed = [1: away]
         enable()
-        report(.reframed)
+        report(.reframed(nil))
         runScheduled()
         XCTAssertFalse(pager.isRetracted)
 
@@ -131,10 +131,10 @@ final class PagerTests: XCTestCase {
 
     func testANewerCheckDropsThePendingRecheck() {
         enable()
-        report(.reframed)
+        report(.reframed(nil))
         runScheduled()
         let pendingRecheck = scheduled.removeFirst().block
-        report(.reframed)
+        report(.reframed(nil))
         runScheduled()
         let reads = listReads
 
@@ -147,8 +147,8 @@ final class PagerTests: XCTestCase {
         enable()
         let reads = listReads
 
-        report(.reframed)
-        report(.reframed)
+        report(.reframed(nil))
+        report(.reframed(nil))
         report(.destroyed(3))
         runScheduled()
 
@@ -187,7 +187,7 @@ final class PagerTests: XCTestCase {
     }
 
     func testWhileThePagerIsOffNoWindowListIsReadAndTurningItOnReadsItOnce() {
-        report(.reframed)
+        report(.reframed(nil))
         runScheduled()
         XCTAssertEqual(listReads, 0)
 

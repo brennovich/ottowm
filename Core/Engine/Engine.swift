@@ -89,6 +89,14 @@ final class Engine {
         }
     }
 
+    /// macOS can move a parked window back on screen after the native space change is
+    /// handled, as when a window of the same application leaves full screen.
+    private func reparkIfParked(_ windowId: CGWindowID) {
+        guard let parkedFrom = placement.parked[windowId] else { return }
+
+        windowSystem.duringOperation("parked-window-reframed") { desktop.repark([windowId: parkedFrom]) }
+    }
+
     /// Saved with every window back on screen, the way the next launch finds them.
     func stop() {
         placement.restoreParkedWindows()
@@ -97,7 +105,10 @@ final class Engine {
 
     func handle(_ event: WindowEvent) {
         // A resize drag sends a stream of these, and none changes a workspace.
-        if case .reframed = event { return }
+        if case let .reframed(windowId) = event {
+            if let windowId { reparkIfParked(windowId) }
+            return
+        }
         guard !screenIsLocked() else {
             Log.engine.debug("window event ignored: the screen is locked")
             return
