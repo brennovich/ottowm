@@ -8,6 +8,7 @@ final class ParkingDesktopTests: XCTestCase {
     private let win = StubWindow(id: 100, frame: originalFrame)
     private let center = NotificationCenter()
     private let screens = StubScreen(main: .standard)
+    private let anchor = StubAnchor()
 
     private let hiddenEdge = HiddenEdge(display: .standard)
 
@@ -20,7 +21,8 @@ final class ParkingDesktopTests: XCTestCase {
         window: { [weak self] id in self?.windows[id] },
         spacing: 15,
         notificationCenter: center,
-        screenNotificationCenter: center
+        screenNotificationCenter: center,
+        anchor: anchor
     )
 
     @discardableResult
@@ -256,5 +258,14 @@ final class ParkingDesktopTests: XCTestCase {
         desktop.repark(parkedWindows.all)
 
         XCTAssertEqual(win.positionSetCount, 1)
+    }
+
+    func testANativeSpaceChangePutsTheAnchorAwayBeforeItIsReported() {
+        var putAwayCountWhenReported: Int?
+        desktop.startWatching { [anchor] _ in putAwayCountWhenReported = anchor.putAwayCount }
+
+        center.postNativeSpaceChange()
+
+        XCTAssertEqual(putAwayCountWhenReported, 1)
     }
 }

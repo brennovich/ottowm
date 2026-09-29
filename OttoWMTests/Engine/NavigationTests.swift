@@ -160,24 +160,27 @@ final class NavigationTests: EngineTestCase {
         XCTAssertEqual(workspaces.workspace(for: 300), 1)
     }
 
-    func testReturnToDesktopBringsAManagedWindowFrontAndIgnoresTheNavigationItCauses() {
-        let parked = [72, 88, 187].map { add(StubWindow(id: $0)) }
-        parked.forEach { placement.assign($0.snapshot(), to: 1) }
+    func testReturnToDesktopFocusesTheAnchorWhenTheWorkspaceHasNoWindowToFocus() {
+        let parked = add(StubWindow(id: 72))
+        placement.assign(parked.snapshot(), to: 1)
         placement.switchTo(3)
-        offScreenWindowIds = [72, 88, 187]
+        offScreenWindowIds = [72]
 
         navigation.returnToDesktop()
 
-        XCTAssertEqual(parked.reduce(0) { $0 + $1.focusCount }, 1)
+        XCTAssertEqual(anchor.focusCount, 1)
+        XCTAssertEqual(parked.focusCount, 0)
+    }
 
-        focused = windows[187]
-        navigation.follow(windows[187]!.snapshot())
+    func testReturnToDesktopLeavesTheAnchorWhenTheWorkspaceHasAWindowToFocus() {
+        let win = add(StubWindow(id: 72))
+        placement.assign(win.snapshot(), to: 1)
+        offScreenWindowIds = [72]
 
-        XCTAssertEqual(workspaces.current, 3)
+        navigation.returnToDesktop()
 
-        navigation.follow(windows[187]!.snapshot())
-
-        XCTAssertEqual(workspaces.current, 1)
+        XCTAssertEqual(win.focusCount, 1)
+        XCTAssertEqual(anchor.focusCount, 0)
     }
 
     func testFocusedWindowOfCurrentWorkspaceIsNilForNoWindowOrOneOfAnotherWorkspace() {

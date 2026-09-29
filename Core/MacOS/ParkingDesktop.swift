@@ -12,6 +12,7 @@ final class ParkingDesktop: Desktop {
     private let window: (CGWindowID) -> (any Window)?
     private let notificationCenter: NotificationCenter
     private let screenNotificationCenter: NotificationCenter
+    let anchor: any Anchor
 
     private(set) var display: Display
 
@@ -24,7 +25,8 @@ final class ParkingDesktop: Desktop {
         window: @escaping (CGWindowID) -> (any Window)?,
         spacing: CGFloat,
         notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
-        screenNotificationCenter: NotificationCenter = .default
+        screenNotificationCenter: NotificationCenter = .default,
+        anchor: any Anchor = SpaceAnchor()
     ) {
         self.screens = screens
         self.spacing = spacing
@@ -32,6 +34,7 @@ final class ParkingDesktop: Desktop {
         self.window = window
         self.notificationCenter = notificationCenter
         self.screenNotificationCenter = screenNotificationCenter
+        self.anchor = anchor
     }
 
     func recover(_ windows: [WindowSnapshot]) -> [WindowSnapshot] {
@@ -84,7 +87,7 @@ final class ParkingDesktop: Desktop {
         observers = [
             (notificationCenter, notificationCenter.addObserver(
                 forName: NSWorkspace.activeSpaceDidChangeNotification, object: nil, queue: nil
-            ) { [weak self] _ in self?.report(.nativeSpaceChange) }),
+            ) { [weak self] _ in self?.nativeSpaceChanged() }),
             (screenNotificationCenter, screenNotificationCenter.addObserver(
                 forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: nil
             ) { [weak self] _ in self?.screenParametersChanged() }),
@@ -130,6 +133,13 @@ final class ParkingDesktop: Desktop {
     private func move(_ win: any Window, from current: CGRect, to target: CGRect) {
         if current.origin != target.origin { win.setPosition(target.origin) }
         if current.size != target.size { win.setSize(target.size) }
+    }
+
+    /// Put away first: a pin while the anchor is key orders it out with OttoWM active, and the
+    /// focus then goes to the frontmost window on the Space, which can be parked.
+    private func nativeSpaceChanged() {
+        anchor.putAway()
+        report(.nativeSpaceChange)
     }
 
     /// The notification also follows a Dock or menu bar change, and macOS posts it more than

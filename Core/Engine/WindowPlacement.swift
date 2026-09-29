@@ -69,9 +69,11 @@ final class WindowPlacement {
         let verdict = admission.verdict(for: win)
         guard verdict == .admit else { return .refused(verdict) }
 
+        let isFirstManaged = workspaces.allWindowIds.isEmpty
         let assigned = workspaces.assign(win, to: workspace)
         originalFrames.shareFrame(with: win.id)
         Log.engine.info("assigned \(win.logDescription) → workspace \(assigned)")
+        if isFirstManaged { desktop.anchor.pin() }
 
         place(win.id, parked: assigned != workspaces.current)
         return .assigned(assigned)
@@ -192,6 +194,7 @@ final class WindowPlacement {
     func restore(_ windows: [WindowSnapshot], from saved: SavedState?) {
         if let saved {
             load(saved.keeping(Set(windows.filter { admission.verdict(for: $0) == .admit }.map(\.id))))
+            if !workspaces.allWindowIds.isEmpty { desktop.anchor.pin() }
             if saved.display.id != desktop.display.id {
                 relocate(DisplayChange(from: saved.display, to: desktop.display))
             }

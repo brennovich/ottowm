@@ -14,8 +14,11 @@ final class StubDesktop: Desktop {
     var recoveredFrames: [CGWindowID: CGRect] = [:]
     var maximizedFrame: CGRect?
 
-    init(window: @escaping (CGWindowID) -> (any Window)? = { _ in nil }) {
+    let anchor: any Anchor
+
+    init(window: @escaping (CGWindowID) -> (any Window)? = { _ in nil }, anchor: any Anchor = StubAnchor()) {
         self.window = window
+        self.anchor = anchor
     }
 
     /// Moves the window as the real desktop does, so what is read back afterwards is where

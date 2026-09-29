@@ -42,6 +42,15 @@ final class WindowPlacementRestoreTests: EngineTestCase {
         XCTAssertEqual(workspaces.windowIds(in: 2), [100, 300])
     }
 
+    func testRestoreFromASavedStatePinsTheAnchorOnce() {
+        let known = add(StubWindow(id: 100))
+        let new = add(StubWindow(id: 300))
+
+        restore([known, new], from: savedState([(known, 1)]))
+
+        XCTAssertEqual(anchor.pinCount, 1)
+    }
+
     func testRestoreLeavesOutTheSavedWindowsAdmissionRefuses() {
         let minimized = add(StubWindow(id: 100, isMinimized: true))
 

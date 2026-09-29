@@ -14,6 +14,13 @@ final class WindowPlacementTests: EngineTestCase {
         XCTAssertEqual(workspaces.allWindowIds, [600])
     }
 
+    func testAssigningTheFirstManagedWindowPinsTheAnchor() {
+        placement.assign(add(StubWindow(id: 100)).snapshot(), to: 1)
+        placement.assign(add(StubWindow(id: 200)).snapshot(), to: 1)
+
+        XCTAssertEqual(anchor.pinCount, 1)
+    }
+
     func testAssignReportsAWindowItsShapeRulesOutAsRefusedForGood() {
         let fullScreen = add(StubWindow(id: 500, isFullScreen: true))
 
