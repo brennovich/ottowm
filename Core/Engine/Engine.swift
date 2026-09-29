@@ -75,6 +75,8 @@ final class Engine {
 
     private func followNativeSpaceChange() {
         windowSystem.duringOperation("native-space-change") {
+            pinAnchorOnManagedSpace()
+
             guard let focused = windowSystem.focused(),
                   placement.isParked(focused.id)
             else {
@@ -87,6 +89,13 @@ final class Engine {
             Log.engine.info("native space change with parked window focused id=\(focused.id)")
             navigation.navigate(to: focused.id)
         }
+    }
+
+    /// A managed window on screen is what tells the managed Space is in front.
+    private func pinAnchorOnManagedSpace() {
+        guard windowSystem.showsAny(workspaces.allWindowIds) else { return }
+
+        desktop.anchor.pin()
     }
 
     /// macOS can move a parked window back on screen after the native space change is

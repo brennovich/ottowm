@@ -27,6 +27,25 @@ final class EngineFullScreenTests: EngineTestCase {
         XCTAssertEqual(workspaces.current, 1)
     }
 
+    func testANativeSpaceChangeShowingAManagedWindowPinsTheAnchor() {
+        engine.start(windows: [])
+        create(StubWindow(id: 100))
+
+        desktop.report(.nativeSpaceChange)
+
+        XCTAssertEqual(anchor.pinCount, 2)
+    }
+
+    func testANativeSpaceChangeShowingNoManagedWindowLeavesTheAnchor() {
+        engine.start(windows: [])
+        create(StubWindow(id: 100))
+
+        offScreenWindowIds = [100]
+        desktop.report(.nativeSpaceChange)
+
+        XCTAssertEqual(anchor.pinCount, 1)
+    }
+
     func testWindowBackFromFullScreenIsFollowedWhenAnotherWindowEventArrives() {
         let win2 = sendWindowFullScreenAndLeave()
 

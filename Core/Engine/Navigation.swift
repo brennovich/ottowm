@@ -9,7 +9,6 @@ final class Navigation {
     private let workspaces: Workspaces
     private let placement: WindowPlacement
     private let enrollment: WindowEnrollment
-    private var expectedNavigation = false
 
     init(
         desktop: any Desktop,
@@ -50,12 +49,6 @@ final class Navigation {
     }
 
     func navigate(to windowId: CGWindowID) {
-        if expectedNavigation {
-            expectedNavigation = false
-            Log.engine.debug("ignoring manual navigation (one-shot)")
-            return
-        }
-
         let closed = placement.closedWindows()
         if !closed.isEmpty {
             var focusSettled = false
@@ -103,14 +96,8 @@ final class Navigation {
     func returnToDesktop() {
         guard !restore() else { return }
 
-        expectedNavigation = true
-        Log.engine.debug("returning to desktop, ignoring next manual navigation")
-
-        if let windowId = workspaces.allWindowIds.first(where: { desktop.focus($0) }) {
-            Log.engine.debug("brought the desktop to front via id=\(windowId)")
-            return
-        }
-        Log.engine.debug("no live managed window to bring the desktop to front")
+        Log.engine.debug("returning to desktop through the anchor")
+        desktop.anchor.focus()
     }
 
     /// The focused window when the current workspace holds it, enrolled first when no

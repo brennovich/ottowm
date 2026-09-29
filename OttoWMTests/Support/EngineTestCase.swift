@@ -27,7 +27,8 @@ class EngineTestCase: XCTestCase {
         tabs: { [weak self] id in self?.workspaces.tabGroupMembers(of: id) ?? [id] }
     )
 
-    lazy var desktop = StubDesktop(window: { [weak self] id in self?.windows[id] })
+    let anchor = StubAnchor()
+    lazy var desktop = StubDesktop(window: { [weak self] id in self?.windows[id] }, anchor: anchor)
     let layouts = DisplayLayouts()
 
     private lazy var scheduleRetry: (TimeInterval, @escaping () -> Void) -> Void = { [weak self] delay, work in

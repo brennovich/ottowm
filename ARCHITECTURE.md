@@ -111,13 +111,14 @@ Every engine component reads the focused window and snapshots through `WindowSys
 
 ```mermaid
 flowchart LR
-    Engine -->|"Desktop: recover, reframe, focus, repark"| ParkingDesktop
+    Engine -->|"Desktop: recover, reframe, focus, repark, anchor"| ParkingDesktop
     Engine -->|focused, frames, snapshot| WindowSystem
     RunningApplicationsObserver -->|WindowEvent| Engine
 
     ParkingDesktop -->|"Screens: main"| MainScreen
     ParkingDesktop -->|findWindow| Applications
     ParkingDesktop -->|"Window: move, focus"| AXWindow
+    ParkingDesktop -->|"Anchor: pin, focus, put away"| SpaceAnchor
 
     WindowSystem -->|adoptFocusedWindow| AXWindowEvents
     WindowSystem -->|on-screen frames| CGWindowList
@@ -196,6 +197,7 @@ flowchart LR
 | `SavedState`                  | Model     | What the state file holds, less the windows no longer open.                             |
 | `Desktop`                     | Engine    | The protocol the engine moves, parks and focuses windows through.                       |
 | `ParkingDesktop`              | macOS     | The `Desktop` that parks windows at the hidden edge and reports `DesktopEvent`s.        |
+| `SpaceAnchor`                 | macOS     | A clear 1x1 window on the managed Space. Focusing it switches macOS to that Space.      |
 | `HiddenEdge`                  | Model     | Where a parked window sits, and whether a frame sits there.                             |
 | `WindowSystem`                | Engine    | The focused window, the on-screen window frames, and the tab count of a window.         |
 | `RunningApplicationsObserver` | macOS     | The `NSWorkspace` notifications of the applications' lifecycle, and what to announce.   |
@@ -280,7 +282,7 @@ sequenceDiagram
         Navigation->>Desktop: focus(nextWindowToFocus)
     else another native Space is in front
         Engine->>Navigation: returnToDesktop()
-        Navigation->>Desktop: focus any managed window
+        Navigation->>Desktop: focus(nextWindowToFocus), or anchor.focus() when there is none
     end
 ```
 
@@ -354,7 +356,7 @@ sequenceDiagram
         Note over Engine: followed only when that window is parked
         Engine->>Navigation: navigate(to: window)
     end
-    Note over Navigation: dropped by the one-shot ignore flag,<br/>or when every window of the current workspace is already gone
+    Note over Navigation: dropped when every window of the current workspace is already gone
     Navigation->>WindowPlacement: switchTo(that window's workspace)
     WindowPlacement->>Desktop: reframe(unpark for one, park for the other)
 ```

@@ -25,7 +25,8 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         window: { [weak self] in self?.windows[$0] },
         spacing: 15,
         notificationCenter: center,
-        screenNotificationCenter: center
+        screenNotificationCenter: center,
+        anchor: StubAnchor()
     )
 
     private lazy var engine: Engine = Engine.system(
