@@ -3,7 +3,6 @@ import Foundation
 /// The window server's secure event input flag, which apps set while a password field has
 /// focus. While it is set, no keyboard event is delivered to any event tap.
 final class SecureInput {
-    private static let skyLight = "/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight"
     private static let symbol = "SLSIsSecureEventInputSet"
     private static let registerSymbol = "SLSRegisterNotifyProc"
     /// The window server posts 752 when the flag is set and 753 when it is cleared. Both are private and
@@ -20,7 +19,7 @@ final class SecureInput {
     /// the last process to set the flag and is not cleared on release, so it can name a process
     /// that already exited while another one holds the flag.
     func isActive() -> Bool {
-        Self.skyLightSymbol(Self.symbol, as: IsSet.self)?() == true
+        SkyLight.symbol(Self.symbol, as: IsSet.self)?() == true
     }
 
     /// Reports the flag now and on every change, on the main thread. Repeats are not filtered: the flag is read
@@ -32,7 +31,7 @@ final class SecureInput {
         self.handler = handler
         handler(isActive())
 
-        guard let register = Self.skyLightSymbol(Self.registerSymbol, as: Register.self) else {
+        guard let register = SkyLight.symbol(Self.registerSymbol, as: Register.self) else {
             return Log.hotkey.error("SLSRegisterNotifyProc is missing, changes of secure event input are not reported")
         }
 
@@ -46,13 +45,5 @@ final class SecureInput {
         for type in Self.notificationTypes where register(notify, type, context) != 0 {
             Log.hotkey.error("SLSRegisterNotifyProc rejected type \(type), that change of secure event input is not reported")
         }
-    }
-
-    /// The handle stays open, since closing it can unload the framework the pointer belongs to.
-    private static func skyLightSymbol<T>(_ name: String, as type: T.Type) -> T? {
-        guard let handle = dlopen(skyLight, RTLD_LAZY),
-              let address = dlsym(handle, name) else { return nil }
-
-        return unsafeBitCast(address, to: type)
     }
 }
