@@ -19,13 +19,12 @@ func pagerWindows(of pid: pid_t) -> [CGWindowID: CGRect] {
     }
 }
 
-// The bottom right corner of the display the pager is shown on, which is the main one, in
+// The bottom right corner of the display the pager is shown on, which is the primary one, in
 // the same top left coordinates.
 func pagerCorner() -> CGPoint {
-    let screen = NSScreen.main ?? NSScreen.screens[0]
-    let primaryHeight = NSScreen.screens.first?.frame.height ?? screen.frame.height
+    let screen = NSScreen.screens[0]
 
-    return CGPoint(x: screen.frame.maxX, y: primaryHeight - screen.frame.minY)
+    return CGPoint(x: screen.frame.maxX, y: screen.frame.height - screen.frame.minY)
 }
 
 // The window server flag an application sets while a password field has focus. While it is

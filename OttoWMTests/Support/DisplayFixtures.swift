@@ -1,14 +1,6 @@
 import AppKit
 import CoreGraphics
 
-final class StubScreen: Screens {
-    var main: Display?
-
-    init(main: Display?) {
-        self.main = main
-    }
-}
-
 extension Display {
     static let standard = Display(
         id: DisplayID(rawValue: "built-in"),

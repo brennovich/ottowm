@@ -10,7 +10,7 @@ OttoWM is a headless agent that offers several workspaces on one native macOS Sp
 | Desktop        | The native Space OttoWM controls, and the component that moves windows on it.                                 |
 | Workspace      | A numbered set of windows. It exists as soon as an action names it.                                           |
 | Managed window | A window that belongs to a workspace.                                                                         |
-| Display        | The main display: the CoreGraphics UUID that identifies it across plugs, its full frame and visible frame.    |
+| Display        | The primary display: the CoreGraphics UUID that identifies it across plugs, its full frame and visible frame. |
 | Hidden edge    | A 1pt sliver at the bottom right of the display. A window not in the current workspace is parked there.       |
 | Tab group      | The windows macOS shows as tabs of one window. See [Tabbed windows](#tabbed-windows).                         |
 | Window id      | The `CGWindowID` of a window. It identifies the window for as long as the window lives.                       |
@@ -211,8 +211,7 @@ flowchart LR
 | `Window`                      | Engine    | The window operations the desktop needs: snapshot, frames, moves, focus, tabs.          |
 | `AXWindow`                    | macOS     | One window: snapshot, frame writes, focus, tab count, read through `AXAccess`.          |
 | `AXAccess`                    | macOS     | The raw AX calls: reads, writes, actions, window id, activation, frontmost application. |
-| `Screens`                     | macOS     | The protocol the desktop reads the main display through.                                |
-| `MainScreen`                  | macOS     | The `Screens` over `NSScreen`: the main display as a `Display`.                         |
+| `Screens`                     | macOS     | The displays the desktop reads, the primary first. `.system` reads `NSScreen`.          |
 | `OperationCache`              | macOS     | Holds one AX or CG read for the length of an operation.                                 |
 | `RoundTrips`                  | macOS     | Prices an operation in the calls it makes out of the process: how many, of what, cost.  |
 | `Signposts`                   | macOS     | The operation and round-trip intervals Instruments records.                             |
@@ -369,7 +368,7 @@ The frame a window had on the display left is not read at the change: macOS may 
 
 ```mermaid
 sequenceDiagram
-    Note over Desktop: the screen parameters notification names a main display<br/>other than the one held. The same display again is reported as screenParametersChange
+    Note over Desktop: the screen parameters notification names a primary display<br/>other than the one held. The same display again is reported as screenParametersChange
     Desktop->>Engine: displayChange(left → entered)
     Note over Engine: held until the unlock while the screen is locked:<br/>the accessibility reads fail behind it
     Engine->>WindowPlacement: relocate(the change)

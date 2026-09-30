@@ -15,10 +15,10 @@ let refitTolerance: CGFloat = 30
 
 // What Core/Model/Display.swift calls the visible frame, the display without the menu bar
 // and the Dock, in the top left coordinates every frame read through the accessibility API
-// is in. AppKit measures from the bottom left of the primary display.
+// is in. AppKit measures from the bottom left of the primary display, the one OttoWM parks on.
 func visibleFrame() -> CGRect {
-    let screen = NSScreen.main ?? NSScreen.screens[0]
-    let primaryHeight = NSScreen.screens.first?.frame.height ?? screen.frame.height
+    let screen = NSScreen.screens[0]
+    let primaryHeight = screen.frame.height
     let frame = screen.visibleFrame
 
     return CGRect(

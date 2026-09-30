@@ -7,7 +7,7 @@ private let pulledBackFrame = CGRect(x: 200, y: 300, width: 800, height: 600)
 final class ParkingDesktopTests: XCTestCase {
     private let win = StubWindow(id: 100, frame: originalFrame)
     private let center = NotificationCenter()
-    private let screens = StubScreen(main: .standard)
+    private var displays: [Display] = [.standard]
     private let anchor = StubAnchor()
 
     private let hiddenEdge = HiddenEdge(display: .standard)
@@ -17,7 +17,7 @@ final class ParkingDesktopTests: XCTestCase {
     private let parkedWindows = ParkedWindows()
 
     private lazy var desktop = ParkingDesktop(
-        screens: screens,
+        screens: Screens { [weak self] in self?.displays ?? [] },
         window: { [weak self] id in self?.windows[id] },
         spacing: 15,
         notificationCenter: center,
@@ -193,7 +193,7 @@ final class ParkingDesktopTests: XCTestCase {
         var events: [DesktopEvent] = []
         desktop.startWatching { events.append($0) }
 
-        screens.main = .external
+        displays = [.external]
         center.postScreenParametersChange()
         center.postScreenParametersChange()
 
@@ -212,7 +212,7 @@ final class ParkingDesktopTests: XCTestCase {
             visibleFrame: CGRect(x: 0, y: 38, width: 1792, height: 1000)
         )
 
-        screens.main = dockMoved
+        displays = [dockMoved]
         center.postScreenParametersChange()
 
         XCTAssertEqual(events, [.displayChange(DisplayChange(from: .standard, to: dockMoved))])
@@ -227,11 +227,22 @@ final class ParkingDesktopTests: XCTestCase {
         XCTAssertEqual(events, [.screenParametersChange])
     }
 
+    func testAScreenParametersChangeKeepsThePrimaryDisplayWhenAnotherIsConnected() {
+        var events: [DesktopEvent] = []
+        desktop.startWatching { events.append($0) }
+
+        displays = [.standard, .external]
+        center.postScreenParametersChange()
+
+        XCTAssertEqual(events, [.screenParametersChange])
+        XCTAssertEqual(desktop.display, .standard)
+    }
+
     func testAScreenParametersChangeWithNoDisplayKeepsTheLastOne() {
         var events: [DesktopEvent] = []
         desktop.startWatching { events.append($0) }
 
-        screens.main = nil
+        displays = []
         center.postScreenParametersChange()
 
         XCTAssertEqual(events, [])

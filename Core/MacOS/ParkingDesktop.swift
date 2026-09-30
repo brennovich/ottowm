@@ -7,7 +7,7 @@ final class ParkingDesktop: Desktop {
         let window: any Window
     }
 
-    private let screens: any Screens
+    private let screens: Screens
     var spacing: CGFloat
     private let window: (CGWindowID) -> (any Window)?
     private let notificationCenter: NotificationCenter
@@ -21,7 +21,7 @@ final class ParkingDesktop: Desktop {
     private var workArea: WorkArea { WorkArea(display: display, spacing: spacing) }
 
     init(
-        screens: any Screens = MainScreen(),
+        screens: Screens = .system,
         window: @escaping (CGWindowID) -> (any Window)?,
         spacing: CGFloat,
         notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
@@ -30,7 +30,7 @@ final class ParkingDesktop: Desktop {
     ) {
         self.screens = screens
         self.spacing = spacing
-        display = screens.main ?? .unknown
+        display = screens.all().first ?? .unknown
         self.window = window
         self.notificationCenter = notificationCenter
         self.screenNotificationCenter = screenNotificationCenter
@@ -146,9 +146,9 @@ final class ParkingDesktop: Desktop {
     /// once per plug, so only a display that differs from the one held is reported as a
     /// display change.
     private func screenParametersChanged() {
-        let main = screens.main
-        Log.desktop.debug("screen parameters changed, main display: \(main.map(\.logDescription) ?? "none")")
-        guard let entered = main else { return }
+        let primary = screens.all().first
+        Log.desktop.debug("screen parameters changed, primary display: \(primary.map(\.logDescription) ?? "none")")
+        guard let entered = primary else { return }
         guard entered != display else { return report(.screenParametersChange) }
 
         let left = display
