@@ -26,7 +26,7 @@ final class ParkingDesktop: Desktop {
         spacing: CGFloat,
         notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
         screenNotificationCenter: NotificationCenter = .default,
-        anchor: any Anchor = SpaceAnchor()
+        anchor: (any Anchor)? = nil
     ) {
         self.screens = screens
         self.spacing = spacing
@@ -34,7 +34,7 @@ final class ParkingDesktop: Desktop {
         self.window = window
         self.notificationCenter = notificationCenter
         self.screenNotificationCenter = screenNotificationCenter
-        self.anchor = anchor
+        self.anchor = anchor ?? SpaceAnchor { screens.all().first }
     }
 
     func recover(_ windows: [WindowSnapshot]) -> [WindowSnapshot] {
@@ -143,12 +143,17 @@ final class ParkingDesktop: Desktop {
     }
 
     /// The notification also follows a Dock or menu bar change, and macOS posts it more than
-    /// once per plug, so only a display that differs from the one held is reported as a
-    /// display change.
+    /// once per plug.
     private func screenParametersChanged() {
         let primary = screens.all().first
         Log.desktop.debug("screen parameters changed, primary display: \(primary.map(\.logDescription) ?? "none")")
-        guard let entered = primary else { return }
+        guard let primary else { return }
+
+        change(to: primary)
+    }
+
+    /// Only a display that differs from the one held is reported as a display change.
+    func change(to entered: Display) {
         guard entered != display else { return report(.screenParametersChange) }
 
         let left = display
