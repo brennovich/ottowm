@@ -40,4 +40,21 @@ final class WindowSystemTests: XCTestCase {
         XCTAssertEqual(focusedReads, 1)
         XCTAssertEqual(onScreenReads, 1)
     }
+
+    func testAScopedCopyReportsOnlyTheWindowsItOwns() {
+        let owned = CGRect(x: 100, y: 100, width: 800, height: 600)
+        let other = CGRect(x: 2000, y: 100, width: 800, height: 600)
+        let system = WindowSystem(
+            focusedWindow: OperationCache { StubWindow(id: 200, frame: other).snapshot() },
+            onScreenWindows: OperationCache { [100: owned, 200: other] },
+            window: { _ in nil },
+            roundTrips: roundTrips
+        ).scoped { $0.minX < 1792 }
+
+        XCTAssertNil(system.focused())
+        XCTAssertTrue(system.shows(100))
+        XCTAssertFalse(system.shows(200))
+        XCTAssertFalse(system.showsAny([200]))
+        XCTAssertEqual(system.frames(of: [100, 200]), [100: owned])
+    }
 }

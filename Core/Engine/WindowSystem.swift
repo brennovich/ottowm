@@ -6,17 +6,36 @@ final class WindowSystem {
     private let onScreenWindows: OperationCache<[CGWindowID: CGRect]>
     private let window: (CGWindowID) -> (any Window)?
     private let roundTrips: RoundTrips
+    private let owns: (CGRect) -> Bool
 
-    init(
+    convenience init(
         focusedWindow: OperationCache<WindowSnapshot?>,
         onScreenWindows: OperationCache<[CGWindowID: CGRect]>,
         window: @escaping (CGWindowID) -> (any Window)?,
         roundTrips: RoundTrips = .shared
     ) {
+        self.init(focusedWindow, onScreenWindows, window, roundTrips, owns: { _ in true })
+    }
+
+    private init(
+        _ focusedWindow: OperationCache<WindowSnapshot?>,
+        _ onScreenWindows: OperationCache<[CGWindowID: CGRect]>,
+        _ window: @escaping (CGWindowID) -> (any Window)?,
+        _ roundTrips: RoundTrips,
+        owns: @escaping (CGRect) -> Bool
+    ) {
         self.focusedWindow = focusedWindow
         self.onScreenWindows = onScreenWindows
         self.window = window
         self.roundTrips = roundTrips
+        self.owns = owns
+    }
+
+    /// A copy whose focused and on-screen reads leave out the windows whose frame `owns`
+    /// rejects. It shares the reads of this one, so an operation still makes each read once.
+    /// The reads of one window by id are not filtered.
+    func scoped(_ owns: @escaping (CGRect) -> Bool) -> WindowSystem {
+        WindowSystem(focusedWindow, onScreenWindows, window, roundTrips, owns: owns)
     }
 
     func duringOperation<T>(_ name: StaticString, _ body: () -> T) -> T {
@@ -26,21 +45,21 @@ final class WindowSystem {
     }
 
     func focused() -> WindowSnapshot? {
-        focusedWindow.value()
+        focusedWindow.value().flatMap { owns($0.frame) ? $0 : nil }
     }
 
     func shows(_ windowId: CGWindowID) -> Bool {
-        onScreenWindows.value().keys.contains(windowId)
+        onScreenWindows.value()[windowId].map(owns) ?? false
     }
 
     func showsAny(_ windowIds: Set<CGWindowID>) -> Bool {
-        !windowIds.isDisjoint(with: onScreenWindows.value().keys)
+        windowIds.contains(where: shows)
     }
 
     func frames(of windowIds: [CGWindowID]) -> [CGWindowID: CGRect] {
         let onScreen = onScreenWindows.value()
         return windowIds.reduce(into: [:]) { frames, windowId in
-            frames[windowId] = onScreen[windowId]
+            frames[windowId] = onScreen[windowId].flatMap { owns($0) ? $0 : nil }
         }
     }
 
