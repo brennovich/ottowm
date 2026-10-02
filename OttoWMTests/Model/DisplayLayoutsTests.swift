@@ -44,4 +44,13 @@ final class DisplayLayoutsTests: XCTestCase {
         XCTAssertNil(layouts.frame(of: 100, on: Display.external.id))
         XCTAssertEqual(layouts.frame(of: 200, on: Display.standard.id), frame)
     }
+
+    func testLoadKeepsTheFramesItDoesNotName() {
+        layouts.record(frame, of: 100, on: Display.standard.id)
+
+        layouts.load([Display.standard.id: [200: elsewhere]])
+
+        XCTAssertEqual(layouts.frame(of: 100, on: Display.standard.id), frame)
+        XCTAssertEqual(layouts.frame(of: 200, on: Display.standard.id), elsewhere)
+    }
 }

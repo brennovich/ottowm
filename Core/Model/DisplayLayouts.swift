@@ -23,8 +23,10 @@ final class DisplayLayouts {
         }
     }
 
+    /// The engines of all displays share one instance, and each loads the frames of its own
+    /// windows.
     func load(_ frames: [DisplayID: [CGWindowID: CGRect]]) {
-        self.frames = frames
+        self.frames.merge(frames) { held, loaded in held.merging(loaded) { _, frame in frame } }
     }
 
     func forget(_ windowId: CGWindowID) {

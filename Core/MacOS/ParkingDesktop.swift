@@ -12,7 +12,8 @@ final class ParkingDesktop: Desktop {
     private let window: (CGWindowID) -> (any Window)?
     private let notificationCenter: NotificationCenter
     private let screenNotificationCenter: NotificationCenter
-    let anchor: any Anchor
+    private let injectedAnchor: (any Anchor)?
+    private(set) lazy var anchor: any Anchor = injectedAnchor ?? SpaceAnchor { [weak self] in self?.display }
 
     private(set) var display: Display
 
@@ -21,6 +22,7 @@ final class ParkingDesktop: Desktop {
     private var workArea: WorkArea { WorkArea(display: display, spacing: spacing) }
 
     init(
+        display: Display,
         screens: Screens = .system,
         window: @escaping (CGWindowID) -> (any Window)?,
         spacing: CGFloat,
@@ -30,11 +32,11 @@ final class ParkingDesktop: Desktop {
     ) {
         self.screens = screens
         self.spacing = spacing
-        display = screens.all().first ?? .unknown
+        self.display = display
         self.window = window
         self.notificationCenter = notificationCenter
         self.screenNotificationCenter = screenNotificationCenter
-        self.anchor = anchor ?? SpaceAnchor { screens.all().first }
+        injectedAnchor = anchor
     }
 
     func recover(_ windows: [WindowSnapshot]) -> [WindowSnapshot] {
@@ -143,13 +145,15 @@ final class ParkingDesktop: Desktop {
     }
 
     /// The notification also follows a Dock or menu bar change, and macOS posts it more than
-    /// once per plug.
+    /// once per plug. When the desktop's display is gone, as when the lid closes with one
+    /// external display left, the desktop takes the primary display.
     private func screenParametersChanged() {
-        let primary = screens.all().first
-        Log.desktop.debug("screen parameters changed, primary display: \(primary.map(\.logDescription) ?? "none")")
-        guard let primary else { return }
+        let displays = screens.all()
+        let entered = displays.first { $0.id == display.id } ?? displays.first
+        Log.desktop.debug("screen parameters changed, display: \(entered.map(\.logDescription) ?? "none")")
+        guard let entered else { return }
 
-        change(to: primary)
+        change(to: entered)
     }
 
     /// Only a display that differs from the one held is reported as a display change.

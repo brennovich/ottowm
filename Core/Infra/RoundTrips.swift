@@ -57,19 +57,26 @@ final class RoundTrips {
     private var owner: Thread?
     private var depth = 0
     private var startedAt: UInt64 = 0
+    private var name: StaticString = ""
 
     init(report: @escaping (OperationCost) -> Void) {
         self.report = report
     }
 
+    /// Nested operations are reported once, under the name of the one entered last, so a caller
+    /// that opens an operation only to share its reads does not rename the operation it runs.
     func duringOperation<T>(_ operation: StaticString, _ body: () -> T) -> T {
         Signposts.interval("operation", "\(operation)") {
             lock.lock()
             if let owner {
-                if owner === Thread.current { depth += 1 }
+                if owner === Thread.current {
+                    depth += 1
+                    name = operation
+                }
             } else {
                 owner = Thread.current
                 depth = 1
+                name = operation
                 clear()
                 startedAt = DispatchTime.now().uptimeNanoseconds
             }
@@ -90,7 +97,7 @@ final class RoundTrips {
                             let elapsed = DispatchTime.now().uptimeNanoseconds - startedAt
                             clear()
 
-                            cost = OperationCost(operation: "\(operation)", nanoseconds: elapsed, calls: calls)
+                            cost = OperationCost(operation: "\(name)", nanoseconds: elapsed, calls: calls)
                         }
                     }
                 }

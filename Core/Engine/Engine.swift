@@ -303,6 +303,7 @@ extension Engine {
         desktop: any Desktop,
         windowSystem: WindowSystem,
         workspaces: Workspaces,
+        layouts: DisplayLayouts,
         scheduleRetry: @escaping (TimeInterval, @escaping () -> Void) -> Void = Backoff.onMainQueue,
         screenIsLocked: @escaping () -> Bool = { false },
         save: @escaping (SavedState) -> Void
@@ -316,7 +317,7 @@ extension Engine {
             admission: admission,
             parkedWindows: ParkedWindows(),
             originalFrames: originalFrames,
-            layouts: DisplayLayouts()
+            layouts: layouts
         )
         let enrollment = WindowEnrollment(
             windowSystem: windowSystem,

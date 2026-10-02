@@ -1,12 +1,12 @@
 import CoreGraphics
 import Foundation
 
-/// The file OttoWM saves its state to after every operation and reads at launch. A state
-/// saved in another login session is ignored: its window ids name other windows.
+/// The file OttoWM saves the state of each display to after every operation and reads at launch.
+/// A state saved in another login session is ignored: its window ids name other windows.
 struct StateFile {
     private struct Content: Codable {
         let loginSession: String
-        let state: SavedState
+        let displays: [SavedState]
     }
 
     let url: URL
@@ -21,7 +21,7 @@ struct StateFile {
         self.loginSession = loginSession
     }
 
-    func load() -> SavedState? {
+    func load() -> [SavedState]? {
         guard let data = try? Data(contentsOf: url) else {
             Log.state.info("no state at \(url.path)")
             return nil
@@ -33,14 +33,14 @@ struct StateFile {
                 Log.state.info("\(url.path) was saved in another login session, starting without it")
                 return nil
             }
-            return content.state
+            return content.displays
         } catch {
             Log.state.error("cannot read \(url.path), starting without it: \(error)")
             return nil
         }
     }
 
-    func save(_ state: SavedState) {
+    func save(_ states: [SavedState]) {
         guard let loginSession else {
             Log.state.error("cannot read the login session, not writing \(url.path)")
             return
@@ -48,7 +48,7 @@ struct StateFile {
 
         do {
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try JSONEncoder().encode(Content(loginSession: loginSession, state: state)).write(to: url, options: .atomic)
+            try JSONEncoder().encode(Content(loginSession: loginSession, displays: states)).write(to: url, options: .atomic)
         } catch {
             Log.state.error("cannot write \(url.path): \(error)")
         }

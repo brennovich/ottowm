@@ -2,18 +2,21 @@ import AppKit
 import CoreGraphics
 
 extension Screens {
-    static let system = Screens {
-        let screens = NSScreen.screens
-        guard let primaryHeight = screens.first?.frame.height else { return [] }
+    static let system = Screens(
+        all: {
+            let screens = NSScreen.screens
+            guard let primaryHeight = screens.first?.frame.height else { return [] }
 
-        return screens.map { screen in
-            Display(
-                id: screen.displayID,
-                fullFrame: screen.frame.flipped(primaryHeight: primaryHeight),
-                visibleFrame: screen.visibleFrame.flipped(primaryHeight: primaryHeight)
-            )
-        }
-    }
+            return screens.map { screen in
+                Display(
+                    id: screen.displayID,
+                    fullFrame: screen.frame.flipped(primaryHeight: primaryHeight),
+                    visibleFrame: screen.visibleFrame.flipped(primaryHeight: primaryHeight)
+                )
+            }
+        },
+        active: { NSScreen.main?.displayID }
+    )
 }
 
 private extension NSScreen {

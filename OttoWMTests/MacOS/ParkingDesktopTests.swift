@@ -17,7 +17,8 @@ final class ParkingDesktopTests: XCTestCase {
     private let parkedWindows = ParkedWindows()
 
     private lazy var desktop = ParkingDesktop(
-        screens: Screens { [weak self] in self?.displays ?? [] },
+        display: .standard,
+        screens: Screens(all: { [weak self] in self?.displays ?? [] }, active: { nil }),
         window: { [weak self] id in self?.windows[id] },
         spacing: 15,
         notificationCenter: center,
@@ -225,11 +226,21 @@ final class ParkingDesktopTests: XCTestCase {
         XCTAssertEqual(events, [.screenParametersChange])
     }
 
-    func testAScreenParametersChangeHandsTheDesktopThePrimaryDisplay() {
+    func testAScreenParametersChangeKeepsTheDisplayWithTheDesktopsId() {
         var events: [DesktopEvent] = []
         desktop.startWatching { events.append($0) }
 
         displays = [.external, .standard]
+        center.postScreenParametersChange()
+
+        XCTAssertEqual(events, [.screenParametersChange])
+    }
+
+    func testAScreenParametersChangeWithoutTheDesktopsDisplayHandsItThePrimaryDisplay() {
+        var events: [DesktopEvent] = []
+        desktop.startWatching { events.append($0) }
+
+        displays = [.external, .airPlay]
         center.postScreenParametersChange()
 
         XCTAssertEqual(events, [.displayChange(DisplayChange(from: .standard, to: .external))])

@@ -21,7 +21,8 @@ final class EngineDesktopIntegrationTests: XCTestCase {
     }
 
     private lazy var desktop: ParkingDesktop = ParkingDesktop(
-        screens: Screens { [weak self] in self?.displays ?? [] },
+        display: .standard,
+        screens: Screens(all: { [weak self] in self?.displays ?? [] }, active: { nil }),
         window: { [weak self] in self?.windows[$0] },
         spacing: 15,
         notificationCenter: center,
@@ -37,6 +38,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
             window: { [weak self] in self?.windows[$0] }
         ),
         workspaces: workspaces,
+        layouts: DisplayLayouts(),
         save: { _ in }
     )
 

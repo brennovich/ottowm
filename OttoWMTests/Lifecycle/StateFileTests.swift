@@ -4,13 +4,15 @@ import XCTest
 
 final class StateFileTests: XCTestCase {
     private let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-    private let state = SavedState(
-        display: .standard,
-        workspaces: Workspaces.Record(current: 2, workspaces: [:]),
-        parkedWindows: [:],
-        originalFrames: [:],
-        displayLayouts: [:]
-    )
+    private let states = [Display.standard, .airPlay].map { display in
+        SavedState(
+            display: display,
+            workspaces: Workspaces.Record(current: 2, workspaces: [:]),
+            parkedWindows: [:],
+            originalFrames: [:],
+            displayLayouts: [:]
+        )
+    }
 
     private func stateFile(loginSession: String) -> StateFile {
         StateFile(environment: ["XDG_STATE_HOME": directory.path], loginSession: loginSession)
@@ -44,13 +46,13 @@ final class StateFileTests: XCTestCase {
     func testLoadsWhatItSavedInTheCurrentLoginSession() {
         let stateFile = StateFile(environment: ["XDG_STATE_HOME": directory.path])
 
-        stateFile.save(state)
+        stateFile.save(states)
 
-        XCTAssertEqual(stateFile.load(), state)
+        XCTAssertEqual(stateFile.load(), states)
     }
 
     func testLoadsNothingSavedInAnotherLoginSession() {
-        stateFile(loginSession: "session-1").save(state)
+        stateFile(loginSession: "session-1").save(states)
 
         XCTAssertNil(stateFile(loginSession: "session-2").load())
     }

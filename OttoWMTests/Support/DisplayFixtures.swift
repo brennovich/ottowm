@@ -13,6 +13,13 @@ extension Display {
         fullFrame: CGRect(x: 0, y: 0, width: 2560, height: 1440),
         visibleFrame: CGRect(x: 0, y: 25, width: 2560, height: 1415)
     )
+
+    /// Right of `standard`, as the spike's AirPlay display was arranged.
+    static let airPlay = Display(
+        id: DisplayID(rawValue: "airplay"),
+        fullFrame: CGRect(x: 1792, y: -139, width: 1920, height: 1080),
+        visibleFrame: CGRect(x: 1792, y: -114, width: 1920, height: 1055)
+    )
 }
 
 func hiddenEdgeFrame(size: CGSize, on display: Display = .standard) -> CGRect {
