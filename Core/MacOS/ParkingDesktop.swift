@@ -11,7 +11,8 @@ final class ParkingDesktop: Desktop {
     private let window: (CGWindowID) -> (any Window)?
     private let notificationCenter: NotificationCenter
     private let injectedAnchor: (any Anchor)?
-    private(set) lazy var anchor: any Anchor = injectedAnchor ?? SpaceAnchor { [weak self] in self?.display }
+    private(set) lazy var anchor: any Anchor = injectedAnchor ?? SpaceAnchor(log: log) { [weak self] in self?.display }
+    private let log: LogChannel
 
     private(set) var display: Display
 
@@ -24,13 +25,15 @@ final class ParkingDesktop: Desktop {
         window: @escaping (CGWindowID) -> (any Window)?,
         spacing: CGFloat,
         notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
-        anchor: (any Anchor)? = nil
+        anchor: (any Anchor)? = nil,
+        log: LogChannel = Log.desktop
     ) {
         self.spacing = spacing
         self.display = display
         self.window = window
         self.notificationCenter = notificationCenter
         injectedAnchor = anchor
+        self.log = log
     }
 
     func recover(_ windows: [WindowSnapshot]) -> [WindowSnapshot] {
@@ -39,7 +42,7 @@ final class ParkingDesktop: Desktop {
             guard !snapshot.isMinimized, recovered != snapshot.frame, let win = window(snapshot.id)
             else { return snapshot }
 
-            Log.desktop.info("recovering \(snapshot.logDescription) stuck at hidden edge")
+            log.info("recovering \(snapshot.logDescription) stuck at hidden edge")
             win.withoutAnimations { move(win, from: snapshot.frame, to: recovered) }
             return snapshot.moved(to: recovered)
         }
@@ -51,7 +54,7 @@ final class ParkingDesktop: Desktop {
 
         for request in requests {
             guard let win = window(request.windowId) else {
-                Log.desktop.info("cannot \(request.change.logDescription) id=\(request.windowId): window not found")
+                log.info("cannot \(request.change.logDescription) id=\(request.windowId): window not found")
                 outcomes.append(.gone(request.windowId))
                 continue
             }
@@ -69,7 +72,7 @@ final class ParkingDesktop: Desktop {
 
     func focus(_ windowId: CGWindowID) -> Bool {
         guard let win = window(windowId) else {
-            Log.desktop.debug("cannot focus id=\(windowId): window not found")
+            log.debug("cannot focus id=\(windowId): window not found")
             return false
         }
         win.focus()
@@ -96,7 +99,7 @@ final class ParkingDesktop: Desktop {
 
             let hidden = workArea.hiddenEdge.frame(parking: parkedFrom)
             win.withoutAnimations { move(win, from: frame, to: hidden) }
-            Log.desktop.info("re-hid id=\(windowId) pulled back to \(frame), to=\(hidden)")
+            log.info("re-hid id=\(windowId) pulled back to \(frame), to=\(hidden)")
         }
     }
 
@@ -111,14 +114,14 @@ final class ParkingDesktop: Desktop {
     private func apply(_ requested: Move) -> FrameOutcome {
         let request = requested.request
         guard let current = requested.window.movableFrame() else {
-            Log.desktop.info("cannot \(request.change.logDescription) id=\(request.windowId): window not movable")
+            log.info("cannot \(request.change.logDescription) id=\(request.windowId): window not movable")
             return request.knownOutcome
         }
 
         let (target, outcome) = workArea.frame(request, from: current)
         if target != current {
             move(requested.window, from: current, to: target)
-            Log.desktop.debug("\(request.change.logDescription) id=\(request.windowId) from=\(current) to=\(target)")
+            log.debug("\(request.change.logDescription) id=\(request.windowId) from=\(current) to=\(target)")
         }
         return outcome
     }
@@ -141,7 +144,7 @@ final class ParkingDesktop: Desktop {
 
         let left = display
         display = entered
-        Log.desktop.info("display changed from \(left.logDescription) to \(entered.logDescription)")
+        log.info("display changed from \(left.logDescription) to \(entered.logDescription)")
         report(.displayChange(DisplayChange(from: left, to: entered)))
     }
 

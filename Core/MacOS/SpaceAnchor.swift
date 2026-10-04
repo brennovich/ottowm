@@ -12,9 +12,11 @@ import AppKit
 /// Space, which can be parked. Putting the anchor away hands the focus to the Finder desktop instead.
 final class SpaceAnchor: Anchor {
     private let display: () -> Display?
+    private let log: LogChannel
     private var window: AnchorWindow?
 
-    init(display: @escaping () -> Display?) {
+    init(log: LogChannel = Log.desktop, display: @escaping () -> Display?) {
+        self.log = log
         self.display = display
     }
 
@@ -33,13 +35,13 @@ final class SpaceAnchor: Anchor {
         }
         window.orderFrontRegardless()
         window.orderOut(nil)
-        Log.desktop.debug("anchor pinned on the active Space")
+        log.debug("anchor pinned on the active Space")
     }
 
     /// Never pinned, the anchor would be ordered in on the Space in front, which switches nothing.
     func focus() {
         guard let window else {
-            Log.desktop.debug("cannot focus the anchor: not pinned")
+            log.debug("cannot focus the anchor: not pinned")
             return
         }
 
@@ -52,9 +54,9 @@ final class SpaceAnchor: Anchor {
     func putAway() {
         guard let window, window.isVisible else { return }
 
-        focusFinderDesktop()
+        focusFinderDesktop(log: log)
         window.orderOut(nil)
-        Log.desktop.debug("anchor put away")
+        log.debug("anchor put away")
     }
 }
 
@@ -85,17 +87,17 @@ private func getProcessForPID(_ pid: pid_t, _ psn: UnsafeMutablePointer<ProcessS
 
 /// Brings Finder to the front with no key window, the state a click on the desktop leaves. `kCPSNoWindows` (0x400)
 /// fronts the process without making any of its windows key; yabai passes it for the same purpose.
-private func focusFinderDesktop() {
+private func focusFinderDesktop(log: LogChannel) {
     guard let finder = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.finder").first,
           let setFrontProcess = SkyLight.symbol("_SLPSSetFrontProcessWithOptions", as: SetFrontProcess.self)
-    else { return Log.desktop.error("cannot focus the Finder desktop: Finder or _SLPSSetFrontProcessWithOptions is missing") }
+    else { return log.error("cannot focus the Finder desktop: Finder or _SLPSSetFrontProcessWithOptions is missing") }
 
     var psn = ProcessSerialNumber()
     let status = getProcessForPID(finder.processIdentifier, &psn)
-    guard status == noErr else { return Log.desktop.error("cannot focus the Finder desktop: GetProcessForPID failed err=\(status)") }
+    guard status == noErr else { return log.error("cannot focus the Finder desktop: GetProcessForPID failed err=\(status)") }
 
     let result = setFrontProcess(&psn, 0, 0x400)
     if result != 0 {
-        Log.desktop.error("focusing the Finder desktop failed err=\(result)")
+        log.error("focusing the Finder desktop failed err=\(result)")
     }
 }

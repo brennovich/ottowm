@@ -13,6 +13,7 @@ final class Engine {
     private let save: (SavedState) -> Void
     private var lastSaved: SavedState?
     private var displayLeftBehindLock: Display?
+    private let log: LogChannel
 
     init(
         desktop: any Desktop,
@@ -23,7 +24,8 @@ final class Engine {
         navigation: Navigation,
         fullScreenReturns: FullScreenReturns,
         screenIsLocked: @escaping () -> Bool,
-        save: @escaping (SavedState) -> Void
+        save: @escaping (SavedState) -> Void,
+        log: LogChannel = Log.engine
     ) {
         self.desktop = desktop
         self.windowSystem = windowSystem
@@ -34,6 +36,7 @@ final class Engine {
         self.fullScreenReturns = fullScreenReturns
         self.screenIsLocked = screenIsLocked
         self.save = save
+        self.log = log
     }
 
     func start(windows: [WindowSnapshot], restoring saved: SavedState? = nil) {
@@ -56,7 +59,7 @@ final class Engine {
     /// would be recorded as parked, so a change seen while locked waits for the unlock.
     private func displayChanged(_ change: DisplayChange) {
         guard !screenIsLocked() else {
-            Log.engine.info("display changed behind the lock screen, the windows are placed at unlock")
+            log.info("display changed behind the lock screen, the windows are placed at unlock")
             displayLeftBehindLock = displayLeftBehindLock ?? change.from
             return
         }
@@ -80,13 +83,13 @@ final class Engine {
             guard let focused = windowSystem.focused(),
                   placement.isParked(focused.id)
             else {
-                Log.engine.debug("native space change: no parked window focused")
+                log.debug("native space change: no parked window focused")
                 fullScreenReturns.followWithRetries()
                 desktop.repark(placement.parked)
                 return
             }
 
-            Log.engine.info("native space change with parked window focused id=\(focused.id)")
+            log.info("native space change with parked window focused id=\(focused.id)")
             navigation.navigate(to: focused.id)
         }
     }
@@ -119,7 +122,7 @@ final class Engine {
             return
         }
         guard !screenIsLocked() else {
-            Log.engine.debug("window event ignored: the screen is locked")
+            log.debug("window event ignored: the screen is locked")
             return
         }
 
@@ -204,7 +207,7 @@ final class Engine {
             placement.dropWindowsThatLeftTheDesktop()
 
             let onDesktop = placement.isDesktopInFront
-            Log.engine.info("switch requested target=\(workspace) current=\(self.workspaces.current) onDesktop=\(onDesktop)")
+            log.info("switch requested target=\(workspace) current=\(self.workspaces.current) onDesktop=\(onDesktop)")
 
             if workspace == workspaces.current {
                 if !onDesktop {
@@ -226,11 +229,11 @@ final class Engine {
     func moveFocusedWindow(toWorkspace workspace: Int) {
         windowSystem.duringOperation("move-window-to-workspace") {
             guard workspace >= 1 else {
-                Log.engine.info("move dropped: invalid workspace \(workspace)")
+                log.info("move dropped: invalid workspace \(workspace)")
                 return
             }
             guard let win = windowSystem.focused(), placement.move(win, to: workspace) else {
-                Log.engine.info("move to \(workspace) dropped: no valid window to move")
+                log.info("move to \(workspace) dropped: no valid window to move")
                 return
             }
 
@@ -241,7 +244,7 @@ final class Engine {
     func focusWindow(_ direction: Direction) {
         windowSystem.duringOperation("focus-direction") {
             guard let reference = navigation.focusedWindowOfCurrentWorkspace() else {
-                Log.engine.info("focus \(direction.rawValue) dropped: no reference in workspace \(self.workspaces.current)")
+                log.info("focus \(direction.rawValue) dropped: no reference in workspace \(self.workspaces.current)")
                 return
             }
 
@@ -252,11 +255,11 @@ final class Engine {
             placement.remember(frames)
             let neighbors = Neighbors(around: reference.frame, among: frames)
             guard let target = neighbors.nearest(to: direction) else {
-                Log.engine.info("focus \(direction.rawValue) dropped: no window that way")
+                log.info("focus \(direction.rawValue) dropped: no window that way")
                 return
             }
 
-            Log.engine.info("focus \(direction.rawValue) from \(reference.logDescription) → id=\(target)")
+            log.info("focus \(direction.rawValue) from \(reference.logDescription) → id=\(target)")
             _ = desktop.focus(target)
         }
     }
@@ -281,15 +284,15 @@ final class Engine {
     ) {
         windowSystem.duringOperation(operation) {
             guard let win = navigation.focusedWindowOfCurrentWorkspace() else {
-                Log.engine.info("\(operation) dropped: no window of workspace \(self.workspaces.current) focused")
+                log.info("\(operation) dropped: no window of workspace \(self.workspaces.current) focused")
                 return
             }
             guard !placement.isParked(win.id) else {
-                Log.engine.info("\(operation) dropped: id=\(win.id) is parked")
+                log.info("\(operation) dropped: id=\(win.id) is parked")
                 return
             }
             guard !keepingMaximized || !desktop.isMaximized(win.frame) else {
-                Log.engine.info("\(operation) dropped: id=\(win.id) is maximized")
+                log.info("\(operation) dropped: id=\(win.id) is maximized")
                 return
             }
 
@@ -306,10 +309,11 @@ extension Engine {
         layouts: DisplayLayouts,
         scheduleRetry: @escaping (TimeInterval, @escaping () -> Void) -> Void = Backoff.onMainQueue,
         screenIsLocked: @escaping () -> Bool = { false },
-        save: @escaping (SavedState) -> Void
+        save: @escaping (SavedState) -> Void,
+        log: LogChannel = Log.engine
     ) -> Engine {
         let originalFrames = OriginalFrames(tabs: workspaces.tabGroupMembers(of:))
-        let admission = Admission(windowSystem: windowSystem, workspaces: workspaces)
+        let admission = Admission(windowSystem: windowSystem, workspaces: workspaces, log: log)
         let placement = WindowPlacement(
             desktop: desktop,
             windowSystem: windowSystem,
@@ -317,7 +321,8 @@ extension Engine {
             admission: admission,
             parkedWindows: ParkedWindows(),
             originalFrames: originalFrames,
-            layouts: layouts
+            layouts: layouts,
+            log: log
         )
         let enrollment = WindowEnrollment(
             windowSystem: windowSystem,
@@ -330,7 +335,8 @@ extension Engine {
             windowSystem: windowSystem,
             workspaces: workspaces,
             placement: placement,
-            enrollment: enrollment
+            enrollment: enrollment,
+            log: log
         )
         let fullScreenReturns = FullScreenReturns(
             windowSystem: windowSystem,
@@ -349,7 +355,8 @@ extension Engine {
             navigation: navigation,
             fullScreenReturns: fullScreenReturns,
             screenIsLocked: screenIsLocked,
-            save: save
+            save: save,
+            log: log
         )
     }
 }

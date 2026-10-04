@@ -19,6 +19,7 @@ final class WindowPlacement {
     private let parkedWindows: ParkedWindows
     private let originalFrames: OriginalFrames
     private let layouts: DisplayLayouts
+    private let log: LogChannel
 
     init(
         desktop: any Desktop,
@@ -27,7 +28,8 @@ final class WindowPlacement {
         admission: Admission,
         parkedWindows: ParkedWindows,
         originalFrames: OriginalFrames,
-        layouts: DisplayLayouts
+        layouts: DisplayLayouts,
+        log: LogChannel = Log.engine
     ) {
         self.desktop = desktop
         self.windowSystem = windowSystem
@@ -36,6 +38,7 @@ final class WindowPlacement {
         self.parkedWindows = parkedWindows
         self.originalFrames = originalFrames
         self.layouts = layouts
+        self.log = log
     }
 
     func isParked(_ windowId: CGWindowID) -> Bool {
@@ -72,7 +75,7 @@ final class WindowPlacement {
         let isFirstManaged = workspaces.allWindowIds.isEmpty
         let assigned = workspaces.assign(win, to: workspace)
         originalFrames.shareFrame(with: win.id)
-        Log.engine.info("assigned \(win.logDescription) → workspace \(assigned)")
+        log.info("assigned \(win.logDescription) → workspace \(assigned)")
         if isFirstManaged { desktop.anchor.pin() }
 
         place(win.id, parked: assigned != workspaces.current)
@@ -88,7 +91,7 @@ final class WindowPlacement {
     func drop(_ windowId: CGWindowID, reason: String) -> Bool {
         let workspace = workspaces.workspace(for: windowId)
         let from = workspace.map { String($0) } ?? "none"
-        Log.engine.info("\(reason) id=\(windowId), dropped from workspace \(from)")
+        log.info("\(reason) id=\(windowId), dropped from workspace \(from)")
 
         // Forgetting a parked window leaves it at the hidden edge with nothing left to
         // bring it back.
@@ -109,7 +112,7 @@ final class WindowPlacement {
         workspaces.regroupTabs(of: win)
 
         let parked = workspace != workspaces.current
-        Log.engine.info("moving window \(win.logDescription) to workspace \(workspace) parked=\(parked)")
+        log.info("moving window \(win.logDescription) to workspace \(workspace) parked=\(parked)")
         place(win.id, parked: parked)
         workspaces.move(win.id, to: workspace)
         return true
@@ -124,7 +127,7 @@ final class WindowPlacement {
     func followBackFromFullScreen(_ win: WindowSnapshot, to workspace: Int) -> Bool {
         guard admission.verdict(for: win) == .admit else { return false }
 
-        Log.engine.info("\(win.logDescription) is back from full screen → workspace \(workspace)")
+        log.info("\(win.logDescription) is back from full screen → workspace \(workspace)")
         if workspace != workspaces.current {
             switchTo(workspace)
         }
@@ -134,7 +137,7 @@ final class WindowPlacement {
     func switchTo(_ workspace: Int) {
         let focusToKeep = windowSystem.focused().flatMap { admission.verdict(for: $0) == .admit ? $0.id : nil }
         let placements = workspaces.switchTo(workspace, leavingFocusOn: focusToKeep)
-        Log.engine.info("switching to \(workspace) activating=\(placements.activating) parking=\(placements.parking)")
+        log.info("switching to \(workspace) activating=\(placements.activating) parking=\(placements.parking)")
 
         let batch = placements.activating.map { (windowId: $0, parked: false) }
             + placements.parking.map { (windowId: $0, parked: true) }
@@ -167,7 +170,7 @@ final class WindowPlacement {
     /// - Parameter change: takes the frame a maximize or a tile of the window goes back to.
     func reframe(_ win: WindowSnapshot, _ change: (_ restoring: CGRect?) -> FrameChange) {
         let requested = change(originalFrames.originalFrame(of: win.id))
-        Log.engine.info("\(requested.logDescription) \(win.logDescription)")
+        log.info("\(requested.logDescription) \(win.logDescription)")
 
         let outcomes = apply([FrameRequest(windowId: win.id, change: requested)])
         // Recorded here and not in `apply`: an unpark reports `.active` too, which would drop
@@ -183,7 +186,7 @@ final class WindowPlacement {
         originalFrames.relocate(with: change.fit)
 
         let requests = workspaces.allWindowIds.sorted().compactMap { request(relocating: $0, in: change) }
-        Log.engine.info("display changed to \(change.to.logDescription), placing \(requests.count) windows")
+        log.info("display changed to \(change.to.logDescription), placing \(requests.count) windows")
         apply(requests).gone.forEach { drop($0, reason: "gone") }
     }
 
@@ -221,7 +224,7 @@ final class WindowPlacement {
 
     func restoreParkedWindows() {
         let restoring = parkedWindows.all.keys.sorted().map { (windowId: $0, parked: false) }
-        Log.engine.info("restoring \(restoring.count) parked windows")
+        log.info("restoring \(restoring.count) parked windows")
         place(restoring)
     }
 

@@ -91,7 +91,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         spacing: CGFloat,
         save: @escaping (SavedState) -> Void
     ) -> (desktop: ParkingDesktop, workspaces: Workspaces, engine: Engine) {
-        let desktop = ParkingDesktop(display: display, window: applications.findWindow(by:), spacing: spacing)
+        let tag = String(display.id.rawValue.prefix(8))
+        let desktop = ParkingDesktop(
+            display: display,
+            window: applications.findWindow(by:),
+            spacing: spacing,
+            log: Log.desktop.tagged(tag)
+        )
         let workspaces = Workspaces(
             tabGroups: TabGroups(tabCount: windowSystem.tabCount(of:), frame: windowSystem.frame(of:))
         )
@@ -101,7 +107,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             workspaces: workspaces,
             layouts: layouts,
             screenIsLocked: { [lifecycle] in lifecycle.screenIsLocked },
-            save: save
+            save: save,
+            log: Log.engine.tagged(tag)
         )
         return (desktop, workspaces, engine)
     }

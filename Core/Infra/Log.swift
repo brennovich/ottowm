@@ -2,25 +2,34 @@ import os
 
 struct LogChannel {
     private let logger: Logger
+    private var prefix = ""
 
     init(subsystem: String, category: String) {
         logger = Logger(subsystem: subsystem, category: category)
     }
 
+    /// A copy whose messages start with the tag. Each display's engine and desktop log through
+    /// one, so the lines of two engines can be told apart.
+    func tagged(_ tag: String) -> LogChannel {
+        var channel = self
+        channel.prefix = "[\(tag)] "
+        return channel
+    }
+
     func debug(_ message: @autoclosure @escaping () -> String) {
-        logger.debug("\(message(), privacy: .public)")
+        logger.debug("\(prefix + message(), privacy: .public)")
     }
 
     func info(_ message: @autoclosure @escaping () -> String) {
-        logger.info("\(message(), privacy: .public)")
+        logger.info("\(prefix + message(), privacy: .public)")
     }
 
     func notice(_ message: String) {
-        logger.notice("\(message, privacy: .public)")
+        logger.notice("\(prefix + message, privacy: .public)")
     }
 
     func error(_ message: String) {
-        logger.error("\(message, privacy: .public)")
+        logger.error("\(prefix + message, privacy: .public)")
     }
 }
 
