@@ -90,8 +90,9 @@ final class WindowPlacement {
     @discardableResult
     func drop(_ windowId: CGWindowID, reason: String) -> Bool {
         let workspace = workspaces.workspace(for: windowId)
-        let from = workspace.map { String($0) } ?? "none"
-        log.info("\(reason) id=\(windowId), dropped from workspace \(from)")
+        if let workspace {
+            log.info("\(reason) id=\(windowId), dropped from workspace \(workspace)")
+        }
 
         // Forgetting a parked window leaves it at the hidden edge with nothing left to
         // bring it back.
