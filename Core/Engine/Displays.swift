@@ -91,6 +91,8 @@ final class Displays {
         let connected = screens.all()
         guard let primary = connected.first else { return }
 
+        let displays = connected.map { "\($0.id.rawValue) \($0.fullFrame)" }.joined(separator: ", ")
+        Log.desktop.debug("screen parameters changed, displays: \(displays)")
         arrangement = Arrangement(displays: connected)
         for member in members {
             member.desktop.change(to: connected.first { $0.id == member.display.id } ?? primary)
@@ -112,4 +114,5 @@ final class Displays {
     private func save(_ state: SavedState, of displayId: DisplayID) {
         sections[displayId] = state
         write(members.compactMap { sections[$0.display.id] })
-    }}
+    }
+}
