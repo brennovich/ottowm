@@ -3,34 +3,36 @@ import CoreGraphics
 /// The displays connected at launch, each with the engine of its native Space. Each engine sees
 /// only the windows on its display, and each binding and window event goes to one engine.
 final class Displays {
-    private typealias Member = (display: Display, workspaces: Workspaces, engine: Engine)
+    private typealias Member = (display: Display, workspaces: Workspaces, desktop: any Desktop, engine: Engine)
 
-    private let arrangement: Arrangement
+    private var arrangement: Arrangement
+    private let screens: Screens
     private let windowSystem: WindowSystem
-    private let active: () -> DisplayID?
     private let write: ([SavedState]) -> Void
     private var members: [Member] = []
     private var sections: [DisplayID: SavedState] = [:]
 
-    /// - Parameter engine: builds the workspaces and the engine of a display from the window
-    ///   system scoped to it and the closure that saves its state.
+    /// - Parameter engine: builds the workspaces, the desktop and the engine of a display from the
+    ///   window system scoped to it and the closure that saves its state. It is called once per
+    ///   display during the init, the primary display first.
     init(
         screens: Screens,
         windowSystem: WindowSystem,
         write: @escaping ([SavedState]) -> Void,
-        engine: (Display, WindowSystem, @escaping (SavedState) -> Void) -> (workspaces: Workspaces, engine: Engine)
+        engine: (Display, WindowSystem, @escaping (SavedState) -> Void) -> (workspaces: Workspaces, desktop: any Desktop, engine: Engine)
     ) {
         let connected = screens.all()
         arrangement = Arrangement(displays: connected.isEmpty ? [.unknown] : connected)
+        self.screens = screens
         self.windowSystem = windowSystem
-        active = screens.active
         self.write = write
 
         members = arrangement.displays.map { display in
-            let scoped = windowSystem.scoped { [arrangement] in arrangement.display(of: $0)?.id == display.id }
+            let scoped = windowSystem.scoped { [weak self] in self?.arrangement.display(of: $0)?.id == display.id }
             let built = engine(display, scoped) { [weak self] in self?.save($0, of: display.id) }
-            return (display, built.workspaces, built.engine)
+            return (display, built.workspaces, built.desktop, built.engine)
         }
+        screens.startWatching { [weak self] in self?.screenParametersChanged() }
     }
 
     func start(windows: [WindowSnapshot], restoring saved: [SavedState]?) {
@@ -48,7 +50,7 @@ final class Displays {
     func handle(_ action: Action) {
         windowSystem.duringOperation("route-action") {
             let focusedDisplay = windowSystem.focused().flatMap { arrangement.display(of: $0.frame) }
-            engine(on: focusedDisplay?.id ?? active()).handle(action)
+            engine(on: focusedDisplay?.id ?? screens.active()).handle(action)
         }
     }
 
@@ -81,6 +83,20 @@ final class Displays {
         for member in members { member.engine.stop() }
     }
 
+    /// The notification also follows a Dock or menu bar change, and macOS posts it more than
+    /// once per plug. A desktop whose display is gone, as when the lid closes with one external
+    /// display left, takes the primary display. Its engine sees no window until the display
+    /// returns, since the scope keeps the display the engine was built for.
+    private func screenParametersChanged() {
+        let connected = screens.all()
+        guard let primary = connected.first else { return }
+
+        arrangement = Arrangement(displays: connected)
+        for member in members {
+            member.desktop.change(to: connected.first { $0.id == member.display.id } ?? primary)
+        }
+    }
+
     private func engine(on displayId: DisplayID?) -> Engine {
         (members.first { $0.display.id == displayId } ?? members[0]).engine
     }
@@ -96,5 +112,4 @@ final class Displays {
     private func save(_ state: SavedState, of displayId: DisplayID) {
         sections[displayId] = state
         write(members.compactMap { sections[$0.display.id] })
-    }
-}
+    }}

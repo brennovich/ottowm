@@ -15,6 +15,7 @@ protocol Desktop {
     func focus(_ windowId: CGWindowID) -> Bool
     func startWatching(_ handler: @escaping (DesktopEvent) -> Void)
     func repark(_ windows: [CGWindowID: CGRect])
+    func change(to display: Display)
     var anchor: any Anchor { get }
 }
 

@@ -4,4 +4,5 @@
 struct Screens {
     let all: () -> [Display]
     let active: () -> DisplayID?
+    let startWatching: (@escaping () -> Void) -> Void
 }

@@ -40,7 +40,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         ) { display, windowSystem, save in
             let parts = engine(on: display, windowSystem: windowSystem, layouts: layouts, spacing: config.spacing, save: save)
             built.append((parts.desktop, parts.workspaces))
-            return (parts.workspaces, parts.engine)
+            return (parts.workspaces, parts.desktop, parts.engine)
         }
         // The Pager and the status show the primary display until each display has its own.
         let primary = built[0]

@@ -7,11 +7,9 @@ final class ParkingDesktop: Desktop {
         let window: any Window
     }
 
-    private let screens: Screens
     var spacing: CGFloat
     private let window: (CGWindowID) -> (any Window)?
     private let notificationCenter: NotificationCenter
-    private let screenNotificationCenter: NotificationCenter
     private let injectedAnchor: (any Anchor)?
     private(set) lazy var anchor: any Anchor = injectedAnchor ?? SpaceAnchor { [weak self] in self?.display }
 
@@ -23,19 +21,15 @@ final class ParkingDesktop: Desktop {
 
     init(
         display: Display,
-        screens: Screens = .system,
         window: @escaping (CGWindowID) -> (any Window)?,
         spacing: CGFloat,
         notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
-        screenNotificationCenter: NotificationCenter = .default,
         anchor: (any Anchor)? = nil
     ) {
-        self.screens = screens
         self.spacing = spacing
         self.display = display
         self.window = window
         self.notificationCenter = notificationCenter
-        self.screenNotificationCenter = screenNotificationCenter
         injectedAnchor = anchor
     }
 
@@ -90,9 +84,6 @@ final class ParkingDesktop: Desktop {
             (notificationCenter, notificationCenter.addObserver(
                 forName: NSWorkspace.activeSpaceDidChangeNotification, object: nil, queue: nil
             ) { [weak self] _ in self?.nativeSpaceChanged() }),
-            (screenNotificationCenter, screenNotificationCenter.addObserver(
-                forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: nil
-            ) { [weak self] _ in self?.screenParametersChanged() }),
         ]
     }
 
@@ -142,18 +133,6 @@ final class ParkingDesktop: Desktop {
     private func nativeSpaceChanged() {
         anchor.putAway()
         report(.nativeSpaceChange)
-    }
-
-    /// The notification also follows a Dock or menu bar change, and macOS posts it more than
-    /// once per plug. When the desktop's display is gone, as when the lid closes with one
-    /// external display left, the desktop takes the primary display.
-    private func screenParametersChanged() {
-        let displays = screens.all()
-        let entered = displays.first { $0.id == display.id } ?? displays.first
-        Log.desktop.debug("screen parameters changed, display: \(entered.map(\.logDescription) ?? "none")")
-        guard let entered else { return }
-
-        change(to: entered)
     }
 
     /// Only a display that differs from the one held is reported as a display change.

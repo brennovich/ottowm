@@ -15,7 +15,12 @@ extension Screens {
                 )
             }
         },
-        active: { NSScreen.main?.displayID }
+        active: { NSScreen.main?.displayID },
+        startWatching: { changed in
+            _ = NotificationCenter.default.addObserver(
+                forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: nil
+            ) { _ in changed() }
+        }
     )
 }
 

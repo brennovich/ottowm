@@ -7,7 +7,6 @@ final class EngineDesktopIntegrationTests: XCTestCase {
     private var windows: [CGWindowID: StubWindow] = [:]
     private var focused: StubWindow?
     private let center = NotificationCenter()
-    private var displays: [Display] = [.standard]
     private lazy var workspaces = Workspaces(
         tabGroups: TabGroups(
             tabCount: { [weak self] id in self?.windows[id]?.tabCount() ?? 1 },
@@ -22,11 +21,9 @@ final class EngineDesktopIntegrationTests: XCTestCase {
 
     private lazy var desktop: ParkingDesktop = ParkingDesktop(
         display: .standard,
-        screens: Screens(all: { [weak self] in self?.displays ?? [] }, active: { nil }),
         window: { [weak self] in self?.windows[$0] },
         spacing: 15,
         notificationCenter: center,
-        screenNotificationCenter: center,
         anchor: StubAnchor()
     )
 
@@ -115,14 +112,12 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         moveFocusedWindow(win2, to: 2)
         let fit = Fit(from: Display.standard.visibleFrame, into: Display.external.visibleFrame)
 
-        displays = [.external]
-        center.postScreenParametersChange()
+        desktop.change(to: .external)
 
         XCTAssertEqual(win1.frame, fit.frame(frame1))
         XCTAssertEqual(win2.frame, hiddenEdgeFrame(size: frame2.size, on: .external))
 
-        displays = [.standard]
-        center.postScreenParametersChange()
+        desktop.change(to: .standard)
 
         XCTAssertEqual(win1.frame, frame1)
         XCTAssertEqual(win2.frame, hiddenEdgeFrame(size: frame2.size))

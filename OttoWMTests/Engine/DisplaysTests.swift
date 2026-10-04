@@ -9,6 +9,7 @@ final class DisplaysTests: XCTestCase {
     private var focusedReadCount = 0
     private var connected: [Display] = [.standard, .airPlay]
     private var activeDisplay: DisplayID?
+    private var screenParametersChanged: (() -> Void)?
     private var workspaces: [DisplayID: Workspaces] = [:]
     private var desktops: [DisplayID: StubDesktop] = [:]
     private var written: [[SavedState]] = []
@@ -32,7 +33,11 @@ final class DisplaysTests: XCTestCase {
         workspaces = [:]
         desktops = [:]
         return Displays(
-            screens: Screens(all: { [weak self] in self?.connected ?? [] }, active: { [weak self] in self?.activeDisplay }),
+            screens: Screens(
+                all: { [weak self] in self?.connected ?? [] },
+                active: { [weak self] in self?.activeDisplay },
+                startWatching: { [weak self] in self?.screenParametersChanged = $0 }
+            ),
             windowSystem: windowSystem,
             write: { [weak self] in self?.written.append($0) },
             engine: { [weak self, layouts] display, windowSystem, save in
@@ -51,7 +56,7 @@ final class DisplaysTests: XCTestCase {
                     scheduleRetry: { _, _ in },
                     save: save
                 )
-                return (workspaces, engine)
+                return (workspaces, desktop, engine)
             }
         )
     }
@@ -199,5 +204,40 @@ final class DisplaysTests: XCTestCase {
         displays.handle(.switchToWorkspace(2))
 
         XCTAssertEqual(workspaces[Display.unknown.id]?.current, 2)
+    }
+
+    func testAScreenParametersChangeHandsEachDesktopTheDisplayOfItsIdElseThePrimary() {
+        displays.start(windows: [], restoring: nil)
+        connected = [.external, .standard]
+
+        screenParametersChanged?()
+
+        XCTAssertEqual(desktops.mapValues(\.changedDisplays), [Display.standard.id: [.standard], Display.airPlay.id: [.external]])
+    }
+
+    func testAScreenParametersChangeWithNoDisplayKeepsTheDisplays() {
+        displays.start(windows: [], restoring: nil)
+        connected = []
+
+        screenParametersChanged?()
+        displays.handle(.created(add(200, frame: onAirPlay).snapshot()))
+
+        XCTAssertEqual(desktops.mapValues(\.changedDisplays), [Display.standard.id: [], Display.airPlay.id: []])
+        XCTAssertEqual(workspaces[Display.airPlay.id]?.workspace(for: 200), 1)
+    }
+
+    func testTheArrangementFollowsAScreenParametersChange() {
+        let airPlayOnTheLeft = Display(
+            id: Display.airPlay.id,
+            fullFrame: CGRect(x: -1920, y: 0, width: 1920, height: 1080),
+            visibleFrame: CGRect(x: -1920, y: 25, width: 1920, height: 1055)
+        )
+        displays.start(windows: [], restoring: nil)
+        connected = [.standard, airPlayOnTheLeft]
+
+        screenParametersChanged?()
+        displays.handle(.created(add(200, frame: CGRect(x: -1800, y: 100, width: 800, height: 600)).snapshot()))
+
+        XCTAssertEqual(workspaces[Display.airPlay.id]?.workspace(for: 200), 1)
     }
 }

@@ -7,7 +7,6 @@ private let pulledBackFrame = CGRect(x: 200, y: 300, width: 800, height: 600)
 final class ParkingDesktopTests: XCTestCase {
     private let win = StubWindow(id: 100, frame: originalFrame)
     private let center = NotificationCenter()
-    private var displays: [Display] = [.standard]
     private let anchor = StubAnchor()
 
     private let hiddenEdge = HiddenEdge(display: .standard)
@@ -18,11 +17,9 @@ final class ParkingDesktopTests: XCTestCase {
 
     private lazy var desktop = ParkingDesktop(
         display: .standard,
-        screens: Screens(all: { [weak self] in self?.displays ?? [] }, active: { nil }),
         window: { [weak self] id in self?.windows[id] },
         spacing: 15,
         notificationCenter: center,
-        screenNotificationCenter: center,
         anchor: anchor
     )
 
@@ -224,37 +221,6 @@ final class ParkingDesktopTests: XCTestCase {
         desktop.change(to: .standard)
 
         XCTAssertEqual(events, [.screenParametersChange])
-    }
-
-    func testAScreenParametersChangeKeepsTheDisplayWithTheDesktopsId() {
-        var events: [DesktopEvent] = []
-        desktop.startWatching { events.append($0) }
-
-        displays = [.external, .standard]
-        center.postScreenParametersChange()
-
-        XCTAssertEqual(events, [.screenParametersChange])
-    }
-
-    func testAScreenParametersChangeWithoutTheDesktopsDisplayHandsItThePrimaryDisplay() {
-        var events: [DesktopEvent] = []
-        desktop.startWatching { events.append($0) }
-
-        displays = [.external, .airPlay]
-        center.postScreenParametersChange()
-
-        XCTAssertEqual(events, [.displayChange(DisplayChange(from: .standard, to: .external))])
-    }
-
-    func testAScreenParametersChangeWithNoDisplayKeepsTheLastOne() {
-        var events: [DesktopEvent] = []
-        desktop.startWatching { events.append($0) }
-
-        displays = []
-        center.postScreenParametersChange()
-
-        XCTAssertEqual(events, [])
-        XCTAssertEqual(desktop.display, .standard)
     }
 
     func testReparkParksAWindowPulledBackOnScreenWithoutAnimations() {
