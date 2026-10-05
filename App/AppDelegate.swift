@@ -10,7 +10,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         resume: { [self] in displays?.resync(windows: applicationsObserver.resync()) },
         reloadBindings: { [self] in bindings?.reload() },
         ask: { ConfigAlert.ask($0, .reload) },
-        dismiss: { [self] done in pager?.dismiss(then: done) ?? done() }
+        dismiss: { [self] done in pagers.dismiss(then: done) }
     )
     private lazy var windowEvents = AXWindowEvents(
         applications: applications,
@@ -19,7 +19,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var applicationsObserver = RunningApplicationsObserver(windowEvents: windowEvents)
     private var bindings: Bindings?
     private var displays: Displays?
-    private var pager: Pager?
+    private let pagers = Pagers()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let permission = AccessibilityPermission(ask: AccessibilityAlert.ask, relaunch: lifecycle.relaunch)
@@ -32,42 +32,45 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Log.app.notice("OttoWM (\(AppInfo.version())) launched")
 
         let layouts = DisplayLayouts()
-        var built: [(desktop: ParkingDesktop, workspaces: Workspaces)] = []
+        var desktops: [DisplayID: ParkingDesktop] = [:]
         var spacing = config.spacing
+        // No property: the watch retains the instance it runs on.
+        let secureInput = SecureInput()
+        let status = status(secureInput: secureInput)
         let displays = Displays(
             screens: .system,
             windowSystem: WindowSystem.system(windowEvents: windowEvents, applications: applications),
             screenIsLocked: { [lifecycle] in lifecycle.screenIsLocked },
             write: stateFile.save,
+            removed: { [pagers] displayId in
+                desktops[displayId] = nil
+                pagers.remove(on: displayId)
+            },
             engine: { [self] display, windowSystem, save in
                 let parts = engine(on: display, windowSystem: windowSystem, layouts: layouts, spacing: spacing, save: save)
-                built.append((parts.desktop, parts.workspaces))
+                desktops[display.id] = parts.desktop
+                let pager = Pager(
+                    workspaces: parts.workspaces,
+                    desktop: parts.desktop,
+                    startWatchingWindows: windowEvents.startWatching,
+                    windowFrames: pagers.windowFrames,
+                    startWatchingSecureInput: secureInput.startWatching,
+                    optionClicked: status.toggle
+                )
+                pagers.add(pager, on: display.id)
                 return (parts.workspaces, parts.desktop, parts.engine)
             }
         )
-        // The Pager and the status show the display primary at launch until each display has its own.
-        let primary = built[0]
-        // No property: the watch retains the instance it runs on.
-        let secureInput = SecureInput()
-        let status = status(desktop: primary.desktop, secureInput: secureInput)
-        let pager = Pager(
-            workspaces: primary.workspaces,
-            desktop: primary.desktop,
-            startWatchingWindows: windowEvents.startWatching,
-            startWatchingSecureInput: secureInput.startWatching,
-            optionClicked: status.toggle
-        )
-        self.pager = pager
 
         displays.start(windows: applicationsObserver.start { displays.handle($0) }, restoring: stateFile.load())
         self.displays = displays
         // A crash runs no quit handler, so the state is also saved on a timer.
         Timer.scheduledTimer(withTimeInterval: stateSaveInterval, repeats: true) { _ in displays.saveState() }
 
-        let apply = { (config: Config) in
-            pager.isEnabled = config.showsPager
+        let apply = { [pagers] (config: Config) in
+            pagers.isEnabled = config.showsPager
             spacing = config.spacing
-            for (desktop, _) in built { desktop.spacing = spacing }
+            for desktop in desktops.values { desktop.spacing = spacing }
         }
         apply(config)
 
@@ -117,14 +120,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return (desktop, workspaces, engine)
     }
 
-    private func status(desktop: any Desktop, secureInput: SecureInput) -> Status {
+    private func status(secureInput: SecureInput) -> Status {
         Status(
             sources: StatusSources(
                 hotkeysListening: { [self] in bindings?.isRunning ?? false },
                 secureInputHeld: secureInput.isActive,
                 display: {
-                    let size = desktop.display.fullFrame.size
-                    return "\(Int(size.width))×\(Int(size.height))"
+                    Screens.system.all()
+                        .map { "\(Int($0.fullFrame.width))×\(Int($0.fullFrame.height))" }
+                        .joined(separator: ", ")
                 },
                 configError: { [self] in bindings?.lastError }
             ),

@@ -15,4 +15,17 @@ final class BroadcastTests: XCTestCase {
         XCTAssertEqual(first, [1, 2])
         XCTAssertEqual(second, [1, 2])
     }
+
+    func testAHandlerThatStoppedWatchingReceivesNoEvent() {
+        var stopped: [Int] = []
+        var watching: [Int] = []
+        let watch = broadcast.watch { stopped.append($0) }
+        broadcast.watch { watching.append($0) }
+
+        broadcast.unwatch(watch)
+        broadcast.report(1)
+
+        XCTAssertEqual(stopped, [])
+        XCTAssertEqual(watching, [1])
+    }
 }

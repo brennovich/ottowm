@@ -16,13 +16,19 @@ final class PagerTests: XCTestCase {
     private lazy var pager = Pager(
         workspaces: Workspaces(tabGroups: TabGroups(tabCount: { _ in 1 }, frame: { _ in nil })),
         desktop: desktop,
-        startWatchingWindows: { self.windowHandlers.append($0) },
+        startWatchingWindows: {
+            self.windowHandlers.append($0)
+            return {}
+        },
         windowFrames: {
             self.listReads += 1
             return self.listed
         },
         isOnScreen: { _ in self.tabOnScreen },
-        startWatchingSecureInput: { self.secureInputHandler = $0 },
+        startWatchingSecureInput: {
+            self.secureInputHandler = $0
+            return {}
+        },
         panel: StubPanel.init,
         schedule: { self.scheduled.append(($0, $1)) },
         notificationCenter: center
@@ -50,6 +56,21 @@ final class PagerTests: XCTestCase {
     private func enable() {
         pager.isEnabled = true
         while !scheduled.isEmpty { runScheduled() }
+    }
+
+    func testAReleasedPagerStopsWatchingWindowsAndSecureInput() {
+        var stopped: [String] = []
+
+        _ = Pager(
+            workspaces: Workspaces(tabGroups: TabGroups(tabCount: { _ in 1 }, frame: { _ in nil })),
+            desktop: desktop,
+            startWatchingWindows: { _ in { stopped.append("windows") } },
+            startWatchingSecureInput: { _ in { stopped.append("secure input") } },
+            panel: StubPanel.init,
+            notificationCenter: center
+        )
+
+        XCTAssertEqual(stopped.sorted(), ["secure input", "windows"])
     }
 
     func testDismissingAPagerThatIsNotShownIsDoneAtOnce() {

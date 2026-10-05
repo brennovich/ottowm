@@ -18,6 +18,7 @@ final class Pager {
     private var checkScheduled = false
     private var checkCount = 0
     private var observers: [NSObjectProtocol] = []
+    private var stopWatching: [() -> Void] = []
 
     var isEnabled: Bool {
         get { shown }
@@ -29,10 +30,10 @@ final class Pager {
     init(
         workspaces: Workspaces,
         desktop: any Desktop,
-        startWatchingWindows: (@escaping (WindowEvent) -> Void) -> Void,
+        startWatchingWindows: (@escaping (WindowEvent) -> Void) -> () -> Void,
         windowFrames: @escaping () -> [CGWindowID: CGRect] = { onScreenWindowFrames(level: Int(CGWindowLevelForKey(.normalWindow))) },
         isOnScreen: @escaping (CGWindowID) -> Bool = isWindowOnScreen,
-        startWatchingSecureInput: (@escaping (Bool) -> Void) -> Void,
+        startWatchingSecureInput: (@escaping (Bool) -> Void) -> () -> Void,
         optionClicked: @escaping () -> Void = {},
         panel: (NSWindow.Level, SlidingView) -> any Panel = { OverlayPanel(level: $0, content: $1) },
         schedule: @escaping (TimeInterval, @escaping () -> Void) -> Void = {
@@ -57,17 +58,23 @@ final class Pager {
         place(on: desktop.display)
         workspaces.startWatching { [weak self] event in self?.handle(event) }
         desktop.startWatching { [weak self] event in self?.handle(event) }
-        startWatchingWindows { [weak self] _ in self?.scheduleCheck() }
-        startWatchingSecureInput { [weak self] active in
-            guard let self else { return }
+        stopWatching = [
+            startWatchingWindows { [weak self] _ in self?.scheduleCheck() },
+            startWatchingSecureInput { [weak self] active in
+                guard let self else { return }
 
-            secureInputIsActive = active
-            updateCue()
-        }
+                secureInputIsActive = active
+                updateCue()
+            },
+        ]
         // Hiding an application reports no window event.
         observers = [NSWorkspace.didHideApplicationNotification, NSWorkspace.didUnhideApplicationNotification].map {
             notificationCenter.addObserver(forName: $0, object: nil, queue: .main) { [weak self] _ in self?.scheduleCheck() }
         }
+    }
+
+    deinit {
+        for stop in stopWatching { stop() }
     }
 
     var isRetracted: Bool { tab.isRetracted }

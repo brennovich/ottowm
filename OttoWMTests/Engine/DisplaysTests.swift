@@ -25,6 +25,7 @@ final class DisplaysTests: XCTestCase {
     private var workspaces: [DisplayID: Workspaces] = [:]
     private var desktops: [DisplayID: StubDesktop] = [:]
     private var written: [[SavedState]] = []
+    private var removed: [DisplayID] = []
     private let layouts = DisplayLayouts()
 
     private lazy var windowSystem = WindowSystem(
@@ -55,6 +56,7 @@ final class DisplaysTests: XCTestCase {
             windowSystem: windowSystem,
             screenIsLocked: { [weak self] in self?.screenIsLocked ?? false },
             write: { [weak self] in self?.written.append($0) },
+            removed: { [weak self] in self?.removed.append($0) },
             engine: { [weak self, layouts] display, windowSystem, save in
                 let desktop = StubDesktop(window: { [weak self] id in self?.windows[id] })
                 desktop.display = display
@@ -299,6 +301,15 @@ final class DisplaysTests: XCTestCase {
         screenParametersChanged?()
 
         XCTAssertEqual(workspaces[newPrimary.id]?.workspace(for: 200), 1)
+    }
+
+    func testARemovedDisplayIsReported() {
+        displays.start(windows: [], restoring: nil)
+        connected = [.standard]
+
+        screenParametersChanged?()
+
+        XCTAssertEqual(removed, [Display.airPlay.id])
     }
 
     func testTheStateFileKeepsNoSectionOfARemovedDisplay() {

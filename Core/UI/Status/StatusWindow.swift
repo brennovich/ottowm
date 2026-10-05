@@ -188,7 +188,7 @@ final class StatusWindow: NSPanel, StatusPanel {
             [NSGridCell.emptyContentView, settingsButton],
             [Self.label("Hotkeys"), hotkeys],
             [Self.label("Secure input"), secureInput],
-            [Self.label("Display"), displayLabel],
+            [Self.label("Displays"), displayLabel],
             [Self.label("Config"), configLabel],
             [NSGridCell.emptyContentView, Self.row(revealButton, reloadButton, createButton)],
             [NSGridCell.emptyContentView, configErrorLabel],

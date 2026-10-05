@@ -11,6 +11,7 @@ final class Displays {
     private let windowSystem: WindowSystem
     private let screenIsLocked: () -> Bool
     private let write: ([SavedState]) -> Void
+    private let removed: (DisplayID) -> Void
     private let makeEngine: (Display, WindowSystem, @escaping (SavedState) -> Void) -> Parts
     private var members: [Member] = []
     private var sections: [DisplayID: SavedState] = [:]
@@ -18,11 +19,13 @@ final class Displays {
     /// - Parameter engine: builds the workspaces, the desktop and the engine of a display from the
     ///   window system scoped to it and the closure that saves its state. It is called once per
     ///   display during the init, the primary display first, and once per display added later.
+    /// - Parameter removed: called with each removed display, once its engine is absorbed.
     init(
         screens: Screens,
         windowSystem: WindowSystem,
         screenIsLocked: @escaping () -> Bool,
         write: @escaping ([SavedState]) -> Void,
+        removed: @escaping (DisplayID) -> Void,
         engine: @escaping (Display, WindowSystem, @escaping (SavedState) -> Void) -> Parts
     ) {
         let connected = screens.all()
@@ -31,6 +34,7 @@ final class Displays {
         self.windowSystem = windowSystem
         self.screenIsLocked = screenIsLocked
         self.write = write
+        self.removed = removed
         makeEngine = engine
 
         members = arrangement.displays.map(member(on:))
@@ -116,7 +120,10 @@ final class Displays {
         members = arrangement.displays.map { display in
             members.first { $0.display.id == display.id } ?? startedMember(on: display)
         }
-        for member in removed { absorb(member, into: members[0]) }
+        for member in removed {
+            absorb(member, into: members[0])
+            self.removed(member.display.id)
+        }
     }
 
     /// A display that returns gets a new engine, without the workspaces it had.

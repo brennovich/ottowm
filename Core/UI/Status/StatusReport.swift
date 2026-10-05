@@ -41,7 +41,7 @@ struct StatusReport: Equatable {
             "Accessibility: \(accessibilityGranted ? "granted" : "not granted")",
             "Hotkeys: \(hotkeysListening ? "listening" : "not listening")",
             "Secure input: \(secureInputHeld ? "held by another app" : "free")",
-            "Display: \(display)",
+            "Displays: \(display)",
             "",
             "Config: \(configLine)",
         ]
