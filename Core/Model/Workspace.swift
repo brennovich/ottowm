@@ -17,6 +17,12 @@ struct Workspace: Codable, Equatable {
         focusHistory.removeAll { $0 == windowId }
     }
 
+    /// The focus history keeps its own windows first, so the next window to focus does not change.
+    mutating func absorb(_ other: Workspace) {
+        windowIds += other.windowIds
+        focusHistory += other.focusHistory
+    }
+
     func keeping(_ windowIds: Set<CGWindowID>) -> Workspace {
         Workspace(windowIds: self.windowIds.filter(windowIds.contains), focusHistory: focusHistory.filter(windowIds.contains))
     }

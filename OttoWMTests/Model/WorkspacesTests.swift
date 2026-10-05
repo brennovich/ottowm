@@ -270,6 +270,35 @@ final class WorkspacesTests: XCTestCase {
         XCTAssertEqual(loaded.windowIds(in: 1), [100])
     }
 
+    func testAbsorbingARecordMergesItsWorkspacesByNumber() {
+        let model = makeWorkspaces(assigning: [(100, 1)])
+
+        model.absorb(makeWorkspaces(assigning: [(200, 1), (300, 3)]).record)
+
+        XCTAssertEqual(model.windowIds(in: 1), [100, 200])
+        XCTAssertEqual(model.windowIds(in: 3), [300])
+    }
+
+    func testAbsorbingARecordTakesItsCurrentWorkspaceOnlyWhenHoldingNoWindow() {
+        let cases: [(name: String, assignments: Assignments, current: Int, reported: [WorkspaceEvent])] = [
+            ("holding no window", [], 3, [.switched(3)]),
+            ("holding a window", [(100, 1)], 1, []),
+        ]
+
+        for testCase in cases {
+            let absorbed = makeWorkspaces(assigning: [(200, 3)])
+            _ = absorbed.switchTo(3, leavingFocusOn: nil)
+            let model = makeWorkspaces(assigning: testCase.assignments)
+            var reported: [WorkspaceEvent] = []
+            model.startWatching { reported.append($0) }
+
+            model.absorb(absorbed.record)
+
+            XCTAssertEqual(model.current, testCase.current, testCase.name)
+            XCTAssertEqual(reported, testCase.reported, testCase.name)
+        }
+    }
+
     func testARecordKeepsOnlyTheGivenWindows() {
         let model = makeWorkspaces(assigning: [(100, 1), (200, 1), (300, 2)])
 

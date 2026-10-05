@@ -185,10 +185,29 @@ final class WindowPlacement {
     /// hidden edge, and comes back to that frame.
     func relocate(_ change: DisplayChange) {
         originalFrames.relocate(with: change.fit)
+        relocate(workspaces.allWindowIds, in: change)
+    }
 
-        let requests = workspaces.allWindowIds.sorted().compactMap { request(relocating: $0, in: change) }
-        log.info("display changed to \(change.to.logDescription), placing \(requests.count) windows")
-        apply(requests).gone.forEach { drop($0, reason: "gone") }
+    /// Takes the windows of a removed display into the workspaces of the same number and
+    /// relocates them from that display. Relocating keeps a window parked or active as it was,
+    /// so a window whose workspace is now current, or no longer current, is placed again.
+    /// A window dragged across displays can be held by both engines until a reconcile; it
+    /// keeps its place in this one.
+    func absorb(_ removed: SavedState) {
+        let held = workspaces.allWindowIds
+        let absorbed = Set(removed.workspaces.workspaces.values.flatMap(\.windowIds)).subtracting(held)
+        let saved = removed.keeping(absorbed)
+        let change = DisplayChange(from: saved.display, to: desktop.display)
+        workspaces.absorb(saved.workspaces)
+        saved.parkedWindows.forEach { parkedWindows.park($0.key, from: $0.value) }
+        originalFrames.load(originalFrames.all.merging(saved.originalFrames.mapValues(change.fit.frame)) { own, _ in own })
+
+        if held.isEmpty, !absorbed.isEmpty { desktop.anchor.pin() }
+        relocate(absorbed, in: change)
+
+        let misplaced = absorbed.sorted().map { (windowId: $0, parked: workspaces.workspace(for: $0) != workspaces.current) }
+            .filter { $0.parked != parkedWindows.isParked($0.windowId) }
+        place(misplaced)
     }
 
     /// Puts the windows back in the workspaces the state holds them in, and takes the others
@@ -235,6 +254,12 @@ final class WindowPlacement {
         originalFrames.load(saved.originalFrames)
         layouts.load(saved.displayLayouts)
         Log.state.notice("restored \(workspaces.allWindowIds.count) windows, workspace \(workspaces.current)")
+    }
+
+    private func relocate(_ windowIds: Set<CGWindowID>, in change: DisplayChange) {
+        let requests = windowIds.sorted().compactMap { request(relocating: $0, in: change) }
+        log.info("display changed to \(change.to.logDescription), placing \(requests.count) windows")
+        apply(requests).gone.forEach { drop($0, reason: "gone") }
     }
 
     /// On the same display only the parked windows move, to the edge of its new geometry: the

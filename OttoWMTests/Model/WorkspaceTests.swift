@@ -39,6 +39,14 @@ final class WorkspaceTests: XCTestCase {
         XCTAssertEqual(workspace.keeping([200]), makeWorkspace([.add(200), .recordFocus(200)]))
     }
 
+    func testAbsorbingAppendsTheOtherWindowsAndFocusHistoryAfterItsOwn() {
+        var workspace = makeWorkspace([.add(100), .add(200), .recordFocus(200)])
+
+        workspace.absorb(makeWorkspace([.add(300), .add(400), .recordFocus(400)]))
+
+        XCTAssertEqual(workspace, makeWorkspace([.add(100), .add(200), .add(300), .add(400), .recordFocus(400), .recordFocus(200)]))
+    }
+
     func testNextWindowToFocus() {
         let cases: [(name: String, steps: [Step], nextWindowToFocus: CGWindowID?)] = [
             ("no windows", [], nil),

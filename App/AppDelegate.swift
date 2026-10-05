@@ -33,16 +33,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let layouts = DisplayLayouts()
         var built: [(desktop: ParkingDesktop, workspaces: Workspaces)] = []
+        var spacing = config.spacing
         let displays = Displays(
             screens: .system,
             windowSystem: WindowSystem.system(windowEvents: windowEvents, applications: applications),
-            write: stateFile.save
-        ) { display, windowSystem, save in
-            let parts = engine(on: display, windowSystem: windowSystem, layouts: layouts, spacing: config.spacing, save: save)
-            built.append((parts.desktop, parts.workspaces))
-            return (parts.workspaces, parts.desktop, parts.engine)
-        }
-        // The Pager and the status show the primary display until each display has its own.
+            screenIsLocked: { [lifecycle] in lifecycle.screenIsLocked },
+            write: stateFile.save,
+            engine: { [self] display, windowSystem, save in
+                let parts = engine(on: display, windowSystem: windowSystem, layouts: layouts, spacing: spacing, save: save)
+                built.append((parts.desktop, parts.workspaces))
+                return (parts.workspaces, parts.desktop, parts.engine)
+            }
+        )
+        // The Pager and the status show the display primary at launch until each display has its own.
         let primary = built[0]
         // No property: the watch retains the instance it runs on.
         let secureInput = SecureInput()
@@ -63,7 +66,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let apply = { (config: Config) in
             pager.isEnabled = config.showsPager
-            for (desktop, _) in built { desktop.spacing = config.spacing }
+            spacing = config.spacing
+            for (desktop, _) in built { desktop.spacing = spacing }
         }
         apply(config)
 

@@ -155,6 +155,19 @@ extension Workspaces {
         Record(current: current, workspaces: workspaces)
     }
 
+    /// Merges the workspaces of a removed display by number. A model holding no window also
+    /// takes the record's current workspace, so the windows of that workspace stay on screen.
+    func absorb(_ record: Record) {
+        let holdsNoWindow = allWindowIds.isEmpty
+        for (number, workspace) in record.workspaces {
+            workspaces[number, default: Workspace()].absorb(workspace)
+        }
+        guard holdsNoWindow else { return }
+
+        current = record.current
+        report(.switched(current))
+    }
+
     func load(_ record: Record) {
         workspaces = record.workspaces
         current = record.current

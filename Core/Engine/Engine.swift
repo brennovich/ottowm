@@ -191,6 +191,11 @@ final class Engine {
         }
     }
 
+    /// Takes the workspaces, parked windows and original frames an engine of a removed display saved.
+    func absorb(_ state: SavedState) {
+        windowSystem.duringOperation("absorb-display") { placement.absorb(state) }
+    }
+
     func switchToWorkspace(_ workspace: Int) {
         windowSystem.duringOperation("switch-to-workspace") {
             let focused = windowSystem.focused()
