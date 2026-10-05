@@ -95,4 +95,11 @@ final class EngineLifecycleTests: EngineTestCase {
         XCTAssertEqual(workspaces.workspace(for: 200), 3)
         XCTAssertEqual(desktop.reframeCalls.map(\.windowId), [200])
     }
+
+    func testTheActiveWindowsAreTheWindowsHeldThatAreNotParked() {
+        create(StubWindow(id: 100))
+        moveFocusedWindow(create(StubWindow(id: 200)), to: 2)
+
+        XCTAssertEqual(engine.activeWindowIds, [100])
+    }
 }

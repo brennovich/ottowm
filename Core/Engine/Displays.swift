@@ -51,6 +51,7 @@ final class Displays {
     /// window returns the value read here.
     func handle(_ action: Action) {
         windowSystem.duringOperation("route-action") {
+            reconcile()
             let focusedDisplay = windowSystem.focused().flatMap { arrangement.display(of: $0.frame) }
             engine(on: focusedDisplay?.id ?? screens.active()).handle(action)
         }
@@ -60,11 +61,11 @@ final class Displays {
     /// engine that does not hold the window does nothing with it.
     func handle(_ event: WindowEvent) {
         switch event {
-        case let .created(win), let .unminimized(win):
-            engine(holding: win.frame).handle(event)
-        case let .focused(win):
-            let holder = members.first { $0.workspaces.membership(of: win.id) != .unassigned }
-            (holder?.engine ?? engine(holding: win.frame)).handle(event)
+        case let .created(win), let .unminimized(win), let .focused(win):
+            windowSystem.duringOperation("route-event") {
+                reconcile()
+                engine(receiving: event, of: win).handle(event)
+            }
         case .destroyed, .minimized, .reframed:
             for member in members { member.engine.handle(event) }
         }
@@ -73,6 +74,7 @@ final class Displays {
     /// Runs at the unlock, after the displays added or removed behind the lock screen are followed.
     func resync(windows: [WindowSnapshot]) {
         followArrangement()
+        windowSystem.duringOperation("reconcile") { reconcile() }
 
         let windowsByDisplay = windowsByDisplay(windows)
         for member in members {
@@ -136,6 +138,26 @@ final class Displays {
         write(members.compactMap { sections[$0.display.id] })
     }
 
+    /// A drag to another display reaches OttoWM only as `reframed`, so a window can stand on
+    /// one display while the engine of another holds it. A parked window stands at its own
+    /// display's corner, and a window not on screen is left to the engine that holds it.
+    private func reconcile() {
+        guard members.count > 1 else { return }
+
+        for member in members {
+            let frames = windowSystem.frames(of: member.engine.activeWindowIds.sorted())
+            for (windowId, frame) in frames.sorted(by: { $0.key < $1.key }) {
+                guard let displayId = arrangement.display(of: frame)?.id, displayId != member.display.id,
+                      let target = members.first(where: { $0.display.id == displayId }),
+                      let win = windowSystem.snapshot(of: windowId)
+                else { continue }
+
+                member.engine.release(windowId)
+                target.engine.assign(win)
+            }
+        }
+    }
+
     private func member(on display: Display) -> Member {
         let scoped = windowSystem.scoped { [weak self] in self?.arrangement.display(of: $0)?.id == display.id }
         let built = makeEngine(display, scoped) { [weak self] in self?.save($0, of: display.id) }
@@ -144,6 +166,15 @@ final class Displays {
 
     private func engine(on displayId: DisplayID?) -> Engine {
         (members.first { $0.display.id == displayId } ?? members[0]).engine
+    }
+
+    /// A focused window goes to the engine that holds it, parked or full screen.
+    private func engine(receiving event: WindowEvent, of win: WindowSnapshot) -> Engine {
+        guard case .focused = event,
+              let holder = members.first(where: { $0.workspaces.membership(of: win.id) != .unassigned })
+        else { return engine(holding: win.frame) }
+
+        return holder.engine
     }
 
     private func engine(holding frame: CGRect) -> Engine {

@@ -17,6 +17,7 @@ final class DisplaysTests: XCTestCase {
     private var windows: [CGWindowID: StubWindow] = [:]
     private var focused: StubWindow?
     private var focusedReadCount = 0
+    private var onScreenReadCount = 0
     private var connected: [Display] = [.standard, .airPlay]
     private var activeDisplay: DisplayID?
     private var screenIsLocked = false
@@ -33,7 +34,9 @@ final class DisplaysTests: XCTestCase {
             return self.focused?.snapshot()
         },
         onScreenWindows: OperationCache { [weak self] in
-            self?.windows.mapValues(\.frame) ?? [:]
+            guard let self else { return [:] }
+            self.onScreenReadCount += 1
+            return self.windows.mapValues(\.frame)
         },
         window: { [weak self] id in self?.windows[id] }
     )
@@ -121,12 +124,61 @@ final class DisplaysTests: XCTestCase {
         }
     }
 
-    func testAnActionReadsTheFocusedWindowOnce() {
+    func testAnActionReadsTheFocusedWindowAndTheOnScreenListOnce() {
         focused = add(200, frame: onAirPlay)
 
         displays.handle(.switchToWorkspace(2))
 
         XCTAssertEqual(focusedReadCount, 1)
+        XCTAssertEqual(onScreenReadCount, 1)
+    }
+
+    func testAWindowShownOnAnotherDisplayJoinsTheCurrentWorkspaceThereBeforeTheActionRuns() {
+        displays.handle(.created(add(100, frame: onStandard).snapshot()))
+        let window = add(200, frame: onStandard)
+        displays.handle(.created(window.snapshot()))
+        window.setPosition(onAirPlay.origin)
+        desktops[Display.standard.id]?.clearCalls()
+
+        displays.handle(.switchToWorkspace(2))
+
+        XCTAssertEqual(workspaces[Display.airPlay.id]?.workspace(for: 200), 1)
+        XCTAssertEqual(desktops[Display.standard.id]?.reframeCalls.map(\.windowId), [100])
+    }
+
+    func testAWindowShownOnAnotherDisplayLeavesItsEngineBeforeARoutedEventOrAResync() {
+        let cases: [(name: String, handOn: (Displays, WindowSnapshot) -> Void)] = [
+            ("routed event", { $0.handle(.focused($1)) }),
+            ("resync", { $0.resync(windows: [$1]) }),
+        ]
+
+        for testCase in cases {
+            let window = add(200, frame: onStandard)
+            let displays = makeDisplays()
+            displays.handle(.created(window.snapshot()))
+            window.setPosition(onAirPlay.origin)
+
+            testCase.handOn(displays, window.snapshot())
+
+            XCTAssertNil(workspaces[Display.standard.id]?.workspace(for: 200), testCase.name)
+        }
+    }
+
+    func testARoutedEventReadsTheOnScreenListOnce() {
+        displays.handle(.created(add(100, frame: onStandard).snapshot()))
+
+        XCTAssertEqual(onScreenReadCount, 1)
+    }
+
+    func testWithOneDisplayAFocusReadsNoOnScreenList() {
+        connected = [.standard]
+        let window = add(100, frame: onStandard)
+        displays.handle(.created(window.snapshot()))
+        onScreenReadCount = 0
+
+        displays.handle(.focused(window.snapshot()))
+
+        XCTAssertEqual(onScreenReadCount, 0)
     }
 
     func testANewWindowGoesToTheDisplayHoldingItsFrame() {
@@ -146,7 +198,7 @@ final class DisplaysTests: XCTestCase {
     }
 
     func testAFocusedWindowGoesToTheEngineHoldingItElseToTheDisplayHoldingItsFrame() {
-        let cases: [(name: String, heldOnStandard: Bool, expected: Workspaces.Membership)] = [
+        let cases: [(name: String, parkedOnStandard: Bool, expected: Workspaces.Membership)] = [
             ("held", true, .unassigned),
             ("unknown", false, .assigned(1)),
         ]
@@ -154,8 +206,9 @@ final class DisplaysTests: XCTestCase {
         for testCase in cases {
             let window = add(200, frame: onStandard)
             let displays = makeDisplays()
-            if testCase.heldOnStandard {
+            if testCase.parkedOnStandard {
                 displays.handle(.created(window.snapshot()))
+                displays.handle(.switchToWorkspace(2))
             }
             window.setPosition(onAirPlay.origin)
 

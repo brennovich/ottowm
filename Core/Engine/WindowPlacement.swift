@@ -107,6 +107,19 @@ final class WindowPlacement {
         return focusSettled || workspace == nil
     }
 
+    /// Takes out an active window that moved to another display, with its tab group. Its
+    /// layouts stay: they hold where it stood on each display, which a display change goes
+    /// back to. The frame a maximize goes back to is a frame on this display.
+    func release(_ windowId: CGWindowID) {
+        for memberId in workspaces.tabGroupMembers(of: windowId) {
+            if let workspace = workspaces.workspace(for: memberId) {
+                log.info("moved to another display id=\(memberId), released from workspace \(workspace)")
+            }
+            workspaces.remove(memberId)
+            originalFrames.forget(memberId)
+        }
+    }
+
     @discardableResult
     func move(_ win: WindowSnapshot, to workspace: Int) -> Bool {
         guard admission.verdict(for: win) == .admit else { return false }

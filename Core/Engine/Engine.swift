@@ -191,6 +191,19 @@ final class Engine {
         }
     }
 
+    var activeWindowIds: Set<CGWindowID> {
+        workspaces.allWindowIds.filter { !placement.isParked($0) }
+    }
+
+    /// Lets a window that moved to another display go, for that display's engine to assign.
+    func release(_ windowId: CGWindowID) {
+        placement.release(windowId)
+    }
+
+    func assign(_ win: WindowSnapshot) {
+        placement.assign(win, to: workspaces.current)
+    }
+
     /// Takes the workspaces, parked windows and original frames an engine of a removed display saved.
     func absorb(_ state: SavedState) {
         windowSystem.duringOperation("absorb-display") { placement.absorb(state) }
