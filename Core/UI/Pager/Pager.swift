@@ -12,6 +12,7 @@ final class Pager {
     private let windowFrames: () -> [CGWindowID: CGRect]
     private let isOnScreen: (CGWindowID) -> Bool
     private let schedule: (TimeInterval, @escaping () -> Void) -> Void
+    private let notificationCenter: NotificationCenter
     private var shown = false
     private var secureInputIsActive = false
     private var tabArea = TabArea(display: .unknown)
@@ -44,6 +45,7 @@ final class Pager {
         self.windowFrames = windowFrames
         self.isOnScreen = isOnScreen
         self.schedule = schedule
+        self.notificationCenter = notificationCenter
         tab.optionClicked = optionClicked
         // One level below pop-up menus: above every window and the Dock, below a menu opened over the corner.
         let tabLevel = NSWindow.Level(rawValue: NSWindow.Level.popUpMenu.rawValue - 1)
@@ -75,6 +77,7 @@ final class Pager {
 
     deinit {
         for stop in stopWatching { stop() }
+        for observer in observers { notificationCenter.removeObserver(observer) }
     }
 
     var isRetracted: Bool { tab.isRetracted }

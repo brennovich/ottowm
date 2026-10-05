@@ -55,7 +55,7 @@ final class StatusWindow: NSPanel, StatusPanel {
         hotkeys.set(healthy: report.hotkeysListening, text: report.hotkeysListening ? "Listening" : "Not listening")
         secureInput.set(healthy: !report.secureInputHeld, text: report.secureInputHeld ? "Held by another app" : "Free")
         setRow(of: settingsButton, hidden: report.accessibilityGranted)
-        displayLabel.stringValue = report.display
+        displayLabel.stringValue = report.displays
         configLabel.stringValue = report.configExists ? report.configPath : "Bundled defaults"
         configLabel.toolTip = report.configExists ? nil : "No file at \(report.configPath)"
         revealButton.isHidden = !report.configExists

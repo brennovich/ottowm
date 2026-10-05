@@ -58,8 +58,9 @@ final class PagerTests: XCTestCase {
         while !scheduled.isEmpty { runScheduled() }
     }
 
-    func testAReleasedPagerStopsWatchingWindowsAndSecureInput() {
+    func testAReleasedPagerStopsWatchingWindowsSecureInputAndHiddenApplications() {
         var stopped: [String] = []
+        let center = ObserverRecordingCenter()
 
         _ = Pager(
             workspaces: Workspaces(tabGroups: TabGroups(tabCount: { _ in 1 }, frame: { _ in nil })),
@@ -71,6 +72,7 @@ final class PagerTests: XCTestCase {
         )
 
         XCTAssertEqual(stopped.sorted(), ["secure input", "windows"])
+        XCTAssertEqual(center.removed, center.added)
     }
 
     func testDismissingAPagerThatIsNotShownIsDoneAtOnce() {
@@ -215,5 +217,26 @@ final class PagerTests: XCTestCase {
         pager.isEnabled = true
         runScheduled()
         XCTAssertEqual(listReads, 1)
+    }
+}
+
+private final class ObserverRecordingCenter: NotificationCenter {
+    private(set) var added: Set<ObjectIdentifier> = []
+    private(set) var removed: Set<ObjectIdentifier> = []
+
+    override func addObserver(
+        forName name: NSNotification.Name?,
+        object obj: Any?,
+        queue: OperationQueue?,
+        using block: @escaping @Sendable (Notification) -> Void
+    ) -> any NSObjectProtocol {
+        let observer = super.addObserver(forName: name, object: obj, queue: queue, using: block)
+        added.insert(ObjectIdentifier(observer))
+        return observer
+    }
+
+    override func removeObserver(_ observer: Any) {
+        removed.insert(ObjectIdentifier(observer as AnyObject))
+        super.removeObserver(observer)
     }
 }

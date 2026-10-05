@@ -125,7 +125,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             sources: StatusSources(
                 hotkeysListening: { [self] in bindings?.isRunning ?? false },
                 secureInputHeld: secureInput.isActive,
-                display: {
+                displays: {
                     Screens.system.all()
                         .map { "\(Int($0.fullFrame.width))×\(Int($0.fullFrame.height))" }
                         .joined(separator: ", ")
