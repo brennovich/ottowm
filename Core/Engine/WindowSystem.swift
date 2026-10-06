@@ -8,21 +8,12 @@ final class WindowSystem {
     private let roundTrips: RoundTrips
     private let owns: (CGRect) -> Bool
 
-    convenience init(
+    init(
         focusedWindow: OperationCache<WindowSnapshot?>,
         onScreenWindows: OperationCache<[CGWindowID: CGRect]>,
         window: @escaping (CGWindowID) -> (any Window)?,
-        roundTrips: RoundTrips = .shared
-    ) {
-        self.init(focusedWindow, onScreenWindows, window, roundTrips, owns: { _ in true })
-    }
-
-    private init(
-        _ focusedWindow: OperationCache<WindowSnapshot?>,
-        _ onScreenWindows: OperationCache<[CGWindowID: CGRect]>,
-        _ window: @escaping (CGWindowID) -> (any Window)?,
-        _ roundTrips: RoundTrips,
-        owns: @escaping (CGRect) -> Bool
+        roundTrips: RoundTrips = .shared,
+        owns: @escaping (CGRect) -> Bool = { _ in true }
     ) {
         self.focusedWindow = focusedWindow
         self.onScreenWindows = onScreenWindows
@@ -35,7 +26,13 @@ final class WindowSystem {
     /// rejects. It shares the reads of this one, so an operation still makes each read once.
     /// The reads of one window by id are not filtered.
     func scoped(_ owns: @escaping (CGRect) -> Bool) -> WindowSystem {
-        WindowSystem(focusedWindow, onScreenWindows, window, roundTrips, owns: owns)
+        WindowSystem(
+            focusedWindow: focusedWindow,
+            onScreenWindows: onScreenWindows,
+            window: window,
+            roundTrips: roundTrips,
+            owns: owns
+        )
     }
 
     func duringOperation<T>(_ name: StaticString, _ body: () -> T) -> T {
