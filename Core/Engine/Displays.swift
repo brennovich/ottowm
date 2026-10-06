@@ -128,7 +128,7 @@ final class Displays {
 
     /// A display that returns gets a new engine, without the workspaces it had.
     private func startedMember(on display: Display) -> Member {
-        Log.desktop.info("display added: \(display.logDescription)")
+        Log.desktop.notice("display added: \(display.logDescription)")
         let member = member(on: display)
         member.engine.start(windows: [], restoring: nil)
         return member
@@ -136,7 +136,7 @@ final class Displays {
 
     /// The removed engine is not stopped: stopping puts its parked windows back on screen.
     private func absorb(_ removed: Member, into primary: Member) {
-        Log.desktop.info("display removed: \(removed.display.id.rawValue), absorbed by \(primary.display.id.rawValue)")
+        Log.desktop.notice("display removed: \(removed.display.id.rawValue), absorbed by \(primary.display.id.rawValue)")
         removed.engine.saveState()
         if let state = sections.removeValue(forKey: removed.display.id) {
             primary.engine.absorb(state)

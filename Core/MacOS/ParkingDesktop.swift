@@ -144,7 +144,7 @@ final class ParkingDesktop: Desktop {
 
         let left = display
         display = entered
-        log.info("display changed from \(left.logDescription) to \(entered.logDescription)")
+        log.notice("display changed from \(left.logDescription) to \(entered.logDescription)")
         report(.displayChange(DisplayChange(from: left, to: entered)))
     }
 

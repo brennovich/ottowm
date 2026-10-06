@@ -266,7 +266,7 @@ final class WindowPlacement {
         saved.parkedWindows.forEach { parkedWindows.park($0.key, from: $0.value) }
         originalFrames.load(saved.originalFrames)
         layouts.load(saved.displayLayouts)
-        Log.state.notice("restored \(workspaces.allWindowIds.count) windows, workspace \(workspaces.current)")
+        log.notice("restored \(workspaces.allWindowIds.count) windows, workspace \(workspaces.current)")
     }
 
     private func relocate(_ windowIds: Set<CGWindowID>, in change: DisplayChange) {
