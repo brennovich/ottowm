@@ -90,6 +90,8 @@ final class PagersTests: XCTestCase {
         pagers.remove(on: Display.airPlay.id)
 
         XCTAssertNotNil(removed)
-        wait(for: [expectation(for: NSPredicate { _, _ in removed == nil }, evaluatedWith: nil)], timeout: 2)
+        let deadline = Date() + 1
+        while removed != nil, Date() < deadline { RunLoop.current.run(until: Date() + 0.01) }
+        XCTAssertNil(removed)
     }
 }
