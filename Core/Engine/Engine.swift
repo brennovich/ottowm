@@ -12,7 +12,6 @@ final class Engine {
     private let screenIsLocked: () -> Bool
     private let save: (SavedState) -> Void
     private var lastSaved: SavedState?
-    private var displayLeftBehindLock: Display?
     private let log: LogChannel
 
     init(
@@ -51,19 +50,8 @@ final class Engine {
         switch event {
         case .nativeSpaceChange: followNativeSpaceChange()
         case .screenParametersChange: reparkAfterScreenParametersChange()
-        case let .displayChange(change): displayChanged(change)
+        case let .displayChange(change): relocate(change)
         }
-    }
-
-    /// The accessibility reads fail behind the lock screen, and a window that cannot be read
-    /// would be recorded as parked, so a change seen while locked waits for the unlock.
-    private func displayChanged(_ change: DisplayChange) {
-        guard !screenIsLocked() else {
-            log.info("display changed behind the lock screen, the windows are placed at unlock")
-            displayLeftBehindLock = displayLeftBehindLock ?? change.from
-            return
-        }
-        relocate(change)
     }
 
     private func relocate(_ change: DisplayChange) {
@@ -176,14 +164,8 @@ final class Engine {
     }
 
     /// Enrolls the windows no workspace knows. Window events are dropped while the screen is
-    /// locked, so a window that appeared behind the login window reached no workspace. A
-    /// display change behind it is applied first, from the display the layouts were taken on.
+    /// locked, so a window that appeared behind the login window reached no workspace.
     func resync(windows: [WindowSnapshot]) {
-        if let left = displayLeftBehindLock {
-            displayLeftBehindLock = nil
-            relocate(DisplayChange(from: left, to: desktop.display))
-        }
-
         windowSystem.duringOperation("resync") {
             for win in windows {
                 placement.assign(win, to: workspaces.current)

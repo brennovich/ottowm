@@ -179,7 +179,7 @@ flowchart LR
     Displays -->|write| StateFile
 ```
 
-While `Lifecycle.screenIsLocked` is set, `Engine` drops window events and defers display changes, `Displays` defers the displays added and removed, and `AXWindowEvents` skips the sweep.
+While `Lifecycle.screenIsLocked` is set, `Engine` drops window events, `Displays` defers every screen change, and `AXWindowEvents` skips the sweep.
 
 ### UI
 
@@ -592,9 +592,8 @@ sequenceDiagram
     end
     RunningApplicationsObserver-->>Lifecycle: the windows of every application
     Lifecycle->>Displays: resync(windows:)
-    Note over Displays: follows the displays added and removed behind the lock,<br/>then reconciles
+    Note over Displays: follows the screen changes behind the lock,<br/>then reconciles
     Displays->>Engine: resync(the windows on its display), on every engine
-    Note over Engine: relocates first after a display change behind the lock
     Engine->>WindowPlacement: assign the ones no workspace knows to the current workspace
 ```
 

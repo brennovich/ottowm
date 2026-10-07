@@ -94,20 +94,26 @@ final class DisplaysArrangementTests: DisplaysTestCase {
         XCTAssertEqual(airPlayCurrents, [1])
     }
 
-    func testDisplaysAddedOrRemovedBehindTheLockScreenAreFollowedAtTheUnlock() {
+    func testAScreenChangeBehindTheLockScreenIsFollowedAtTheUnlock() {
+        let standardWithNewGeometry = Display(
+            id: Display.standard.id,
+            fullFrame: CGRect(x: 0, y: 0, width: 1440, height: 900),
+            visibleFrame: CGRect(x: 0, y: 25, width: 1440, height: 875)
+        )
         displays.start(windows: [], restoring: nil)
         displays.handle(.created(add(200, frame: onAirPlay).snapshot()))
         screenIsLocked = true
-        connected = [.standard]
+        connected = [standardWithNewGeometry]
 
         screenParametersChanged?()
 
-        XCTAssertEqual(desktops.mapValues(\.changedDisplays), [Display.standard.id: [.standard], Display.airPlay.id: []])
+        XCTAssertEqual(desktops.mapValues(\.changedDisplays), [Display.standard.id: [], Display.airPlay.id: []])
         XCTAssertNil(workspaces[Display.standard.id]?.workspace(for: 200))
 
         screenIsLocked = false
         displays.resync(windows: [])
 
+        XCTAssertEqual(desktops[Display.standard.id]?.changedDisplays, [standardWithNewGeometry])
         XCTAssertEqual(workspaces[Display.standard.id]?.workspace(for: 200), 1)
     }
 

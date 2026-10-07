@@ -75,9 +75,9 @@ final class Displays {
         }
     }
 
-    /// Runs at the unlock, after the displays added or removed behind the lock screen are followed.
+    /// Runs at the unlock, after the screen changes behind the lock screen are followed.
     func resync(windows: [WindowSnapshot]) {
-        followArrangement()
+        followScreens()
         windowSystem.duringOperation("reconcile") { reconcile() }
 
         let windowsByDisplay = windowsByDisplay(windows)
@@ -95,9 +95,15 @@ final class Displays {
     }
 
     /// The notification also follows a Dock or menu bar change, and macOS posts it more than
-    /// once per plug. Absorbing an engine moves windows through AX, which fails behind the lock
-    /// screen, so the displays added or removed are followed at the unlock.
+    /// once per plug. The accessibility reads fail behind the lock screen, and a window that
+    /// cannot be read would be recorded as parked, so a change behind it is followed at the unlock.
     private func screenParametersChanged() {
+        guard !screenIsLocked() else { return }
+
+        followScreens()
+    }
+
+    private func followScreens() {
         let connected = screens.all()
         guard !connected.isEmpty else { return }
 
@@ -108,8 +114,6 @@ final class Displays {
             guard let display = connected.first(where: { $0.id == member.display.id }) else { continue }
             member.desktop.change(to: display)
         }
-        guard !screenIsLocked() else { return }
-
         followArrangement()
     }
 
