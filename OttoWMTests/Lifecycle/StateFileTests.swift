@@ -4,7 +4,7 @@ import XCTest
 
 final class StateFileTests: XCTestCase {
     private let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-    private let states = [Display.standard, .airPlay].map { display in
+    private let states = [Display.standard, .right].map { display in
         SavedState(
             display: display,
             workspaces: Workspaces.Record(current: 2, workspaces: [:]),

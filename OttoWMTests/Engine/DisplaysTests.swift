@@ -2,21 +2,9 @@ import CoreGraphics
 import XCTest
 
 final class DisplaysTests: DisplaysTestCase {
-    private func section(on display: Display, current: Int, _ windowId: CGWindowID) -> SavedState {
-        var workspace = Workspace()
-        workspace.add(windowId)
-        return SavedState(
-            display: display,
-            workspaces: Workspaces.Record(current: current, workspaces: [current: workspace]),
-            parkedWindows: [:],
-            originalFrames: [:],
-            displayLayouts: [:]
-        )
-    }
-
     func testAnEngineSeesOnlyTheWindowsOnItsDisplay() {
         displays.handle(.created(add(100, frame: onStandard).snapshot()))
-        focused = add(200, frame: onAirPlay)
+        focused = add(200, frame: onRight)
 
         displays.handle(.destroyed(100))
 
@@ -24,12 +12,12 @@ final class DisplaysTests: DisplaysTestCase {
     }
 
     func testAnActionGoesToTheDisplayOfTheFocusedWindowElseTheActiveDisplayElseThePrimary() {
-        let onAirPlay = add(200, frame: onAirPlay)
+        let onRight = add(200, frame: onRight)
 
         let cases: [(name: String, focused: StubWindow?, active: DisplayID?, expected: [DisplayID: Int])] = [
-            ("focused window", onAirPlay, Display.standard.id, [Display.standard.id: 1, Display.airPlay.id: 2]),
-            ("active display", nil, Display.airPlay.id, [Display.standard.id: 1, Display.airPlay.id: 2]),
-            ("active display without an engine", nil, Display.external.id, [Display.standard.id: 2, Display.airPlay.id: 1]),
+            ("focused window", onRight, Display.standard.id, [Display.standard.id: 1, Display.right.id: 2]),
+            ("active display", nil, Display.right.id, [Display.standard.id: 1, Display.right.id: 2]),
+            ("active display without an engine", nil, Display.external.id, [Display.standard.id: 2, Display.right.id: 1]),
         ]
 
         for testCase in cases {
@@ -44,7 +32,7 @@ final class DisplaysTests: DisplaysTestCase {
     }
 
     func testAnActionReadsTheFocusedWindowAndTheOnScreenListOnce() {
-        focused = add(200, frame: onAirPlay)
+        focused = add(200, frame: onRight)
 
         displays.handle(.switchToWorkspace(2))
 
@@ -56,12 +44,12 @@ final class DisplaysTests: DisplaysTestCase {
         displays.handle(.created(add(100, frame: onStandard).snapshot()))
         let window = add(200, frame: onStandard)
         displays.handle(.created(window.snapshot()))
-        window.setPosition(onAirPlay.origin)
+        window.setPosition(onRight.origin)
         desktops[Display.standard.id]?.clearCalls()
 
         displays.handle(.switchToWorkspace(2))
 
-        XCTAssertEqual(workspaces[Display.airPlay.id]?.workspace(for: 200), 1)
+        XCTAssertEqual(workspaces[Display.right.id]?.workspace(for: 200), 1)
         XCTAssertEqual(desktops[Display.standard.id]?.reframeCalls.map(\.windowId), [100])
     }
 
@@ -75,7 +63,7 @@ final class DisplaysTests: DisplaysTestCase {
             let window = add(200, frame: onStandard)
             let displays = makeDisplays()
             displays.handle(.created(window.snapshot()))
-            window.setPosition(onAirPlay.origin)
+            window.setPosition(onRight.origin)
 
             testCase.handOn(displays, window.snapshot())
 
@@ -107,12 +95,12 @@ final class DisplaysTests: DisplaysTestCase {
         ]
 
         for testCase in cases {
-            let window = add(200, frame: onAirPlay)
+            let window = add(200, frame: onRight)
             let displays = makeDisplays()
 
             displays.handle(testCase.event(window.snapshot()))
 
-            XCTAssertEqual(workspaces[Display.airPlay.id]?.workspace(for: 200), 1, testCase.name)
+            XCTAssertEqual(workspaces[Display.right.id]?.workspace(for: 200), 1, testCase.name)
         }
     }
 
@@ -129,41 +117,42 @@ final class DisplaysTests: DisplaysTestCase {
                 displays.handle(.created(window.snapshot()))
                 displays.handle(.switchToWorkspace(2))
             }
-            window.setPosition(onAirPlay.origin)
+            window.setPosition(onRight.origin)
 
             displays.handle(.focused(window.snapshot()))
 
-            XCTAssertEqual(workspaces[Display.airPlay.id]?.membership(of: 200), testCase.expected, testCase.name)
+            XCTAssertEqual(workspaces[Display.right.id]?.membership(of: 200), testCase.expected, testCase.name)
         }
     }
 
     func testAnEventWithoutAFrameGoesToEveryEngine() {
-        let window = add(200, frame: onAirPlay)
+        let window = add(200, frame: onRight)
         displays.handle(.created(window.snapshot()))
 
         displays.handle(.destroyed(200))
 
-        XCTAssertNil(workspaces[Display.airPlay.id]?.workspace(for: 200))
+        XCTAssertNil(workspaces[Display.right.id]?.workspace(for: 200))
     }
 
     func testStartHandsEachEngineTheWindowsOnItsDisplayAndItsSection() {
-        let windows = [add(100, frame: onStandard), add(200, frame: onAirPlay)].map { $0.snapshot() }
+        let standard = add(100, frame: onStandard)
+        let right = add(200, frame: onRight)
 
         displays.start(
-            windows: windows,
-            restoring: [section(on: .standard, current: 1, 100), section(on: .airPlay, current: 3, 200)]
+            windows: [standard, right].map { $0.snapshot() },
+            restoring: [savedState([(standard, 1)]), savedState(current: 3, [(right, 3)], on: .right)]
         )
 
-        XCTAssertEqual(desktops.mapValues(\.recoveredWindowIds), [Display.standard.id: [100], Display.airPlay.id: [200]])
-        XCTAssertEqual(workspaces[Display.airPlay.id]?.current, 3)
+        XCTAssertEqual(desktops.mapValues(\.recoveredWindowIds), [Display.standard.id: [100], Display.right.id: [200]])
+        XCTAssertEqual(workspaces[Display.right.id]?.current, 3)
     }
 
     func testResyncHandsEachEngineTheWindowsOnItsDisplay() {
         displays.start(windows: [], restoring: nil)
 
-        displays.resync(windows: [add(200, frame: onAirPlay).snapshot()])
+        displays.resync(windows: [add(200, frame: onRight).snapshot()])
 
-        XCTAssertEqual(workspaces[Display.airPlay.id]?.workspace(for: 200), 1)
+        XCTAssertEqual(workspaces[Display.right.id]?.workspace(for: 200), 1)
     }
 
     func testSavingWritesTheSectionOfEveryDisplay() {
@@ -178,7 +167,7 @@ final class DisplaysTests: DisplaysTestCase {
 
             testCase.save(displays)
 
-            XCTAssertEqual(written.last?.map(\.display), [.standard, .airPlay], testCase.name)
+            XCTAssertEqual(written.last?.map(\.display), [.standard, .right], testCase.name)
         }
     }
 

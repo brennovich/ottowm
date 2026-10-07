@@ -14,9 +14,9 @@ extension Display {
         visibleFrame: CGRect(x: 0, y: 25, width: 2560, height: 1415)
     )
 
-    /// Right of `standard`, as the spike's AirPlay display was arranged.
-    static let airPlay = Display(
-        id: DisplayID(rawValue: "airplay"),
+    /// Right of `standard`.
+    static let right = Display(
+        id: DisplayID(rawValue: "right"),
         fullFrame: CGRect(x: 1792, y: -139, width: 1920, height: 1080),
         visibleFrame: CGRect(x: 1792, y: -114, width: 1920, height: 1055)
     )

@@ -23,7 +23,7 @@ final class PagersTests: XCTestCase {
         pagers.add(first, on: Display.standard.id)
 
         pagers.isEnabled = true
-        pagers.add(later, on: Display.airPlay.id)
+        pagers.add(later, on: Display.right.id)
 
         XCTAssertTrue(first.isEnabled)
         XCTAssertTrue(later.isEnabled)
@@ -31,7 +31,7 @@ final class PagersTests: XCTestCase {
 
     func testDismissingRunsDoneOnceEveryPagerHasSlidOut() {
         pagers.add(makePager(), on: Display.standard.id)
-        pagers.add(makePager(), on: Display.airPlay.id)
+        pagers.add(makePager(), on: Display.right.id)
         pagers.isEnabled = true
         let done = expectation(description: "every pager has slid out")
 
@@ -69,10 +69,10 @@ final class PagersTests: XCTestCase {
 
     func testARemovedPagerIsDismissedAndNoLongerFollowsIsEnabled() {
         let pager = makePager()
-        pagers.add(pager, on: Display.airPlay.id)
+        pagers.add(pager, on: Display.right.id)
         pagers.isEnabled = true
 
-        pagers.remove(on: Display.airPlay.id)
+        pagers.remove(on: Display.right.id)
         pagers.isEnabled = true
 
         XCTAssertFalse(pager.isEnabled)
@@ -83,11 +83,11 @@ final class PagersTests: XCTestCase {
         do {
             let pager = makePager()
             removed = pager
-            pagers.add(pager, on: Display.airPlay.id)
+            pagers.add(pager, on: Display.right.id)
         }
         pagers.isEnabled = true
 
-        pagers.remove(on: Display.airPlay.id)
+        pagers.remove(on: Display.right.id)
 
         XCTAssertNotNil(removed)
         let deadline = Date() + 1

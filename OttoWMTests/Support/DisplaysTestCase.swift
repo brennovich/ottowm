@@ -1,16 +1,12 @@
 import CoreGraphics
 import XCTest
 
-/// The fixture the `Displays` test cases share: a standard and an AirPlay display, an engine per display over
-/// `StubDesktop`s, and a window system over a dictionary of `StubWindow`s.
-class DisplaysTestCase: XCTestCase {
+/// The fixture the `Displays` test cases share: a standard and a right display, and an engine per display over
+/// `StubDesktop`s.
+class DisplaysTestCase: WindowSystemTestCase {
     let onStandard = CGRect(x: 100, y: 100, width: 800, height: 600)
-    let onAirPlay = CGRect(x: 2000, y: 100, width: 800, height: 600)
-    var windows: [CGWindowID: StubWindow] = [:]
-    var focused: StubWindow?
-    var focusedReadCount = 0
-    var onScreenReadCount = 0
-    var connected: [Display] = [.standard, .airPlay]
+    let onRight = CGRect(x: 2000, y: 100, width: 800, height: 600)
+    var connected: [Display] = [.standard, .right]
     var activeDisplay: DisplayID?
     var screenIsLocked = false
     var screenParametersChanged: (() -> Void)?
@@ -19,20 +15,6 @@ class DisplaysTestCase: XCTestCase {
     var written: [[SavedState]] = []
     var removed: [DisplayID] = []
     let layouts = DisplayLayouts()
-
-    lazy var windowSystem = WindowSystem(
-        focusedWindow: OperationCache { [weak self] in
-            guard let self else { return nil }
-            self.focusedReadCount += 1
-            return self.focused?.snapshot()
-        },
-        onScreenWindows: OperationCache { [weak self] in
-            guard let self else { return [:] }
-            self.onScreenReadCount += 1
-            return self.windows.mapValues(\.frame)
-        },
-        window: { [weak self] id in self?.windows[id] }
-    )
 
     lazy var displays = makeDisplays()
 
@@ -72,8 +54,6 @@ class DisplaysTestCase: XCTestCase {
 
     @discardableResult
     func add(_ id: CGWindowID, frame: CGRect) -> StubWindow {
-        let window = StubWindow(id: id, frame: frame)
-        windows[id] = window
-        return window
+        add(StubWindow(id: id, frame: frame))
     }
 }
