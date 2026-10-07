@@ -22,7 +22,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
     private lazy var desktop: ParkingDesktop = ParkingDesktop(
         display: .standard,
         window: { [weak self] in self?.windows[$0] },
-        spacing: 15,
+        spacing: { 15 },
         notificationCenter: center,
         anchor: StubAnchor()
     )

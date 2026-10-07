@@ -231,7 +231,7 @@ final class WindowPlacement {
         if let saved {
             load(saved.keeping(Set(windows.filter { admission.verdict(for: $0) == .admit }.map(\.id))))
             if !workspaces.allWindowIds.isEmpty { desktop.anchor.pin() }
-            if saved.display.id != desktop.display.id {
+            if saved.display != desktop.display {
                 relocate(DisplayChange(from: saved.display, to: desktop.display))
             }
 

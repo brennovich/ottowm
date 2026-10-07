@@ -7,7 +7,7 @@ final class ParkingDesktop: Desktop {
         let window: any Window
     }
 
-    var spacing: CGFloat
+    private let spacing: () -> CGFloat
     private let window: (CGWindowID) -> (any Window)?
     private let notificationCenter: NotificationCenter
     private let injectedAnchor: (any Anchor)?
@@ -18,12 +18,12 @@ final class ParkingDesktop: Desktop {
 
     private var observers: [(center: NotificationCenter, token: any NSObjectProtocol)] = []
     private var subscribers = Broadcast<DesktopEvent>()
-    private var workArea: WorkArea { WorkArea(display: display, spacing: spacing) }
+    private var workArea: WorkArea { WorkArea(display: display, spacing: spacing()) }
 
     init(
         display: Display,
         window: @escaping (CGWindowID) -> (any Window)?,
-        spacing: CGFloat,
+        spacing: @escaping () -> CGFloat,
         notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
         anchor: (any Anchor)? = nil,
         log: LogChannel = Log.desktop

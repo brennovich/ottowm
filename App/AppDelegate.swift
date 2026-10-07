@@ -32,7 +32,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Log.app.notice("OttoWM (\(AppInfo.version())) launched")
 
         let layouts = DisplayLayouts()
-        var desktops: [DisplayID: ParkingDesktop] = [:]
         var spacing = config.spacing
         // No property: the watch retains the instance it runs on.
         let secureInput = SecureInput()
@@ -42,13 +41,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             windowSystem: WindowSystem.system(windowEvents: windowEvents, applications: applications),
             screenIsLocked: { [lifecycle] in lifecycle.screenIsLocked },
             write: stateFile.save,
-            removed: { [pagers] displayId in
-                desktops[displayId] = nil
-                pagers.remove(on: displayId)
-            },
+            removed: { [pagers] displayId in pagers.remove(on: displayId) },
             engine: { [self] display, windowSystem, save in
-                let parts = engine(on: display, windowSystem: windowSystem, layouts: layouts, spacing: spacing, save: save)
-                desktops[display.id] = parts.desktop
+                let parts = engine(on: display, windowSystem: windowSystem, layouts: layouts, spacing: { spacing }, save: save)
                 let pager = Pager(
                     workspaces: parts.workspaces,
                     desktop: parts.desktop,
@@ -70,7 +65,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let apply = { [pagers] (config: Config) in
             pagers.isEnabled = config.showsPager
             spacing = config.spacing
-            for desktop in desktops.values { desktop.spacing = spacing }
         }
         apply(config)
 
@@ -95,7 +89,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         on display: Display,
         windowSystem: WindowSystem,
         layouts: DisplayLayouts,
-        spacing: CGFloat,
+        spacing: @escaping () -> CGFloat,
         save: @escaping (SavedState) -> Void
     ) -> (desktop: ParkingDesktop, workspaces: Workspaces, engine: Engine) {
         let tag = String(display.id.rawValue.prefix(8))

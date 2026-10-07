@@ -15,10 +15,12 @@ final class ParkingDesktopTests: XCTestCase {
 
     private let parkedWindows = ParkedWindows()
 
+    private var spacing: CGFloat = 15
+
     private lazy var desktop = ParkingDesktop(
         display: .standard,
         window: { [weak self] id in self?.windows[id] },
-        spacing: 15,
+        spacing: { [weak self] in self?.spacing ?? 0 },
         notificationCenter: center,
         anchor: anchor
     )
@@ -50,11 +52,12 @@ final class ParkingDesktopTests: XCTestCase {
     }
 
     func testReframeWritesTheFrameOfTheWorkAreaWithoutAnimating() {
-        desktop.spacing = 30
+        reframe(100, .move(.east))
+        spacing = 30
 
         reframe(100, .move(.east))
 
-        XCTAssertEqual(win.frame, originalFrame.offsetBy(dx: 30, dy: 0))
+        XCTAssertEqual(win.frame, originalFrame.offsetBy(dx: 45, dy: 0))
         XCTAssertEqual(win.animatedWriteCount, 0)
     }
 
