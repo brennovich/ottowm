@@ -39,7 +39,7 @@ class DisplaysTestCase: WindowSystemTestCase {
                 )
                 self?.desktops[display.id] = desktop
                 self?.workspaces[display.id] = workspaces
-                let engine = Engine.system(
+                return Engine.system(
                     desktop: desktop,
                     windowSystem: windowSystem,
                     workspaces: workspaces,
@@ -47,7 +47,6 @@ class DisplaysTestCase: WindowSystemTestCase {
                     scheduleRetry: { _, _ in },
                     save: save
                 )
-                return (workspaces, desktop, engine)
             }
         )
     }

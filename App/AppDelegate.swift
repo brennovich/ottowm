@@ -53,7 +53,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     optionClicked: status.toggle
                 )
                 pagers.add(pager, on: display.id)
-                return (parts.workspaces, parts.desktop, parts.engine)
+                return parts.engine
             }
         )
 

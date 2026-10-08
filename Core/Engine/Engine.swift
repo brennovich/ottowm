@@ -173,8 +173,18 @@ final class Engine {
         }
     }
 
+    var display: Display { desktop.display }
+
     var activeWindowIds: Set<CGWindowID> {
         workspaces.allWindowIds.filter { !placement.isParked($0) }
+    }
+
+    func holds(_ windowId: CGWindowID) -> Bool {
+        workspaces.membership(of: windowId) != .unassigned
+    }
+
+    func change(to display: Display) {
+        desktop.change(to: display)
     }
 
     /// Lets a window that moved to another display go, for that display's engine to assign.

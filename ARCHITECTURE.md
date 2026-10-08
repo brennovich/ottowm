@@ -314,11 +314,11 @@ sequenceDiagram
     Displays->>Engine: handle(action), on the engine of that display
 ```
 
-| Window event                         | Goes to                                                                                                              |
-|--------------------------------------|----------------------------------------------------------------------------------------------------------------------|
-| `created`, `unminimized`             | The engine of the display that holds the frame, after a reconcile.                                                   |
-| `focused`                            | The engine whose workspaces hold the window, else the engine of the display that holds the frame, after a reconcile. |
-| `destroyed`, `minimized`, `reframed` | Every engine. An engine that does not hold the window does nothing with it.                                          |
+| Input                                | Goes to                                                                                                                                                                                          |
+|--------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `created`, `unminimized`, `focused`  | The engine whose workspaces hold the window, parked or full screen, else the engine of the display that holds the frame, after a reconcile. No engine holds a `created` or `unminimized` window. |
+| `destroyed`, `minimized`, `reframed` | The engine whose workspaces hold the window. With no such engine, none.                                                                                                                          |
+| `start`, `resync` windows            | Grouped by the rule of `focused`. At start no engine holds a window, so each goes to the engine of the display that holds its frame.                                                             |
 
 The diagrams below start at the engine the action or event was routed to.
 
@@ -585,7 +585,7 @@ sequenceDiagram
     Lifecycle->>RunningApplicationsObserver: resync()
     RunningApplicationsObserver->>AXWindowEvents: sweepDeadWindows()
     AXWindowEvents->>Displays: destroyed(windowId), for each window that stopped answering
-    Displays->>Engine: destroyed(windowId), on every engine
+    Displays->>Engine: destroyed(windowId), on the engine holding it
     loop each running application
         RunningApplicationsObserver->>AXWindowEvents: inventory(app), or start(app) for one not watched yet
         AXWindowEvents-->>RunningApplicationsObserver: every window the application holds
@@ -593,7 +593,7 @@ sequenceDiagram
     RunningApplicationsObserver-->>Lifecycle: the windows of every application
     Lifecycle->>Displays: resync(windows:)
     Note over Displays: follows the screen changes behind the lock,<br/>then reconciles
-    Displays->>Engine: resync(the windows on its display), on every engine
+    Displays->>Engine: resync(the windows it holds or that are on its display), on every engine
     Engine->>WindowPlacement: assign the ones no workspace knows to the current workspace
 ```
 

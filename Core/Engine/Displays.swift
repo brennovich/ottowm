@@ -3,22 +3,19 @@ import CoreGraphics
 /// The connected displays, each with the engine of its native Space. Each engine sees only the
 /// windows on its display, and each binding and window event goes to one engine.
 final class Displays {
-    typealias Parts = (workspaces: Workspaces, desktop: any Desktop, engine: Engine)
-    private typealias Member = (display: Display, workspaces: Workspaces, desktop: any Desktop, engine: Engine)
-
     private var arrangement: Arrangement
     private let screens: Screens
     private let windowSystem: WindowSystem
     private let screenIsLocked: () -> Bool
     private let write: ([SavedState]) -> Void
     private let removed: (DisplayID) -> Void
-    private let makeEngine: (Display, WindowSystem, @escaping (SavedState) -> Void) -> Parts
-    private var members: [Member] = []
+    private let makeEngine: (Display, WindowSystem, @escaping (SavedState) -> Void) -> Engine
+    private var engines: [Engine] = []
     private var sections: [DisplayID: SavedState] = [:]
 
-    /// - Parameter engine: builds the workspaces, the desktop and the engine of a display from the
-    ///   window system scoped to it and the closure that saves its state. It is called once per
-    ///   display during the init, the primary display first, and once per display added later.
+    /// - Parameter engine: builds the engine of a display from the window system scoped to it and
+    ///   the closure that saves its state. It is called once per display during the init, the
+    ///   primary display first, and once per display added later.
     /// - Parameter removed: called with each removed display, once its engine is absorbed.
     init(
         screens: Screens,
@@ -26,7 +23,7 @@ final class Displays {
         screenIsLocked: @escaping () -> Bool,
         write: @escaping ([SavedState]) -> Void,
         removed: @escaping (DisplayID) -> Void,
-        engine: @escaping (Display, WindowSystem, @escaping (SavedState) -> Void) -> Parts
+        engine: @escaping (Display, WindowSystem, @escaping (SavedState) -> Void) -> Engine
     ) {
         let connected = screens.all()
         arrangement = Arrangement(displays: connected.isEmpty ? [.unknown] : connected)
@@ -37,15 +34,15 @@ final class Displays {
         self.removed = removed
         makeEngine = engine
 
-        members = arrangement.displays.map(member(on:))
+        engines = arrangement.displays.map(engine(on:))
         screens.startWatching { [weak self] in self?.screenParametersChanged() }
     }
 
     func start(windows: [WindowSnapshot], restoring saved: [SavedState]?) {
-        let windowsByDisplay = windowsByDisplay(windows)
-        for member in members {
-            let section = saved?.first { $0.display.id == member.display.id }
-            member.engine.start(windows: windowsByDisplay[member.display.id] ?? [], restoring: section)
+        let windowsByOwner = windowsByOwner(windows)
+        for engine in engines {
+            let section = saved?.first { $0.display.id == engine.display.id }
+            engine.start(windows: windowsByOwner[engine.display.id] ?? [], restoring: section)
         }
     }
 
@@ -61,17 +58,19 @@ final class Displays {
         }
     }
 
-    /// An event without a snapshot has no frame to route by. Every engine gets it, and an
-    /// engine that does not hold the window does nothing with it.
+    /// An event without a snapshot has no frame to route by, so only the engine holding the
+    /// window gets it.
     func handle(_ event: WindowEvent) {
         switch event {
         case let .created(win), let .unminimized(win), let .focused(win):
             windowSystem.duringOperation("route-event") {
                 reconcile()
-                engine(receiving: event, of: win).handle(event)
+                owner(of: win.id, frame: win.frame).handle(event)
             }
-        case .destroyed, .minimized, .reframed:
-            for member in members { member.engine.handle(event) }
+        case let .destroyed(windowId), let .minimized(windowId), let .reframed(windowId?):
+            engines.first { $0.holds(windowId) }?.handle(event)
+        case .reframed(nil):
+            break
         }
     }
 
@@ -80,18 +79,18 @@ final class Displays {
         followScreens()
         windowSystem.duringOperation("reconcile") { reconcile() }
 
-        let windowsByDisplay = windowsByDisplay(windows)
-        for member in members {
-            member.engine.resync(windows: windowsByDisplay[member.display.id] ?? [])
+        let windowsByOwner = windowsByOwner(windows)
+        for engine in engines {
+            engine.resync(windows: windowsByOwner[engine.display.id] ?? [])
         }
     }
 
     func saveState() {
-        for member in members { member.engine.saveState() }
+        for engine in engines { engine.saveState() }
     }
 
     func stop() {
-        for member in members { member.engine.stop() }
+        for engine in engines { engine.stop() }
     }
 
     /// The notification also follows a Dock or menu bar change, and macOS posts it more than
@@ -110,94 +109,85 @@ final class Displays {
         let displays = connected.map { "\($0.id.rawValue) \($0.fullFrame)" }.joined(separator: ", ")
         Log.desktop.debug("screen parameters changed, displays: \(displays)")
         arrangement = Arrangement(displays: connected)
-        for member in members {
-            guard let display = connected.first(where: { $0.id == member.display.id }) else { continue }
-            member.desktop.change(to: display)
+        for engine in engines {
+            guard let display = connected.first(where: { $0.id == engine.display.id }) else { continue }
+            engine.change(to: display)
         }
         followArrangement()
     }
 
     /// An added display gets its engine before the removed ones are absorbed, so the primary
-    /// display has one. `members` follows the arrangement's order, the primary first.
+    /// display has one. `engines` follows the arrangement's order, the primary first.
     private func followArrangement() {
-        let removed = members.filter { member in !arrangement.displays.contains { $0.id == member.display.id } }
-        members = arrangement.displays.map { display in
-            members.first { $0.display.id == display.id } ?? startedMember(on: display)
+        let removed = engines.filter { engine in !arrangement.displays.contains { $0.id == engine.display.id } }
+        engines = arrangement.displays.map { display in
+            engines.first { $0.display.id == display.id } ?? startedEngine(on: display)
         }
-        for member in removed {
-            absorb(member, into: members[0])
-            self.removed(member.display.id)
+        for engine in removed {
+            absorb(engine, into: engines[0])
+            self.removed(engine.display.id)
         }
     }
 
     /// A display that returns gets a new engine, without the workspaces it had.
-    private func startedMember(on display: Display) -> Member {
+    private func startedEngine(on display: Display) -> Engine {
         Log.desktop.notice("display added: \(display.logDescription)")
-        let member = member(on: display)
-        member.engine.start(windows: [], restoring: nil)
-        return member
+        let engine = engine(on: display)
+        engine.start(windows: [], restoring: nil)
+        return engine
     }
 
     /// The removed engine is not stopped: stopping puts its parked windows back on screen.
-    private func absorb(_ removed: Member, into primary: Member) {
+    private func absorb(_ removed: Engine, into primary: Engine) {
         Log.desktop.notice("display removed: \(removed.display.id.rawValue), absorbed by \(primary.display.id.rawValue)")
-        removed.engine.saveState()
+        removed.saveState()
         if let state = sections.removeValue(forKey: removed.display.id) {
-            primary.engine.absorb(state)
+            primary.absorb(state)
         }
-        primary.engine.saveState()
-        write(members.compactMap { sections[$0.display.id] })
+        primary.saveState()
+        write(engines.compactMap { sections[$0.display.id] })
     }
 
     /// A drag to another display reaches OttoWM only as `reframed`, so a window can stand on
     /// one display while the engine of another holds it. A parked window stands at its own
     /// display's corner, and a window not on screen is left to the engine that holds it.
     private func reconcile() {
-        guard members.count > 1 else { return }
+        guard engines.count > 1 else { return }
 
-        for member in members {
-            let frames = windowSystem.frames(of: member.engine.activeWindowIds.sorted())
+        for engine in engines {
+            let frames = windowSystem.frames(of: engine.activeWindowIds.sorted())
             for (windowId, frame) in frames.sorted(by: { $0.key < $1.key }) {
-                guard let displayId = arrangement.display(of: frame)?.id, displayId != member.display.id,
-                      let target = members.first(where: { $0.display.id == displayId }),
+                guard let displayId = arrangement.display(of: frame)?.id, displayId != engine.display.id,
+                      let target = engines.first(where: { $0.display.id == displayId }),
                       let win = windowSystem.snapshot(of: windowId)
                 else { continue }
 
-                member.engine.release(windowId)
-                target.engine.assign(win)
+                engine.release(windowId)
+                target.assign(win)
             }
         }
     }
 
-    private func member(on display: Display) -> Member {
+    private func engine(on display: Display) -> Engine {
         let scoped = windowSystem.scoped { [weak self] in self?.arrangement.display(of: $0)?.id == display.id }
-        let built = makeEngine(display, scoped) { [weak self] in self?.save($0, of: display.id) }
-        return (display, built.workspaces, built.desktop, built.engine)
+        return makeEngine(display, scoped) { [weak self] in self?.save($0, of: display.id) }
     }
 
     private func engine(on displayId: DisplayID?) -> Engine {
-        (members.first { $0.display.id == displayId } ?? members[0]).engine
+        engines.first { $0.display.id == displayId } ?? engines[0]
     }
 
-    /// A focused window goes to the engine that holds it, parked or full screen.
-    private func engine(receiving event: WindowEvent, of win: WindowSnapshot) -> Engine {
-        guard case .focused = event,
-              let holder = members.first(where: { $0.workspaces.membership(of: win.id) != .unassigned })
-        else { return engine(holding: win.frame) }
-
-        return holder.engine
+    /// The engine holding the window, parked or full screen, else the display holding the frame.
+    private func owner(of windowId: CGWindowID, frame: CGRect) -> Engine {
+        engines.first { $0.holds(windowId) } ?? engine(on: arrangement.display(of: frame)?.id)
     }
 
-    private func engine(holding frame: CGRect) -> Engine {
-        engine(on: arrangement.display(of: frame)?.id)
-    }
-
-    private func windowsByDisplay(_ windows: [WindowSnapshot]) -> [DisplayID?: [WindowSnapshot]] {
-        Dictionary(grouping: windows) { arrangement.display(of: $0.frame)?.id }
+    private func windowsByOwner(_ windows: [WindowSnapshot]) -> [DisplayID: [WindowSnapshot]] {
+        Dictionary(grouping: windows) { owner(of: $0.id, frame: $0.frame).display.id }
     }
 
     private func save(_ state: SavedState, of displayId: DisplayID) {
         sections[displayId] = state
-        write(members.compactMap { sections[$0.display.id] })
+        write(engines.compactMap { sections[$0.display.id] })
     }
 }

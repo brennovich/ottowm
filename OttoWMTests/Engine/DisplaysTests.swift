@@ -88,50 +88,36 @@ final class DisplaysTests: DisplaysTestCase {
         XCTAssertEqual(onScreenReadCount, 0)
     }
 
-    func testANewWindowGoesToTheDisplayHoldingItsFrame() {
-        let cases: [(name: String, event: (WindowSnapshot) -> WindowEvent)] = [
-            ("created", WindowEvent.created),
-            ("unminimized", WindowEvent.unminimized),
-        ]
-
-        for testCase in cases {
-            let window = add(200, frame: onRight)
-            let displays = makeDisplays()
-
-            displays.handle(testCase.event(window.snapshot()))
-
-            XCTAssertEqual(workspaces[Display.right.id]?.workspace(for: 200), 1, testCase.name)
-        }
-    }
-
-    func testAFocusedWindowGoesToTheEngineHoldingItElseToTheDisplayHoldingItsFrame() {
-        let cases: [(name: String, parkedOnStandard: Bool, expected: Workspaces.Membership)] = [
-            ("held", true, .unassigned),
-            ("unknown", false, .assigned(1)),
+    func testAnEventGoesToTheEngineHoldingTheWindowElseToTheDisplayHoldingItsFrame() {
+        let cases: [(
+            name: String,
+            arrange: (Displays, StubWindow) -> Void,
+            event: (StubWindow) -> WindowEvent,
+            expected: Workspaces.Membership
+        )] = [
+            ("focused, parked on the standard display, frame on the right", { displays, window in
+                displays.handle(.created(window.snapshot()))
+                displays.handle(.switchToWorkspace(2))
+                window.setPosition(self.onRight.origin)
+            }, { .focused($0.snapshot()) }, .unassigned),
+            ("created, held by no engine, frame on the right", { _, window in
+                window.setPosition(self.onRight.origin)
+            }, { .created($0.snapshot()) }, .assigned(1)),
+            ("destroyed, held by the right display", { displays, window in
+                window.setPosition(self.onRight.origin)
+                displays.handle(.created(window.snapshot()))
+            }, { .destroyed($0.id) }, .unassigned),
         ]
 
         for testCase in cases {
             let window = add(200, frame: onStandard)
             let displays = makeDisplays()
-            if testCase.parkedOnStandard {
-                displays.handle(.created(window.snapshot()))
-                displays.handle(.switchToWorkspace(2))
-            }
-            window.setPosition(onRight.origin)
+            testCase.arrange(displays, window)
 
-            displays.handle(.focused(window.snapshot()))
+            displays.handle(testCase.event(window))
 
             XCTAssertEqual(workspaces[Display.right.id]?.membership(of: 200), testCase.expected, testCase.name)
         }
-    }
-
-    func testAnEventWithoutAFrameGoesToEveryEngine() {
-        let window = add(200, frame: onRight)
-        displays.handle(.created(window.snapshot()))
-
-        displays.handle(.destroyed(200))
-
-        XCTAssertNil(workspaces[Display.right.id]?.workspace(for: 200))
     }
 
     func testStartHandsEachEngineTheWindowsOnItsDisplayAndItsSection() {
@@ -153,6 +139,17 @@ final class DisplaysTests: DisplaysTestCase {
         displays.resync(windows: [add(200, frame: onRight).snapshot()])
 
         XCTAssertEqual(workspaces[Display.right.id]?.workspace(for: 200), 1)
+    }
+
+    func testAParkedWindowMacOSMovedOntoAnotherDisplayStaysWithItsEngineAtResync() {
+        let window = add(200, frame: onStandard)
+        displays.handle(.created(window.snapshot()))
+        displays.handle(.switchToWorkspace(2))
+        window.setPosition(onRight.origin)
+
+        displays.resync(windows: [window.snapshot()])
+
+        XCTAssertEqual(workspaces[Display.right.id]?.membership(of: 200), .unassigned)
     }
 
     func testSavingWritesTheSectionOfEveryDisplay() {
