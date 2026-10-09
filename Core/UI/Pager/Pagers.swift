@@ -1,12 +1,14 @@
-import CoreGraphics
-import Foundation
+import AppKit
 
-/// The Pager of each display.
+/// The Pager of each display, and the sources that make them check whether a window covers their tab.
 final class Pagers {
-    private let readWindowFrames: () -> [CGWindowID: CGRect]
-    private let nextTurn: (@escaping () -> Void) -> Void
+    private let windowFrames: () -> [CGWindowID: CGRect]
+    private let schedule: (TimeInterval, @escaping () -> Void) -> Void
     private var pagers: [DisplayID: Pager] = [:]
-    private var cachedWindowFrames: [CGWindowID: CGRect]?
+    private var secureInputIsActive = false
+    private var checkScheduled = false
+    private var checkCount = 0
+    private var observers: [NSObjectProtocol] = []
 
     var isEnabled = false {
         didSet {
@@ -14,29 +16,35 @@ final class Pagers {
         }
     }
 
+    /// `schedule` delays the check by 50ms: without the delay, the main queue runs a check between two window events of one
+    /// workspace switch, and a switch between two workspaces that both cover the tab starts a restore and turns it back.
     init(
-        readWindowFrames: @escaping () -> [CGWindowID: CGRect] = {
-            onScreenWindowFrames(level: Int(CGWindowLevelForKey(.normalWindow)))
+        startWatchingWindows: (@escaping (WindowEvent) -> Void) -> Void,
+        windowFrames: @escaping () -> [CGWindowID: CGRect] = { onScreenWindowFrames(level: Int(CGWindowLevelForKey(.normalWindow))) },
+        startWatchingSecureInput: (@escaping (Bool) -> Void) -> Void,
+        schedule: @escaping (TimeInterval, @escaping () -> Void) -> Void = {
+            DispatchQueue.main.asyncAfter(deadline: .now() + $0, execute: $1)
         },
-        nextTurn: @escaping (@escaping () -> Void) -> Void = { DispatchQueue.main.async(execute: $0) }
+        notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter
     ) {
-        self.readWindowFrames = readWindowFrames
-        self.nextTurn = nextTurn
-    }
+        self.windowFrames = windowFrames
+        self.schedule = schedule
+        startWatchingWindows { [weak self] _ in self?.scheduleCheck() }
+        startWatchingSecureInput { [weak self] active in
+            guard let self else { return }
 
-    /// One change schedules the check of every Pager with the same delay, and the main queue runs those checks back to
-    /// back, so the first read serves the others. A block queued on the main queue drops the read: it runs after the
-    /// checks already due, in 199 of 200 runs of a scratch program; otherwise each check reads the list.
-    func windowFrames() -> [CGWindowID: CGRect] {
-        if let cachedWindowFrames { return cachedWindowFrames }
-
-        let frames = readWindowFrames()
-        cachedWindowFrames = frames
-        nextTurn { [weak self] in self?.cachedWindowFrames = nil }
-        return frames
+            secureInputIsActive = active
+            for pager in pagers.values { pager.secureInputChanged(active) }
+        }
+        // Hiding an application reports no window event.
+        observers = [NSWorkspace.didHideApplicationNotification, NSWorkspace.didUnhideApplicationNotification].map {
+            notificationCenter.addObserver(forName: $0, object: nil, queue: .main) { [weak self] _ in self?.scheduleCheck() }
+        }
     }
 
     func add(_ pager: Pager, on displayId: DisplayID) {
+        pager.requestCheck = { [weak self] in self?.scheduleCheck() }
+        pager.secureInputChanged(secureInputIsActive)
         pager.isEnabled = isEnabled
         pagers[displayId] = pager
     }
@@ -59,5 +67,34 @@ final class Pagers {
                 if sliding == 0 { done() }
             }
         }
+    }
+
+    /// The events of one change join the check the first of them scheduled.
+    private func scheduleCheck() {
+        guard !checkScheduled else { return }
+
+        checkScheduled = true
+        schedule(0.05) { [weak self] in
+            guard let self else { return }
+
+            checkScheduled = false
+            guard isEnabled else { return }
+
+            check()
+            checkCount += 1
+            // Some applications (Ghostty) update the window list up to 130ms after they report a new frame.
+            // A newer check drops this recheck, since its own recheck reads the list later.
+            let count = checkCount
+            schedule(0.13) { [weak self] in
+                guard let self, checkCount == count else { return }
+
+                check()
+            }
+        }
+    }
+
+    private func check() {
+        let frames = windowFrames()
+        for pager in pagers.values { pager.check(against: frames) }
     }
 }

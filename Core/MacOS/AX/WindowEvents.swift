@@ -13,9 +13,7 @@ struct ScanAttempt {
 /// The window events of the watched applications, and the scans that start, refresh and stop
 /// watching one.
 protocol WindowEvents: AnyObject {
-    /// Returns the closure that stops the watch.
-    @discardableResult
-    func startWatching(_ handler: @escaping (WindowEvent) -> Void) -> () -> Void
+    func startWatching(_ handler: @escaping (WindowEvent) -> Void)
     func start(_ app: NSRunningApplication) -> ScanAttempt?
     func stop(_ app: NSRunningApplication)
     func discover(_ app: NSRunningApplication) -> ScanAttempt?

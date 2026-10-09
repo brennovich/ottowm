@@ -5,74 +5,19 @@ final class PagerTests: XCTestCase {
     private let away = CGRect(x: 0, y: 0, width: 800, height: 600)
 
     private let desktop = StubDesktop()
-    private let center = NotificationCenter()
-    private var windowHandlers: [(WindowEvent) -> Void] = []
-    private var listed: [CGWindowID: CGRect] = [:]
-    private var listReads = 0
     private var tabOnScreen = true
-    private var scheduled: [(delay: TimeInterval, block: () -> Void)] = []
-    private var secureInputHandler: ((Bool) -> Void)?
+    private var requestedChecks = 0
 
     private lazy var pager = Pager(
         workspaces: Workspaces(tabGroups: TabGroups(tabCount: { _ in 1 }, frame: { _ in nil })),
         desktop: desktop,
-        startWatchingWindows: {
-            self.windowHandlers.append($0)
-            return {}
-        },
-        windowFrames: {
-            self.listReads += 1
-            return self.listed
-        },
         isOnScreen: { _ in self.tabOnScreen },
-        startWatchingSecureInput: {
-            self.secureInputHandler = $0
-            return {}
-        },
-        panel: StubPanel.init,
-        schedule: { self.scheduled.append(($0, $1)) },
-        notificationCenter: center
+        panel: StubPanel.init
     )
 
     override func setUp() {
         super.setUp()
-        _ = pager
-    }
-
-    private func report(_ event: WindowEvent) {
-        for handler in windowHandlers { handler(event) }
-    }
-
-    private func report(secureInput active: Bool) {
-        secureInputHandler?(active)
-    }
-
-    private func runScheduled() {
-        let blocks = scheduled
-        scheduled = []
-        for (_, block) in blocks { block() }
-    }
-
-    private func enable() {
-        pager.isEnabled = true
-        while !scheduled.isEmpty { runScheduled() }
-    }
-
-    func testAReleasedPagerStopsWatchingWindowsSecureInputAndHiddenApplications() {
-        var stopped: [String] = []
-        let center = ObserverRecordingCenter()
-
-        _ = Pager(
-            workspaces: Workspaces(tabGroups: TabGroups(tabCount: { _ in 1 }, frame: { _ in nil })),
-            desktop: desktop,
-            startWatchingWindows: { _ in { stopped.append("windows") } },
-            startWatchingSecureInput: { _ in { stopped.append("secure input") } },
-            panel: StubPanel.init,
-            notificationCenter: center
-        )
-
-        XCTAssertEqual(stopped.sorted(), ["secure input", "windows"])
-        XCTAssertEqual(center.removed, center.added)
+        pager.requestCheck = { self.requestedChecks += 1 }
     }
 
     func testDismissingAPagerThatIsNotShownIsDoneAtOnce() {
@@ -84,44 +29,39 @@ final class PagerTests: XCTestCase {
     }
 
     func testAWindowOverTheTabRetractsItAndMovingAwayRestoresIt() {
-        listed = [1: away]
-        enable()
+        pager.isEnabled = true
 
-        listed = [1: over]
-        report(.reframed(nil))
-        runScheduled()
+        pager.check(against: [1: over])
         XCTAssertTrue(pager.isRetracted)
         XCTAssertTrue(pager.isCueRetracted)
 
-        listed = [1: away]
-        report(.reframed(nil))
-        runScheduled()
+        pager.check(against: [1: away])
         XCTAssertFalse(pager.isRetracted)
         XCTAssertFalse(pager.isCueRetracted)
     }
 
     func testTheCueShowsWhileSecureInputIsSet() {
-        enable()
+        pager.isEnabled = true
 
-        report(secureInput: true)
+        pager.secureInputChanged(true)
         XCTAssertTrue(pager.isCueShown)
 
-        report(secureInput: false)
+        pager.secureInputChanged(false)
         XCTAssertFalse(pager.isCueShown)
     }
 
     func testTheCueShowsOnlyOnceThePagerIsShown() {
-        report(secureInput: true)
+        pager.secureInputChanged(true)
         XCTAssertFalse(pager.isCueShown)
 
-        enable()
+        pager.isEnabled = true
 
         XCTAssertTrue(pager.isCueShown)
     }
 
     func testTurningThePagerOffTakesTheCueWithIt() {
-        enable()
-        report(secureInput: true)
+        pager.isEnabled = true
+        pager.secureInputChanged(true)
         let done = expectation(description: "the pager has slid out")
 
         pager.dismiss { done.fulfill() }
@@ -131,112 +71,26 @@ final class PagerTests: XCTestCase {
     }
 
     func testWhileTheTabIsNotOnScreenTheCheckLeavesItAsItIs() {
-        listed = [1: over]
         tabOnScreen = false
+        pager.isEnabled = true
 
-        enable()
+        pager.check(against: [1: over])
 
         XCTAssertFalse(pager.isRetracted)
-    }
-
-    func testTheWindowListIsReadAgain130msAfterACheck() {
-        listed = [1: away]
-        enable()
-        report(.reframed(nil))
-        runScheduled()
-        XCTAssertFalse(pager.isRetracted)
-
-        listed = [1: over]
-        XCTAssertEqual(scheduled.map(\.delay), [0.13])
-        runScheduled()
-        XCTAssertTrue(pager.isRetracted)
-    }
-
-    func testANewerCheckDropsThePendingRecheck() {
-        enable()
-        report(.reframed(nil))
-        runScheduled()
-        let pendingRecheck = scheduled.removeFirst().block
-        report(.reframed(nil))
-        runScheduled()
-        let reads = listReads
-
-        pendingRecheck()
-
-        XCTAssertEqual(listReads, reads)
-    }
-
-    func testEventsBeforeTheCheckRunsReadTheWindowListOnce() {
-        enable()
-        let reads = listReads
-
-        report(.reframed(nil))
-        report(.reframed(nil))
-        report(.destroyed(3))
-        runScheduled()
-
-        XCTAssertEqual(listReads, reads + 1)
     }
 
     func testADisplayChangeChecksAgainstTheNewDisplay() {
-        listed = [1: CGRect(x: 2000, y: 1000, width: 800, height: 600)]
-        enable()
-
         desktop.report(.displayChange(DisplayChange(from: .standard, to: .external)))
-        runScheduled()
+        XCTAssertEqual(requestedChecks, 1)
 
+        pager.isEnabled = true
+        pager.check(against: [1: CGRect(x: 2000, y: 1000, width: 800, height: 600)])
         XCTAssertTrue(pager.isRetracted)
     }
 
     func testANativeSpaceChangeChecksAgain() {
-        enable()
-
-        listed = [1: over]
         desktop.report(.nativeSpaceChange)
-        runScheduled()
 
-        XCTAssertTrue(pager.isRetracted)
-    }
-
-    func testHidingAnApplicationChecksAgain() {
-        listed = [1: over]
-        enable()
-
-        listed = [:]
-        center.post(name: NSWorkspace.didHideApplicationNotification, object: nil)
-        runScheduled()
-
-        XCTAssertFalse(pager.isRetracted)
-    }
-
-    func testWhileThePagerIsOffNoWindowListIsReadAndTurningItOnReadsItOnce() {
-        report(.reframed(nil))
-        runScheduled()
-        XCTAssertEqual(listReads, 0)
-
-        pager.isEnabled = true
-        runScheduled()
-        XCTAssertEqual(listReads, 1)
-    }
-}
-
-private final class ObserverRecordingCenter: NotificationCenter {
-    private(set) var added: Set<ObjectIdentifier> = []
-    private(set) var removed: Set<ObjectIdentifier> = []
-
-    override func addObserver(
-        forName name: NSNotification.Name?,
-        object obj: Any?,
-        queue: OperationQueue?,
-        using block: @escaping @Sendable (Notification) -> Void
-    ) -> any NSObjectProtocol {
-        let observer = super.addObserver(forName: name, object: obj, queue: queue, using: block)
-        added.insert(ObjectIdentifier(observer))
-        return observer
-    }
-
-    override func removeObserver(_ observer: Any) {
-        removed.insert(ObjectIdentifier(observer as AnyObject))
-        super.removeObserver(observer)
+        XCTAssertEqual(requestedChecks, 1)
     }
 }

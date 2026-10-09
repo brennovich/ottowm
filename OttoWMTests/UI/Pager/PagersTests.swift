@@ -1,20 +1,57 @@
 import XCTest
 
 final class PagersTests: XCTestCase {
-    private let pagers = Pagers()
+    private let overStandard = CGRect(x: 1700, y: 1000, width: 800, height: 600)
+    private let overRight = CGRect(x: 3600, y: 800, width: 800, height: 600)
+    private let away = CGRect(x: 0, y: 0, width: 800, height: 600)
 
-    private func makePager() -> Pager {
-        Pager(
+    private let center = NotificationCenter()
+    private var windowHandlers: [(WindowEvent) -> Void] = []
+    private var secureInputHandler: ((Bool) -> Void)?
+    private var listed: [CGWindowID: CGRect] = [:]
+    private var listReads = 0
+    private var scheduled: [(delay: TimeInterval, block: () -> Void)] = []
+
+    private lazy var pagers = Pagers(
+        startWatchingWindows: { self.windowHandlers.append($0) },
+        windowFrames: {
+            self.listReads += 1
+            return self.listed
+        },
+        startWatchingSecureInput: { self.secureInputHandler = $0 },
+        schedule: { self.scheduled.append(($0, $1)) },
+        notificationCenter: center
+    )
+
+    override func setUp() {
+        super.setUp()
+        _ = pagers
+    }
+
+    private func makePager(on display: Display = .standard) -> Pager {
+        let desktop = StubDesktop()
+        desktop.display = display
+        return Pager(
             workspaces: Workspaces(tabGroups: TabGroups(tabCount: { _ in 1 }, frame: { _ in nil })),
-            desktop: StubDesktop(),
-            startWatchingWindows: { _ in {} },
-            windowFrames: { [:] },
+            desktop: desktop,
             isOnScreen: { _ in true },
-            startWatchingSecureInput: { _ in {} },
-            panel: StubPanel.init,
-            schedule: { _, _ in },
-            notificationCenter: NotificationCenter()
+            panel: StubPanel.init
         )
+    }
+
+    private func report(_ event: WindowEvent) {
+        for handler in windowHandlers { handler(event) }
+    }
+
+    private func runScheduled() {
+        let blocks = scheduled
+        scheduled = []
+        for (_, block) in blocks { block() }
+    }
+
+    private func enable() {
+        pagers.isEnabled = true
+        while !scheduled.isEmpty { runScheduled() }
     }
 
     func testEveryPagerFollowsIsEnabledIncludingOneAddedLater() {
@@ -27,6 +64,19 @@ final class PagersTests: XCTestCase {
 
         XCTAssertTrue(first.isEnabled)
         XCTAssertTrue(later.isEnabled)
+    }
+
+    func testEveryPagerGetsTheSecureInputFlagIncludingOneAddedLater() {
+        let first = makePager()
+        let later = makePager()
+        pagers.add(first, on: Display.standard.id)
+        pagers.isEnabled = true
+
+        secureInputHandler?(true)
+        pagers.add(later, on: Display.right.id)
+
+        XCTAssertTrue(first.isCueShown)
+        XCTAssertTrue(later.isCueShown)
     }
 
     func testDismissingRunsDoneOnceEveryPagerHasSlidOut() {
@@ -48,23 +98,88 @@ final class PagersTests: XCTestCase {
         XCTAssertTrue(done)
     }
 
-    func testTheWindowListIsReadOnceUntilTheMainQueueRunsItsNextBlock() {
-        var reads = 0
-        var nextBlocks: [() -> Void] = []
-        let pagers = Pagers(
-            readWindowFrames: {
-                reads += 1
-                return [CGWindowID(reads): .zero]
-            },
-            nextTurn: { nextBlocks.append($0) }
-        )
-        _ = pagers.windowFrames()
+    func testOneCheckReadsTheWindowListOnceForEveryPager() {
+        let standard = makePager(on: .standard)
+        let right = makePager(on: .right)
+        pagers.add(standard, on: Display.standard.id)
+        pagers.add(right, on: Display.right.id)
+        enable()
+        let reads = listReads
 
-        XCTAssertEqual(pagers.windowFrames(), [1: .zero])
+        listed = [1: overStandard, 2: overRight]
+        report(.reframed(nil))
+        runScheduled()
 
-        for block in nextBlocks { block() }
+        XCTAssertEqual(listReads, reads + 1)
+        XCTAssertTrue(standard.isRetracted)
+        XCTAssertTrue(right.isRetracted)
+    }
 
-        XCTAssertEqual(pagers.windowFrames(), [2: .zero])
+    func testTheWindowListIsReadAgain130msAfterACheck() {
+        let pager = makePager()
+        pagers.add(pager, on: Display.standard.id)
+        listed = [1: away]
+        enable()
+        report(.reframed(nil))
+        runScheduled()
+        XCTAssertFalse(pager.isRetracted)
+
+        listed = [1: overStandard]
+        XCTAssertEqual(scheduled.map(\.delay), [0.13])
+        runScheduled()
+        XCTAssertTrue(pager.isRetracted)
+    }
+
+    func testANewerCheckDropsThePendingRecheck() {
+        pagers.add(makePager(), on: Display.standard.id)
+        enable()
+        report(.reframed(nil))
+        runScheduled()
+        let pendingRecheck = scheduled.removeFirst().block
+        report(.reframed(nil))
+        runScheduled()
+        let reads = listReads
+
+        pendingRecheck()
+
+        XCTAssertEqual(listReads, reads)
+    }
+
+    func testEventsBeforeTheCheckRunsReadTheWindowListOnce() {
+        pagers.add(makePager(), on: Display.standard.id)
+        enable()
+        let reads = listReads
+
+        report(.reframed(nil))
+        report(.reframed(nil))
+        report(.destroyed(3))
+        runScheduled()
+
+        XCTAssertEqual(listReads, reads + 1)
+    }
+
+    func testHidingAnApplicationChecksAgain() {
+        let pager = makePager()
+        pagers.add(pager, on: Display.standard.id)
+        listed = [1: overStandard]
+        enable()
+
+        listed = [:]
+        center.post(name: NSWorkspace.didHideApplicationNotification, object: nil)
+        runScheduled()
+
+        XCTAssertFalse(pager.isRetracted)
+    }
+
+    func testWhileThePagerIsOffNoWindowListIsReadAndTurningItOnReadsItOnce() {
+        pagers.add(makePager(), on: Display.standard.id)
+        report(.reframed(nil))
+        runScheduled()
+        XCTAssertEqual(listReads, 0)
+
+        pagers.isEnabled = true
+        runScheduled()
+        XCTAssertEqual(listReads, 1)
     }
 
     func testARemovedPagerIsDismissedAndNoLongerFollowsIsEnabled() {

@@ -26,9 +26,8 @@ final class StubWindowEvents: WindowEvents {
     var calls: [Call] { locked { recordedCalls } }
     var startedPids: Set<pid_t> { Set(calls.compactMap { if case let .start(pid) = $0 { pid } else { nil } }) }
 
-    func startWatching(_ handler: @escaping (WindowEvent) -> Void) -> () -> Void {
+    func startWatching(_ handler: @escaping (WindowEvent) -> Void) {
         handlers.append(handler)
-        return {}
     }
 
     func start(_ app: NSRunningApplication) -> ScanAttempt? {

@@ -10,7 +10,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         resume: { [self] in displays?.resync(windows: applicationsObserver.resync()) },
         reloadBindings: { [self] in bindings?.reload() },
         ask: { ConfigAlert.ask($0, .reload) },
-        dismiss: { [self] done in pagers.dismiss(then: done) }
+        dismiss: { [self] done in pagers?.dismiss(then: done) ?? done() }
     )
     private lazy var windowEvents = AXWindowEvents(
         applications: applications,
@@ -19,7 +19,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var applicationsObserver = RunningApplicationsObserver(windowEvents: windowEvents)
     private var bindings: Bindings?
     private var displays: Displays?
-    private let pagers = Pagers()
+    private var pagers: Pagers?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let permission = AccessibilityPermission(ask: AccessibilityAlert.ask, relaunch: lifecycle.relaunch)
@@ -36,6 +36,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // No property: the watch retains the instance it runs on.
         let secureInput = SecureInput()
         let status = status(secureInput: secureInput)
+        let pagers = Pagers(startWatchingWindows: windowEvents.startWatching, startWatchingSecureInput: secureInput.startWatching)
+        self.pagers = pagers
         let displays = Displays(
             screens: .system,
             windowSystem: WindowSystem.system(windowEvents: windowEvents, applications: applications),
@@ -45,15 +47,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             removed: { [pagers] displayId in pagers.remove(on: displayId) },
             engine: { [self] display, windowSystem in
                 let parts = engine(on: display, windowSystem: windowSystem, layouts: layouts, spacing: { spacing })
-                let pager = Pager(
-                    workspaces: parts.workspaces,
-                    desktop: parts.desktop,
-                    startWatchingWindows: windowEvents.startWatching,
-                    windowFrames: pagers.windowFrames,
-                    startWatchingSecureInput: secureInput.startWatching,
-                    optionClicked: status.toggle
-                )
-                pagers.add(pager, on: display.id)
+                pagers.add(Pager(workspaces: parts.workspaces, desktop: parts.desktop, optionClicked: status.toggle), on: display.id)
                 return parts.engine
             }
         )

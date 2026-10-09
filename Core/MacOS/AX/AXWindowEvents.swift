@@ -23,10 +23,8 @@ final class AXWindowEvents: WindowEvents {
         self.screenIsLocked = screenIsLocked
     }
 
-    @discardableResult
-    func startWatching(_ handler: @escaping (WindowEvent) -> Void) -> () -> Void {
-        let watch = subscribers.watch(handler)
-        return { [weak self] in self?.subscribers.unwatch(watch) }
+    func startWatching(_ handler: @escaping (WindowEvent) -> Void) {
+        subscribers.watch(handler)
     }
 
     func start(_ app: NSRunningApplication) -> ScanAttempt? {

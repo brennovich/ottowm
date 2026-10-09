@@ -187,15 +187,16 @@ While `Lifecycle.screenIsLocked` is set, `Engine` drops window events, `Displays
 flowchart LR
     Workspaces -->|WorkspaceEvent| Pager
     Desktop -->|DesktopEvent| Pager
-    AXWindowEvents -->|WindowEvent| Pager
+    AXWindowEvents -->|WindowEvent| Pagers
+    SecureInput -->|flag| Pagers
     Bindings -->|reloaded Config| Pagers
     Lifecycle -->|dismiss| Pagers
     Displays -->|removed display| Pagers
-    Pagers -->|"isEnabled, dismiss, window frames"| Pager
-    SecureInput -->|flag| Pager
+    Pager -->|requestCheck| Pagers
+    Pagers -->|"isEnabled, dismiss, check, flag"| Pager
 ```
 
-Each display has its own `Pager`, built from that display's `Workspaces` and `Desktop`. `Pagers` holds them by display.
+Each display has its own `Pager`, built from that display's `Workspaces` and `Desktop`. `Pagers` holds them by display. It watches the window events, the secure input flag and hidden applications once for every Pager, and each check reads the window list once.
 
 ### Component index
 

@@ -13,8 +13,7 @@ final class SecureInput {
     private typealias NotifyProc = @convention(c) (UInt32, UnsafeMutableRawPointer?, UInt32, UnsafeMutableRawPointer?) -> Void
     private typealias Register = @convention(c) (NotifyProc, UInt32, UnsafeMutableRawPointer?) -> Int32
 
-    private var subscribers = Broadcast<Bool>()
-    private var isRegistered = false
+    private var handler: ((Bool) -> Void)?
 
     /// `kCGSSessionSecureInputPID` from the IO registry is not read alongside this: it records
     /// the last process to set the flag and is not cleared on release, so it can name a process
@@ -23,22 +22,15 @@ final class SecureInput {
         SkyLight.symbol(Self.symbol, as: IsSet.self)?() == true
     }
 
-    /// Reports the flag now and on every change, on the main thread, until the returned closure is called. Repeats
-    /// are not filtered: the flag is read again on each notification rather than taken from its type.
-    @discardableResult
-    func startWatching(_ handler: @escaping (Bool) -> Void) -> () -> Void {
-        let watch = subscribers.watch(handler)
+    /// Reports the flag now and on every change, on the main thread. Repeats are not filtered: the flag is read
+    /// again on each notification rather than taken from its type.
+    ///
+    /// The watch is never taken back, so the registration owns this instance: the callback reads it through the
+    /// context pointer, which outlives every other reference.
+    func startWatching(_ handler: @escaping (Bool) -> Void) {
+        self.handler = handler
         handler(isActive())
-        if !isRegistered {
-            isRegistered = true
-            register()
-        }
-        return { [weak self] in self?.subscribers.unwatch(watch) }
-    }
 
-    /// The registration is never taken back, so it owns this instance: the callback reads it through the context
-    /// pointer, which outlives every other reference.
-    private func register() {
         guard let register = SkyLight.symbol(Self.registerSymbol, as: Register.self) else {
             return Log.hotkey.error("SLSRegisterNotifyProc is missing, changes of secure event input are not reported")
         }
@@ -48,7 +40,7 @@ final class SecureInput {
             guard let context else { return }
 
             let secureInput = Unmanaged<SecureInput>.fromOpaque(context).takeUnretainedValue()
-            secureInput.subscribers.report(secureInput.isActive())
+            secureInput.handler?(secureInput.isActive())
         }
         for type in Self.notificationTypes where register(notify, type, context) != 0 {
             Log.hotkey.error("SLSRegisterNotifyProc rejected type \(type), that change of secure event input is not reported")

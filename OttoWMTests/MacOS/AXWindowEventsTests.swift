@@ -108,19 +108,6 @@ final class AXWindowEventsTests: AXWindowEventsTestCase {
         XCTAssertNil(applications.findWindow(by: 300))
     }
 
-    func testAStoppedWatchReceivesNoEvent() {
-        let harness = AXWindowEventsHarness()
-        var events: [WindowEvent] = []
-        let stopWatching = harness.windowEvents.startWatching { events.append($0) }
-        let target = harness.makeElement(id: 42)
-        _ = harness.windowEvents.start(app)
-
-        stopWatching()
-        harness.callbacks[901]?(target, kAXWindowCreatedNotification)
-
-        XCTAssertEqual(events.descriptions, [])
-    }
-
     /// Sends one notification against a fixture of its own, so a table row never sees the
     /// windows another row registered.
     private func descriptions(
