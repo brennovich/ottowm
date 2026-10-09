@@ -120,7 +120,7 @@ final class Displays {
         Log.desktop.debug("screen parameters changed, displays: \(displays)")
         arrangement = Arrangement(displays: connected)
         for engine in engines {
-            guard let display = connected.first(where: { $0.id == engine.display.id }) else { continue }
+            guard let display = arrangement.displays.first(where: { $0.id == engine.display.id }) else { continue }
             engine.change(to: display)
         }
         followArrangement()

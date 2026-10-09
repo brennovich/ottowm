@@ -5,7 +5,8 @@ final class DisplaysArrangementTests: DisplaysTestCase {
     private let rightMovedLeft = Display(
         id: Display.right.id,
         fullFrame: CGRect(x: -1920, y: 0, width: 1920, height: 1080),
-        visibleFrame: CGRect(x: -1920, y: 25, width: 1920, height: 1055)
+        visibleFrame: CGRect(x: -1920, y: 25, width: 1920, height: 1055),
+        parkingCorner: .bottomLeft
     )
     private let newPrimary = Display(
         id: DisplayID(rawValue: "new-primary"),
@@ -136,5 +137,14 @@ final class DisplaysArrangementTests: DisplaysTestCase {
         displays.handle(.created(add(200, frame: CGRect(x: -1800, y: 100, width: 800, height: 600)).snapshot()))
 
         XCTAssertEqual(workspaces[Display.right.id]?.workspace(for: 200), 1)
+    }
+
+    func testANeighbourMovedBelowTheCornerHandsTheDesktopItsDisplayWithTheOtherCorner() {
+        displays.start(windows: [], restoring: nil)
+        connected = [.standard, .rightBelowTheCorner]
+
+        screenParametersChanged?()
+
+        XCTAssertEqual(desktops[Display.standard.id]?.changedDisplays.map(\.parkingCorner), [.bottomLeft])
     }
 }
