@@ -39,6 +39,16 @@ final class WindowPlacementAbsorbTests: EngineTestCase {
         XCTAssertEqual(desktop.reframeCalls.map(\.change), [.unpark(fit.frame(onRight)), .park(from: fit.frame(parkedFrom))])
     }
 
+    func testAbsorbingPrefersTheFrameRememberedOnTheAbsorbingDisplay() {
+        let remembered = CGRect(x: 1000, y: 500, width: 600, height: 400)
+        let state = stateOfTheRightEngine()
+        layouts.record(remembered, of: 200, on: Display.standard.id)
+
+        placement.absorb(state)
+
+        XCTAssertEqual(desktop.reframeCalls.first?.change, .unpark(remembered))
+    }
+
     func testAbsorbingFitsOnlyTheAbsorbedFramesARestoreGoesBackTo() {
         let own = CGRect(x: 300, y: 200, width: 640, height: 480)
         placement.assign(add(StubWindow(id: 100)).snapshot(), to: 1)

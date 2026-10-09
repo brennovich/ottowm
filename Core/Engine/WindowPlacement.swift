@@ -191,17 +191,21 @@ final class WindowPlacement {
         outcomes.gone.forEach { drop($0, reason: "gone") }
     }
 
-    /// Puts every managed window where it last stood on the display entered, or at its last
-    /// frame on the display left fitted into the new one. A parked window goes to the new
-    /// hidden edge, and comes back to that frame.
+    /// Follows a new geometry of the display. Only the parked windows move, to the new hidden
+    /// edge, and come back to their fitted frame: the frame remembered for an active window may
+    /// be older than where the user left it.
     func relocate(_ change: DisplayChange) {
         originalFrames.relocate(with: change.fit)
-        relocate(workspaces.allWindowIds, in: change)
+        let requests = workspaces.allWindowIds.sorted().compactMap { windowId in
+            parkedWindows.parkedFrom(of: windowId).map { FrameRequest(windowId: windowId, change: .park(from: change.fit.frame($0))) }
+        }
+        log.info("display changed to \(change.to.logDescription), placing \(requests.count) windows")
+        apply(requests).gone.forEach { drop($0, reason: "gone") }
     }
 
     /// Takes the windows of a removed display into the workspaces of the same number and
-    /// relocates them from that display. Relocating keeps a window parked or active as it was,
-    /// so a window whose workspace is now current, or no longer current, is placed again.
+    /// moves them onto this display, parked or active as they were. A window whose workspace is
+    /// now current, or no longer current, is placed again.
     /// A window dragged across displays can be held by both engines until a reconcile; it
     /// keeps its place in this one.
     func absorb(_ removed: SavedState) {
@@ -212,7 +216,9 @@ final class WindowPlacement {
         parkedWindows.park(saved.parkedWindows)
         originalFrames.absorb(saved.originalFrames.mapValues(change.fit.frame))
 
-        relocate(absorbed, in: change)
+        let requests = absorbed.sorted().compactMap { request(absorbing: $0, in: change) }
+        log.info("absorbing \(requests.count) windows of \(change.from.logDescription)")
+        apply(requests).gone.forEach { drop($0, reason: "gone") }
 
         let misplaced = absorbed.sorted().map { (windowId: $0, parked: workspaces.workspace(for: $0) != workspaces.current) }
             .filter { $0.parked != parkedWindows.isParked($0.windowId) }
@@ -271,23 +277,13 @@ final class WindowPlacement {
         log.notice("restored \(workspaces.allWindowIds.count) windows, workspace \(workspaces.current)")
     }
 
-    private func relocate(_ windowIds: Set<CGWindowID>, in change: DisplayChange) {
-        let requests = windowIds.sorted().compactMap { request(relocating: $0, in: change) }
-        log.info("display changed to \(change.to.logDescription), placing \(requests.count) windows")
-        apply(requests).gone.forEach { drop($0, reason: "gone") }
-    }
-
-    /// On the same display only the parked windows move, to the edge of its new geometry: the
-    /// frame remembered for an active window may be older than where the user left it.
-    private func request(relocating windowId: CGWindowID, in change: DisplayChange) -> FrameRequest? {
-        let fit = change.fit
+    /// Where the window last stood on this display, else its last frame on the removed display
+    /// fitted into this one. A parked window goes to the hidden edge, and comes back to that frame.
+    private func request(absorbing windowId: CGWindowID, in change: DisplayChange) -> FrameRequest? {
         let parkedFrom = parkedWindows.parkedFrom(of: windowId)
-        guard !change.keepsDisplay else {
-            return parkedFrom.map { FrameRequest(windowId: windowId, change: .park(from: fit.frame($0))) }
-        }
         guard let last = layouts.frame(of: windowId, on: change.from.id) ?? parkedFrom else { return nil }
 
-        let target = layouts.frame(of: windowId, on: change.to.id) ?? fit.frame(last)
+        let target = layouts.frame(of: windowId, on: change.to.id) ?? change.fit.frame(last)
         layouts.record(target, of: windowId, on: change.to.id)
         return FrameRequest(windowId: windowId, change: parkedFrom == nil ? .unpark(target) : .park(from: target))
     }

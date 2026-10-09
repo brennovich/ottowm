@@ -104,26 +104,26 @@ final class EngineDesktopIntegrationTests: XCTestCase {
         XCTAssertEqual(workspaces.current, 1)
     }
 
-    func testADisplayRoundTripPutsEveryWindowBackWhereItWas() {
+    func testAGeometryChangeLeavesTheActiveWindowsAndParksTheParkedOnesAtTheNewEdge() {
         let win1 = addWindow(100, frame: frame1)
         let win2 = addWindow(200, frame: frame2)
         start()
         moveFocusedWindow(win2, to: 2)
-        let fit = Fit(from: Display.standard.visibleFrame, into: Display.external.visibleFrame)
+        let smaller = Display(
+            id: Display.standard.id,
+            fullFrame: CGRect(x: 0, y: 0, width: 1440, height: 900),
+            visibleFrame: CGRect(x: 0, y: 25, width: 1440, height: 875)
+        )
+        let fitted = DisplayChange(from: .standard, to: smaller).fit.frame(frame2)
 
-        desktop.change(to: .external)
-
-        XCTAssertEqual(win1.frame, fit.frame(frame1))
-        XCTAssertEqual(win2.frame, hiddenEdgeFrame(size: frame2.size, on: .external))
-
-        desktop.change(to: .standard)
+        desktop.change(to: smaller)
 
         XCTAssertEqual(win1.frame, frame1)
-        XCTAssertEqual(win2.frame, hiddenEdgeFrame(size: frame2.size))
+        XCTAssertEqual(win2.frame, hiddenEdgeFrame(size: fitted.size, on: smaller))
 
         engine.switchToWorkspace(2)
 
-        XCTAssertEqual(win2.frame, frame2)
+        XCTAssertEqual(win2.frame, fitted)
     }
 
     func testSwitchingReadsNoTabCounts() {
