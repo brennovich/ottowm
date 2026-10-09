@@ -36,7 +36,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // No property: the watch retains the instance it runs on.
         let secureInput = SecureInput()
         let status = status(secureInput: secureInput)
-        let pagers = Pagers(startWatchingWindows: windowEvents.startWatching, startWatchingSecureInput: secureInput.startWatching)
+        let pagers = Pagers(
+            startWatchingWindows: windowEvents.startWatching,
+            windowFrames: { onScreenWindowFrames(level: Int(CGWindowLevelForKey(.normalWindow))) },
+            startWatchingSecureInput: secureInput.startWatching
+        )
         self.pagers = pagers
         let displays = Displays(
             screens: .system,
@@ -47,7 +51,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             removed: { [pagers] displayId in pagers.remove(on: displayId) },
             engine: { [self] display, windowSystem in
                 let parts = engine(on: display, windowSystem: windowSystem, layouts: layouts, spacing: { spacing })
-                pagers.add(Pager(workspaces: parts.workspaces, desktop: parts.desktop, optionClicked: status.toggle), on: display.id)
+                let pager = Pager(
+                    workspaces: parts.workspaces,
+                    desktop: parts.desktop,
+                    isOnScreen: isWindowOnScreen,
+                    optionClicked: status.toggle
+                )
+                pagers.add(pager, on: display.id)
                 return parts.engine
             }
         )

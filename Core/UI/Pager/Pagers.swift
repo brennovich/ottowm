@@ -20,7 +20,7 @@ final class Pagers {
     /// workspace switch, and a switch between two workspaces that both cover the tab starts a restore and turns it back.
     init(
         startWatchingWindows: (@escaping (WindowEvent) -> Void) -> Void,
-        windowFrames: @escaping () -> [CGWindowID: CGRect] = { onScreenWindowFrames(level: Int(CGWindowLevelForKey(.normalWindow))) },
+        windowFrames: @escaping () -> [CGWindowID: CGRect],
         startWatchingSecureInput: (@escaping (Bool) -> Void) -> Void,
         schedule: @escaping (TimeInterval, @escaping () -> Void) -> Void = {
             DispatchQueue.main.asyncAfter(deadline: .now() + $0, execute: $1)

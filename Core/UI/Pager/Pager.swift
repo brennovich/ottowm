@@ -25,7 +25,7 @@ final class Pager {
     init(
         workspaces: Workspaces,
         desktop: any Desktop,
-        isOnScreen: @escaping (CGWindowID) -> Bool = isWindowOnScreen,
+        isOnScreen: @escaping (CGWindowID) -> Bool,
         optionClicked: @escaping () -> Void = {},
         panel: (NSWindow.Level, SlidingView) -> any Panel = { OverlayPanel(level: $0, content: $1) }
     ) {
@@ -101,7 +101,7 @@ final class Pager {
     /// `display` is the one the desktop parks windows on.
     private func place(on display: Display) {
         tabArea = TabArea(display: display)
-        let primaryHeight = NSScreen.primaryHeight ?? display.fullFrame.height
+        let primaryHeight = NSScreen.screens.first?.frame.height ?? display.fullFrame.height
         let screenFrame = display.fullFrame.flipped(primaryHeight: primaryHeight)
 
         tab.isMirrored = tabArea.isMirrored
