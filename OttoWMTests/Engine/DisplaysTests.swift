@@ -63,6 +63,18 @@ final class DisplaysTests: DisplaysTestCase {
         }
     }
 
+    func testAWindowShownOnAnotherDisplayStaysWithItsEngineWhenTheEngineThereRefusesIt() {
+        displays.handle(.created(add(300, frame: onRight).snapshot()))
+        offScreenWindowIds = [300]
+        let window = add(200, frame: onStandard)
+        displays.handle(.created(window.snapshot()))
+        window.setPosition(onRight.origin)
+
+        displays.resync(windows: [])
+
+        XCTAssertEqual(workspaces[Display.standard.id]?.workspace(for: 200), 1)
+    }
+
     func testWindowEventsAreIgnoredOnlyWhileTheScreenIsLocked() {
         let window = add(200, frame: onStandard)
         displays.handle(.created(window.snapshot()))

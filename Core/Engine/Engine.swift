@@ -178,8 +178,9 @@ final class Engine {
         placement.release(windowId)
     }
 
-    func assign(_ win: WindowSnapshot) {
-        placement.assign(win, to: workspaces.current)
+    /// - Returns: whether a workspace holds the window.
+    func assign(_ win: WindowSnapshot) -> Bool {
+        placement.assign(win, to: workspaces.current).workspace != nil
     }
 
     var savedState: SavedState { placement.savedState }

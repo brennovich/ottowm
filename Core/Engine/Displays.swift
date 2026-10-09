@@ -161,7 +161,9 @@ final class Displays {
 
     /// A drag to another display reaches OttoWM only as `reframed`, so a window can stand on
     /// one display while the engine of another holds it. A parked window stands at its own
-    /// display's corner, and a window not on screen is left to the engine that holds it.
+    /// display's corner, and a window not on screen is left to the engine that holds it. A
+    /// window the engine there refuses, as when another native Space is in front on that
+    /// display, stays with the engine that holds it.
     private func reconcile() {
         guard engines.count > 1 else { return }
 
@@ -173,8 +175,9 @@ final class Displays {
                       let win = windowSystem.snapshot(of: windowId)
                 else { continue }
 
+                guard target.assign(win) else { continue }
+
                 engine.release(windowId)
-                target.assign(win)
             }
         }
     }
