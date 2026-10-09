@@ -145,10 +145,13 @@ final class Displays {
         engines = arrangement.displays.map { display in
             engine(of: display.id) ?? startedEngine(on: display)
         }
+        guard !removed.isEmpty else { return }
+
         for engine in removed {
             absorb(engine, into: engines[0])
             self.removed(engine.display.id)
         }
+        saveState()
     }
 
     /// A display that returns gets a new engine, without the workspaces it had.
@@ -163,7 +166,6 @@ final class Displays {
     private func absorb(_ removed: Engine, into primary: Engine) {
         Log.desktop.notice("display removed: \(removed.display.id.rawValue), absorbed by \(primary.display.id.rawValue)")
         primary.absorb(removed.savedState)
-        saveState()
     }
 
     /// A drag to another display reaches OttoWM only as `reframed`, so a window can stand on
