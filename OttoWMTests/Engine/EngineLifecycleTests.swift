@@ -51,24 +51,6 @@ final class EngineLifecycleTests: EngineTestCase {
         XCTAssertEqual(workspaces.current, 2)
     }
 
-    func testWindowEventsAreIgnoredOnlyWhileTheScreenIsLocked() {
-        let win = create(StubWindow(id: 100))
-        engine.switchToWorkspace(2)
-        screenIsLocked = true
-
-        engine.handle(.destroyed(100))
-        engine.handle(.minimized(100))
-        engine.handle(.created(add(StubWindow(id: 200)).snapshot()))
-
-        XCTAssertEqual(workspaces.allWindowIds, [100])
-        XCTAssertTrue(parkedWindows.isParked(win.id))
-
-        screenIsLocked = false
-        engine.handle(.destroyed(100))
-
-        XCTAssertEqual(workspaces.allWindowIds, [])
-    }
-
     // Events are dropped while the screen is locked, so a window that appeared behind the
     // login window belongs to no workspace and no switch would ever move it.
     func testResyncEnrollsOnlyTheWindowsNoWorkspaceKnowsIntoTheCurrentWorkspace() {

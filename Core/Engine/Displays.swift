@@ -63,18 +63,23 @@ final class Displays {
     }
 
     /// An event without a snapshot has no frame to route by, so only the engine holding the
-    /// window gets it.
+    /// window gets it. The accessibility reads fail behind the lock screen, so the events that
+    /// change a workspace are dropped there; `reframed` only reparks a parked window.
     func handle(_ event: WindowEvent) {
         switch event {
+        case let .reframed(windowId?):
+            engines.first { $0.holds(windowId) }?.handle(event)
+        case .reframed(nil):
+            break
+        case _ where screenIsLocked():
+            Log.engine.debug("window event ignored: the screen is locked")
         case let .created(win), let .unminimized(win), let .focused(win):
             windowSystem.duringOperation("route-event") {
                 reconcile()
                 owner(of: win.id, frame: win.frame).handle(event)
             }
-        case let .destroyed(windowId), let .minimized(windowId), let .reframed(windowId?):
+        case let .destroyed(windowId), let .minimized(windowId):
             engines.first { $0.holds(windowId) }?.handle(event)
-        case .reframed(nil):
-            break
         }
     }
 

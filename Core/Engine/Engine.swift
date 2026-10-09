@@ -9,7 +9,6 @@ final class Engine {
     private let enrollment: WindowEnrollment
     private let navigation: Navigation
     private let fullScreenReturns: FullScreenReturns
-    private let screenIsLocked: () -> Bool
     private let log: LogChannel
 
     init(
@@ -20,7 +19,6 @@ final class Engine {
         enrollment: WindowEnrollment,
         navigation: Navigation,
         fullScreenReturns: FullScreenReturns,
-        screenIsLocked: @escaping () -> Bool,
         log: LogChannel = Log.engine
     ) {
         self.desktop = desktop
@@ -30,7 +28,6 @@ final class Engine {
         self.enrollment = enrollment
         self.navigation = navigation
         self.fullScreenReturns = fullScreenReturns
-        self.screenIsLocked = screenIsLocked
         self.log = log
     }
 
@@ -103,11 +100,6 @@ final class Engine {
             if let windowId { reparkIfParked(windowId) }
             return
         }
-        guard !screenIsLocked() else {
-            log.debug("window event ignored: the screen is locked")
-            return
-        }
-
         windowSystem.duringOperation("window-event") {
             fullScreenReturns.follow()
             apply(event)
@@ -306,7 +298,6 @@ extension Engine {
         workspaces: Workspaces,
         layouts: DisplayLayouts,
         scheduleRetry: @escaping (TimeInterval, @escaping () -> Void) -> Void = Backoff.onMainQueue,
-        screenIsLocked: @escaping () -> Bool = { false },
         log: LogChannel = Log.engine
     ) -> Engine {
         let originalFrames = OriginalFrames(tabs: workspaces.tabGroupMembers(of:))
@@ -351,7 +342,6 @@ extension Engine {
             enrollment: enrollment,
             navigation: navigation,
             fullScreenReturns: fullScreenReturns,
-            screenIsLocked: screenIsLocked,
             log: log
         )
     }

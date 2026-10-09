@@ -63,6 +63,23 @@ final class DisplaysTests: DisplaysTestCase {
         }
     }
 
+    func testWindowEventsAreIgnoredOnlyWhileTheScreenIsLocked() {
+        let window = add(200, frame: onStandard)
+        displays.handle(.created(window.snapshot()))
+        window.setPosition(onRight.origin)
+        screenIsLocked = true
+
+        displays.handle(.created(add(300, frame: onStandard).snapshot()))
+        displays.handle(.destroyed(200))
+
+        XCTAssertEqual(workspaces[Display.standard.id]?.allWindowIds, [200])
+
+        screenIsLocked = false
+        displays.handle(.destroyed(200))
+
+        XCTAssertEqual(workspaces[Display.standard.id]?.allWindowIds, [])
+    }
+
     func testARoutedEventReadsTheOnScreenListOnce() {
         displays.handle(.created(add(100, frame: onStandard).snapshot()))
 

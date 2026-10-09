@@ -101,7 +101,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             windowSystem: windowSystem,
             workspaces: workspaces,
             layouts: layouts,
-            screenIsLocked: { [lifecycle] in lifecycle.screenIsLocked },
             log: Log.engine.tagged(tag)
         )
         return (desktop, workspaces, engine)

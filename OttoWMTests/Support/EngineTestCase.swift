@@ -5,7 +5,6 @@ import XCTest
 /// The fixture the engine test cases share: a stub desktop and one real `Workspaces` over the
 /// window system of `WindowSystemTestCase`.
 class EngineTestCase: WindowSystemTestCase {
-    var screenIsLocked = false
     var scheduledRetries: [(delay: TimeInterval, work: () -> Void)] = []
     let tabFrame = CGRect(x: 400, y: 0, width: 800, height: 600)
 
@@ -71,8 +70,7 @@ class EngineTestCase: WindowSystemTestCase {
         placement: placement,
         enrollment: enrollment,
         navigation: navigation,
-        fullScreenReturns: fullScreenReturns,
-        screenIsLocked: { [weak self] in self?.screenIsLocked ?? false }
+        fullScreenReturns: fullScreenReturns
     )
 
     @discardableResult
