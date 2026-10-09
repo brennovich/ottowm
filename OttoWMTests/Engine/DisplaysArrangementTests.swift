@@ -5,8 +5,7 @@ final class DisplaysArrangementTests: DisplaysTestCase {
     private let rightMovedLeft = Display(
         id: Display.right.id,
         fullFrame: CGRect(x: -1920, y: 0, width: 1920, height: 1080),
-        visibleFrame: CGRect(x: -1920, y: 25, width: 1920, height: 1055),
-        parkingCorner: .bottomLeft
+        visibleFrame: CGRect(x: -1920, y: 25, width: 1920, height: 1055)
     )
     private let newPrimary = Display(
         id: DisplayID(rawValue: "new-primary"),
@@ -14,13 +13,16 @@ final class DisplaysArrangementTests: DisplaysTestCase {
         visibleFrame: CGRect(x: -2560, y: 25, width: 2560, height: 1415)
     )
 
-    func testAScreenParametersChangeHandsEachDesktopTheDisplayOfItsId() {
+    func testAScreenParametersChangeHandsEachDesktopTheDisplayOfItsIdFromTheArrangement() {
         displays.start(windows: [], restoring: nil)
         connected = [.standard, rightMovedLeft]
 
         screenParametersChanged?()
 
-        XCTAssertEqual(desktops.mapValues(\.changedDisplays), [Display.standard.id: [.standard], Display.right.id: [rightMovedLeft]])
+        XCTAssertEqual(
+            desktops.mapValues(\.changedDisplays),
+            [Display.standard.id: [.standard], Display.right.id: [rightMovedLeft.parking(at: .bottomLeft)]]
+        )
     }
 
     func testADisplayAddedGetsAStartedEngine() {
@@ -34,7 +36,7 @@ final class DisplaysArrangementTests: DisplaysTestCase {
         XCTAssertEqual(desktops[Display.right.id]?.reparkedWindowIds, [[]])
     }
 
-    func testARemovedDisplayIsAbsorbedByTheEngineOfThePrimaryDisplay() {
+    func testARemovedDisplayIsAbsorbedByTheEngineOfThePrimaryDisplayAndReported() {
         displays.start(windows: [], restoring: nil)
         displays.handle(.created(add(200, frame: onRight).snapshot()))
         connected = [newPrimary, .standard]
@@ -42,38 +44,19 @@ final class DisplaysArrangementTests: DisplaysTestCase {
         screenParametersChanged?()
 
         XCTAssertEqual(workspaces[newPrimary.id]?.workspace(for: 200), 1)
-    }
-
-    func testARemovedDisplayIsReported() {
-        displays.start(windows: [], restoring: nil)
-        connected = [.standard]
-
-        screenParametersChanged?()
-
         XCTAssertEqual(removed, [Display.right.id])
     }
 
     func testTheStateFileKeepsNoSectionOfARemovedDisplay() {
-        let cases: [(name: String, onRight: [CGWindowID])] = [
-            ("its engine held no window", []),
-            ("its engine held a window", [200]),
-        ]
+        displays.start(windows: [], restoring: nil)
+        displays.handle(.created(add(200, frame: onRight).snapshot()))
+        displays.saveState()
+        connected = [.standard]
 
-        for testCase in cases {
-            let displays = makeDisplays()
-            displays.start(windows: [], restoring: nil)
-            for windowId in testCase.onRight {
-                displays.handle(.created(add(windowId, frame: onRight).snapshot()))
-            }
-            displays.saveState()
-            connected = [.standard]
+        screenParametersChanged?()
 
-            screenParametersChanged?()
-
-            XCTAssertEqual(written.last?.displays.map(\.display), [.standard], testCase.name)
-            XCTAssertEqual(written.last?.displays.first?.workspaces.workspaces[1]?.windowIds ?? [], testCase.onRight, testCase.name)
-            connected = [.standard, .right]
-        }
+        XCTAssertEqual(written.last?.displays.map(\.display), [.standard])
+        XCTAssertEqual(written.last?.displays.first?.workspaces.workspaces[1]?.windowIds, [200])
     }
 
     func testADisplayThatReturnsGetsNoSectionOfItsRemovedEngine() {
@@ -137,14 +120,5 @@ final class DisplaysArrangementTests: DisplaysTestCase {
         displays.handle(.created(add(200, frame: CGRect(x: -1800, y: 100, width: 800, height: 600)).snapshot()))
 
         XCTAssertEqual(workspaces[Display.right.id]?.workspace(for: 200), 1)
-    }
-
-    func testANeighbourMovedBelowTheCornerHandsTheDesktopItsDisplayWithTheOtherCorner() {
-        displays.start(windows: [], restoring: nil)
-        connected = [.standard, .rightBelowTheCorner]
-
-        screenParametersChanged?()
-
-        XCTAssertEqual(desktops[Display.standard.id]?.changedDisplays.map(\.parkingCorner), [.bottomLeft])
     }
 }

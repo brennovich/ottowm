@@ -2,11 +2,7 @@ import XCTest
 
 final class HiddenEdgeTests: XCTestCase {
     private let frame = CGRect(x: 100, y: 100, width: 800, height: 600)
-    private var parkingLeft: Display {
-        var display = Display.standard
-        display.parkingCorner = .bottomLeft
-        return display
-    }
+    private let parkingLeft = Display.standard.parking(at: .bottomLeft)
 
     func testParkingPinsTheWindowToTheParkingCornerOfTheDisplayKeepingTheSize() {
         let cases: [(name: String, display: Display, expected: CGPoint)] = [

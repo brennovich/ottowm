@@ -27,6 +27,12 @@ extension Display {
         fullFrame: CGRect(x: 1792, y: 101, width: 1920, height: 1080),
         visibleFrame: CGRect(x: 1792, y: 126, width: 1920, height: 1055)
     )
+
+    func parking(at corner: ParkingCorner) -> Display {
+        var display = self
+        display.parkingCorner = corner
+        return display
+    }
 }
 
 func hiddenEdgeFrame(size: CGSize, on display: Display = .standard) -> CGRect {

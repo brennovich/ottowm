@@ -40,34 +40,26 @@ final class DisplaysTests: DisplaysTestCase {
         XCTAssertEqual(onScreenReadCount, 1)
     }
 
-    func testAWindowShownOnAnotherDisplayJoinsTheCurrentWorkspaceThereBeforeTheActionRuns() {
-        displays.handle(.created(add(100, frame: onStandard).snapshot()))
-        let window = add(200, frame: onStandard)
-        displays.handle(.created(window.snapshot()))
-        window.setPosition(onRight.origin)
-        desktops[Display.standard.id]?.clearCalls()
-
-        displays.handle(.switchToWorkspace(2))
-
-        XCTAssertEqual(workspaces[Display.right.id]?.workspace(for: 200), 1)
-        XCTAssertEqual(desktops[Display.standard.id]?.reframeCalls.map(\.windowId), [100])
-    }
-
-    func testAWindowShownOnAnotherDisplayLeavesItsEngineBeforeARoutedEventOrAResync() {
-        let cases: [(name: String, handOn: (Displays, WindowSnapshot) -> Void)] = [
+    func testAWindowShownOnAnotherDisplayMovesToTheEngineThereBeforeAnActionAnEventOrAResyncRuns() {
+        let cases: [(name: String, run: (Displays, WindowSnapshot) -> Void)] = [
+            ("action", { displays, _ in displays.handle(.switchToWorkspace(2)) }),
             ("routed event", { $0.handle(.focused($1)) }),
             ("resync", { $0.resync(windows: [$1]) }),
         ]
 
         for testCase in cases {
-            let window = add(200, frame: onStandard)
             let displays = makeDisplays()
+            displays.handle(.created(add(100, frame: onStandard).snapshot()))
+            let window = add(200, frame: onStandard)
             displays.handle(.created(window.snapshot()))
             window.setPosition(onRight.origin)
+            desktops[Display.standard.id]?.clearCalls()
 
-            testCase.handOn(displays, window.snapshot())
+            testCase.run(displays, window.snapshot())
 
+            XCTAssertEqual(workspaces[Display.right.id]?.workspace(for: 200), 1, testCase.name)
             XCTAssertNil(workspaces[Display.standard.id]?.workspace(for: 200), testCase.name)
+            XCTAssertEqual(desktops[Display.standard.id]?.reframeCalls.filter { $0.windowId == 200 }, [], testCase.name)
         }
     }
 
@@ -137,22 +129,15 @@ final class DisplaysTests: DisplaysTestCase {
         XCTAssertEqual(layouts.frame(of: 300, on: Display.external.id), onRight)
     }
 
-    func testResyncHandsEachEngineTheWindowsOnItsDisplay() {
-        displays.start(windows: [], restoring: nil)
-
-        displays.resync(windows: [add(200, frame: onRight).snapshot()])
-
-        XCTAssertEqual(workspaces[Display.right.id]?.workspace(for: 200), 1)
-    }
-
-    func testAParkedWindowMacOSMovedOntoAnotherDisplayStaysWithItsEngineAtResync() {
-        let window = add(200, frame: onStandard)
-        displays.handle(.created(window.snapshot()))
+    func testResyncHandsEachEngineTheWindowsItHoldsElseTheWindowsOnItsDisplay() {
+        let parked = add(200, frame: onStandard)
+        displays.handle(.created(parked.snapshot()))
         displays.handle(.switchToWorkspace(2))
-        window.setPosition(onRight.origin)
+        parked.setPosition(onRight.origin)
 
-        displays.resync(windows: [window.snapshot()])
+        displays.resync(windows: [parked.snapshot(), add(300, frame: onRight).snapshot()])
 
+        XCTAssertEqual(workspaces[Display.right.id]?.workspace(for: 300), 1)
         XCTAssertEqual(workspaces[Display.right.id]?.membership(of: 200), .unassigned)
     }
 
