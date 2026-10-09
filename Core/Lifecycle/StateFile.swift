@@ -6,7 +6,7 @@ import Foundation
 struct StateFile {
     private struct Content: Codable {
         let loginSession: String
-        let displays: [SavedState]
+        let session: SavedSession
     }
 
     let url: URL
@@ -21,7 +21,7 @@ struct StateFile {
         self.loginSession = loginSession
     }
 
-    func load() -> [SavedState]? {
+    func load() -> SavedSession? {
         guard let data = try? Data(contentsOf: url) else {
             Log.state.info("no state at \(url.path)")
             return nil
@@ -33,14 +33,14 @@ struct StateFile {
                 Log.state.info("\(url.path) was saved in another login session, starting without it")
                 return nil
             }
-            return content.displays
+            return content.session
         } catch {
             Log.state.error("cannot read \(url.path), starting without it: \(error)")
             return nil
         }
     }
 
-    func save(_ states: [SavedState]) {
+    func save(_ session: SavedSession) {
         guard let loginSession else {
             Log.state.error("cannot read the login session, not writing \(url.path)")
             return
@@ -48,7 +48,7 @@ struct StateFile {
 
         do {
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try JSONEncoder().encode(Content(loginSession: loginSession, displays: states)).write(to: url, options: .atomic)
+            try JSONEncoder().encode(Content(loginSession: loginSession, session: session)).write(to: url, options: .atomic)
         } catch {
             Log.state.error("cannot write \(url.path): \(error)")
         }

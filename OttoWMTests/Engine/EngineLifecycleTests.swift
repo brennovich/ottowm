@@ -14,17 +14,6 @@ final class EngineLifecycleTests: EngineTestCase {
         XCTAssertEqual(workspaces.current, 2)
     }
 
-    func testSaveStateWritesTheStateOnlyWhenItChanged() {
-        let win = create(StubWindow(id: 100))
-        engine.saveState()
-        moveFocusedWindow(win, to: 2)
-        engine.saveState()
-        engine.saveState()
-
-        XCTAssertEqual(savedStates.count, 2)
-        XCTAssertEqual(savedStates.last, placement.savedState)
-    }
-
     func testStopBringsEveryParkedWindowBack() {
         let win1 = create(StubWindow(id: 100))
         let win2 = create(StubWindow(id: 200))
@@ -33,7 +22,7 @@ final class EngineLifecycleTests: EngineTestCase {
 
         engine.stop()
 
-        XCTAssertEqual(savedStates.last?.parkedWindows, [:])
+        XCTAssertEqual(placement.savedState.parkedWindows, [:])
     }
 
     func testHandleDispatchesEachAction() {

@@ -40,18 +40,15 @@ class WindowSystemTestCase: XCTestCase {
         on display: Display = .standard
     ) -> SavedState {
         var workspaces: [Int: Workspace] = [:]
-        var frames: [CGWindowID: CGRect] = [:]
         for (window, workspace) in assignments {
             workspaces[workspace, default: Workspace()].add(window.id)
-            frames[window.id] = parked[window.id] ?? window.frame
         }
 
         return SavedState(
             display: display,
             workspaces: Workspaces.Record(current: current, workspaces: workspaces),
             parkedWindows: parked,
-            originalFrames: original,
-            displayLayouts: [display.id: frames]
+            originalFrames: original
         )
     }
 }

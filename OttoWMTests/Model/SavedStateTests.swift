@@ -12,8 +12,7 @@ final class SavedStateTests: XCTestCase {
                 display: .standard,
                 workspaces: Workspaces.Record(current: 1, workspaces: [1: workspace]),
                 parkedWindows: frames,
-                originalFrames: frames,
-                displayLayouts: [Display.standard.id: frames]
+                originalFrames: frames
             )
         }
 

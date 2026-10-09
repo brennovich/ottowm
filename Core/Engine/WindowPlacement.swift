@@ -250,8 +250,7 @@ final class WindowPlacement {
             display: desktop.display,
             workspaces: workspaces.record,
             parkedWindows: parkedWindows.all,
-            originalFrames: originalFrames.all,
-            displayLayouts: layouts.all
+            originalFrames: originalFrames.all
         )
     }
 
@@ -265,7 +264,6 @@ final class WindowPlacement {
         workspaces.load(saved.workspaces)
         saved.parkedWindows.forEach { parkedWindows.park($0.key, from: $0.value) }
         originalFrames.load(saved.originalFrames)
-        layouts.load(saved.displayLayouts)
         log.notice("restored \(workspaces.allWindowIds.count) windows, workspace \(workspaces.current)")
     }
 

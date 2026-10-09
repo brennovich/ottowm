@@ -12,7 +12,7 @@ class DisplaysTestCase: WindowSystemTestCase {
     var screenParametersChanged: (() -> Void)?
     var workspaces: [DisplayID: Workspaces] = [:]
     var desktops: [DisplayID: StubDesktop] = [:]
-    var written: [[SavedState]] = []
+    var written: [SavedSession] = []
     var removed: [DisplayID] = []
     let layouts = DisplayLayouts()
 
@@ -28,10 +28,11 @@ class DisplaysTestCase: WindowSystemTestCase {
                 startWatching: { [weak self] in self?.screenParametersChanged = $0 }
             ),
             windowSystem: windowSystem,
+            layouts: layouts,
             screenIsLocked: { [weak self] in self?.screenIsLocked ?? false },
             write: { [weak self] in self?.written.append($0) },
             removed: { [weak self] in self?.removed.append($0) },
-            engine: { [weak self, layouts] display, windowSystem, save in
+            engine: { [weak self, layouts] display, windowSystem in
                 let desktop = StubDesktop(window: { [weak self] id in self?.windows[id] })
                 desktop.display = display
                 let workspaces = Workspaces(
@@ -44,8 +45,7 @@ class DisplaysTestCase: WindowSystemTestCase {
                     windowSystem: windowSystem,
                     workspaces: workspaces,
                     layouts: layouts,
-                    scheduleRetry: { _, _ in },
-                    save: save
+                    scheduleRetry: { _, _ in }
                 )
             }
         )

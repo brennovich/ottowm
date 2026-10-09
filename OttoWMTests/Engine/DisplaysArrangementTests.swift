@@ -69,8 +69,8 @@ final class DisplaysArrangementTests: DisplaysTestCase {
 
             screenParametersChanged?()
 
-            XCTAssertEqual(written.last?.map(\.display), [.standard], testCase.name)
-            XCTAssertEqual(written.last?.first?.workspaces.workspaces[1]?.windowIds ?? [], testCase.onRight, testCase.name)
+            XCTAssertEqual(written.last?.displays.map(\.display), [.standard], testCase.name)
+            XCTAssertEqual(written.last?.displays.first?.workspaces.workspaces[1]?.windowIds ?? [], testCase.onRight, testCase.name)
             connected = [.standard, .right]
         }
     }
@@ -90,7 +90,7 @@ final class DisplaysArrangementTests: DisplaysTestCase {
 
         displays.saveState()
 
-        let rightCurrents = written[returned...].compactMap { $0.first { $0.display == .right }?.workspaces.current }
+        let rightCurrents = written[returned...].compactMap { $0.displays.first { $0.display == .right }?.workspaces.current }
         XCTAssertEqual(rightCurrents, [1])
     }
 

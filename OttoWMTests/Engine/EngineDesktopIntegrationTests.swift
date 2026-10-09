@@ -35,8 +35,7 @@ final class EngineDesktopIntegrationTests: XCTestCase {
             window: { [weak self] in self?.windows[$0] }
         ),
         workspaces: workspaces,
-        layouts: DisplayLayouts(),
-        save: { _ in }
+        layouts: DisplayLayouts()
     )
 
     private func addWindow(_ id: CGWindowID, frame: CGRect) -> StubWindow {

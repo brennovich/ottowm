@@ -10,8 +10,6 @@ final class Engine {
     private let navigation: Navigation
     private let fullScreenReturns: FullScreenReturns
     private let screenIsLocked: () -> Bool
-    private let save: (SavedState) -> Void
-    private var lastSaved: SavedState?
     private let log: LogChannel
 
     init(
@@ -23,7 +21,6 @@ final class Engine {
         navigation: Navigation,
         fullScreenReturns: FullScreenReturns,
         screenIsLocked: @escaping () -> Bool,
-        save: @escaping (SavedState) -> Void,
         log: LogChannel = Log.engine
     ) {
         self.desktop = desktop
@@ -34,7 +31,6 @@ final class Engine {
         self.navigation = navigation
         self.fullScreenReturns = fullScreenReturns
         self.screenIsLocked = screenIsLocked
-        self.save = save
         self.log = log
     }
 
@@ -97,10 +93,8 @@ final class Engine {
         windowSystem.duringOperation("parked-window-reframed") { desktop.repark([windowId: parkedFrom]) }
     }
 
-    /// Saved with every window back on screen, the way the next launch finds them.
     func stop() {
         placement.restoreParkedWindows()
-        saveState()
     }
 
     func handle(_ event: WindowEvent) {
@@ -196,7 +190,9 @@ final class Engine {
         placement.assign(win, to: workspaces.current)
     }
 
-    /// Takes the workspaces, parked windows and original frames an engine of a removed display saved.
+    var savedState: SavedState { placement.savedState }
+
+    /// Takes the workspaces, parked windows and original frames of the engine of a removed display.
     func absorb(_ state: SavedState) {
         windowSystem.duringOperation("absorb-display") { placement.absorb(state) }
     }
@@ -274,14 +270,6 @@ final class Engine {
         }
     }
 
-    /// Writes nothing when the state is the one saved last.
-    func saveState() {
-        let state = placement.savedState
-        guard state != lastSaved else { return }
-        lastSaved = state
-        save(state)
-    }
-
     /// - Parameter operation: one name per action, so the round-trip cost of a step and of a
     ///   centering are reported separately.
     /// - Parameter keepingMaximized: drops the change when the window fills the screen. The
@@ -319,7 +307,6 @@ extension Engine {
         layouts: DisplayLayouts,
         scheduleRetry: @escaping (TimeInterval, @escaping () -> Void) -> Void = Backoff.onMainQueue,
         screenIsLocked: @escaping () -> Bool = { false },
-        save: @escaping (SavedState) -> Void,
         log: LogChannel = Log.engine
     ) -> Engine {
         let originalFrames = OriginalFrames(tabs: workspaces.tabGroupMembers(of:))
@@ -365,7 +352,6 @@ extension Engine {
             navigation: navigation,
             fullScreenReturns: fullScreenReturns,
             screenIsLocked: screenIsLocked,
-            save: save,
             log: log
         )
     }

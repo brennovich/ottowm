@@ -126,11 +126,15 @@ final class DisplaysTests: DisplaysTestCase {
 
         displays.start(
             windows: [standard, right].map { $0.snapshot() },
-            restoring: [savedState([(standard, 1)]), savedState(current: 3, [(right, 3)], on: .right)]
+            restoring: SavedSession(
+                displays: [savedState([(standard, 1)]), savedState(current: 3, [(right, 3)], on: .right)],
+                layouts: [Display.external.id: [300: onRight]]
+            )
         )
 
         XCTAssertEqual(desktops.mapValues(\.recoveredWindowIds), [Display.standard.id: [100], Display.right.id: [200]])
         XCTAssertEqual(workspaces[Display.right.id]?.current, 3)
+        XCTAssertEqual(layouts.frame(of: 300, on: Display.external.id), onRight)
     }
 
     func testResyncHandsEachEngineTheWindowsOnItsDisplay() {
@@ -161,11 +165,28 @@ final class DisplaysTests: DisplaysTestCase {
         for testCase in cases {
             let displays = makeDisplays()
             displays.start(windows: [], restoring: nil)
+            layouts.record(onRight, of: 300, on: Display.external.id)
 
             testCase.save(displays)
 
-            XCTAssertEqual(written.last?.map(\.display), [.standard, .right], testCase.name)
+            XCTAssertEqual(written.last?.displays.map(\.display), [.standard, .right], testCase.name)
+            XCTAssertEqual(written.last?.layouts, [Display.external.id: [300: onRight]], testCase.name)
         }
+    }
+
+    func testASaveWritesTheFileOnceAndOnlyWhenTheStateChanged() {
+        displays.start(windows: [], restoring: nil)
+
+        displays.saveState()
+        XCTAssertEqual(written.count, 1)
+
+        displays.saveState()
+        XCTAssertEqual(written.count, 1)
+
+        activeDisplay = Display.right.id
+        displays.handle(.switchToWorkspace(2))
+        displays.saveState()
+        XCTAssertEqual(written.count, 2)
     }
 
     func testWithNoDisplayReportedOneEngineRuns() {

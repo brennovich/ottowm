@@ -278,7 +278,8 @@ sequenceDiagram
     AppDelegate->>RunningApplicationsObserver: start(handler)
     RunningApplicationsObserver-->>AppDelegate: the windows found while subscribing
     AppDelegate->>StateFile: load()
-    AppDelegate->>Displays: start(windows:, restoring: the SavedState of each display, if any)
+    AppDelegate->>Displays: start(windows:, restoring: the SavedSession, if any)
+    Displays->>DisplayLayouts: load(the saved layouts)
     loop each display
         Displays->>Engine: start(the windows on that display, restoring: the SavedState with its display id)
         Engine->>WindowPlacement: restore(windows, from: the SavedState)
@@ -294,7 +295,7 @@ Last, `AppDelegate` saves the state every 10 seconds, enables the pagers if the 
 
 ### State file
 
-The state lives in `$XDG_STATE_HOME/ottowm/state.json`, `~/.local/state/ottowm/state.json` by default. It holds one `SavedState` per display: the display, its workspaces, parked windows and original frames, and the display layouts every engine shares. Each engine saves its section every 10 seconds when it changed, because a crash runs no quit handler, and on quit once the parked windows are back on screen. `Displays` writes every section at each save.
+The state lives in `$XDG_STATE_HOME/ottowm/state.json`, `~/.local/state/ottowm/state.json` by default. It holds one `SavedSession`: a `SavedState` per display with the display, its workspaces, parked windows and original frames, and beside them the display layouts every engine shares, stored once. `Displays` builds the session from every engine and writes the file once per save, only when the session changed: every 10 seconds, because a crash runs no quit handler, on quit once the parked windows are back on screen, and after a removed display is absorbed. At launch `Displays` loads the layouts once, before any engine starts.
 
 It only covers the current login session. Window ids are only reliable within one login session, so the file records the session it was written in and a file from another session is ignored. Within the session a saved window is found again by its id, and the ids of windows that are gone or that admission refuses are left out. A file that does not decode is ignored too. Either way OttoWM starts as if there were none.
 
@@ -463,8 +464,7 @@ The frame a window had on the display left is not read at the change: macOS may 
 ```mermaid
 sequenceDiagram
     Note over Displays: a display the arrangement no longer holds
-    Displays->>Engine: saveState(), on the engine of the removed display
-    Displays->>Engine: absorb(that SavedState), on the engine of the primary display
+    Displays->>Engine: absorb(the savedState of the removed engine), on the engine of the primary display
     Engine->>WindowPlacement: absorb(the SavedState)
     WindowPlacement->>Workspaces: absorb(the workspaces, by number)
     WindowPlacement->>OriginalFrames: load(the original frames, fitted into the primary display)
@@ -474,7 +474,7 @@ sequenceDiagram
     end
     WindowPlacement->>ParkedWindows: record(what came back)
     WindowPlacement->>Desktop: reframe(the absorbed windows whose workspace became current or stopped being current)
-    Displays->>StateFile: save(every SavedState)
+    Displays->>StateFile: save(the SavedSession), if it changed
     Displays->>AppDelegate: removed(display)
     AppDelegate->>Pagers: remove(on: display)
 ```
@@ -565,9 +565,8 @@ sequenceDiagram
         Displays->>Engine: stop()
         Engine->>WindowPlacement: restoreParkedWindows()
         WindowPlacement->>Desktop: reframe(unpark every parked window)
-        Engine->>Displays: save(the SavedState, no window parked)
-        Displays->>StateFile: save(every SavedState)
     end
+    Displays->>StateFile: save(the SavedSession, no window parked), if it changed
     Lifecycle->>Pagers: dismiss(then: exit)
     Note over Pagers: runs exit once every Pager has slid out
     Lifecycle->>Lifecycle: exit(EXIT_SUCCESS)

@@ -6,29 +6,32 @@ final class Displays {
     private var arrangement: Arrangement
     private let screens: Screens
     private let windowSystem: WindowSystem
+    private let layouts: DisplayLayouts
     private let screenIsLocked: () -> Bool
-    private let write: ([SavedState]) -> Void
+    private let write: (SavedSession) -> Void
     private let removed: (DisplayID) -> Void
-    private let makeEngine: (Display, WindowSystem, @escaping (SavedState) -> Void) -> Engine
+    private let makeEngine: (Display, WindowSystem) -> Engine
     private var engines: [Engine] = []
-    private var sections: [DisplayID: SavedState] = [:]
+    private var lastWritten: SavedSession?
 
-    /// - Parameter engine: builds the engine of a display from the window system scoped to it and
-    ///   the closure that saves its state. It is called once per display during the init, the
-    ///   primary display first, and once per display added later.
+    /// - Parameter engine: builds the engine of a display from the window system scoped to it.
+    ///   It is called once per display during the init, the primary display first, and once per
+    ///   display added later.
     /// - Parameter removed: called with each removed display, once its engine is absorbed.
     init(
         screens: Screens,
         windowSystem: WindowSystem,
+        layouts: DisplayLayouts,
         screenIsLocked: @escaping () -> Bool,
-        write: @escaping ([SavedState]) -> Void,
+        write: @escaping (SavedSession) -> Void,
         removed: @escaping (DisplayID) -> Void,
-        engine: @escaping (Display, WindowSystem, @escaping (SavedState) -> Void) -> Engine
+        engine: @escaping (Display, WindowSystem) -> Engine
     ) {
         let connected = screens.all()
         arrangement = Arrangement(displays: connected.isEmpty ? [.unknown] : connected)
         self.screens = screens
         self.windowSystem = windowSystem
+        self.layouts = layouts
         self.screenIsLocked = screenIsLocked
         self.write = write
         self.removed = removed
@@ -38,10 +41,11 @@ final class Displays {
         screens.startWatching { [weak self] in self?.screenParametersChanged() }
     }
 
-    func start(windows: [WindowSnapshot], restoring saved: [SavedState]?) {
+    func start(windows: [WindowSnapshot], restoring saved: SavedSession?) {
+        if let saved { layouts.load(saved.layouts) }
         let windowsByOwner = windowsByOwner(windows)
         for engine in engines {
-            let section = saved?.first { $0.display.id == engine.display.id }
+            let section = saved?.displays.first { $0.display.id == engine.display.id }
             engine.start(windows: windowsByOwner[engine.display.id] ?? [], restoring: section)
         }
     }
@@ -85,12 +89,18 @@ final class Displays {
         }
     }
 
+    /// Writes nothing when the session is the one written last.
     func saveState() {
-        for engine in engines { engine.saveState() }
+        let session = SavedSession(displays: engines.map(\.savedState), layouts: layouts.all)
+        guard session != lastWritten else { return }
+        lastWritten = session
+        write(session)
     }
 
+    /// Saved with every window back on screen, the way the next launch finds them.
     func stop() {
         for engine in engines { engine.stop() }
+        saveState()
     }
 
     /// The notification also follows a Dock or menu bar change, and macOS posts it more than
@@ -140,12 +150,8 @@ final class Displays {
     /// The removed engine is not stopped: stopping puts its parked windows back on screen.
     private func absorb(_ removed: Engine, into primary: Engine) {
         Log.desktop.notice("display removed: \(removed.display.id.rawValue), absorbed by \(primary.display.id.rawValue)")
-        removed.saveState()
-        if let state = sections.removeValue(forKey: removed.display.id) {
-            primary.absorb(state)
-        }
-        primary.saveState()
-        write(engines.compactMap { sections[$0.display.id] })
+        primary.absorb(removed.savedState)
+        saveState()
     }
 
     /// A drag to another display reaches OttoWM only as `reframed`, so a window can stand on
@@ -170,7 +176,7 @@ final class Displays {
 
     private func engine(on display: Display) -> Engine {
         let scoped = windowSystem.scoped { [weak self] in self?.arrangement.display(of: $0)?.id == display.id }
-        return makeEngine(display, scoped) { [weak self] in self?.save($0, of: display.id) }
+        return makeEngine(display, scoped)
     }
 
     private func engine(on displayId: DisplayID?) -> Engine {
@@ -184,10 +190,5 @@ final class Displays {
 
     private func windowsByOwner(_ windows: [WindowSnapshot]) -> [DisplayID: [WindowSnapshot]] {
         Dictionary(grouping: windows) { owner(of: $0.id, frame: $0.frame).display.id }
-    }
-
-    private func save(_ state: SavedState, of displayId: DisplayID) {
-        sections[displayId] = state
-        write(engines.compactMap { sections[$0.display.id] })
     }
 }

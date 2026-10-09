@@ -39,11 +39,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let displays = Displays(
             screens: .system,
             windowSystem: WindowSystem.system(windowEvents: windowEvents, applications: applications),
+            layouts: layouts,
             screenIsLocked: { [lifecycle] in lifecycle.screenIsLocked },
             write: stateFile.save,
             removed: { [pagers] displayId in pagers.remove(on: displayId) },
-            engine: { [self] display, windowSystem, save in
-                let parts = engine(on: display, windowSystem: windowSystem, layouts: layouts, spacing: { spacing }, save: save)
+            engine: { [self] display, windowSystem in
+                let parts = engine(on: display, windowSystem: windowSystem, layouts: layouts, spacing: { spacing })
                 let pager = Pager(
                     workspaces: parts.workspaces,
                     desktop: parts.desktop,
@@ -89,8 +90,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         on display: Display,
         windowSystem: WindowSystem,
         layouts: DisplayLayouts,
-        spacing: @escaping () -> CGFloat,
-        save: @escaping (SavedState) -> Void
+        spacing: @escaping () -> CGFloat
     ) -> (desktop: ParkingDesktop, workspaces: Workspaces, engine: Engine) {
         let tag = String(display.id.rawValue.prefix(8))
         let desktop = ParkingDesktop(
@@ -108,7 +108,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             workspaces: workspaces,
             layouts: layouts,
             screenIsLocked: { [lifecycle] in lifecycle.screenIsLocked },
-            save: save,
             log: Log.engine.tagged(tag)
         )
         return (desktop, workspaces, engine)

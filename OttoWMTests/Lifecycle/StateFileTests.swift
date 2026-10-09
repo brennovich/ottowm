@@ -4,15 +4,17 @@ import XCTest
 
 final class StateFileTests: XCTestCase {
     private let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-    private let states = [Display.standard, .right].map { display in
-        SavedState(
-            display: display,
-            workspaces: Workspaces.Record(current: 2, workspaces: [:]),
-            parkedWindows: [:],
-            originalFrames: [:],
-            displayLayouts: [:]
-        )
-    }
+    private let session = SavedSession(
+        displays: [Display.standard, .right].map { display in
+            SavedState(
+                display: display,
+                workspaces: Workspaces.Record(current: 2, workspaces: [:]),
+                parkedWindows: [:],
+                originalFrames: [:]
+            )
+        },
+        layouts: [Display.right.id: [100: CGRect(x: 2000, y: 100, width: 800, height: 600)]]
+    )
 
     private func stateFile(loginSession: String) -> StateFile {
         StateFile(environment: ["XDG_STATE_HOME": directory.path], loginSession: loginSession)
@@ -46,13 +48,13 @@ final class StateFileTests: XCTestCase {
     func testLoadsWhatItSavedInTheCurrentLoginSession() {
         let stateFile = StateFile(environment: ["XDG_STATE_HOME": directory.path])
 
-        stateFile.save(states)
+        stateFile.save(session)
 
-        XCTAssertEqual(stateFile.load(), states)
+        XCTAssertEqual(stateFile.load(), session)
     }
 
     func testLoadsNothingSavedInAnotherLoginSession() {
-        stateFile(loginSession: "session-1").save(states)
+        stateFile(loginSession: "session-1").save(session)
 
         XCTAssertNil(stateFile(loginSession: "session-2").load())
     }

@@ -6,7 +6,6 @@ import XCTest
 /// window system of `WindowSystemTestCase`.
 class EngineTestCase: WindowSystemTestCase {
     var screenIsLocked = false
-    var savedStates: [SavedState] = []
     var scheduledRetries: [(delay: TimeInterval, work: () -> Void)] = []
     let tabFrame = CGRect(x: 400, y: 0, width: 800, height: 600)
 
@@ -73,8 +72,7 @@ class EngineTestCase: WindowSystemTestCase {
         enrollment: enrollment,
         navigation: navigation,
         fullScreenReturns: fullScreenReturns,
-        screenIsLocked: { [weak self] in self?.screenIsLocked ?? false },
-        save: { [weak self] in self?.savedStates.append($0) }
+        screenIsLocked: { [weak self] in self?.screenIsLocked ?? false }
     )
 
     @discardableResult
