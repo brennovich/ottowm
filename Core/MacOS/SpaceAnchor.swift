@@ -11,28 +11,24 @@ import AppKit
 /// An active OttoWM without a key window, or with a `.stationary` one, loses the focus to the frontmost window on the
 /// Space, which can be parked. Putting the anchor away hands the focus to the Finder desktop instead.
 final class SpaceAnchor: Anchor {
-    private let display: () -> Display?
     private let log: LogChannel
     private var window: AnchorWindow?
 
-    init(log: LogChannel = Log.desktop, display: @escaping () -> Display?) {
+    init(log: LogChannel = Log.desktop) {
         self.log = log
-        self.display = display
     }
 
     static func frame(on display: Display, primaryHeight: CGFloat) -> CGRect {
         CGRect(origin: display.fullFrame.origin, size: CGSize(width: 1, height: 1)).flipped(primaryHeight: primaryHeight)
     }
 
-    /// A window ordered in joins the Space in front on the display holding it. The display is read at each pin
+    /// A window ordered in joins the Space in front on the display holding it. The display is passed at each pin
     /// because its frame can change after the window is made.
-    func pin() {
+    func pin(on display: Display) {
         let window = window ?? AnchorWindow()
         self.window = window
-        if let display = display() {
-            let primaryHeight = NSScreen.screens.first?.frame.height ?? display.fullFrame.height
-            window.setFrame(Self.frame(on: display, primaryHeight: primaryHeight), display: false)
-        }
+        let primaryHeight = NSScreen.screens.first?.frame.height ?? display.fullFrame.height
+        window.setFrame(Self.frame(on: display, primaryHeight: primaryHeight), display: false)
         window.orderFrontRegardless()
         window.orderOut(nil)
         log.debug("anchor pinned on the active Space")

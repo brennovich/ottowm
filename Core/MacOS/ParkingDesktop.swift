@@ -10,8 +10,7 @@ final class ParkingDesktop: Desktop {
     private let spacing: () -> CGFloat
     private let window: (CGWindowID) -> (any Window)?
     private let notificationCenter: NotificationCenter
-    private let injectedAnchor: (any Anchor)?
-    private(set) lazy var anchor: any Anchor = injectedAnchor ?? SpaceAnchor(log: log) { [weak self] in self?.display }
+    private let anchor: any Anchor
     private let log: LogChannel
 
     private(set) var display: Display
@@ -32,7 +31,7 @@ final class ParkingDesktop: Desktop {
         self.display = display
         self.window = window
         self.notificationCenter = notificationCenter
-        injectedAnchor = anchor
+        self.anchor = anchor ?? SpaceAnchor(log: log)
         self.log = log
     }
 
@@ -129,6 +128,14 @@ final class ParkingDesktop: Desktop {
     private func move(_ win: any Window, from current: CGRect, to target: CGRect) {
         if current.origin != target.origin { win.setPosition(target.origin) }
         if current.size != target.size { win.setSize(target.size) }
+    }
+
+    func pinAnchor() {
+        anchor.pin(on: display)
+    }
+
+    func focusAnchor() {
+        anchor.focus()
     }
 
     /// Put away first: a pin while the anchor is key orders it out with OttoWM active, and the

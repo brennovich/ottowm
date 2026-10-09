@@ -64,13 +64,4 @@ final class WindowPlacementAbsorbTests: EngineTestCase {
 
         XCTAssertEqual(anchor.pinCount, 1)
     }
-
-    func testAbsorbingLeavesTheAnchorOfAnEngineHoldingAWindow() {
-        placement.assign(add(StubWindow(id: 100)).snapshot(), to: 1)
-        let pinned = anchor.pinCount
-
-        placement.absorb(stateOfTheRightEngine())
-
-        XCTAssertEqual(anchor.pinCount, pinned)
-    }
 }

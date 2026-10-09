@@ -100,7 +100,7 @@ final class Navigation {
         guard !restore() else { return }
 
         log.debug("returning to desktop through the anchor")
-        desktop.anchor.focus()
+        desktop.focusAnchor()
     }
 
     /// The focused window when the current workspace holds it, enrolled first when no

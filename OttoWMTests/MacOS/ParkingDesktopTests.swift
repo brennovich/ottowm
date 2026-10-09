@@ -256,4 +256,12 @@ final class ParkingDesktopTests: XCTestCase {
 
         XCTAssertEqual(putAwayCountWhenReported, 1)
     }
+
+    func testTheAnchorIsPinnedOnTheDisplayTheDesktopHolds() {
+        desktop.change(to: .external)
+
+        desktop.pinAnchor()
+
+        XCTAssertEqual(anchor.pinnedDisplays, [.external])
+    }
 }

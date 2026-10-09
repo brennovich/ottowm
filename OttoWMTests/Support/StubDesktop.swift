@@ -87,4 +87,12 @@ final class StubDesktop: Desktop {
         changedDisplays.append(entered)
         display = entered
     }
+
+    func pinAnchor() {
+        anchor.pin(on: display)
+    }
+
+    func focusAnchor() {
+        anchor.focus()
+    }
 }

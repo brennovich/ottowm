@@ -82,7 +82,7 @@ final class Engine {
     private func pinAnchorOnManagedSpace() {
         guard windowSystem.showsAny(workspaces.allWindowIds) else { return }
 
-        desktop.anchor.pin()
+        desktop.pinAnchor()
     }
 
     /// macOS can move a parked window back on screen after the native space change is

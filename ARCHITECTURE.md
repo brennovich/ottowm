@@ -137,7 +137,7 @@ Every engine component reads the focused window and snapshots through `WindowSys
 
 ```mermaid
 flowchart LR
-    Engine -->|"Desktop: recover, reframe, focus, repark, anchor"| ParkingDesktop
+    Engine -->|"Desktop: recover, reframe, focus, repark, pinAnchor, focusAnchor"| ParkingDesktop
     Engine -->|focused, frames, snapshot| WindowSystem
     RunningApplicationsObserver -->|WindowEvent| Displays
     Displays -->|"change(to: display)"| ParkingDesktop
@@ -341,7 +341,7 @@ sequenceDiagram
         Navigation->>Desktop: focus(nextWindowToFocus)
     else another native Space is in front
         Engine->>Navigation: returnToDesktop()
-        Navigation->>Desktop: focus(nextWindowToFocus), or anchor.focus() when there is none
+        Navigation->>Desktop: focus(nextWindowToFocus), or focusAnchor() when there is none
     end
 ```
 

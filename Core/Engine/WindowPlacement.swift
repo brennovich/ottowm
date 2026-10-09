@@ -72,11 +72,9 @@ final class WindowPlacement {
         let verdict = admission.verdict(for: win)
         guard verdict == .admit else { return .refused(verdict) }
 
-        let isFirstManaged = workspaces.allWindowIds.isEmpty
-        let assigned = workspaces.assign(win, to: workspace)
+        let assigned = holdingFirstWindows { workspaces.assign(win, to: workspace) }
         originalFrames.shareFrame(with: win.id)
         log.info("assigned \(win.logDescription) → workspace \(assigned)")
-        if isFirstManaged { desktop.anchor.pin() }
 
         place(win.id, parked: assigned != workspaces.current)
         return .assigned(assigned)
@@ -211,11 +209,10 @@ final class WindowPlacement {
         let absorbed = Set(removed.workspaces.workspaces.values.flatMap(\.windowIds)).subtracting(held)
         let saved = removed.keeping(absorbed)
         let change = DisplayChange(from: saved.display, to: desktop.display)
-        workspaces.absorb(saved.workspaces)
+        holdingFirstWindows { workspaces.absorb(saved.workspaces) }
         saved.parkedWindows.forEach { parkedWindows.park($0.key, from: $0.value) }
         originalFrames.load(originalFrames.all.merging(saved.originalFrames.mapValues(change.fit.frame)) { own, _ in own })
 
-        if held.isEmpty, !absorbed.isEmpty { desktop.anchor.pin() }
         relocate(absorbed, in: change)
 
         let misplaced = absorbed.sorted().map { (windowId: $0, parked: workspaces.workspace(for: $0) != workspaces.current) }
@@ -229,8 +226,7 @@ final class WindowPlacement {
     /// screen. Any other window found at the hidden edge is brought back on screen.
     func restore(_ windows: [WindowSnapshot], from saved: SavedState?) {
         if let saved {
-            load(saved.keeping(Set(windows.filter { admission.verdict(for: $0) == .admit }.map(\.id))))
-            if !workspaces.allWindowIds.isEmpty { desktop.anchor.pin() }
+            holdingFirstWindows { load(saved.keeping(Set(windows.filter { admission.verdict(for: $0) == .admit }.map(\.id)))) }
             if saved.display != desktop.display {
                 relocate(DisplayChange(from: saved.display, to: desktop.display))
             }
@@ -258,6 +254,15 @@ final class WindowPlacement {
         let restoring = parkedWindows.all.keys.sorted().map { (windowId: $0, parked: false) }
         log.info("restoring \(restoring.count) parked windows")
         place(restoring)
+    }
+
+    /// Pins the anchor when `body` takes the engine from holding no window to holding some.
+    @discardableResult
+    private func holdingFirstWindows<Result>(_ body: () -> Result) -> Result {
+        let heldNone = workspaces.allWindowIds.isEmpty
+        let result = body()
+        if heldNone, !workspaces.allWindowIds.isEmpty { desktop.pinAnchor() }
+        return result
     }
 
     private func load(_ saved: SavedState) {
