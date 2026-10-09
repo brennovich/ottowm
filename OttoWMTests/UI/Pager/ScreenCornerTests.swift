@@ -22,6 +22,7 @@ final class ScreenCornerTests: XCTestCase {
             CGRect(x: 1792, y: 1224, width: 16, height: 16),
             CGRect(x: 4336, y: 1224, width: 16, height: 16),
             CGRect(x: 1792, y: -200, width: 16, height: 16),
+            CGRect(x: 4336, y: -200, width: 16, height: 16),
         ])
     }
 
@@ -31,6 +32,7 @@ final class ScreenCornerTests: XCTestCase {
             (.topLeft, CGPoint(x: 1, y: 1)),
             (.topRight, CGPoint(x: 15, y: 1)),
             (.bottomLeft, CGPoint(x: 1, y: 15)),
+            (.bottomRight, CGPoint(x: 15, y: 15)),
         ]
 
         for testCase in cases {
@@ -45,6 +47,7 @@ final class ScreenCornerTests: XCTestCase {
             (.topLeft, CGSize(width: -16, height: -16)),
             (.topRight, CGSize(width: 16, height: -16)),
             (.bottomLeft, CGSize(width: -16, height: 16)),
+            (.bottomRight, CGSize(width: 16, height: 16)),
         ]
 
         for testCase in cases {

@@ -1,6 +1,6 @@
 import AppKit
 
-/// The tab in the bottom right corner with the current workspace, and the masks that round the other three screen corners.
+/// The tab in the parking corner with the current workspace, and the masks that round the screen corners.
 /// The tab retracts while a window overlaps it, and the cue pulses under it while an app holds secure event input.
 final class Pager {
     private let tab = PagerTabView()
@@ -104,9 +104,10 @@ final class Pager {
         let primaryHeight = NSScreen.primaryHeight ?? display.fullFrame.height
         let screenFrame = display.fullFrame.flipped(primaryHeight: primaryHeight)
 
+        tab.isMirrored = tabArea.isMirrored
+        cue.isMirrored = tabArea.isMirrored
         tabPanel.setFrame(tabArea.frame.flipped(primaryHeight: primaryHeight), display: true)
-        let cueFrame = tabArea.frame.bottomRight(size: CueView.size)
-        cuePanel.setFrame(cueFrame.flipped(primaryHeight: primaryHeight), display: true)
+        cuePanel.setFrame(tabArea.frame(of: CueView.size).flipped(primaryHeight: primaryHeight), display: true)
         for (corner, panel) in corners {
             panel.setFrame(corner.frame(in: screenFrame, radius: radius), display: true)
         }

@@ -22,6 +22,17 @@ final class PagerTabViewTests: XCTestCase {
         XCTAssertFalse(view.isRetracted)
     }
 
+    func testAMirroredTabKeepsTheBadgeNumberReadable() throws {
+        let root = try XCTUnwrap(view.layer)
+        let number = try XCTUnwrap(view.badgeLayer.sublayers?.first)
+
+        view.isMirrored = true
+
+        let left = root.convert(CGPoint(x: 0, y: 0), from: number).x
+        let right = root.convert(CGPoint(x: 1, y: 0), from: number).x
+        XCTAssertGreaterThan(right, left)
+    }
+
     func testOnlyAnOptionClickOnTheTabIsReported() throws {
         let cases: [(name: String, flags: NSEvent.ModifierFlags, reported: Int)] = [
             ("option click", .option, 1),

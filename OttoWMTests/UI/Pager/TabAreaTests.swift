@@ -1,14 +1,23 @@
 import XCTest
 
 final class TabAreaTests: XCTestCase {
-    func testFrameIsTheBottomRightCornerOfTheDisplay() {
+    func testTheTabSitsInTheParkingCornerOfTheDisplayAndIsMirroredInTheBottomLeft() {
         let display = Display(
             id: DisplayID(rawValue: "external"),
             fullFrame: CGRect(x: 1792, y: -120, width: 2560, height: 1440),
             visibleFrame: CGRect(x: 1792, y: -95, width: 2560, height: 1415)
         )
+        let cases: [(corner: ParkingCorner, frame: CGRect, mirrored: Bool)] = [
+            (.bottomRight, CGRect(x: 4298, y: 1262, width: 54, height: 58), false),
+            (.bottomLeft, CGRect(x: 1792, y: 1262, width: 54, height: 58), true),
+        ]
 
-        XCTAssertEqual(TabArea(display: display).frame, CGRect(x: 4298, y: 1262, width: 54, height: 58))
+        for testCase in cases {
+            let area = TabArea(display: display.parking(at: testCase.corner))
+
+            XCTAssertEqual(area.frame, testCase.frame, "\(testCase.corner)")
+            XCTAssertEqual(area.isMirrored, testCase.mirrored, "\(testCase.corner)")
+        }
     }
 
     func testIsOverlapped() {

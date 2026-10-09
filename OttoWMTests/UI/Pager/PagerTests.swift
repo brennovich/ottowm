@@ -7,12 +7,16 @@ final class PagerTests: XCTestCase {
     private let desktop = StubDesktop()
     private var tabOnScreen = true
     private var requestedChecks = 0
+    private var views: [SlidingView] = []
 
     private lazy var pager = Pager(
         workspaces: Workspaces(tabGroups: TabGroups(tabCount: { _ in 1 }, frame: { _ in nil })),
         desktop: desktop,
         isOnScreen: { _ in self.tabOnScreen },
-        panel: StubPanel.init
+        panel: { level, view in
+            self.views.append(view)
+            return StubPanel(level: level, content: view)
+        }
     )
 
     override func setUp() {
@@ -86,6 +90,16 @@ final class PagerTests: XCTestCase {
         pager.isEnabled = true
         pager.check(against: [1: CGRect(x: 2000, y: 1000, width: 800, height: 600)])
         XCTAssertTrue(pager.isRetracted)
+    }
+
+    func testTheTabAndTheCueAreMirroredOnADisplayParkingInTheBottomLeft() {
+        _ = pager
+        let display = Display.standard.parking(at: .bottomLeft)
+
+        desktop.report(.displayChange(DisplayChange(from: .standard, to: display)))
+
+        XCTAssertTrue(views.contains { $0 is PagerTabView && $0.isMirrored })
+        XCTAssertTrue(views.contains { $0 is CueView && $0.isMirrored })
     }
 
     func testANativeSpaceChangeChecksAgain() {

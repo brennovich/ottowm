@@ -16,6 +16,13 @@ final class PagerTabView: SlidingView {
 
     override var acceptsClicks: Bool { true }
 
+    /// Flips the number back, so it reads the same in either corner.
+    override var isMirrored: Bool {
+        didSet {
+            CATransaction.withoutActions { badgeLayer.sublayerTransform = isMirrored ? Self.mirror : CATransform3DIdentity }
+        }
+    }
+
     init(number: RollingNumber = PagerTabView.badgeNumber()) {
         self.number = number
         let (tab, bodyLayer, shapeLayer, badgeLayer) = CATransaction.withoutActions { Self.tab(number: number) }
