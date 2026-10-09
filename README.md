@@ -36,13 +36,13 @@ It brings the workflow of a common Linux window manager to macOS, without fighti
 
 ### Workspaces
 
-Multiple workspaces on a **single native macOS Space** per display: no Space switch animation, no Mission Control. A window that leaves a workspace is parked in the bottom right corner of its display, a point of it left on screen, and comes back to the frame it had, with the focus it had.
+Multiple workspaces on a **single native macOS Space** per display: no Space switch animation, no Mission Control. A window that leaves a workspace is parked in a bottom corner of its display, a point of it left on screen, and comes back to the frame it had, with the focus it had.
 
 Each display has its own workspaces. A binding acts on the display of the focused window, else on the display whose menu bar is active. A new window joins the current workspace of the display it opens on. A window dragged to another display joins that display's current workspace at the next binding, or when a window opens, takes the focus or is unminimized.
 
 ### Pager
 
-OttoWM relies on the same strategy as [AeroSpace](https://nikitabobko.github.io/AeroSpace/guide#emulation-of-virtual-workspaces), a tiny portion of windows accumulates in the bottom right corner, so the Pager covers this spot while offering nice other features. Each display has its own Pager, showing that display's current workspace.
+OttoWM relies on the same strategy as [AeroSpace](https://nikitabobko.github.io/AeroSpace/guide#emulation-of-virtual-workspaces), a tiny portion of windows accumulates in a bottom corner, so the Pager covers this spot while offering nice other features. Each display has its own Pager, showing that display's current workspace, in the corner its windows park in.
 
 <table>
   <tr>
@@ -114,15 +114,15 @@ killall Dock
 
 ### Display arrangement
 
-With more than one display, the bottom right corner of each display must be free in System Settings → Displays → Arrange. A parked window hangs off that corner, to the right of the display and below it. macOS gives a window to the display that holds the larger part of it, so a display that covers that spot shows the parked window.
+With more than one display, each display needs a free bottom corner in System Settings → Displays → Arrange. A parked window hangs off the bottom right corner, to the right of the display and below it. macOS gives a window to the display that holds the larger part of it, so a display that covers that spot shows the parked window. When another display covers the area past the bottom right and none covers the area past the bottom left, OttoWM parks at the bottom left instead.
 
-For each display:
+The bottom right corner of a display is free when:
 
 - A display on its right must end higher than its bottom edge, by at least a title bar (52pt for the windows measured).
 - A display below it must end left of its right edge. Aligned right edges are not enough.
 - A display below it and to its right must not touch its bottom right corner.
 
-Displays on its left or above it do not matter. [AeroSpace asks for the same](https://nikitabobko.github.io/AeroSpace/guide#proper-monitor-arrangement), but it also accepts a free bottom left corner. OttoWM uses the bottom right corner only.
+The bottom left corner follows the same rules, mirrored. Displays above it never matter. [AeroSpace asks for the same](https://nikitabobko.github.io/AeroSpace/guide#proper-monitor-arrangement).
 
 ## Configuration
 
@@ -227,7 +227,7 @@ hyper-5 = switch-to-workspace 5
     <td>pager&nbsp;=&nbsp;<code>off</code></td>
     <td>Setting</td>
     <td><code>on</code></td>
-    <td>Hide the tab in the bottom right corner that shows the current workspace and covers the parked windows</td>
+    <td>Hide the tab in the bottom corner that shows the current workspace and covers the parked windows</td>
   </tr>
   <tr>
     <td>spacing&nbsp;=&nbsp;<code>N</code></td>

@@ -150,7 +150,7 @@ flowchart LR
     AXWindow --> AXAccess
 ```
 
-`Desktop`, `WindowSystem` and `Window` belong to the engine. `ParkingDesktop` and `WindowSystem` get `Applications.findWindow` as a closure. `ParkingDesktop` reads no screen: it is handed its display, and computes target frames with `WorkArea` and `HiddenEdge`. `Screens.system` reads `NSScreen` and observes the screen parameters notification.
+`Desktop`, `WindowSystem`, `Window` and `Screens` belong to the engine; their `.system` values and `ParkingDesktop` live in `MacOS/`. `ParkingDesktop` and `WindowSystem` get `Applications.findWindow` as a closure. `ParkingDesktop` reads no screen: it is handed its display, and computes target frames with `WorkArea` and `HiddenEdge`.
 
 `AXWindowEvents` pushes the AX notifications and the sweep. A scan (`start`, `discover`, `inventory`) returns what it found, and `RunningApplicationsObserver` decides what to announce.
 
@@ -169,7 +169,7 @@ flowchart LR
     Displays -->|write| StateFile
 ```
 
-While `Lifecycle.screenIsLocked` is set, `Engine` drops window events, `Displays` defers screen changes to the unlock, and `AXWindowEvents` skips the sweep.
+While `Lifecycle.screenIsLocked` is set, `Displays` drops every window event but `reframed` and defers screen changes to the unlock, and `AXWindowEvents` skips the sweep.
 
 ### UI
 
@@ -186,7 +186,7 @@ flowchart LR
     Pagers -->|"isEnabled, dismiss, check, flag"| Pager
 ```
 
-`Pagers` holds one `Pager` per display and watches the window events, the secure input flag and hidden applications once for all of them. Each check reads the window list once. The pager draws with Core Animation: SwiftUI used substantially more CPU on Intel Macs.
+`Pagers` holds one `Pager` per display and watches the window events, the secure input flag and hidden applications once for all of them. Each check reads the window list once. A `Pager` sits in the parking corner of its display: the tab and the cue are drawn for the bottom right and mirrored for the bottom left, and every screen corner gets a mask. The pager draws with Core Animation: SwiftUI used substantially more CPU on Intel Macs.
 
 ### Component index
 
@@ -225,7 +225,7 @@ flowchart LR
 | `SavedState`                  | Model     | What the state file holds for one display, less the windows no longer open.                                                    |
 | `ParkingDesktop`              | macOS     | The `Desktop` that parks windows at the hidden edge of one display and reports `DesktopEvent`s.                                |
 | `SpaceAnchor`                 | macOS     | A clear 1x1 window on the managed Space of one display. Focusing it switches macOS to that Space.                              |
-| `Screens`                     | macOS     | The connected displays, the active display, and the screen parameters notification.                                            |
+| `Screens`                     | Engine    | The connected displays, the active display, and the screen parameters notification. `.system` reads `NSScreen`.                |
 | `RunningApplicationsObserver` | macOS     | The `NSWorkspace` notifications of the applications' lifecycle, and what to announce.                                          |
 | `ApplicationFilter`           | macOS     | Which applications are worth an AX subscription: not OttoWM, the lock screen or WebKit.                                        |
 | `WindowEvents`                | macOS     | The window events and the scans the observer reads: start, discover, inventory, stop.                                          |
@@ -283,7 +283,7 @@ Then `AppDelegate` saves the state every 10 seconds, applies the pager setting, 
 
 `$XDG_STATE_HOME/ottowm/state.json` (`~/.local/state/ottowm/state.json` by default) holds one `SavedSession`: a `SavedState` per display (workspaces, parked windows, original frames) and the `DisplayLayouts` shared by every engine. `Displays` writes it when the session changed: every 10 seconds, since a crash runs no quit handler, on quit once the parked windows are back on screen, and after a removed display is absorbed.
 
-Window ids are only reliable within one login session, so a file from another session is ignored, as is one that does not decode. At launch each engine loads the section with its display id, less the windows that are gone or that admission refuses. A section whose display is not connected is dropped at the next write, and its windows join the current workspace of the display they are on. A window saved as parked stays at the hidden edge.
+Window ids are only reliable within one login session, so a file from another session is ignored, as is one that does not decode. At launch each engine loads the section with its display id, less the windows that are gone or that admission refuses, and the layouts of windows that are gone are dropped. A section whose display is not connected is dropped at the next write, and its windows join the current workspace of the display they are on. A window saved as parked stays at the hidden edge.
 
 ### Routing
 
@@ -293,7 +293,7 @@ Window ids are only reliable within one login session, so a file from another se
 |--------------------------------------|-------------------------------------------------------------------------------------------------------------------------------|
 | Binding                              | The engine of the active display, after a reconcile.                                                                          |
 | `created`, `unminimized`, `focused`  | The engine holding the window, parked or full screen, else the engine of the display that holds the frame, after a reconcile. |
-| `destroyed`, `minimized`, `reframed` | The engine holding the window, else none.                                                                                     |
+| `destroyed`, `minimized`, `reframed` | The engine holding the window. A `destroyed` window no engine holds leaves `DisplayLayouts`.                                  |
 | `start`, `resync` windows            | Grouped by the rule of `focused`.                                                                                             |
 
 The diagrams below start at the engine the input was routed to.
@@ -440,14 +440,14 @@ sequenceDiagram
     loop each engine
         Displays->>WindowSystem: frames(of: engine.activeWindowIds)
         opt the frame is on the display of another engine
-            Displays->>Engine: release(id), on the engine that held it
-            Note over Engine: removes its tab group and forgets its original frames
             Displays->>Engine: assign(snapshot), on the engine of the display it is on
+            Displays->>Engine: release(id), on the engine that held it, once assigned
+            Note over Engine: removes its tab group and forgets its original frames
         end
     end
 ```
 
-Parked windows are skipped: they stand at their own display's corner. A window the on-screen list does not show is left to the engine that holds it.
+Parked windows are skipped: they stand at their own display's corner. A window the on-screen list does not show, or that the engine of its new display refuses, stays with the engine that holds it.
 
 ### Full screen round trip
 

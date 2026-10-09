@@ -1,7 +1,7 @@
 import CoreGraphics
 import Foundation
 
-/// The file OttoWM saves the state of each display to after every operation and reads at launch.
+/// The file that holds the state of each display. It is read at launch.
 /// A state saved in another login session is ignored: its window ids name other windows.
 struct StateFile {
     private struct Content: Codable {
