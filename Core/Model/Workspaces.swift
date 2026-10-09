@@ -28,7 +28,7 @@ final class Workspaces {
     }
 
     var allWindowIds: Set<CGWindowID> {
-        Set(workspaces.values.flatMap(\.windowIds))
+        record.allWindowIds
     }
 
     func recordFocus(on windowId: CGWindowID, in workspace: Int) {
@@ -145,6 +145,10 @@ extension Workspaces {
     struct Record: Codable, Equatable {
         let current: Int
         let workspaces: [Int: Workspace]
+
+        var allWindowIds: Set<CGWindowID> {
+            Set(workspaces.values.flatMap(\.windowIds))
+        }
 
         func keeping(_ windowIds: Set<CGWindowID>) -> Record {
             Record(current: current, workspaces: workspaces.mapValues { $0.keeping(windowIds) })

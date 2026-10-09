@@ -468,7 +468,7 @@ sequenceDiagram
     Displays->>Engine: absorb(the savedState of the removed engine), on the engine of the primary display
     Engine->>WindowPlacement: absorb(the SavedState)
     WindowPlacement->>Workspaces: absorb(the workspaces, by number)
-    WindowPlacement->>OriginalFrames: load(the original frames, fitted into the primary display)
+    WindowPlacement->>OriginalFrames: absorb(the original frames, fitted into the primary display)
     loop each absorbed window
         WindowPlacement->>DisplayLayouts: frame(of: id, on: primary), else its frame on the removed display, fitted
         WindowPlacement->>Desktop: reframe(park(from: target) for a parked window, unpark(target) for an active one)

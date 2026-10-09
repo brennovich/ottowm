@@ -131,7 +131,7 @@ final class Displays {
     private func followArrangement() {
         let removed = engines.filter { engine in !arrangement.displays.contains { $0.id == engine.display.id } }
         engines = arrangement.displays.map { display in
-            engines.first { $0.display.id == display.id } ?? startedEngine(on: display)
+            engine(of: display.id) ?? startedEngine(on: display)
         }
         for engine in removed {
             absorb(engine, into: engines[0])
@@ -161,10 +161,10 @@ final class Displays {
         guard engines.count > 1 else { return }
 
         for engine in engines {
-            let frames = windowSystem.frames(of: engine.activeWindowIds.sorted())
+            let frames = windowSystem.frames(of: Array(engine.activeWindowIds))
             for (windowId, frame) in frames.sorted(by: { $0.key < $1.key }) {
                 guard let displayId = arrangement.display(of: frame)?.id, displayId != engine.display.id,
-                      let target = engines.first(where: { $0.display.id == displayId }),
+                      let target = self.engine(of: displayId),
                       let win = windowSystem.snapshot(of: windowId)
                 else { continue }
 
@@ -179,8 +179,12 @@ final class Displays {
         return makeEngine(display, scoped)
     }
 
+    private func engine(of displayId: DisplayID) -> Engine? {
+        engines.first { $0.display.id == displayId }
+    }
+
     private func engine(on displayId: DisplayID?) -> Engine {
-        engines.first { $0.display.id == displayId } ?? engines[0]
+        displayId.flatMap(engine(of:)) ?? engines[0]
     }
 
     /// The engine holding the window, parked or full screen, else the display holding the frame.

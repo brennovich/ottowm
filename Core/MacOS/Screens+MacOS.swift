@@ -24,6 +24,11 @@ extension Screens {
     )
 }
 
+extension NSScreen {
+    /// AppKit measures every frame from the bottom left of the primary display.
+    static var primaryHeight: CGFloat? { screens.first?.frame.height }
+}
+
 private extension NSScreen {
     var displayID: DisplayID {
         let number = (deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value ?? 0

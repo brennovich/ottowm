@@ -27,7 +27,7 @@ final class SpaceAnchor: Anchor {
     func pin(on display: Display) {
         let window = window ?? AnchorWindow()
         self.window = window
-        let primaryHeight = NSScreen.screens.first?.frame.height ?? display.fullFrame.height
+        let primaryHeight = NSScreen.primaryHeight ?? display.fullFrame.height
         window.setFrame(Self.frame(on: display, primaryHeight: primaryHeight), display: false)
         window.orderFrontRegardless()
         window.orderOut(nil)

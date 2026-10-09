@@ -101,7 +101,7 @@ final class Pager {
     /// `display` is the one the desktop parks windows on.
     private func place(on display: Display) {
         tabArea = TabArea(display: display)
-        let primaryHeight = NSScreen.screens.first?.frame.height ?? display.fullFrame.height
+        let primaryHeight = NSScreen.primaryHeight ?? display.fullFrame.height
         let screenFrame = display.fullFrame.flipped(primaryHeight: primaryHeight)
 
         tabPanel.setFrame(tabArea.frame.flipped(primaryHeight: primaryHeight), display: true)

@@ -205,13 +205,12 @@ final class WindowPlacement {
     /// A window dragged across displays can be held by both engines until a reconcile; it
     /// keeps its place in this one.
     func absorb(_ removed: SavedState) {
-        let held = workspaces.allWindowIds
-        let absorbed = Set(removed.workspaces.workspaces.values.flatMap(\.windowIds)).subtracting(held)
+        let absorbed = removed.workspaces.allWindowIds.subtracting(workspaces.allWindowIds)
         let saved = removed.keeping(absorbed)
         let change = DisplayChange(from: saved.display, to: desktop.display)
         holdingFirstWindows { workspaces.absorb(saved.workspaces) }
-        saved.parkedWindows.forEach { parkedWindows.park($0.key, from: $0.value) }
-        originalFrames.load(originalFrames.all.merging(saved.originalFrames.mapValues(change.fit.frame)) { own, _ in own })
+        parkedWindows.park(saved.parkedWindows)
+        originalFrames.absorb(saved.originalFrames.mapValues(change.fit.frame))
 
         relocate(absorbed, in: change)
 
@@ -267,7 +266,7 @@ final class WindowPlacement {
 
     private func load(_ saved: SavedState) {
         workspaces.load(saved.workspaces)
-        saved.parkedWindows.forEach { parkedWindows.park($0.key, from: $0.value) }
+        parkedWindows.park(saved.parkedWindows)
         originalFrames.load(saved.originalFrames)
         log.notice("restored \(workspaces.allWindowIds.count) windows, workspace \(workspaces.current)")
     }
