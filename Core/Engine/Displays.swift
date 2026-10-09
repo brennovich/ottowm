@@ -41,8 +41,12 @@ final class Displays {
         screens.startWatching { [weak self] in self?.screenParametersChanged() }
     }
 
+    /// A saved layout of a window that is gone is left out.
     func start(windows: [WindowSnapshot], restoring saved: SavedSession?) {
-        if let saved { layouts.load(saved.layouts) }
+        if let saved {
+            let found = Set(windows.map(\.id))
+            layouts.load(saved.layouts.mapValues { $0.filter { found.contains($0.key) } })
+        }
         let windowsByOwner = windowsByOwner(windows)
         for engine in engines {
             let section = saved?.displays.first { $0.display.id == engine.display.id }
@@ -78,7 +82,10 @@ final class Displays {
                 reconcile()
                 owner(of: win.id, frame: win.frame).handle(event)
             }
-        case let .destroyed(windowId), let .minimized(windowId):
+        case let .destroyed(windowId):
+            guard let engine = engines.first(where: { $0.holds(windowId) }) else { return layouts.forget(windowId) }
+            engine.handle(event)
+        case let .minimized(windowId):
             engines.first { $0.holds(windowId) }?.handle(event)
         }
     }

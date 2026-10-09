@@ -92,6 +92,15 @@ final class DisplaysTests: DisplaysTestCase {
         XCTAssertEqual(workspaces[Display.standard.id]?.allWindowIds, [])
     }
 
+    func testTheLayoutOfAWindowNoEngineHoldsIsForgottenWhenItIsDestroyed() {
+        let dialog = add(StubWindow(id: 200, frame: onStandard, isStandard: false, hasMinimizeButton: false))
+        displays.handle(.focused(dialog.snapshot()))
+
+        displays.handle(.destroyed(200))
+
+        XCTAssertNil(layouts.frame(of: 200, on: Display.standard.id))
+    }
+
     func testARoutedEventReadsTheOnScreenListOnce() {
         displays.handle(.created(add(100, frame: onStandard).snapshot()))
 
@@ -141,7 +150,7 @@ final class DisplaysTests: DisplaysTestCase {
         }
     }
 
-    func testStartHandsEachEngineTheWindowsOnItsDisplayAndItsSection() {
+    func testStartHandsEachEngineTheWindowsOnItsDisplayAndItsSectionAndKeepsTheLayoutsOfThoseWindows() {
         let standard = add(100, frame: onStandard)
         let right = add(200, frame: onRight)
 
@@ -149,13 +158,13 @@ final class DisplaysTests: DisplaysTestCase {
             windows: [standard, right].map { $0.snapshot() },
             restoring: SavedSession(
                 displays: [savedState([(standard, 1)]), savedState(current: 3, [(right, 3)], on: .right)],
-                layouts: [Display.external.id: [300: onRight]]
+                layouts: [Display.external.id: [200: onRight, 300: onRight]]
             )
         )
 
         XCTAssertEqual(desktops.mapValues(\.recoveredWindowIds), [Display.standard.id: [100], Display.right.id: [200]])
         XCTAssertEqual(workspaces[Display.right.id]?.current, 3)
-        XCTAssertEqual(layouts.frame(of: 300, on: Display.external.id), onRight)
+        XCTAssertEqual(layouts.all[Display.external.id], [200: onRight])
     }
 
     func testResyncHandsEachEngineTheWindowsItHoldsElseTheWindowsOnItsDisplay() {
