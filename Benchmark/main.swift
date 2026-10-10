@@ -188,9 +188,16 @@ func deskIsBack() -> Bool {
     session.subjects.allSatisfy { $0.isWhereItWas }
 }
 
+// Workspace 1 is on screen and workspace 2, the moved window, is parked.
+func swappedBack() -> Bool {
+    session.isParked(session.movable) && session.others.allSatisfy { $0.isWhereItWas }
+}
+
 var move = Latency("move-window-to-workspace")
 var switchTo = Latency("switch-to-workspace")
 var focusMove = Latency("focus-direction")
+var activation = Latency("activate-parked-application")
+let terminal = session.subject(named: "Terminal")
 
 // Two desk instances put two Safari windows in the same quarter, and a focus move north
 // lands on whichever of them the rule picks, which the run cannot predict.
@@ -208,9 +215,13 @@ for iteration in 1...(options.warmup + options.iterations) {
 
     let moved = measure("the moved window parked", { moveWindowToWorkspace(2) }, until: movedAway)
     let switched = measure("the desk swapped", { switchToWorkspace(2) }, until: swapped)
+    let activatedBack = measure(
+        "the desk swapped back", { terminal.activateApplication() }, until: swappedBack
+    )
 
     // Workspace 1 gets its desk back, untimed: the return leg starts from a different
-    // state than the two above and its numbers would only blur theirs.
+    // state than the ones above and its numbers would only blur theirs.
+    _ = measure("the desk swapped", { switchToWorkspace(2) }, until: swapped)
     session.movable.focus()
     _ = measure("the moved window parked", { moveWindowToWorkspace(1) }, until: movedAway)
     _ = measure("the desk came back", { switchToWorkspace(1) }, until: deskIsBack)
@@ -233,6 +244,7 @@ for iteration in 1...(options.warmup + options.iterations) {
 
     if let moved { move.record(moved) }
     if let switched { switchTo.record(switched) }
+    if let activatedBack { activation.record(activatedBack) }
     if let focused { focusMove.record(focused) }
 
     report("iteration \(iteration - options.warmup)/\(options.iterations)")
@@ -242,7 +254,7 @@ session.finish()
 
 // Dropping a sample keeps the run going, dropping every one of them leaves a record of
 // zeros that would read as a pass.
-let latencies = measuresFocus ? [move, switchTo, focusMove] : [move, switchTo]
+let latencies = measuresFocus ? [move, switchTo, activation, focusMove] : [move, switchTo, activation]
 let unmeasured = latencies.filter { $0.samples.isEmpty }.map { $0.operation }
 guard unmeasured.isEmpty else {
     fail("every iteration missed \(unmeasured.joined(separator: " and ")), there is nothing to report")

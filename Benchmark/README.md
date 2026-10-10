@@ -16,15 +16,16 @@ make benchmark BENCHMARK_ARGS="--budget-p95 250"
 
 ## What it measures
 
-Three operations, over a workspace 1 → 2 → 1 round trip so every iteration starts where the last one ended:
+Four operations, over a workspace 1 → 2 → 1 round trip so every iteration starts where the last one ended:
 
-| Operation                  | Done when                                                        |
-| -------------------------- | ---------------------------------------------------------------- |
-| `move-window-to-workspace` | The moved window is parked at the hidden edge                    |
-| `switch-to-workspace`      | The entered workspace is on screen *and* the left one is parked  |
-| `focus-direction`          | The window the move should land on holds the focus               |
+| Operation                     | Done when                                                                                                                              |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `move-window-to-workspace`    | The moved window is parked at the hidden edge                                                                                          |
+| `switch-to-workspace`         | The entered workspace is on screen *and* the left one is parked                                                                        |
+| `activate-parked-application` | Terminal, parked on workspace 1, activated the way Cmd-Tab does from workspace 2: workspace 1 is on screen *and* workspace 2 is parked |
+| `focus-direction`             | The window the move should land on holds the focus                                                                                     |
 
-The return leg moves the window back and switches back, untimed: it starts from a different state than the two above and its numbers would only blur theirs. The first `--warmup` iterations are run and discarded.
+`activate-parked-application` takes a different path through OttoWM than the hotkeys: the activation arrives as an application notification, and OttoWM checks the focused window before it switches. The return leg switches to workspace 2 again, moves the window back and switches back, untimed: it starts from a different state than the ones above and its numbers would only blur theirs. The first `--warmup` iterations are run and discarded.
 
 The desk is put in the four quarters of the screen, because a focus move is only measurable against a desk whose geometry the run knows: it has to name the window the move should land on. `focus-direction` is measured on the leg from the bottom right window to the top right one, taken last in the iteration on the whole desk the return leg just restored. The focus is put back on the bottom right window first rather than assumed to be there, because a switch moves it to an arbitrary window. Only that one leg is timed: the other three are different pairs of applications, and one blended figure would be a number no pair has. At more than one `--instances` the operation is skipped: two desks put two Safari windows in the same quarter, and the move lands on whichever of them the rule picks, which the run cannot predict.
 
