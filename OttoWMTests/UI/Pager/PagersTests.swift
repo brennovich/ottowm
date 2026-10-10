@@ -57,10 +57,10 @@ final class PagersTests: XCTestCase {
     func testEveryPagerFollowsIsEnabledIncludingOneAddedLater() {
         let first = makePager()
         let later = makePager()
-        pagers.add(first, on: Display.standard.id)
+        pagers.add(first)
 
         pagers.isEnabled = true
-        pagers.add(later, on: Display.right.id)
+        pagers.add(later)
 
         XCTAssertTrue(first.isEnabled)
         XCTAssertTrue(later.isEnabled)
@@ -69,19 +69,19 @@ final class PagersTests: XCTestCase {
     func testEveryPagerGetsTheSecureInputFlagIncludingOneAddedLater() {
         let first = makePager()
         let later = makePager()
-        pagers.add(first, on: Display.standard.id)
+        pagers.add(first)
         pagers.isEnabled = true
 
         secureInputHandler?(true)
-        pagers.add(later, on: Display.right.id)
+        pagers.add(later)
 
         XCTAssertTrue(first.isCueShown)
         XCTAssertTrue(later.isCueShown)
     }
 
     func testDismissingRunsDoneOnceEveryPagerHasSlidOut() {
-        pagers.add(makePager(), on: Display.standard.id)
-        pagers.add(makePager(), on: Display.right.id)
+        pagers.add(makePager())
+        pagers.add(makePager())
         pagers.isEnabled = true
         let done = expectation(description: "every pager has slid out")
 
@@ -101,8 +101,8 @@ final class PagersTests: XCTestCase {
     func testOneCheckReadsTheWindowListOnceForEveryPager() {
         let standard = makePager(on: .standard)
         let right = makePager(on: .right)
-        pagers.add(standard, on: Display.standard.id)
-        pagers.add(right, on: Display.right.id)
+        pagers.add(standard)
+        pagers.add(right)
         enable()
         let reads = listReads
 
@@ -117,7 +117,7 @@ final class PagersTests: XCTestCase {
 
     func testTheWindowListIsReadAgain130msAfterACheck() {
         let pager = makePager()
-        pagers.add(pager, on: Display.standard.id)
+        pagers.add(pager)
         listed = [1: away]
         enable()
         report(.reframed(nil))
@@ -131,7 +131,7 @@ final class PagersTests: XCTestCase {
     }
 
     func testANewerCheckDropsThePendingRecheck() {
-        pagers.add(makePager(), on: Display.standard.id)
+        pagers.add(makePager())
         enable()
         report(.reframed(nil))
         runScheduled()
@@ -146,7 +146,7 @@ final class PagersTests: XCTestCase {
     }
 
     func testEventsBeforeTheCheckRunsReadTheWindowListOnce() {
-        pagers.add(makePager(), on: Display.standard.id)
+        pagers.add(makePager())
         enable()
         let reads = listReads
 
@@ -160,7 +160,7 @@ final class PagersTests: XCTestCase {
 
     func testHidingAnApplicationChecksAgain() {
         let pager = makePager()
-        pagers.add(pager, on: Display.standard.id)
+        pagers.add(pager)
         listed = [1: overStandard]
         enable()
 
@@ -172,7 +172,7 @@ final class PagersTests: XCTestCase {
     }
 
     func testWhileThePagerIsOffNoWindowListIsReadAndTurningItOnReadsItOnce() {
-        pagers.add(makePager(), on: Display.standard.id)
+        pagers.add(makePager())
         report(.reframed(nil))
         runScheduled()
         XCTAssertEqual(listReads, 0)
@@ -184,10 +184,10 @@ final class PagersTests: XCTestCase {
 
     func testARemovedPagerIsDismissedAndNoLongerFollowsIsEnabled() {
         let pager = makePager()
-        pagers.add(pager, on: Display.right.id)
+        pagers.add(pager)
         pagers.isEnabled = true
 
-        pagers.remove(on: Display.right.id)
+        pagers.remove(pager)
         pagers.isEnabled = true
 
         XCTAssertFalse(pager.isEnabled)
@@ -198,11 +198,11 @@ final class PagersTests: XCTestCase {
         do {
             let pager = makePager()
             removed = pager
-            pagers.add(pager, on: Display.right.id)
-        }
-        pagers.isEnabled = true
+            pagers.add(pager)
+            pagers.isEnabled = true
 
-        pagers.remove(on: Display.right.id)
+            pagers.remove(pager)
+        }
 
         XCTAssertNotNil(removed)
         let deadline = Date() + 1

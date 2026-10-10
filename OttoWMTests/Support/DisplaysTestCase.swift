@@ -31,7 +31,6 @@ class DisplaysTestCase: WindowSystemTestCase {
             layouts: layouts,
             screenIsLocked: { [weak self] in self?.screenIsLocked ?? false },
             write: { [weak self] in self?.written.append($0) },
-            removed: { [weak self] in self?.removed.append($0) },
             engine: { [weak self, layouts] display, windowSystem in
                 let desktop = StubDesktop(window: { [weak self] id in self?.windows[id] })
                 desktop.display = display
@@ -40,13 +39,14 @@ class DisplaysTestCase: WindowSystemTestCase {
                 )
                 self?.desktops[display.id] = desktop
                 self?.workspaces[display.id] = workspaces
-                return Engine.system(
+                let engine = Engine.system(
                     desktop: desktop,
                     windowSystem: windowSystem,
                     workspaces: workspaces,
                     layouts: layouts,
                     scheduleRetry: { _, _ in }
                 )
+                return (engine, remove: { self?.removed.append(display.id) })
             }
         )
     }

@@ -48,7 +48,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             layouts: layouts,
             screenIsLocked: { [lifecycle] in lifecycle.screenIsLocked },
             write: stateFile.save,
-            removed: { [pagers] displayId in pagers.remove(on: displayId) },
             engine: { [self] display, windowSystem in
                 let parts = engine(on: display, windowSystem: windowSystem, layouts: layouts, spacing: { spacing })
                 let pager = Pager(
@@ -57,8 +56,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     isOnScreen: isWindowOnScreen,
                     optionClicked: status.toggle
                 )
-                pagers.add(pager, on: display.id)
-                return parts.engine
+                pagers.add(pager)
+                return (parts.engine, remove: { pagers.remove(pager) })
             }
         )
 

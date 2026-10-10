@@ -4,7 +4,7 @@ import AppKit
 final class Pagers {
     private let windowFrames: () -> [CGWindowID: CGRect]
     private let schedule: (TimeInterval, @escaping () -> Void) -> Void
-    private var pagers: [DisplayID: Pager] = [:]
+    private var pagers: [Pager] = []
     private var secureInputIsActive = false
     private var checkScheduled = false
     private var checkCount = 0
@@ -12,7 +12,7 @@ final class Pagers {
 
     var isEnabled = false {
         didSet {
-            for pager in pagers.values { pager.isEnabled = isEnabled }
+            for pager in pagers { pager.isEnabled = isEnabled }
         }
     }
 
@@ -34,7 +34,7 @@ final class Pagers {
             guard let self else { return }
 
             secureInputIsActive = active
-            for pager in pagers.values { pager.secureInputChanged(active) }
+            for pager in pagers { pager.secureInputChanged(active) }
         }
         // Hiding an application reports no window event.
         observers = [NSWorkspace.didHideApplicationNotification, NSWorkspace.didUnhideApplicationNotification].map {
@@ -42,17 +42,16 @@ final class Pagers {
         }
     }
 
-    func add(_ pager: Pager, on displayId: DisplayID) {
+    func add(_ pager: Pager) {
         pager.requestCheck = { [weak self] in self?.scheduleCheck() }
         pager.secureInputChanged(secureInputIsActive)
         pager.isEnabled = isEnabled
-        pagers[displayId] = pager
+        pagers.append(pager)
     }
 
     /// The Pager is held until it has slid out: its panels are ordered out in a completion that holds them weakly.
-    func remove(on displayId: DisplayID) {
-        guard let pager = pagers.removeValue(forKey: displayId) else { return }
-
+    func remove(_ pager: Pager) {
+        pagers.removeAll { $0 === pager }
         pager.dismiss { _ = pager }
     }
 
@@ -61,7 +60,7 @@ final class Pagers {
         var sliding = pagers.count
         guard sliding > 0 else { return done() }
 
-        for pager in pagers.values {
+        for pager in pagers {
             pager.dismiss {
                 sliding -= 1
                 if sliding == 0 { done() }
@@ -95,6 +94,6 @@ final class Pagers {
 
     private func check() {
         let frames = windowFrames()
-        for pager in pagers.values { pager.check(against: frames) }
+        for pager in pagers { pager.check(against: frames) }
     }
 }

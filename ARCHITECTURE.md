@@ -181,7 +181,7 @@ flowchart LR
     SecureInput -->|flag| Pagers
     Bindings -->|reloaded Config| Pagers
     Lifecycle -->|dismiss| Pagers
-    Displays -->|removed display| Pagers
+    Displays -->|"remove(Pager)"| Pagers
     Pager -->|requestCheck| Pagers
     Pagers -->|"isEnabled, dismiss, check, flag"| Pager
 ```
@@ -426,7 +426,7 @@ sequenceDiagram
     end
     WindowPlacement->>Desktop: reframe(the windows whose workspace became current or stopped being current)
     Displays->>StateFile: save(the SavedSession)
-    Displays->>Pagers: remove(on: display)
+    Displays->>Pagers: remove(the Pager of the display), through the closure AppDelegate returned with the engine
 ```
 
 The removed engine is not stopped: stopping puts its parked windows back on screen. An engine that held no window also takes the removed engine's current workspace. A window both engines held keeps its place in the absorbing engine.

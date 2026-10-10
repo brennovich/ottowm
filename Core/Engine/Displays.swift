@@ -9,23 +9,21 @@ final class Displays {
     private let layouts: DisplayLayouts
     private let screenIsLocked: () -> Bool
     private let write: (SavedSession) -> Void
-    private let removed: (DisplayID) -> Void
-    private let makeEngine: (Display, WindowSystem) -> Engine
+    private let makeEngine: (Display, WindowSystem) -> (engine: Engine, remove: () -> Void)
     private var engines: [Engine] = []
+    private var removals: [DisplayID: () -> Void] = [:]
     private var lastWritten: SavedSession?
 
-    /// - Parameter engine: builds the engine of a display from the window system scoped to it.
-    ///   It is called once per display during the init, the primary display first, and once per
-    ///   display added later.
-    /// - Parameter removed: called with each removed display, once its engine is absorbed.
+    /// - Parameter engine: builds the engine of a display from the window system scoped to it,
+    ///   and what to run once the display is removed and its engine absorbed. It is called once
+    ///   per display during the init, the primary display first, and once per display added later.
     init(
         screens: Screens,
         windowSystem: WindowSystem,
         layouts: DisplayLayouts,
         screenIsLocked: @escaping () -> Bool,
         write: @escaping (SavedSession) -> Void,
-        removed: @escaping (DisplayID) -> Void,
-        engine: @escaping (Display, WindowSystem) -> Engine
+        engine: @escaping (Display, WindowSystem) -> (engine: Engine, remove: () -> Void)
     ) {
         let connected = screens.all()
         arrangement = Arrangement(displays: connected.isEmpty ? [.unknown] : connected)
@@ -34,7 +32,6 @@ final class Displays {
         self.layouts = layouts
         self.screenIsLocked = screenIsLocked
         self.write = write
-        self.removed = removed
         makeEngine = engine
 
         engines = arrangement.displays.map(engine(on:))
@@ -149,7 +146,7 @@ final class Displays {
 
         for engine in removed {
             absorb(engine, into: engines[0])
-            self.removed(engine.display.id)
+            removals.removeValue(forKey: engine.display.id)?()
         }
         saveState()
     }
@@ -193,7 +190,9 @@ final class Displays {
 
     private func engine(on display: Display) -> Engine {
         let scoped = windowSystem.scoped { [weak self] in self?.arrangement.display(of: $0)?.id == display.id }
-        return makeEngine(display, scoped)
+        let made = makeEngine(display, scoped)
+        removals[display.id] = made.remove
+        return made.engine
     }
 
     private func engine(of displayId: DisplayID) -> Engine? {
