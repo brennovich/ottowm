@@ -114,15 +114,7 @@ killall Dock
 
 ### Display arrangement
 
-With more than one display, each display needs a free bottom corner in System Settings → Displays → Arrange. A parked window hangs off the bottom right corner, to the right of the display and below it. macOS gives a window to the display that holds the larger part of it, so a display that covers that spot shows the parked window. When another display covers the area past the bottom right and none covers the area past the bottom left, OttoWM parks at the bottom left instead.
-
-The bottom right corner of a display is free when:
-
-- A display on its right must end higher than its bottom edge, by at least a title bar (52pt for the windows measured).
-- A display below it must end left of its right edge. Aligned right edges are not enough.
-- A display below it and to its right must not touch its bottom right corner.
-
-The bottom left corner follows the same rules, mirrored. Displays above it never matter. [AeroSpace asks for the same](https://nikitabobko.github.io/AeroSpace/guide#proper-monitor-arrangement).
+With more than one display, each display needs a free bottom corner in System Settings → Displays → Arrange. A parked window hangs off the bottom right corner, to the right of the display and below it. [It works just like AeroSpace](https://nikitabobko.github.io/AeroSpace/guide#proper-monitor-arrangement).
 
 ## Configuration
 

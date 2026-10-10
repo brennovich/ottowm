@@ -13,7 +13,7 @@ OttoWM is a headless agent that offers several workspaces on the native macOS Sp
 | Display        | A connected display, identified across plugs by its CoreGraphics UUID. The primary display is the first `NSScreen.screens` returns.                                                 |
 | Arrangement    | The connected displays, the primary first. A frame is on the display that holds the larger part of it, the rule macOS uses to give a window a Space, else on the nearest one.       |
 | Active display | The display of the focused window, else the one `NSScreen.main` returns. Bindings act on it.                                                                                        |
-| Hidden edge    | A 1pt sliver at the bottom right of a display, or the bottom left when another display covers the area past the bottom right only. Windows not in the current workspace park there. |
+| Hidden edge    | A 1pt sliver at the bottom right of a display. Windows not in the current workspace park there.                                                                                     |
 | Tab group      | The windows macOS shows as tabs of one window. See [Tabbed windows](#tabbed-windows).                                                                                               |
 | Window id      | The `CGWindowID` of a window, stable for the window's life.                                                                                                                         |
 | Frame          | A rect in top-left coordinates.                                                                                                                                                     |
@@ -186,7 +186,7 @@ flowchart LR
     Pagers -->|"isEnabled, dismiss, check, flag"| Pager
 ```
 
-`Pagers` holds one `Pager` per display and watches the window events, the secure input flag and hidden applications once for all of them. Each check reads the window list once. A `Pager` sits in the parking corner of its display: the tab and the cue are drawn for the bottom right and mirrored for the bottom left, and every screen corner gets a mask. The pager draws with Core Animation: SwiftUI used substantially more CPU on Intel Macs.
+`Pagers` holds one `Pager` per display and watches the window events, the secure input flag and hidden applications once for all of them. Each check reads the window list once. A `Pager` sits in the bottom right corner of its display, and every screen corner gets a mask. The pager draws with Core Animation: SwiftUI used substantially more CPU on Intel Macs.
 
 ### Component index
 
@@ -219,7 +219,7 @@ flowchart LR
 | `HiddenEdge`                  | Model     | Where a parked window sits on a display, and whether a frame sits there.                                                       |
 | `ParkedWindows`               | Model     | The windows parked at the hidden edge, and the frame each one was parked from.                                                 |
 | `OriginalFrames`              | Model     | The frame each maximized or filled window restores to, shared by its tabs.                                                     |
-| `Arrangement`                 | Model     | The connected displays, the primary first, the display a frame is on, and the parking corner of each.                          |
+| `Arrangement`                 | Model     | The connected displays, the primary first, and the display a frame is on.                                                      |
 | `DisplayLayouts`              | Model     | The last frame each window had on each display, kept after the display disconnects.                                            |
 | `Fit`                         | Model     | One frame moved between two visible frames, each axis keeping its share of the room.                                           |
 | `SavedState`                  | Model     | What the state file holds for one display, less the windows no longer open.                                                    |
@@ -394,7 +394,7 @@ sequenceDiagram
     Note over Displays: replaces the arrangement, unless no display is reported
     loop each engine whose display is connected
         Displays->>Engine: change(to: its display as read now)
-        alt the geometry or the parking corner changed
+        alt the geometry changed
             Engine->>WindowPlacement: relocate(the change)
             WindowPlacement->>Desktop: reframe(park every parked window at the new edge)
         else nothing changed

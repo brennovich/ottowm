@@ -20,19 +20,6 @@ extension Display {
         fullFrame: CGRect(x: 1792, y: -139, width: 1920, height: 1080),
         visibleFrame: CGRect(x: 1792, y: -114, width: 1920, height: 1055)
     )
-
-    /// `right` moved down, its bottom 61pt below the bottom of `standard`.
-    static let rightBelowTheCorner = Display(
-        id: Display.right.id,
-        fullFrame: CGRect(x: 1792, y: 101, width: 1920, height: 1080),
-        visibleFrame: CGRect(x: 1792, y: 126, width: 1920, height: 1055)
-    )
-
-    func parking(at corner: ParkingCorner) -> Display {
-        var display = self
-        display.parkingCorner = corner
-        return display
-    }
 }
 
 func hiddenEdgeFrame(size: CGSize, on display: Display = .standard) -> CGRect {

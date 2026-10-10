@@ -4,15 +4,10 @@ struct DisplayID: Hashable, Codable {
     let rawValue: String
 }
 
-enum ParkingCorner: String, Codable {
-    case bottomRight, bottomLeft
-}
-
 struct Display: Equatable, Codable {
     let id: DisplayID
     let fullFrame: CGRect
     let visibleFrame: CGRect
-    var parkingCorner = ParkingCorner.bottomRight
 }
 
 extension Display {

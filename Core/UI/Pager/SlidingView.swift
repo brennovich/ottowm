@@ -6,7 +6,6 @@ import AppKit
 class SlidingView: NSView {
     static let animationKey = "ottowm.slide"
     static let defaultDuration: TimeInterval = 0.3
-    static let mirror = CATransform3DMakeScale(-1, 1, 1)
 
     private let content: CALayer
     private let flippedLayer = CALayer()
@@ -17,14 +16,6 @@ class SlidingView: NSView {
 
     /// Whether the panel holding the view takes clicks on the drawn content. False: every click reaches the window under it.
     var acceptsClicks: Bool { false }
-
-    /// Flips the content across its vertical centre: the slide, the retract and the shapes are drawn for the right screen
-    /// edge, and land on the left one.
-    var isMirrored = false {
-        didSet {
-            CATransaction.withoutActions { flippedLayer.sublayerTransform = isMirrored ? Self.mirror : CATransform3DIdentity }
-        }
-    }
 
     /// `hiddenOffset` is in top left coordinates.
     init(content: CALayer, size: CGSize, hiddenOffset: CGSize, duration: TimeInterval = defaultDuration) {

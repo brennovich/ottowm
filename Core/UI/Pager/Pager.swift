@@ -104,8 +104,6 @@ final class Pager {
         let primaryHeight = NSScreen.screens.first?.frame.height ?? display.fullFrame.height
         let screenFrame = display.fullFrame.flipped(primaryHeight: primaryHeight)
 
-        tab.isMirrored = tabArea.isMirrored
-        cue.isMirrored = tabArea.isMirrored
         tabPanel.setFrame(tabArea.frame.flipped(primaryHeight: primaryHeight), display: true)
         cuePanel.setFrame(tabArea.frame(of: CueView.size).flipped(primaryHeight: primaryHeight), display: true)
         for (corner, panel) in corners {

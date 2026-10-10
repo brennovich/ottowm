@@ -21,7 +21,7 @@ final class DisplaysArrangementTests: DisplaysTestCase {
 
         XCTAssertEqual(
             desktops.mapValues(\.changedDisplays),
-            [Display.standard.id: [.standard], Display.right.id: [rightMovedLeft.parking(at: .bottomLeft)]]
+            [Display.standard.id: [.standard], Display.right.id: [rightMovedLeft]]
         )
     }
 

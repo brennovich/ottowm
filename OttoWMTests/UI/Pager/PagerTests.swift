@@ -92,16 +92,6 @@ final class PagerTests: XCTestCase {
         XCTAssertTrue(pager.isRetracted)
     }
 
-    func testTheTabAndTheCueAreMirroredOnADisplayParkingInTheBottomLeft() {
-        _ = pager
-        let display = Display.standard.parking(at: .bottomLeft)
-
-        desktop.report(.displayChange(DisplayChange(from: .standard, to: display)))
-
-        XCTAssertTrue(views.contains { $0 is PagerTabView && $0.isMirrored })
-        XCTAssertTrue(views.contains { $0 is CueView && $0.isMirrored })
-    }
-
     func testANativeSpaceChangeChecksAgain() {
         desktop.report(.nativeSpaceChange)
 
