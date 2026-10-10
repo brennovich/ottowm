@@ -107,7 +107,7 @@ flowchart LR
     Displays -->|"Action, WindowEvent, change, release, assign, absorb"| Engine
 ```
 
-`AppDelegate` hands `Displays` a closure that builds the `ParkingDesktop`, `Workspaces`, `Engine` and `Pager` of one display, called for each display at launch, the primary first, and for each display added later. Each engine gets a `WindowSystem` scoped to its display: `focused()`, `shows`, `showsAny` and `frames(of:)` leave out windows whose larger part is on another display, while the reads of one window by id are not scoped. The scoped copies share the caches, so one operation still reads the focused window and the on-screen list once.
+`AppDelegate` hands `Displays` a closure that builds the `ParkingDesktop`, `Workspaces`, `Engine` and `Pager` of one display, called for each display at launch, the primary first, and for each display added later. It returns the engine with a closure that removes the `Pager`, which `Displays` runs once the display is removed and its engine absorbed. Each engine gets a `WindowSystem` scoped to its display: `focused()`, `shows`, `showsAny` and `frames(of:)` leave out windows whose larger part is on another display, while the reads of one window by id are not scoped. The scoped copies share the caches, so one operation still reads the focused window and the on-screen list once.
 
 Per display: `Engine` and its parts, `Workspaces`, `ParkedWindows`, `OriginalFrames`, `ParkingDesktop`, `SpaceAnchor`, `Pager`. Shared: `DisplayLayouts`, the `WindowSystem` caches, and everything outside the engine.
 
@@ -425,8 +425,8 @@ sequenceDiagram
         WindowPlacement->>Desktop: reframe(to its layout on the primary display, else its last frame fitted, parked or not as it was)
     end
     WindowPlacement->>Desktop: reframe(the windows whose workspace became current or stopped being current)
-    Displays->>StateFile: save(the SavedSession)
     Displays->>Pagers: remove(the Pager of the display), through the closure AppDelegate returned with the engine
+    Displays->>StateFile: save(the SavedSession)
 ```
 
 The removed engine is not stopped: stopping puts its parked windows back on screen. An engine that held no window also takes the removed engine's current workspace. A window both engines held keeps its place in the absorbing engine.
