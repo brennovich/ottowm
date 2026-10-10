@@ -28,7 +28,7 @@ final class Workspaces {
     }
 
     var allWindowIds: Set<CGWindowID> {
-        Set(workspaces.values.flatMap(\.windowIds))
+        record.allWindowIds
     }
 
     func recordFocus(on windowId: CGWindowID, in workspace: Int) {
@@ -146,6 +146,10 @@ extension Workspaces {
         let current: Int
         let workspaces: [Int: Workspace]
 
+        var allWindowIds: Set<CGWindowID> {
+            Set(workspaces.values.flatMap(\.windowIds))
+        }
+
         func keeping(_ windowIds: Set<CGWindowID>) -> Record {
             Record(current: current, workspaces: workspaces.mapValues { $0.keeping(windowIds) })
         }
@@ -153,6 +157,19 @@ extension Workspaces {
 
     var record: Record {
         Record(current: current, workspaces: workspaces)
+    }
+
+    /// Merges the workspaces of a removed display by number. A model holding no window also
+    /// takes the record's current workspace, so the windows of that workspace stay on screen.
+    func absorb(_ record: Record) {
+        let holdsNoWindow = allWindowIds.isEmpty
+        for (number, workspace) in record.workspaces {
+            workspaces[number, default: Workspace()].absorb(workspace)
+        }
+        guard holdsNoWindow else { return }
+
+        current = record.current
+        report(.switched(current))
     }
 
     func load(_ record: Record) {

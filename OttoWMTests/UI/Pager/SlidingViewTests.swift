@@ -51,6 +51,17 @@ final class SlidingViewTests: XCTestCase {
         wait(for: [ended], timeout: 1)
     }
 
+    func testAMirroredViewDrawsItsContentFlippedAcrossItsVerticalCentre() throws {
+        view.reveal()
+        let root = try XCTUnwrap(view.layer)
+
+        view.isMirrored = true
+        XCTAssertEqual(root.convert(CGPoint(x: 1, y: 0), from: content).x, size.width - 1, accuracy: 0.001)
+
+        view.isMirrored = false
+        XCTAssertEqual(root.convert(CGPoint(x: 1, y: 0), from: content).x, 1, accuracy: 0.001)
+    }
+
     func testTheBackingScaleReachesAMaskUnderTheContent() {
         let content = CALayer()
         let masked = CALayer()

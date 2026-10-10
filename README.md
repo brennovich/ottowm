@@ -36,11 +36,13 @@ It brings the workflow of a common Linux window manager to macOS, without fighti
 
 ### Workspaces
 
-Multiple workspaces on a **single native macOS Space**: no Space switch animation, no Mission Control. A window that leaves a workspace is parked in the bottom right corner, a point of it left on screen, and comes back to the frame it had, with the focus it had.
+Multiple workspaces on a **single native macOS Space** per display: no Space switch animation, no Mission Control. A window that leaves a workspace is parked in a bottom corner of its display, a point of it left on screen, and comes back to the frame it had, with the focus it had.
+
+Each display has its own workspaces. A binding acts on the display of the focused window, else on the display whose menu bar is active. A new window joins the current workspace of the display it opens on. A window dragged to another display joins that display's current workspace at the next binding, or when a window opens, takes the focus or is unminimized.
 
 ### Pager
 
-OttoWM relies on the same strategy as [AeroSpace](https://nikitabobko.github.io/AeroSpace/guide#emulation-of-virtual-workspaces), a tiny portion of windows accumulates in the bottom right corner, so the Pager covers this spot while offering nice other features.
+OttoWM relies on the same strategy as [AeroSpace](https://nikitabobko.github.io/AeroSpace/guide#emulation-of-virtual-workspaces), a tiny portion of windows accumulates in a bottom corner, so the Pager covers this spot while offering nice other features. Each display has its own Pager, showing that display's current workspace, in the corner its windows park in.
 
 <table>
   <tr>
@@ -83,12 +85,12 @@ The app is ad-hoc signed, so Gatekeeper refuses it as coming from an unidentifie
 
 OttoWM expects a few macOS settings to be in place. They all live in System Settings → Desktop & Dock, under Mission Control and Dock.
 
-| Setting                                                 | Value | Why                                                                          |
-| ------------------------------------------------------- | ----- | ---------------------------------------------------------------------------- |
-| Group windows by application                            | on    | Fixes the positioning of windows on Mission Control                          |
-| Displays have separate Spaces                           | on    | Each display keeps its own Space, so a workspace switch stays on one display |
-| Automatically rearrange Spaces based on most recent use | off   | The Space order stays fixed, so the Space OttoWM runs on does not move       |
-| Automatically hide and show the Dock                    | on    | Keep the parked windows as hidden as possible                                |
+| Setting                                                 | Value | Why                                                                              |
+| ------------------------------------------------------- | ----- | -------------------------------------------------------------------------------- |
+| Group windows by application                            | on    | Fixes the positioning of windows on Mission Control                              |
+| Displays have separate Spaces                           | on    | Each display keeps its own Space, which OttoWM runs that display's workspaces on |
+| Automatically rearrange Spaces based on most recent use | off   | The Space order stays fixed, so the Space OttoWM runs on does not move           |
+| Automatically hide and show the Dock                    | on    | Keep the parked windows as hidden as possible                                    |
 
 ```sh
 defaults write com.apple.dock expose-group-apps -bool true
@@ -109,6 +111,18 @@ defaults delete com.apple.dock mru-spaces
 defaults delete com.apple.dock autohide
 killall Dock
 ```
+
+### Display arrangement
+
+With more than one display, each display needs a free bottom corner in System Settings → Displays → Arrange. A parked window hangs off the bottom right corner, to the right of the display and below it. macOS gives a window to the display that holds the larger part of it, so a display that covers that spot shows the parked window. When another display covers the area past the bottom right and none covers the area past the bottom left, OttoWM parks at the bottom left instead.
+
+The bottom right corner of a display is free when:
+
+- A display on its right must end higher than its bottom edge, by at least a title bar (52pt for the windows measured).
+- A display below it must end left of its right edge. Aligned right edges are not enough.
+- A display below it and to its right must not touch its bottom right corner.
+
+The bottom left corner follows the same rules, mirrored. Displays above it never matter. [AeroSpace asks for the same](https://nikitabobko.github.io/AeroSpace/guide#proper-monitor-arrangement).
 
 ## Configuration
 
@@ -213,7 +227,7 @@ hyper-5 = switch-to-workspace 5
     <td>pager&nbsp;=&nbsp;<code>off</code></td>
     <td>Setting</td>
     <td><code>on</code></td>
-    <td>Hide the tab in the bottom right corner that shows the current workspace and covers the parked windows</td>
+    <td>Hide the tab in the bottom corner that shows the current workspace and covers the parked windows</td>
   </tr>
   <tr>
     <td>spacing&nbsp;=&nbsp;<code>N</code></td>
@@ -232,10 +246,6 @@ The About window (`hyper-a`, or Option-click on the pager tab) displays the all 
 ```sh
 log stream --level debug --predicate 'subsystem == "com.github.brennovich.ottowm"'
 ```
-
-## Limitations
-
-- No support for two displays at once (yet). But position and windows size are preserved per display
 
 <hr>
 

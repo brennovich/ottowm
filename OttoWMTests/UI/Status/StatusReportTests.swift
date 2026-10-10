@@ -15,7 +15,7 @@ final class StatusReportTests: XCTestCase {
             accessibilityGranted: true,
             hotkeysListening: false,
             secureInputHeld: secureInputHeld,
-            display: "2560×1440",
+            displays: "2560×1440",
             configPath: "~/.config/ottowm/ottowm",
             configExists: configExists,
             configError: configError,
@@ -54,7 +54,7 @@ final class StatusReportTests: XCTestCase {
         Accessibility: granted
         Hotkeys: not listening
         Secure input: held by another app
-        Display: 2560×1440
+        Displays: 2560×1440
 
         Config: ~/.config/ottowm/ottowm
 

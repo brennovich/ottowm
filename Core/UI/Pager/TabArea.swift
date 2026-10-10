@@ -2,14 +2,23 @@ import CoreGraphics
 
 /// The screen rect the pager tab covers, in top left coordinates, and whether a window reaches into it.
 struct TabArea {
-    let frame: CGRect
     private let display: Display
     private let hiddenEdge: HiddenEdge
 
     init(display: Display) {
-        frame = display.fullFrame.bottomRight(size: TabShape.size)
         self.display = display
         hiddenEdge = HiddenEdge(display: display)
+    }
+
+    var frame: CGRect { frame(of: TabShape.size) }
+
+    /// The pager is drawn for the bottom right corner, and mirrored where the windows park in the bottom left.
+    var isMirrored: Bool { display.parkingCorner == .bottomLeft }
+
+    /// The rect of `size` in the parking corner of the display.
+    func frame(of size: CGSize) -> CGRect {
+        let x = isMirrored ? display.fullFrame.minX : display.fullFrame.maxX - size.width
+        return CGRect(x: x, y: display.fullFrame.maxY - size.height, width: size.width, height: size.height)
     }
 
     /// During a full screen transition macOS shows a window the size of the display at the normal level for about 500ms,

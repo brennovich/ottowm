@@ -7,7 +7,6 @@ private let pulledBackFrame = CGRect(x: 200, y: 300, width: 800, height: 600)
 final class ParkingDesktopTests: XCTestCase {
     private let win = StubWindow(id: 100, frame: originalFrame)
     private let center = NotificationCenter()
-    private var displays: [Display] = [.standard]
     private let anchor = StubAnchor()
 
     private let hiddenEdge = HiddenEdge(display: .standard)
@@ -16,12 +15,13 @@ final class ParkingDesktopTests: XCTestCase {
 
     private let parkedWindows = ParkedWindows()
 
+    private var spacing: CGFloat = 15
+
     private lazy var desktop = ParkingDesktop(
-        screens: Screens { [weak self] in self?.displays ?? [] },
+        display: .standard,
         window: { [weak self] id in self?.windows[id] },
-        spacing: 15,
+        spacing: { [weak self] in self?.spacing ?? 0 },
         notificationCenter: center,
-        screenNotificationCenter: center,
         anchor: anchor
     )
 
@@ -52,11 +52,12 @@ final class ParkingDesktopTests: XCTestCase {
     }
 
     func testReframeWritesTheFrameOfTheWorkAreaWithoutAnimating() {
-        desktop.spacing = 30
+        reframe(100, .move(.east))
+        spacing = 30
 
         reframe(100, .move(.east))
 
-        XCTAssertEqual(win.frame, originalFrame.offsetBy(dx: 30, dy: 0))
+        XCTAssertEqual(win.frame, originalFrame.offsetBy(dx: 45, dy: 0))
         XCTAssertEqual(win.animatedWriteCount, 0)
     }
 
@@ -180,70 +181,37 @@ final class ParkingDesktopTests: XCTestCase {
         XCTAssertEqual(win.positionSetCount, 0)
     }
 
-    func testStartWatchingReportsANativeSpaceChange() {
-        var events: [DesktopEvent] = []
-
-        desktop.startWatching { events.append($0) }
-        center.postNativeSpaceChange()
-
-        XCTAssertEqual(events, [.nativeSpaceChange])
-    }
-
-    func testAChangeToAnotherDisplayIsReportedOnceAndMovesTheHiddenEdge() {
-        var events: [DesktopEvent] = []
-        desktop.startWatching { events.append($0) }
-
-        desktop.change(to: .external)
-        desktop.change(to: .external)
-
-        XCTAssertEqual(events, [.displayChange(DisplayChange(from: .standard, to: .external)), .screenParametersChange])
-        XCTAssertEqual(desktop.display, .external)
-        reframe(100, .park(from: nil))
-        XCTAssertEqual(win.frame, hiddenEdgeFrame(size: originalFrame.size, on: .external))
-    }
-
-    func testAChangeOfTheGeometryOfTheSameDisplayIsReported() {
-        var events: [DesktopEvent] = []
-        desktop.startWatching { events.append($0) }
+    func testAChangeIsReportedAsADisplayChangeWhenTheDisplayDiffersElseAsAScreenParametersChange() {
         let dockMoved = Display(
             id: Display.standard.id,
             fullFrame: Display.standard.fullFrame,
             visibleFrame: CGRect(x: 0, y: 38, width: 1792, height: 1000)
         )
+        let cases: [(name: String, entered: Display, expected: DesktopEvent)] = [
+            ("another display", .external, .displayChange(DisplayChange(from: .standard, to: .external))),
+            ("the same display with another geometry", dockMoved, .displayChange(DisplayChange(from: .standard, to: dockMoved))),
+            ("the same display", .standard, .screenParametersChange),
+        ]
 
-        desktop.change(to: dockMoved)
+        for testCase in cases {
+            var events: [DesktopEvent] = []
+            let desktop = ParkingDesktop(
+                display: .standard, window: { _ in nil }, spacing: { 0 }, notificationCenter: center, anchor: anchor
+            )
+            desktop.startWatching { events.append($0) }
 
-        XCTAssertEqual(events, [.displayChange(DisplayChange(from: .standard, to: dockMoved))])
+            desktop.change(to: testCase.entered)
+
+            XCTAssertEqual(events, [testCase.expected], testCase.name)
+        }
     }
 
-    func testAChangeThatKeepsTheDisplayIsReported() {
-        var events: [DesktopEvent] = []
-        desktop.startWatching { events.append($0) }
+    func testAChangeToAnotherDisplayMovesTheHiddenEdge() {
+        desktop.change(to: .external)
 
-        desktop.change(to: .standard)
+        reframe(100, .park(from: nil))
 
-        XCTAssertEqual(events, [.screenParametersChange])
-    }
-
-    func testAScreenParametersChangeHandsTheDesktopThePrimaryDisplay() {
-        var events: [DesktopEvent] = []
-        desktop.startWatching { events.append($0) }
-
-        displays = [.external, .standard]
-        center.postScreenParametersChange()
-
-        XCTAssertEqual(events, [.displayChange(DisplayChange(from: .standard, to: .external))])
-    }
-
-    func testAScreenParametersChangeWithNoDisplayKeepsTheLastOne() {
-        var events: [DesktopEvent] = []
-        desktop.startWatching { events.append($0) }
-
-        displays = []
-        center.postScreenParametersChange()
-
-        XCTAssertEqual(events, [])
-        XCTAssertEqual(desktop.display, .standard)
+        XCTAssertEqual(win.frame, hiddenEdgeFrame(size: originalFrame.size, on: .external))
     }
 
     func testReparkParksAWindowPulledBackOnScreenWithoutAnimations() {
@@ -268,12 +236,21 @@ final class ParkingDesktopTests: XCTestCase {
         XCTAssertEqual(win.positionSetCount, 1)
     }
 
-    func testANativeSpaceChangePutsTheAnchorAwayBeforeItIsReported() {
-        var putAwayCountWhenReported: Int?
-        desktop.startWatching { [anchor] _ in putAwayCountWhenReported = anchor.putAwayCount }
+    func testANativeSpaceChangeIsReportedOnceTheAnchorIsPutAway() {
+        var reported: [(event: DesktopEvent, putAwayCount: Int)] = []
+        desktop.startWatching { [anchor] in reported.append(($0, anchor.putAwayCount)) }
 
         center.postNativeSpaceChange()
 
-        XCTAssertEqual(putAwayCountWhenReported, 1)
+        XCTAssertEqual(reported.map(\.event), [.nativeSpaceChange])
+        XCTAssertEqual(reported.map(\.putAwayCount), [1])
+    }
+
+    func testTheAnchorIsPinnedOnTheDisplayTheDesktopHolds() {
+        desktop.change(to: .external)
+
+        desktop.pinAnchor()
+
+        XCTAssertEqual(anchor.pinnedDisplays, [.external])
     }
 }

@@ -1,6 +1,6 @@
 import AppKit
 
-/// The tab in the bottom right corner with the current workspace, and the masks that round the other three screen corners.
+/// The tab in the parking corner with the current workspace, and the masks that round the screen corners.
 /// The tab retracts while a window overlaps it, and the cue pulses under it while an app holds secure event input.
 final class Pager {
     private let tab = PagerTabView()
@@ -9,40 +9,27 @@ final class Pager {
     private let cuePanel: any Panel
     private let corners: [(corner: ScreenCorner, panel: any Panel)]
     private let radius = ScreenCorner.radius(on: ProcessInfo.processInfo.operatingSystemVersion)
-    private let windowFrames: () -> [CGWindowID: CGRect]
     private let isOnScreen: (CGWindowID) -> Bool
-    private let schedule: (TimeInterval, @escaping () -> Void) -> Void
     private var shown = false
     private var secureInputIsActive = false
     private var tabArea = TabArea(display: .unknown)
-    private var checkScheduled = false
-    private var checkCount = 0
-    private var observers: [NSObjectProtocol] = []
+
+    /// `Pagers` sets it to schedule the check of every Pager.
+    var requestCheck: () -> Void = {}
 
     var isEnabled: Bool {
         get { shown }
         set { newValue ? reveal() : dismiss(then: {}) }
     }
 
-    /// `schedule` delays the check by 50ms: without the delay, the main queue runs a check between two window events of one
-    /// workspace switch, and a switch between two workspaces that both cover the tab starts a restore and turns it back.
     init(
         workspaces: Workspaces,
         desktop: any Desktop,
-        startWatchingWindows: (@escaping (WindowEvent) -> Void) -> Void,
-        windowFrames: @escaping () -> [CGWindowID: CGRect] = { onScreenWindowFrames(level: Int(CGWindowLevelForKey(.normalWindow))) },
-        isOnScreen: @escaping (CGWindowID) -> Bool = isWindowOnScreen,
-        startWatchingSecureInput: (@escaping (Bool) -> Void) -> Void,
+        isOnScreen: @escaping (CGWindowID) -> Bool,
         optionClicked: @escaping () -> Void = {},
-        panel: (NSWindow.Level, SlidingView) -> any Panel = { OverlayPanel(level: $0, content: $1) },
-        schedule: @escaping (TimeInterval, @escaping () -> Void) -> Void = {
-            DispatchQueue.main.asyncAfter(deadline: .now() + $0, execute: $1)
-        },
-        notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter
+        panel: (NSWindow.Level, SlidingView) -> any Panel = { OverlayPanel(level: $0, content: $1) }
     ) {
-        self.windowFrames = windowFrames
         self.isOnScreen = isOnScreen
-        self.schedule = schedule
         tab.optionClicked = optionClicked
         // One level below pop-up menus: above every window and the Dock, below a menu opened over the corner.
         let tabLevel = NSWindow.Level(rawValue: NSWindow.Level.popUpMenu.rawValue - 1)
@@ -57,17 +44,6 @@ final class Pager {
         place(on: desktop.display)
         workspaces.startWatching { [weak self] event in self?.handle(event) }
         desktop.startWatching { [weak self] event in self?.handle(event) }
-        startWatchingWindows { [weak self] _ in self?.scheduleCheck() }
-        startWatchingSecureInput { [weak self] active in
-            guard let self else { return }
-
-            secureInputIsActive = active
-            updateCue()
-        }
-        // Hiding an application reports no window event.
-        observers = [NSWorkspace.didHideApplicationNotification, NSWorkspace.didUnhideApplicationNotification].map {
-            notificationCenter.addObserver(forName: $0, object: nil, queue: .main) { [weak self] _ in self?.scheduleCheck() }
-        }
     }
 
     var isRetracted: Bool { tab.isRetracted }
@@ -87,6 +63,24 @@ final class Pager {
         updateCue()
     }
 
+    func secureInputChanged(_ active: Bool) {
+        secureInputIsActive = active
+        updateCue()
+    }
+
+    /// The tab is not shown on a full screen Space, and the window list there holds that Space's windows only.
+    func check(against windowFrames: [CGWindowID: CGRect]) {
+        guard shown, isOnScreen(CGWindowID(tabPanel.windowNumber)) else { return }
+
+        if tabArea.isOverlapped(by: windowFrames) {
+            tab.retract()
+            cue.retract()
+        } else {
+            tab.restore()
+            cue.restore()
+        }
+    }
+
     private func handle(_ event: WorkspaceEvent) {
         switch event {
         case let .switched(workspace): tab.show(workspace: workspace)
@@ -97,47 +91,10 @@ final class Pager {
         switch event {
         case let .displayChange(change):
             place(on: change.to)
-            scheduleCheck()
+            requestCheck()
         // The window list covers only the current Space.
-        case .nativeSpaceChange: scheduleCheck()
+        case .nativeSpaceChange: requestCheck()
         case .screenParametersChange: break
-        }
-    }
-
-    /// The events of one change join the check the first of them scheduled.
-    private func scheduleCheck() {
-        guard !checkScheduled else { return }
-
-        checkScheduled = true
-        schedule(0.05) { [weak self] in
-            guard let self else { return }
-
-            checkScheduled = false
-            guard shown else { return }
-
-            check()
-            checkCount += 1
-            // Some applications (Ghostty) update the window list up to 130ms after they report a new frame.
-            // A newer check drops this recheck, since its own recheck reads the list later.
-            let count = checkCount
-            schedule(0.13) { [weak self] in
-                guard let self, checkCount == count else { return }
-
-                check()
-            }
-        }
-    }
-
-    /// The tab is not shown on a full screen Space, and the window list there holds that Space's windows only.
-    private func check() {
-        guard shown, isOnScreen(CGWindowID(tabPanel.windowNumber)) else { return }
-
-        if tabArea.isOverlapped(by: windowFrames()) {
-            tab.retract()
-            cue.retract()
-        } else {
-            tab.restore()
-            cue.restore()
         }
     }
 
@@ -147,9 +104,10 @@ final class Pager {
         let primaryHeight = NSScreen.screens.first?.frame.height ?? display.fullFrame.height
         let screenFrame = display.fullFrame.flipped(primaryHeight: primaryHeight)
 
+        tab.isMirrored = tabArea.isMirrored
+        cue.isMirrored = tabArea.isMirrored
         tabPanel.setFrame(tabArea.frame.flipped(primaryHeight: primaryHeight), display: true)
-        let cueFrame = tabArea.frame.bottomRight(size: CueView.size)
-        cuePanel.setFrame(cueFrame.flipped(primaryHeight: primaryHeight), display: true)
+        cuePanel.setFrame(tabArea.frame(of: CueView.size).flipped(primaryHeight: primaryHeight), display: true)
         for (corner, panel) in corners {
             panel.setFrame(corner.frame(in: screenFrame, radius: radius), display: true)
         }
@@ -163,7 +121,7 @@ final class Pager {
         for (_, panel) in corners {
             panel.reveal()
         }
-        scheduleCheck()
+        requestCheck()
         updateCue()
     }
 

@@ -59,12 +59,16 @@ final class WindowPlacementRestoreTests: EngineTestCase {
         XCTAssertNil(workspaces.workspace(for: 100))
     }
 
-    func testRestorePlacesTheWindowsSavedOnAnotherDisplayOnTheOneHeldNow() {
-        let active = add(StubWindow(id: 100))
-        let stuck = add(StubWindow(id: 200, frame: hiddenEdgeFrame(size: parkedFrom.size, on: .external)))
-        let fitted = DisplayChange(from: .external, to: .standard).fit.frame(parkedFrom)
+    func testRestoreRefitsTheParkedWindowsSavedOnTheSameDisplayWithAnotherGeometry() {
+        let smaller = Display(
+            id: Display.standard.id,
+            fullFrame: CGRect(x: 0, y: 0, width: 1440, height: 900),
+            visibleFrame: CGRect(x: 0, y: 25, width: 1440, height: 875)
+        )
+        let stuck = add(StubWindow(id: 200, frame: hiddenEdgeFrame(size: parkedFrom.size, on: smaller)))
+        let fitted = DisplayChange(from: smaller, to: .standard).fit.frame(parkedFrom)
 
-        restore([active, stuck], from: savedState([(active, 1), (stuck, 2)], parked: [200: parkedFrom], on: .external))
+        restore([stuck], from: savedState([(stuck, 2)], parked: [200: parkedFrom], on: smaller))
 
         XCTAssertEqual(placement.parked, [200: fitted])
     }

@@ -35,6 +35,16 @@ final class OriginalFramesTests: XCTestCase {
         XCTAssertEqual(originalFrames.originalFrame(of: 100), fit.frame(original))
     }
 
+    func testAbsorbingTakesTheFramesOfWindowsItDoesNotHold() {
+        let other = CGRect(x: 300, y: 200, width: 640, height: 480)
+        originalFrames.record([.filled(100, from: original)])
+
+        originalFrames.absorb([100: other, 200: other])
+
+        XCTAssertEqual(originalFrames.originalFrame(of: 100), original)
+        XCTAssertEqual(originalFrames.originalFrame(of: 200), other)
+    }
+
     func testAnyOtherFrameChangeDropsTheFrame() {
         originalFrames.record([.filled(100, from: original)])
         originalFrames.record([.active(100)])

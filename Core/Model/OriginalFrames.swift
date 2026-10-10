@@ -42,6 +42,11 @@ final class OriginalFrames {
         frames = frames.mapValues(fit.frame)
     }
 
+    /// A window this one holds keeps its frame.
+    func absorb(_ other: [CGWindowID: CGRect]) {
+        frames.merge(other) { own, _ in own }
+    }
+
     /// A destroyed window has already left its tab group by the time it is forgotten, so
     /// the tabs that stay keep the frame.
     func forget(_ windowId: CGWindowID) {

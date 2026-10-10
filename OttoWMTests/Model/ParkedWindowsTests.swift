@@ -24,6 +24,15 @@ final class ParkedWindowsTests: XCTestCase {
         XCTAssertEqual(parked.parkedFrom(of: 100), later)
     }
 
+    func testParkingSeveralWindowsAtOnceRecordsEachFrameAndKeepsTheOthers() {
+        let later = frame.offsetBy(dx: 50, dy: 50)
+        parked.park(100, from: frame)
+
+        parked.park([200: frame, 300: later])
+
+        XCTAssertEqual(parked.all, [100: frame, 200: frame, 300: later])
+    }
+
     func testForgettingLeavesTheWindowActive() {
         parked.park(100, from: frame)
 

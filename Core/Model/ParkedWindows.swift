@@ -29,6 +29,10 @@ final class ParkedWindows {
         parked[windowId] = frame
     }
 
+    func park(_ frames: [CGWindowID: CGRect]) {
+        parked.merge(frames) { _, new in new }
+    }
+
     func forget(_ windowId: CGWindowID) {
         parked[windowId] = nil
     }

@@ -160,27 +160,24 @@ final class NavigationTests: EngineTestCase {
         XCTAssertEqual(workspaces.workspace(for: 300), 1)
     }
 
-    func testReturnToDesktopFocusesTheAnchorWhenTheWorkspaceHasNoWindowToFocus() {
-        let parked = add(StubWindow(id: 72))
-        placement.assign(parked.snapshot(), to: 1)
-        placement.switchTo(3)
-        offScreenWindowIds = [72]
+    func testReturnToDesktopFocusesAWindowOfTheCurrentWorkspaceElseTheAnchor() {
+        let cases: [(name: String, current: Int, windowFocused: Int, anchorFocused: Int)] = [
+            ("a window to focus", 1, 1, 0),
+            ("no window to focus", 3, 0, 1),
+        ]
 
-        navigation.returnToDesktop()
-
-        XCTAssertEqual(anchor.focusCount, 1)
-        XCTAssertEqual(parked.focusCount, 0)
-    }
-
-    func testReturnToDesktopLeavesTheAnchorWhenTheWorkspaceHasAWindowToFocus() {
         let win = add(StubWindow(id: 72))
         placement.assign(win.snapshot(), to: 1)
-        offScreenWindowIds = [72]
 
-        navigation.returnToDesktop()
+        for testCase in cases {
+            placement.switchTo(testCase.current)
+            let (windowFocused, anchorFocused) = (win.focusCount, anchor.focusCount)
 
-        XCTAssertEqual(win.focusCount, 1)
-        XCTAssertEqual(anchor.focusCount, 0)
+            navigation.returnToDesktop()
+
+            XCTAssertEqual(win.focusCount - windowFocused, testCase.windowFocused, testCase.name)
+            XCTAssertEqual(anchor.focusCount - anchorFocused, testCase.anchorFocused, testCase.name)
+        }
     }
 
     func testFocusedWindowOfCurrentWorkspaceIsNilForNoWindowOrOneOfAnotherWorkspace() {

@@ -2,16 +2,9 @@ import CoreGraphics
 import Foundation
 import XCTest
 
-/// The fixture the engine test cases share: a stub desktop and window system over a
-/// dictionary of `StubWindow`s, and one real `Workspaces`.
-class EngineTestCase: XCTestCase {
-    var windows: [CGWindowID: StubWindow] = [:]
-    var focused: StubWindow?
-    var focusedReadCount = 0
-    var onScreenReadCount = 0
-    var offScreenWindowIds: Set<CGWindowID> = []
-    var screenIsLocked = false
-    var savedStates: [SavedState] = []
+/// The fixture the engine test cases share: a stub desktop and one real `Workspaces` over the
+/// window system of `WindowSystemTestCase`.
+class EngineTestCase: WindowSystemTestCase {
     var scheduledRetries: [(delay: TimeInterval, work: () -> Void)] = []
     let tabFrame = CGRect(x: 400, y: 0, width: 800, height: 600)
 
@@ -34,22 +27,6 @@ class EngineTestCase: XCTestCase {
     private lazy var scheduleRetry: (TimeInterval, @escaping () -> Void) -> Void = { [weak self] delay, work in
         self?.scheduledRetries.append((delay, work))
     }
-
-    lazy var windowSystem = WindowSystem(
-        focusedWindow: OperationCache { [weak self] in
-            guard let self else { return nil }
-            self.focusedReadCount += 1
-            return self.focused?.snapshot()
-        },
-        onScreenWindows: OperationCache { [weak self] in
-            guard let self else { return [:] }
-            self.onScreenReadCount += 1
-            return self.windows.values
-                .filter { !self.offScreenWindowIds.contains($0.id) }
-                .reduce(into: [CGWindowID: CGRect]()) { $0[$1.id] = $1.frame }
-        },
-        window: { [weak self] id in self?.windows[id] }
-    )
 
     lazy var admission = Admission(windowSystem: windowSystem, workspaces: workspaces)
 
@@ -93,9 +70,7 @@ class EngineTestCase: XCTestCase {
         placement: placement,
         enrollment: enrollment,
         navigation: navigation,
-        fullScreenReturns: fullScreenReturns,
-        screenIsLocked: { [weak self] in self?.screenIsLocked ?? false },
-        save: { [weak self] in self?.savedStates.append($0) }
+        fullScreenReturns: fullScreenReturns
     )
 
     @discardableResult
@@ -110,39 +85,10 @@ class EngineTestCase: XCTestCase {
     }
 
     @discardableResult
-    func add(_ window: StubWindow) -> StubWindow {
-        windows[window.id] = window
-        return window
-    }
-
-    @discardableResult
     func create(_ window: StubWindow) -> StubWindow {
         add(window)
         engine.handle(.created(window.snapshot()))
         return window
-    }
-
-    func savedState(
-        current: Int = 1,
-        _ assignments: [(window: StubWindow, workspace: Int)],
-        parked: [CGWindowID: CGRect] = [:],
-        original: [CGWindowID: CGRect] = [:],
-        on display: Display = .standard
-    ) -> SavedState {
-        var workspaces: [Int: Workspace] = [:]
-        var frames: [CGWindowID: CGRect] = [:]
-        for (window, workspace) in assignments {
-            workspaces[workspace, default: Workspace()].add(window.id)
-            frames[window.id] = parked[window.id] ?? window.frame
-        }
-
-        return SavedState(
-            display: display,
-            workspaces: Workspaces.Record(current: current, workspaces: workspaces),
-            parkedWindows: parked,
-            originalFrames: original,
-            displayLayouts: [display.id: frames]
-        )
     }
 
     func moveFocusedWindow(_ window: StubWindow, to workspace: Int) {

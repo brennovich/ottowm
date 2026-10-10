@@ -13,7 +13,7 @@ struct StatusReport: Equatable {
     let accessibilityGranted: Bool
     let hotkeysListening: Bool
     let secureInputHeld: Bool
-    let display: String
+    let displays: String
     let configPath: String
     let configExists: Bool
     let configError: ConfigError?
@@ -41,7 +41,7 @@ struct StatusReport: Equatable {
             "Accessibility: \(accessibilityGranted ? "granted" : "not granted")",
             "Hotkeys: \(hotkeysListening ? "listening" : "not listening")",
             "Secure input: \(secureInputHeld ? "held by another app" : "free")",
-            "Display: \(display)",
+            "Displays: \(displays)",
             "",
             "Config: \(configLine)",
         ]

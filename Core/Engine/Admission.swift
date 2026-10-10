@@ -14,10 +14,12 @@ final class Admission {
 
     private let windowSystem: WindowSystem
     private let workspaces: Workspaces
+    private let log: LogChannel
 
-    init(windowSystem: WindowSystem, workspaces: Workspaces) {
+    init(windowSystem: WindowSystem, workspaces: Workspaces, log: LogChannel = Log.engine) {
         self.windowSystem = windowSystem
         self.workspaces = workspaces
+        self.log = log
     }
 
     var isDesktopInFront: Bool {
@@ -30,15 +32,15 @@ final class Admission {
 
     func verdict(for win: WindowSnapshot) -> Verdict {
         guard win.isAdmissible else {
-            Log.engine.debug("\(win.logDescription) not admitted: not admissible")
+            log.debug("\(win.logDescription) not admitted: not admissible")
             return .refuse
         }
         guard isDesktopInFront else {
-            Log.engine.debug("\(win.logDescription) not admitted: another native Space is in front")
+            log.debug("\(win.logDescription) not admitted: another native Space is in front")
             return .retry
         }
         guard windowSystem.shows(win.id) else {
-            Log.engine.debug("\(win.logDescription) not admitted: not on screen")
+            log.debug("\(win.logDescription) not admitted: not on screen")
             return .retry
         }
 

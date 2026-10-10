@@ -9,6 +9,7 @@ final class StubDesktop: Desktop {
     private(set) var reframeBatches: [[CGWindowID]] = []
     private(set) var recoveredWindowIds: [CGWindowID] = []
     private(set) var reparkedWindowIds: [[CGWindowID]] = []
+    private(set) var changedDisplays: [Display] = []
     private var handlers: [(DesktopEvent) -> Void] = []
 
     var recoveredFrames: [CGWindowID: CGRect] = [:]
@@ -80,5 +81,18 @@ final class StubDesktop: Desktop {
 
     func repark(_ windows: [CGWindowID: CGRect]) {
         reparkedWindowIds.append(windows.keys.sorted())
+    }
+
+    func change(to entered: Display) {
+        changedDisplays.append(entered)
+        display = entered
+    }
+
+    func pinAnchor() {
+        anchor.pin(on: display)
+    }
+
+    func focusAnchor() {
+        anchor.focus()
     }
 }

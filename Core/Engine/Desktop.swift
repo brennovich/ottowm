@@ -15,12 +15,14 @@ protocol Desktop {
     func focus(_ windowId: CGWindowID) -> Bool
     func startWatching(_ handler: @escaping (DesktopEvent) -> Void)
     func repark(_ windows: [CGWindowID: CGRect])
-    var anchor: any Anchor { get }
+    func change(to display: Display)
+    func pinAnchor()
+    func focusAnchor()
 }
 
 /// A window on the managed native Space. Focusing it switches macOS to that Space.
 protocol Anchor {
-    func pin()
+    func pin(on display: Display)
     func focus()
     func putAway()
 }

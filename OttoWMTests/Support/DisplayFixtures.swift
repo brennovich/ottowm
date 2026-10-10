@@ -13,6 +13,26 @@ extension Display {
         fullFrame: CGRect(x: 0, y: 0, width: 2560, height: 1440),
         visibleFrame: CGRect(x: 0, y: 25, width: 2560, height: 1415)
     )
+
+    /// Right of `standard`.
+    static let right = Display(
+        id: DisplayID(rawValue: "right"),
+        fullFrame: CGRect(x: 1792, y: -139, width: 1920, height: 1080),
+        visibleFrame: CGRect(x: 1792, y: -114, width: 1920, height: 1055)
+    )
+
+    /// `right` moved down, its bottom 61pt below the bottom of `standard`.
+    static let rightBelowTheCorner = Display(
+        id: Display.right.id,
+        fullFrame: CGRect(x: 1792, y: 101, width: 1920, height: 1080),
+        visibleFrame: CGRect(x: 1792, y: 126, width: 1920, height: 1055)
+    )
+
+    func parking(at corner: ParkingCorner) -> Display {
+        var display = self
+        display.parkingCorner = corner
+        return display
+    }
 }
 
 func hiddenEdgeFrame(size: CGSize, on display: Display = .standard) -> CGRect {
@@ -22,9 +42,5 @@ func hiddenEdgeFrame(size: CGSize, on display: Display = .standard) -> CGRect {
 extension NotificationCenter {
     func postNativeSpaceChange() {
         post(name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
-    }
-
-    func postScreenParametersChange() {
-        post(name: NSApplication.didChangeScreenParametersNotification, object: nil)
     }
 }

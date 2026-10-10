@@ -47,10 +47,10 @@ final class RoundTripsTests: XCTestCase {
         XCTAssertEqual(reported.first?.calls.map(\.roundTrip), [size, position])
     }
 
-    func testReportsOnceForNestedOperations() {
-        roundTrips.duringOperation("switch-to-workspace") {
+    func testReportsNestedOperationsOnceUnderTheNameEnteredLast() {
+        roundTrips.duringOperation("route-action") {
             roundTrips.record(position, nanoseconds: 1000)
-            roundTrips.duringOperation("restore-focus") { roundTrips.record(size, nanoseconds: 2000) }
+            roundTrips.duringOperation("switch-to-workspace") { roundTrips.record(size, nanoseconds: 2000) }
         }
 
         XCTAssertEqual(reported.map(\.operation), ["switch-to-workspace"])

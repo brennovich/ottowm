@@ -1,9 +1,10 @@
 import CoreGraphics
 import Foundation
 
-/// The screen corners that get a rounded mask. The bottom right corner is under the pager tab.
+/// The screen corners that get a rounded mask. The mask in the corner of the pager tab draws black over the black tab, so
+/// every corner gets one whichever corner the tab is in.
 enum ScreenCorner: CaseIterable {
-    case topLeft, topRight, bottomLeft
+    case topLeft, topRight, bottomLeft, bottomRight
 
     /// Matches the window corner radius of the macOS version.
     static func radius(on version: OperatingSystemVersion) -> CGFloat {
@@ -17,6 +18,7 @@ enum ScreenCorner: CaseIterable {
         case .topLeft: return CGRect(origin: CGPoint(x: screenFrame.minX, y: screenFrame.maxY - radius), size: size)
         case .topRight: return CGRect(origin: CGPoint(x: screenFrame.maxX - radius, y: screenFrame.maxY - radius), size: size)
         case .bottomLeft: return CGRect(origin: CGPoint(x: screenFrame.minX, y: screenFrame.minY), size: size)
+        case .bottomRight: return CGRect(origin: CGPoint(x: screenFrame.maxX - radius, y: screenFrame.minY), size: size)
         }
     }
 
@@ -40,6 +42,7 @@ enum ScreenCorner: CaseIterable {
         case .topLeft: return CGSize(width: -radius, height: -radius)
         case .topRight: return CGSize(width: radius, height: -radius)
         case .bottomLeft: return CGSize(width: -radius, height: radius)
+        case .bottomRight: return CGSize(width: radius, height: radius)
         }
     }
 
@@ -49,6 +52,7 @@ enum ScreenCorner: CaseIterable {
         case .topLeft: return 0
         case .topRight: return .pi / 2
         case .bottomLeft: return .pi * 3 / 2
+        case .bottomRight: return .pi
         }
     }
 }

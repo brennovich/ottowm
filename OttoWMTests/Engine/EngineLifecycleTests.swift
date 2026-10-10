@@ -14,17 +14,6 @@ final class EngineLifecycleTests: EngineTestCase {
         XCTAssertEqual(workspaces.current, 2)
     }
 
-    func testSaveStateWritesTheStateOnlyWhenItChanged() {
-        let win = create(StubWindow(id: 100))
-        engine.saveState()
-        moveFocusedWindow(win, to: 2)
-        engine.saveState()
-        engine.saveState()
-
-        XCTAssertEqual(savedStates.count, 2)
-        XCTAssertEqual(savedStates.last, placement.savedState)
-    }
-
     func testStopBringsEveryParkedWindowBack() {
         let win1 = create(StubWindow(id: 100))
         let win2 = create(StubWindow(id: 200))
@@ -33,7 +22,7 @@ final class EngineLifecycleTests: EngineTestCase {
 
         engine.stop()
 
-        XCTAssertEqual(savedStates.last?.parkedWindows, [:])
+        XCTAssertEqual(placement.savedState.parkedWindows, [:])
     }
 
     func testHandleDispatchesEachAction() {
@@ -62,24 +51,6 @@ final class EngineLifecycleTests: EngineTestCase {
         XCTAssertEqual(workspaces.current, 2)
     }
 
-    func testWindowEventsAreIgnoredOnlyWhileTheScreenIsLocked() {
-        let win = create(StubWindow(id: 100))
-        engine.switchToWorkspace(2)
-        screenIsLocked = true
-
-        engine.handle(.destroyed(100))
-        engine.handle(.minimized(100))
-        engine.handle(.created(add(StubWindow(id: 200)).snapshot()))
-
-        XCTAssertEqual(workspaces.allWindowIds, [100])
-        XCTAssertTrue(parkedWindows.isParked(win.id))
-
-        screenIsLocked = false
-        engine.handle(.destroyed(100))
-
-        XCTAssertEqual(workspaces.allWindowIds, [])
-    }
-
     // Events are dropped while the screen is locked, so a window that appeared behind the
     // login window belongs to no workspace and no switch would ever move it.
     func testResyncEnrollsOnlyTheWindowsNoWorkspaceKnowsIntoTheCurrentWorkspace() {
@@ -94,5 +65,12 @@ final class EngineLifecycleTests: EngineTestCase {
         XCTAssertEqual(workspaces.workspace(for: 100), 2)
         XCTAssertEqual(workspaces.workspace(for: 200), 3)
         XCTAssertEqual(desktop.reframeCalls.map(\.windowId), [200])
+    }
+
+    func testTheActiveWindowsAreTheWindowsHeldThatAreNotParked() {
+        create(StubWindow(id: 100))
+        moveFocusedWindow(create(StubWindow(id: 200)), to: 2)
+
+        XCTAssertEqual(engine.activeWindowIds, [100])
     }
 }

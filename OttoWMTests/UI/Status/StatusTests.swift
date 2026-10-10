@@ -29,7 +29,7 @@ final class StatusTests: XCTestCase {
             },
             hotkeysListening: { true },
             secureInputHeld: { false },
-            display: { "2560×1440" },
+            displays: { "2560×1440" },
             configPath: { self.configPath },
             configExists: { _ in self.configExists },
             createConfig: { self.configExists = true },

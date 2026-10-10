@@ -114,7 +114,7 @@ final class Status {
             accessibilityGranted: sources.isTrusted(),
             hotkeysListening: sources.hotkeysListening(),
             secureInputHeld: sources.secureInputHeld(),
-            display: sources.display(),
+            displays: sources.displays(),
             configPath: (path.path as NSString).abbreviatingWithTildeInPath,
             configExists: sources.configExists(path),
             configError: sources.configError(),

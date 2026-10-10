@@ -6,11 +6,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private let applications = Applications()
     private let stateFile = StateFile()
     private lazy var lifecycle: Lifecycle = Lifecycle(
-        stop: { [self] in engine?.stop() },
-        resume: { [self] in engine?.resync(windows: applicationsObserver.resync()) },
+        stop: { [self] in displays?.stop() },
+        resume: { [self] in displays?.resync(windows: applicationsObserver.resync()) },
         reloadBindings: { [self] in bindings?.reload() },
         ask: { ConfigAlert.ask($0, .reload) },
-        dismiss: { [self] done in pager?.dismiss(then: done) ?? done() }
+        dismiss: { [self] done in pagers?.dismiss(then: done) ?? done() }
     )
     private lazy var windowEvents = AXWindowEvents(
         applications: applications,
@@ -18,8 +18,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     )
     private lazy var applicationsObserver = RunningApplicationsObserver(windowEvents: windowEvents)
     private var bindings: Bindings?
-    private var engine: Engine?
-    private var pager: Pager?
+    private var displays: Displays?
+    private var pagers: Pagers?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let permission = AccessibilityPermission(ask: AccessibilityAlert.ask, relaunch: lifecycle.relaunch)
@@ -31,44 +31,51 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         Log.app.notice("OttoWM (\(AppInfo.version())) launched")
 
-        let windowSystem = WindowSystem.system(windowEvents: windowEvents, applications: applications)
-        let desktop = ParkingDesktop(window: applications.findWindow(by:), spacing: config.spacing)
-        let workspaces = Workspaces(
-            tabGroups: TabGroups(tabCount: windowSystem.tabCount(of:), frame: windowSystem.frame(of:))
-        )
+        let layouts = DisplayLayouts()
+        var spacing = config.spacing
         // No property: the watch retains the instance it runs on.
         let secureInput = SecureInput()
-        let status = status(desktop: desktop, secureInput: secureInput)
-        let pager = Pager(
-            workspaces: workspaces,
-            desktop: desktop,
+        let status = status(secureInput: secureInput)
+        let pagers = Pagers(
             startWatchingWindows: windowEvents.startWatching,
-            startWatchingSecureInput: secureInput.startWatching,
-            optionClicked: status.toggle
+            windowFrames: { onScreenWindowFrames(level: Int(CGWindowLevelForKey(.normalWindow))) },
+            startWatchingSecureInput: secureInput.startWatching
         )
-        self.pager = pager
-
-        let engine = Engine.system(
-            desktop: desktop,
-            windowSystem: windowSystem,
-            workspaces: workspaces,
+        self.pagers = pagers
+        let displays = Displays(
+            screens: .system,
+            windowSystem: WindowSystem.system(windowEvents: windowEvents, applications: applications),
+            layouts: layouts,
             screenIsLocked: { [lifecycle] in lifecycle.screenIsLocked },
-            save: stateFile.save
+            write: stateFile.save,
+            removed: { [pagers] displayId in pagers.remove(on: displayId) },
+            engine: { [self] display, windowSystem in
+                let parts = engine(on: display, windowSystem: windowSystem, layouts: layouts, spacing: { spacing })
+                let pager = Pager(
+                    workspaces: parts.workspaces,
+                    desktop: parts.desktop,
+                    isOnScreen: isWindowOnScreen,
+                    optionClicked: status.toggle
+                )
+                pagers.add(pager, on: display.id)
+                return parts.engine
+            }
         )
-        engine.start(windows: applicationsObserver.start { engine.handle($0) }, restoring: stateFile.load())
-        self.engine = engine
-        // A crash runs no quit handler, so the state is also saved on a timer.
-        Timer.scheduledTimer(withTimeInterval: stateSaveInterval, repeats: true) { _ in engine.saveState() }
 
-        let apply = { (config: Config) in
-            pager.isEnabled = config.showsPager
-            desktop.spacing = config.spacing
+        displays.start(windows: applicationsObserver.start { displays.handle($0) }, restoring: stateFile.load())
+        self.displays = displays
+        // A crash runs no quit handler, so the state is also saved on a timer.
+        Timer.scheduledTimer(withTimeInterval: stateSaveInterval, repeats: true) { _ in displays.saveState() }
+
+        let apply = { [pagers] (config: Config) in
+            pagers.isEnabled = config.showsPager
+            spacing = config.spacing
         }
         apply(config)
 
         let bindings = Bindings.system(config: config) { [lifecycle] binding in
             switch binding {
-            case let .action(action): engine.handle(action)
+            case let .action(action): displays.handle(action)
             case .quit: lifecycle.quit()
             case .restart: lifecycle.reload()
             case .about: status.toggle()
@@ -83,14 +90,41 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         permission.startWatchingTrust(lost: bindings.stop, regained: bindings.start)
     }
 
-    private func status(desktop: any Desktop, secureInput: SecureInput) -> Status {
+    private func engine(
+        on display: Display,
+        windowSystem: WindowSystem,
+        layouts: DisplayLayouts,
+        spacing: @escaping () -> CGFloat
+    ) -> (desktop: ParkingDesktop, workspaces: Workspaces, engine: Engine) {
+        let tag = String(display.id.rawValue.prefix(8))
+        let desktop = ParkingDesktop(
+            display: display,
+            window: applications.findWindow(by:),
+            spacing: spacing,
+            log: Log.desktop.tagged(tag)
+        )
+        let workspaces = Workspaces(
+            tabGroups: TabGroups(tabCount: windowSystem.tabCount(of:), frame: windowSystem.frame(of:))
+        )
+        let engine = Engine.system(
+            desktop: desktop,
+            windowSystem: windowSystem,
+            workspaces: workspaces,
+            layouts: layouts,
+            log: Log.engine.tagged(tag)
+        )
+        return (desktop, workspaces, engine)
+    }
+
+    private func status(secureInput: SecureInput) -> Status {
         Status(
             sources: StatusSources(
                 hotkeysListening: { [self] in bindings?.isRunning ?? false },
                 secureInputHeld: secureInput.isActive,
-                display: {
-                    let size = desktop.display.fullFrame.size
-                    return "\(Int(size.width))×\(Int(size.height))"
+                displays: {
+                    Screens.system.all()
+                        .map { "\(Int($0.fullFrame.width))×\(Int($0.fullFrame.height))" }
+                        .joined(separator: ", ")
                 },
                 configError: { [self] in bindings?.lastError }
             ),
