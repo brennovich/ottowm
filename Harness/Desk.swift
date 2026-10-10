@@ -51,6 +51,8 @@ private func openEmptyWindow(of safari: NSRunningApplication) {
 let temporaryDirectory = URL(fileURLWithPath: NSTemporaryDirectory())
     .appendingPathComponent("ottowm-\(harness)-\(ProcessInfo.processInfo.processIdentifier)")
 let stagedConfig = temporaryDirectory.appendingPathComponent("ottowm/ottowm")
+// Where Core/Lifecycle/StateFile.swift writes under the staged XDG_STATE_HOME.
+let stateFile = temporaryDirectory.appendingPathComponent("ottowm/state.json")
 
 // Stages the configuration the run is bound to and the documents its windows show, and
 // returns the windows to open, the last one being the one the hotkeys move.
@@ -127,6 +129,20 @@ func stageTabSource() -> WindowSource {
         name: "Terminal tab", bundleId: terminalBundleId, opens: directory, open: launching("Terminal")
     ) {
         $0.contains(stamp)
+    }
+}
+
+// A second document of the desk's editor, for a run that opens and closes a window of an
+// application whose other window stands on another workspace. Named after a file of its own
+// so the window the desk already claimed cannot be matched by it.
+func stageSecondDocumentSource() -> WindowSource {
+    let document = temporaryDirectory.appendingPathComponent("\(temporaryDirectory.lastPathComponent)-second.txt")
+    write(document.lastPathComponent, to: document)
+
+    return WindowSource(
+        name: "TextEdit second", bundleId: "com.apple.TextEdit", opens: document, open: launching("TextEdit")
+    ) {
+        $0 == document.lastPathComponent
     }
 }
 

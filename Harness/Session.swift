@@ -94,6 +94,20 @@ struct Subject {
         application.activate()
     }
 
+    // Presses the window's close button and waits until its application no longer lists it.
+    func close() {
+        guard let closeButton = attribute(window, kAXCloseButtonAttribute) else { fail("\(name) shows no close button") }
+        // swiftlint:disable:next force_cast
+        AXUIElementPerformAction(closeButton as! AXUIElement, kAXPressAction as CFString)
+
+        eventually("the \(name) window closed") {
+            let listed = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId)
+                .flatMap { windows(ofApplication: $0.processIdentifier) }
+
+            return listed.contains { CFEqual($0, window) } ? "\(name) still listed" : nil
+        }
+    }
+
     // Whether this window has the focus right now, for a loop that polls without running
     // the main run loop and so cannot use lacksFocus below.
     var hasFocus: Bool {
@@ -238,6 +252,17 @@ struct Session {
         return subject
     }
 
+    // Opens a window mid-run, for a scene that checks what OttoWM does with one it did not
+    // find at launch. The frame is read once the window has settled, like the desk's.
+    func open(_ source: WindowSource) -> Subject {
+        let window = openWindow(source, claimed: subjects.map(\.window))
+        Thread.sleep(forTimeInterval: windowSettleSeconds)
+
+        guard let frame = axFrame(of: window) else { fail("cannot read the \(source.name) window frame") }
+
+        return Subject(name: source.name, bundleId: source.bundleId, window: window, originalFrame: frame)
+    }
+
     // Waits for the focus a hotkey was asked to move, and reports where it actually is
     // when it gives up.
     func expectFocused(_ subject: Subject) {
@@ -298,6 +323,26 @@ struct Session {
         eventually("OttoWM exited") { [ottowm] in
             ottowm.isRunning ? "still running" : nil
         }
+    }
+
+    // OttoWM saves its state on a timer, and only when it changed, so a crash loses whatever
+    // changed since the last save. A run that crashes it on purpose waits for a save that
+    // happened after the change it wants kept.
+    func waitForStateSave(after change: Date) {
+        eventually("OttoWM saved its state") {
+            let modified = (try? stateFile.resourceValues(forKeys: [.contentModificationDateKey]))?
+                .contentModificationDate
+
+            guard let modified else { return "no state file at \(stateFile.path)" }
+
+            return modified > change ? nil : "last saved at \(modified)"
+        }
+    }
+
+    // Ends OttoWM the way a crash does: no quit handler runs, so nothing parked is put back.
+    func crash() {
+        kill(ottowm.processIdentifier, SIGKILL)
+        waitForExit()
     }
 
     // Launches OttoWM again once the one before has exited, for a run that checks what the

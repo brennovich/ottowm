@@ -1,4 +1,4 @@
-import CoreGraphics
+import Foundation
 
 // Scenario, the focus hotkeys walk the focus around a desk arranged in the four quarters
 // of the screen. The window actions take the window they are pointed at to a frame the run
@@ -6,12 +6,14 @@ import CoreGraphics
 // in front moves the window the sheet belongs to. One of the desk's windows shows two
 // tabs, and what is asked of either of them is asked of the window both stand in.
 // A window sent to another workspace parks at the hidden edge and comes back, and the desk
-// it was standing on goes with the workspace it belongs to. Activating the application of a
+// it was standing on goes with the workspace it belongs to. Closing a window whose
+// application has another one parked keeps the workspace. Activating the application of a
 // parked window switches to its workspace. The pager puts up its cue while
 // the run holds secure event input. The restart hotkey picks up a binding the run adds while
 // it is up, and the quit hotkey ends it, with whatever is parked when it fires handed back
-// before OttoWM goes. OttoWM launched again puts every window back in the workspace it was
-// in when the last one quit.
+// before OttoWM goes. A switch gives the focus back to the window last focused on the
+// workspace entered. OttoWM launched again puts every window back in the workspace it was
+// in when the last one quit or crashed.
 
 var session = Session.start(arranged: true, tabbed: true)
 let movable = session.movable
@@ -154,11 +156,32 @@ moveWindowToWorkspace(1)
 switchToWorkspace(1)
 session.expect("the whole desk is back on the workspace it started on", session.subjects) { $0.isWhereItWas }
 
+// A window opened mid-run belongs to the current workspace, and stays there when another
+// window of its application moves to another one. Opened before that move: opening a
+// document activates the application, and an application whose only window is parked
+// takes the run to that window's workspace, as the Cmd-Tab scene below shows.
+report("opening a second \(movable.name) window")
+let second = session.open(stageSecondDocumentSource())
+
 report("posting lopt-shift-2")
 movable.focus()
 moveWindowToWorkspace(2)
 session.expect("the \(movable.name) window parked at the hidden edge", [movable], session.isParked)
+session.expect("the rest of the desk stayed where it was", session.others + [second]) { $0.isWhereItWas }
+
+// Closing the second window hands the key window to its application's other window, which
+// is parked, and that is a focus event on a parked window the user did not ask for. The
+// focus goes back to the window of this workspace focused before, and the workspace stays.
+// The focus is checked first: the desk reads as unchanged before OttoWM handles the close.
+let safari = session.subject(named: "Safari")
+safari.focus()
+second.focus()
+
+report("closing the second \(movable.name) window")
+second.close()
+session.expectFocused(safari)
 session.expect("the rest of the desk stayed where it was", session.others) { $0.isWhereItWas }
+session.expect("the \(movable.name) window stayed parked", [movable], session.isParked)
 
 // Cmd-Tab to an application whose only window is parked focuses that window, and the
 // workspace it belongs to comes with it.
@@ -204,11 +227,12 @@ restart()
 session.waitForReload()
 
 // Nothing was bound to lopt-5 when OttoWM launched, so the desk moving is the reload
-// having read the file again.
+// having read the file again. Safari was the last window focused on workspace 1.
 report("posting lopt-5")
 switchToWorkspace(5)
 session.expect("the rest of the desk came back", session.others) { $0.isWhereItWas }
 session.expect("the \(movable.name) window parked again", [movable], session.isParked)
+session.expectFocused(safari)
 
 report("posting hyper-q")
 quit()
@@ -222,9 +246,26 @@ session.expect("the \(movable.name) window parked again", [movable], session.isP
 session.expect("the rest of the desk stayed where it was", session.others) { $0.isWhereItWas }
 
 report("posting lopt-2")
+let switchedToTwo = Date()
 switchToWorkspace(2)
 session.expect("the \(movable.name) window came back", [movable]) { $0.isWhereItWas }
 session.expect("the rest of the desk parked", session.others, session.isParked)
+
+// A crash puts nothing back. The next launch reads the state saved before it and keeps every
+// window in the workspace it was in, workspace 2 current.
+session.waitForStateSave(after: switchedToTwo)
+report("killing OttoWM")
+session.crash()
+
+report("launching OttoWM after the crash")
+session.relaunch()
+session.expect("the \(movable.name) window stayed where it was", [movable]) { $0.isWhereItWas }
+session.expect("the rest of the desk stayed parked", session.others, session.isParked)
+
+report("posting lopt-1")
+switchToWorkspace(1)
+session.expect("the rest of the desk came back", session.others) { $0.isWhereItWas }
+session.expect("the \(movable.name) window parked", [movable], session.isParked)
 
 report("posting hyper-q")
 quit()

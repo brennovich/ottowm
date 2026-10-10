@@ -61,5 +61,8 @@ Windows the run opened are closed on the way out and applications it launched ar
 - `subject.focus()` — the hotkeys act on the focused window and a switch moves the focus to an arbitrary window, so a run that wants this one moved focuses it first. Read the way `Core/MacOS/AX/AXWindow.focused()` reads it, the focused window of the frontmost application, because that is the window a hotkey acts on.
 - `subject.activateApplication()` — the application in front the way Cmd-Tab puts it there, with no AX write to the window, so the only thing OttoWM sees is the activation and whatever focus the application gives on its own.
 - `subject.lacksFocus()`: nil when the window holds that same focus, otherwise where the focus actually is.
+- `subject.close()` — presses the window's close button and waits until its application no longer lists it.
+- `session.open(source)` — a window opened mid-run, for a scene that checks what OttoWM does with one it did not find at launch. `stageSecondDocumentSource()` stages a second TextEdit document for it.
+- `session.crash()` — ends OttoWM with SIGKILL, so no quit handler puts the parked windows back. OttoWM saves its state on a timer and only when it changed, so `session.waitForStateSave(after:)` waits for a save made after the change the run wants kept, read from the state file under the staged `XDG_STATE_HOME`.
 
 `session.expect` waits for every subject to satisfy an expectation and reports which ones do not and where they are when it gives up. `session.expectFocused` waits the same way for one subject to take the focus. Both are built on `eventually`, which polls until its probe is satisfied and ends the run with what the probe last saw when it never is.
