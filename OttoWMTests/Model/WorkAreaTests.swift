@@ -65,6 +65,12 @@ final class WorkAreaTests: XCTestCase {
                 (west, .filled(100, from: original))
             ),
             (
+                "arrange takes the slot handed in, even when the window fills it",
+                .arrange(into: west),
+                west,
+                (west, .filled(100, from: west))
+            ),
+            (
                 "a window short of the filled frame goes back to the frame handed in",
                 .maximize(restoring: original),
                 CGRect(x: 15, y: 53, width: 1762, height: 1051),
@@ -143,6 +149,13 @@ final class WorkAreaTests: XCTestCase {
             XCTAssertEqual(frame, testCase.expected, testCase.name)
             XCTAssertEqual(outcome, .active(100), testCase.name)
         }
+    }
+
+    func testRestoreReturnsToTheFrameHandedIn() {
+        let (frame, outcome) = workArea.frame(request(.restore(original)), from: centered)
+
+        XCTAssertEqual(frame, original)
+        XCTAssertEqual(outcome, .active(100))
     }
 
     func testOnScreenReplacesAHiddenEdgeFrameWithACenteredOne() {

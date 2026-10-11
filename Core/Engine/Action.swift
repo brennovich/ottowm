@@ -7,4 +7,5 @@ enum Action: Equatable {
     case centerWindow
     case maximize
     case tile(Direction)
+    case arrange(Layout)
 }

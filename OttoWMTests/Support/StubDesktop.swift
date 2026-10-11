@@ -4,6 +4,7 @@ final class StubDesktop: Desktop {
     private let window: (CGWindowID) -> (any Window)?
 
     var display: Display = .standard
+    var workArea: WorkArea { WorkArea(display: display, spacing: 15) }
 
     private(set) var reframeCalls: [FrameRequest] = []
     private(set) var reframeBatches: [[CGWindowID]] = []
@@ -38,7 +39,8 @@ final class StubDesktop: Desktop {
     }
 
     /// Records the request, and returns a frame for a park: every other frame a change
-    /// resolves to needs the screen bounds, which the real desktop owns.
+    /// resolves to needs the screen bounds, which the real desktop owns. An arrange or a
+    /// restore carries its frame, so the window is moved there.
     func reframe(_ requests: [FrameRequest]) -> [FrameOutcome] {
         reframeBatches.append(requests.map(\.windowId))
         reframeCalls.append(contentsOf: requests)
@@ -49,11 +51,23 @@ final class StubDesktop: Desktop {
             switch request.change {
             case let .park(from: known): return .parked(request.windowId, from: known ?? win.snapshot().frame)
             case .unpark, .move, .resize, .center: return .active(request.windowId)
+            case let .restore(frame):
+                move(win, to: frame)
+                return .active(request.windowId)
+            case let .arrange(into: slot):
+                let from = win.snapshot().frame
+                move(win, to: slot)
+                return .filled(request.windowId, from: from)
             case let .maximize(restoring), let .tile(_, restoring):
                 guard restoring == nil else { return .active(request.windowId) }
                 return .filled(request.windowId, from: win.snapshot().frame)
             }
         }
+    }
+
+    private func move(_ win: any Window, to frame: CGRect) {
+        win.setPosition(frame.origin)
+        win.setSize(frame.size)
     }
 
     func clearCalls() {

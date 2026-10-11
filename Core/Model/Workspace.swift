@@ -3,6 +3,9 @@ import CoreGraphics
 struct Workspace: Codable, Equatable {
     private(set) var windowIds: [CGWindowID] = []
     private var focusHistory: [CGWindowID] = []
+    /// The last `arrange tall` of the workspace. Nothing updates it as windows come and go:
+    /// it holds while the windows still stand in their slots.
+    var arranged: Tall?
 
     var nextWindowToFocus: CGWindowID? {
         focusHistory.first ?? windowIds.first
@@ -24,7 +27,11 @@ struct Workspace: Codable, Equatable {
     }
 
     func keeping(_ windowIds: Set<CGWindowID>) -> Workspace {
-        Workspace(windowIds: self.windowIds.filter(windowIds.contains), focusHistory: focusHistory.filter(windowIds.contains))
+        Workspace(
+            windowIds: self.windowIds.filter(windowIds.contains),
+            focusHistory: focusHistory.filter(windowIds.contains),
+            arranged: arranged
+        )
     }
 
     mutating func recordFocus(on windowId: CGWindowID) {

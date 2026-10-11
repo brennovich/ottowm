@@ -9,6 +9,7 @@ enum DesktopEvent: Equatable {
 
 protocol Desktop {
     var display: Display { get }
+    var workArea: WorkArea { get }
     func recover(_ windows: [WindowSnapshot]) -> [WindowSnapshot]
     func reframe(_ requests: [FrameRequest]) -> [FrameOutcome]
     func isMaximized(_ frame: CGRect) -> Bool

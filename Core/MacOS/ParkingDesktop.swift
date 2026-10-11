@@ -17,7 +17,7 @@ final class ParkingDesktop: Desktop {
 
     private var observers: [(center: NotificationCenter, token: any NSObjectProtocol)] = []
     private var subscribers = Broadcast<DesktopEvent>()
-    private var workArea: WorkArea { WorkArea(display: display, spacing: spacing()) }
+    var workArea: WorkArea { WorkArea(display: display, spacing: spacing()) }
 
     init(
         display: Display,

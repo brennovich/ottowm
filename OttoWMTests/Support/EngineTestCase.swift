@@ -70,7 +70,8 @@ class EngineTestCase: WindowSystemTestCase {
         placement: placement,
         enrollment: enrollment,
         navigation: navigation,
-        fullScreenReturns: fullScreenReturns
+        fullScreenReturns: fullScreenReturns,
+        arranged: ArrangedWindows(desktop: desktop, windowSystem: windowSystem, workspaces: workspaces, placement: placement)
     )
 
     @discardableResult

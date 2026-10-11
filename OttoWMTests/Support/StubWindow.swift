@@ -12,8 +12,11 @@ final class StubWindow: Window {
     var isFullScreen: Bool
     var isMinimized: Bool
     private(set) var frame: CGRect
+    /// The smallest size the application accepts, as an app with a minimum window size does.
+    var minimumSize: CGSize = .zero
 
     private(set) var snapshotReadCount = 0
+    private(set) var frameReadCount = 0
     private(set) var positionSetCount = 0
     private(set) var sizeSetCount = 0
     private(set) var focusCount = 0
@@ -70,7 +73,8 @@ final class StubWindow: Window {
     }
 
     func movableFrame() -> CGRect? {
-        isMinimized ? nil : frame
+        frameReadCount += 1
+        return isMinimized ? nil : frame
     }
 
     func withoutAnimations<T>(_ body: () -> T) -> T {
@@ -89,7 +93,7 @@ final class StubWindow: Window {
     }
 
     func setSize(_ size: CGSize) {
-        frame.size = size
+        frame.size = CGSize(width: max(size.width, minimumSize.width), height: max(size.height, minimumSize.height))
         sizeSetCount += 1
         countAnimatedWrite()
     }

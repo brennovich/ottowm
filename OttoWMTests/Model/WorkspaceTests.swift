@@ -39,6 +39,21 @@ final class WorkspaceTests: XCTestCase {
         XCTAssertEqual(workspace.keeping([200]), makeWorkspace([.add(200), .recordFocus(200)]))
     }
 
+    func testKeepingKeepsTheArrangement() {
+        var workspace = makeWorkspace([.add(100), .add(200)])
+        workspace.arranged = Tall(windowIds: [100, 200])
+
+        XCTAssertEqual(workspace.keeping([200]).arranged, Tall(windowIds: [100, 200]))
+    }
+
+    func testAWorkspaceSavedBeforeArrangementsDecodesWithNone() throws {
+        let saved = Data(#"{"windowIds": [100], "focusHistory": []}"#.utf8)
+
+        let workspace = try JSONDecoder().decode(Workspace.self, from: saved)
+
+        XCTAssertEqual(workspace, makeWorkspace([.add(100)]))
+    }
+
     func testAbsorbingAppendsTheOtherWindowsAndFocusHistoryAfterItsOwn() {
         var workspace = makeWorkspace([.add(100), .add(200), .recordFocus(200)])
 

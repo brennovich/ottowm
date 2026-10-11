@@ -8,6 +8,8 @@ enum FrameChange: Equatable {
     case unpark(CGRect?)
     case maximize(restoring: CGRect?)
     case tile(Direction, restoring: CGRect?)
+    case arrange(into: CGRect)
+    case restore(CGRect)
 
     var logDescription: String {
         switch self {
@@ -18,6 +20,8 @@ enum FrameChange: Equatable {
         case .unpark: "unpark"
         case let .maximize(restoring): "maximize\(Self.suffix(restoring))"
         case let .tile(direction, restoring): "tile \(direction.rawValue)\(Self.suffix(restoring))"
+        case .arrange: "arrange"
+        case .restore: "restore"
         }
     }
 
@@ -37,7 +41,7 @@ extension FrameRequest {
         switch change {
         case let .unpark(parkedFrom?), let .park(from: parkedFrom?): .parked(windowId, from: parkedFrom)
         case let .maximize(restoring?), let .tile(_, restoring?): .filled(windowId, from: restoring)
-        case .move, .resize, .center, .park, .unpark, .maximize, .tile: .active(windowId)
+        case .move, .resize, .center, .park, .unpark, .maximize, .tile, .arrange, .restore: .active(windowId)
         }
     }
 }

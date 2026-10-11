@@ -115,7 +115,8 @@ Per display: `Engine` and its parts, `Workspaces`, `ParkedWindows`, `OriginalFra
 
 ```mermaid
 flowchart LR
-    Engine --> Navigation & FullScreenReturns & WindowEnrollment & WindowPlacement
+    Engine --> Navigation & FullScreenReturns & WindowEnrollment & WindowPlacement & ArrangedWindows
+    ArrangedWindows --> WindowPlacement & Tall
     Engine --> Neighbors
     FullScreenReturns --> Navigation
     Navigation --> WindowEnrollment --> WindowPlacement
@@ -198,24 +199,26 @@ flowchart LR
 | `Hotkeys`                     | Input     | A session `CGEventTap` on keyDown, running on a thread of its own.                                                             |
 | `SecureInput`                 | Input     | The window server flag that withholds keystrokes from every tap: its value and changes.                                        |
 | `Displays`                    | Engine    | One engine per connected display. Routes each binding and window event to one engine, and moves a window that changed display. |
-| `Engine`                      | Engine    | Runs each window event and action as one operation over the five parts below.                                                  |
+| `Engine`                      | Engine    | Runs each window event and action as one operation over the six parts below.                                                   |
 | `Admission`                   | Engine    | Whether a window can be taken now, may be worth reading again, or never qualifies.                                             |
 | `WindowPlacement`             | Engine    | Keeps a window's workspace membership and its desktop placement in step.                                                       |
 | `WindowEnrollment`            | Engine    | Enrolls a window announced before it was on screen, retrying the read for a moment.                                            |
 | `Navigation`                  | Engine    | Restores the focus after a change, and follows the user to the workspace they focused.                                         |
 | `FullScreenReturns`           | Engine    | Notices a window back from full screen on every event, and polls after a Space change.                                         |
+| `ArrangedWindows`             | Engine    | Arranges the current workspace, learns the minimum sizes windows keep, and turns resize, move and maximize into changes.       |
 | `Desktop`                     | Engine    | The protocol the engine moves, parks and focuses windows on one display through.                                               |
 | `WindowSystem`                | Engine    | The focused window, the on-screen window frames, and the tab count of a window. A scoped copy sees one display.                |
 | `Window`                      | Engine    | The window operations the desktop needs: snapshot, frames, moves, focus, tabs.                                                 |
 | `Workspaces`                  | Model     | Window → workspace, focus history, current workspace.                                                                          |
-| `Workspace`                   | Model     | The windows of one workspace and the order they were focused in.                                                               |
+| `Workspace`                   | Model     | The windows of one workspace, the order they were focused in, and its last arrangement.                                        |
 | `TabGroups`                   | Model     | Infers which windows are tabs of one another. Reads tab counts and frames on demand.                                           |
 | `Neighbors`                   | Model     | The windows around one frame, and which of them a focus move lands on.                                                         |
 | `Step`                        | Model     | One move of a window by the spacing, kept within the screen.                                                                   |
 | `Resize`                      | Model     | One resize of a window by the spacing from its top left corner, kept within the screen.                                        |
 | `Half`                        | Model     | One side of a rect, taking half of it, with the gap kept between the two halves.                                               |
+| `Tall`                        | Model     | A main window beside a stack column: the slots, how a resize or a swap changes them, and how they fit minimum sizes.           |
 | `WorkArea`                    | Model     | Where a frame change sends a window on a display, and the outcome to record.                                                   |
-| `FrameChange`                 | Model     | What a frame is asked to become: move, resize, center, maximize, tile, park or unpark.                                         |
+| `FrameChange`                 | Model     | What a frame is asked to become: move, resize, center, maximize, tile, arrange, restore, park or unpark.                       |
 | `HiddenEdge`                  | Model     | Where a parked window sits on a display, and whether a frame sits there.                                                       |
 | `ParkedWindows`               | Model     | The windows parked at the hidden edge, and the frame each one was parked from.                                                 |
 | `OriginalFrames`              | Model     | The frame each maximized or filled window restores to, shared by its tabs.                                                     |
@@ -355,6 +358,22 @@ sequenceDiagram
     WindowPlacement->>OriginalFrames: originalFrame(of: id), for a maximize or a tile
     WindowPlacement->>Desktop: reframe(id, change)
     WindowPlacement->>OriginalFrames: record(the outcome)
+```
+
+### Arrange the workspace
+
+```mermaid
+sequenceDiagram
+    Displays->>Engine: handle(arrange(tall))
+    Engine->>Navigation: focusedWindowOfCurrentWorkspace()
+    Engine->>ArrangedWindows: arrange(around: window)
+    ArrangedWindows->>WindowSystem: frames(of: the arranged windows and their tabs)
+    alt every arranged window stands in its slot
+        ArrangedWindows->>WindowPlacement: reframe(each window, restore(its original frame))
+    else
+        ArrangedWindows->>WindowSystem: frames(of: the current workspace's windows that are not parked)
+        ArrangedWindows->>WindowPlacement: reframe(each window, arrange(into: its slot))
+    end
 ```
 
 ### Manual navigation

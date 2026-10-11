@@ -53,6 +53,11 @@ lopt-ctrl-j = tile south
 lopt-ctrl-k = tile north
 lopt-ctrl-l = tile east
 
+# Arrange the windows of the workspace once: the focused window on the left, the
+# others stacked beside it. Put them back where they were on the next press.
+# While they stay in place, move-window swaps them and resize moves the edge between them
+lopt-ctrl-t = arrange tall
+
 # Quit OttoWM, putting every parked window back where it was
 hyper-q = quit
 

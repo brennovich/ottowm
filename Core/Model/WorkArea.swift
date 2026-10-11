@@ -36,6 +36,10 @@ struct WorkArea {
         case let .tile(direction, restoring):
             let half = Half(direction: direction).frame(within: filled, gap: spacing)
             return frame(filling: half, from: current, restoring: restoring, of: windowId)
+        case let .arrange(slot):
+            return (slot, .filled(windowId, from: current))
+        case let .restore(frame):
+            return (frame, .active(windowId))
         }
     }
 

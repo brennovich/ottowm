@@ -31,6 +31,7 @@ extension Action {
         "tile": (1 ... 1, { word($0[0], or: ConfigError.Reason.invalidDirection).map(Action.tile) }),
         "move-window": (1 ... 1, { word($0[0], or: ConfigError.Reason.invalidDirection).map(Action.moveWindow) }),
         "resize": (1 ... 1, { word($0[0], or: ConfigError.Reason.invalidResize).map(Action.resize) }),
+        "arrange": (1 ... 1, { word($0[0], or: ConfigError.Reason.invalidLayout).map(Action.arrange) }),
     ]
 
     private static func workspace(_ text: String) -> Result<Int, ConfigError.Reason> {

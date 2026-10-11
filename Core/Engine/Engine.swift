@@ -9,6 +9,7 @@ final class Engine {
     private let enrollment: WindowEnrollment
     private let navigation: Navigation
     private let fullScreenReturns: FullScreenReturns
+    private let arranged: ArrangedWindows
     private let log: LogChannel
 
     init(
@@ -19,6 +20,7 @@ final class Engine {
         enrollment: WindowEnrollment,
         navigation: Navigation,
         fullScreenReturns: FullScreenReturns,
+        arranged: ArrangedWindows,
         log: LogChannel = Log.engine
     ) {
         self.desktop = desktop
@@ -28,6 +30,7 @@ final class Engine {
         self.enrollment = enrollment
         self.navigation = navigation
         self.fullScreenReturns = fullScreenReturns
+        self.arranged = arranged
         self.log = log
     }
 
@@ -140,12 +143,23 @@ final class Engine {
         case let .moveWindowToWorkspace(workspace): moveFocusedWindow(toWorkspace: workspace)
         case let .focus(direction): focusWindow(direction)
         case let .moveWindow(direction):
-            reframeFocusedWindow(operation: "move-window", keepingMaximized: true) { _ in .move(direction) }
+            reframeFocusedWindow(
+                operation: "move-window",
+                keepingMaximized: true,
+                arranging: { arranged.swap($0, direction) },
+                { _ in .move(direction) }
+            )
         case let .resize(change):
-            reframeFocusedWindow(operation: "resize", keepingMaximized: true) { _ in .resize(change) }
+            reframeFocusedWindow(
+                operation: "resize",
+                keepingMaximized: true,
+                arranging: { arranged.resize($0, change) },
+                { _ in .resize(change) }
+            )
         case .centerWindow: reframeFocusedWindow(operation: "center-window") { _ in .center }
-        case .maximize: reframeFocusedWindow(operation: "maximize") { .maximize(restoring: $0) }
+        case .maximize: reframeFocusedWindow(operation: "maximize", arranging: arranged.returnToSlot) { .maximize(restoring: $0) }
         case let .tile(direction): reframeFocusedWindow(operation: "tile") { .tile(direction, restoring: $0) }
+        case .arrange: arrange()
         }
     }
 
@@ -263,14 +277,27 @@ final class Engine {
         }
     }
 
+    private func arrange() {
+        windowSystem.duringOperation("arrange") {
+            guard let win = navigation.focusedWindowOfCurrentWorkspace(), !placement.isParked(win.id) else {
+                log.info("arrange dropped: no window of workspace \(self.workspaces.current) on screen focused")
+                return
+            }
+
+            arranged.arrange(around: win)
+        }
+    }
+
     /// - Parameter operation: one name per action, so the round-trip cost of a step and of a
     ///   centering are reported separately.
     /// - Parameter keepingMaximized: drops the change when the window fills the screen. The
     ///   window would leave the maximized frame, and the frame it goes back to is dropped
     ///   with it.
+    /// - Parameter arranging: takes the action for an arranged window, and returns whether it did.
     private func reframeFocusedWindow(
         operation: StaticString,
         keepingMaximized: Bool = false,
+        arranging: (WindowSnapshot) -> Bool = { _ in false },
         _ change: (_ restoring: CGRect?) -> FrameChange
     ) {
         windowSystem.duringOperation(operation) {
@@ -282,6 +309,7 @@ final class Engine {
                 log.info("\(operation) dropped: id=\(win.id) is parked")
                 return
             }
+            guard !arranging(win) else { return }
             guard !keepingMaximized || !desktop.isMaximized(win.frame) else {
                 log.info("\(operation) dropped: id=\(win.id) is maximized")
                 return
@@ -343,6 +371,13 @@ extension Engine {
             enrollment: enrollment,
             navigation: navigation,
             fullScreenReturns: fullScreenReturns,
+            arranged: ArrangedWindows(
+                desktop: desktop,
+                windowSystem: windowSystem,
+                workspaces: workspaces,
+                placement: placement,
+                log: log
+            ),
             log: log
         )
     }

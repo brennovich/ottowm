@@ -38,11 +38,9 @@ It brings the workflow of a common Linux window manager to macOS, without fighti
 
 Multiple workspaces on a **single native macOS Space** per display: no Space switch animation, no Mission Control. A window that leaves a workspace is parked in a bottom corner of its display, a point of it left on screen, and comes back to the frame it had, with the focus it had.
 
-Each display has its own workspaces. A binding acts on the display of the focused window, else on the display whose menu bar is active. A new window joins the current workspace of the display it opens on. A window dragged to another display joins that display's current workspace at the next binding, or when a window opens, takes the focus or is unminimized.
-
 ### Pager
 
-OttoWM relies on the same strategy as [AeroSpace](https://nikitabobko.github.io/AeroSpace/guide#emulation-of-virtual-workspaces), a tiny portion of windows accumulates in a bottom corner, so the Pager covers this spot while offering nice other features. Each display has its own Pager, showing that display's current workspace, in the corner its windows park in.
+OttoWM relies on the same strategy as [AeroSpace](https://nikitabobko.github.io/AeroSpace/guide#emulation-of-virtual-workspaces), a tiny portion of windows accumulates in a bottom corner, so the Pager covers this spot while offering nice other features. Each display has its own Pager, showing that display's current workspace.
 
 <table>
   <tr>
@@ -196,6 +194,12 @@ hyper-5 = switch-to-workspace 5
     <td>Action</td>
     <td>&nbsp;⌥⌃ + H/J/K/L</td>
     <td>Tile the focused window to the half of the screen <code>D</code> leads to (toggable)</td>
+  </tr>
+  <tr>
+    <td>arrange&nbsp;<code>L</code></td>
+    <td>Action</td>
+    <td>&nbsp;⌥⌃ + T</td>
+    <td>Arrange the windows of the workspace once in layout <code>L</code>: <code>tall</code> puts the focused window on the left and stacks the others beside it.</td>
   </tr>
   <tr>
     <td>quit</td>

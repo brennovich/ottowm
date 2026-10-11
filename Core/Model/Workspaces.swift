@@ -79,6 +79,14 @@ final class Workspaces {
         tabGroups.hasGroup(for: window)
     }
 
+    func arranged(in workspace: Int) -> Tall? {
+        workspaces[workspace]?.arranged
+    }
+
+    func arrange(_ tall: Tall?, in workspace: Int) {
+        workspaces[workspace]?.arranged = tall
+    }
+
     func tabGroupMembers(of windowId: CGWindowID) -> [CGWindowID] {
         tabGroups.members(of: windowId)
     }

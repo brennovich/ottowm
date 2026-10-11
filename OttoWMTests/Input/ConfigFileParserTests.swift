@@ -20,6 +20,7 @@ final class ConfigFileParserTests: XCTestCase {
         lopt-m = maximize
         lopt-ctrl-h = tile west
         lopt-ctrl-shift-l = resize wider
+        lopt-ctrl-t = arrange tall
         """
 
         XCTAssertEqual(
@@ -37,6 +38,7 @@ final class ConfigFileParserTests: XCTestCase {
                 "lopt-m": .action(.maximize),
                 "lopt-ctrl-h": .action(.tile(.west)),
                 "lopt-ctrl-shift-l": .action(.resize(.wider)),
+                "lopt-ctrl-t": .action(.arrange(.tall)),
             ]))
         )
     }
@@ -152,6 +154,11 @@ final class ConfigFileParserTests: XCTestCase {
                 "a resize with an unknown change",
                 "lalt-1 = resize sideways",
                 ConfigError(line: 1, reason: .invalidResize("sideways"))
+            ),
+            (
+                "an arrangement with an unknown layout",
+                "lalt-1 = arrange wide",
+                ConfigError(line: 1, reason: .invalidLayout("wide"))
             ),
         ])
     }

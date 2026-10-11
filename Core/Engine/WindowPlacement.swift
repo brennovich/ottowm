@@ -179,16 +179,25 @@ final class WindowPlacement {
         }
     }
 
+    func originalFrame(of windowId: CGWindowID) -> CGRect? {
+        originalFrames.originalFrame(of: windowId)
+    }
+
     /// - Parameter change: takes the frame a maximize or a tile of the window goes back to.
     func reframe(_ win: WindowSnapshot, _ change: (_ restoring: CGRect?) -> FrameChange) {
         let requested = change(originalFrames.originalFrame(of: win.id))
         log.info("\(requested.logDescription) \(win.logDescription)")
+        reframe([FrameRequest(windowId: win.id, change: requested)])
+    }
 
-        let outcomes = apply([FrameRequest(windowId: win.id, change: requested)])
+    @discardableResult
+    func reframe(_ requests: [FrameRequest]) -> [FrameOutcome] {
+        let outcomes = apply(requests)
         // Recorded here and not in `apply`: an unpark reports `.active` too, which would drop
         // the frame a maximized window goes back to on every workspace switch.
         originalFrames.record(outcomes)
         outcomes.gone.forEach { drop($0, reason: "gone") }
+        return outcomes
     }
 
     /// Follows a new geometry of the display. Only the parked windows move, to the new hidden
