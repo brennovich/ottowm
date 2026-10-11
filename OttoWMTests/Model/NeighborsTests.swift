@@ -51,22 +51,32 @@ final class NeighborsTests: XCTestCase {
         XCTAssertEqual(neighbors.nearest(to: .south), 200)
     }
 
-    func testNearestAlongTheAxisWinsAmongWindowsSharingRows() {
+    func testNearestEdgeAlongTheAxisWinsAmongWindowsSharingRows() {
         let neighbors = Neighbors(around: reference, among: [
-            100: CGRect(x: 1600, y: 450, width: 400, height: 200),
-            200: CGRect(x: 1250, y: 350, width: 400, height: 200),
+            100: CGRect(x: 1300, y: 400, width: 200, height: 200),
+            200: CGRect(x: 1250, y: 400, width: 400, height: 200),
         ])
 
         XCTAssertEqual(neighbors.nearest(to: .east), 200)
     }
 
-    func testEqualAxisDistanceFallsToTheNearestAcrossIt() {
-        let neighbors = Neighbors(around: reference, among: [
-            100: CGRect(x: 1400, y: 900, width: 200, height: 100),
-            200: CGRect(x: 1400, y: 700, width: 200, height: 100),
-        ])
+    func testEqualEdgeDistanceFallsToTheTopmostOrLeftmost() {
+        let cases: [(name: String, direction: Direction, candidates: [CGWindowID: CGRect], expected: CGWindowID)] = [
+            ("east takes the topmost", .east, [
+                100: CGRect(x: 1400, y: 200, width: 200, height: 300),
+                200: CGRect(x: 1400, y: 480, width: 200, height: 100),
+            ], 100),
+            ("south takes the leftmost", .south, [
+                100: CGRect(x: 500, y: 700, width: 600, height: 200),
+                200: CGRect(x: 900, y: 700, width: 200, height: 200),
+            ], 100),
+        ]
 
-        XCTAssertEqual(neighbors.nearest(to: .east), 200)
+        for testCase in cases {
+            let neighbors = Neighbors(around: reference, among: testCase.candidates)
+
+            XCTAssertEqual(neighbors.nearest(to: testCase.direction), testCase.expected, testCase.name)
+        }
     }
 
     func testWindowsThatRankTheSameFallToTheLowestId() {

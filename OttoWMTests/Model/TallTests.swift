@@ -74,7 +74,7 @@ final class TallTests: XCTestCase {
         let cases: [(name: String, windowId: CGWindowID, direction: Direction, windowIds: [CGWindowID]?)] = [
             ("stack west to main", 3, .west, [3, 2, 1, 4]),
             ("stack south", 2, .south, [1, 3, 2, 4]),
-            ("main east to the middle of the stack", 1, .east, [3, 2, 1, 4]),
+            ("main east to the top of the stack", 1, .east, [2, 1, 3, 4]),
             ("main west", 1, .west, nil),
             ("main north", 1, .north, nil),
             ("stack east", 2, .east, nil),

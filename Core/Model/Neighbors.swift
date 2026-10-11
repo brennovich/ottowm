@@ -16,15 +16,26 @@ struct Neighbors {
             .key
     }
 
+    /// Distance is measured between facing edges, not centers, so windows stacked in one column
+    /// tie whatever their widths. The tie goes to the topmost window, or the leftmost one when
+    /// moving vertically.
     private func rank(
         _ candidate: (key: CGWindowID, value: CGRect),
         to direction: Direction
     ) -> (Int, CGFloat, CGFloat, CGWindowID) {
-        let center = CGPoint(x: candidate.value.midX, y: candidate.value.midY)
-        let travelled = direction.isVertical ? abs(center.y - reference.midY) : abs(center.x - reference.midX)
-        let across = direction.isVertical ? abs(center.x - reference.midX) : abs(center.y - reference.midY)
+        let frame = candidate.value
+        let across = direction.isVertical ? frame.minX : frame.minY
 
-        return (tier(candidate.value, to: direction), travelled, across, candidate.key)
+        return (tier(frame, to: direction), gap(to: frame, direction), across, candidate.key)
+    }
+
+    private func gap(to candidate: CGRect, _ direction: Direction) -> CGFloat {
+        switch direction {
+        case .north: return reference.minY - candidate.maxY
+        case .south: return candidate.minY - reference.maxY
+        case .west: return reference.minX - candidate.maxX
+        case .east: return candidate.minX - reference.maxX
+        }
     }
 
     private func lies(_ candidate: CGRect, to direction: Direction) -> Bool {
