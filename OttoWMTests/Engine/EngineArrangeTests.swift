@@ -66,4 +66,20 @@ final class EngineArrangeTests: EngineTestCase {
 
         XCTAssertEqual(desktop.reframeCalls, [FrameRequest(windowId: 200, change: .arrange(into: slots[1]))])
     }
+
+    func testArrangeForgetsWhatItLearnedOfADestroyedWindow() {
+        let main = create(StubWindow(id: 100, frame: CGRect(x: 0, y: 100, width: 300, height: 300)))
+        let wide = create(StubWindow(id: 200, frame: CGRect(x: 0, y: 500, width: 300, height: 300)))
+        let comeback = StubWindow(id: wide.id, frame: wide.frame)
+        wide.minimumSize = CGSize(width: 1200, height: 0)
+        focused = main
+        engine.handle(.arrange(.tall))
+        engine.handle(.destroyed(wide.id))
+        create(comeback)
+        desktop.clearCalls()
+
+        engine.handle(.arrange(.tall))
+
+        XCTAssertEqual(desktop.reframeCalls.map(\.change), slots.map { .arrange(into: $0) })
+    }
 }

@@ -107,7 +107,7 @@ final class TallTests: XCTestCase {
         let width = { (width: CGFloat) in CGSize(width: width, height: 0) }
 
         let cases: [(name: String, tall: Tall, minimums: [CGWindowID: CGSize], result: Tall?)] = [
-            ("no minimum", three, [:], three),
+            ("fits as it is", Tall(windowIds: [1, 2, 3], ratio: 0.71), [:], Tall(windowIds: [1, 2, 3], ratio: 0.71)),
             ("a stack height", three, [2: height(210)], Tall(windowIds: [1, 2, 3], ratio: 0.5, stackShares: [0.75, 0.25])),
             (
                 "a height that pushes another below its own",

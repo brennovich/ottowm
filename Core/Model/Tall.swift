@@ -75,9 +75,10 @@ struct Tall: Codable, Equatable {
     /// Moves the edges so each window gets at least its minimum size: a window held at its
     /// minimum height gives the rest of the column to the others, by their shares. A window
     /// with no known minimum keeps at least `floor`.
+    /// A tall that fits is returned as it is: recomputing its edges can move them by a rounding error.
     /// - Returns: `nil` when the minimums do not fit.
     func fitted(to minimums: [CGWindowID: CGSize], within bounds: CGRect, gap: CGFloat, floor: CGFloat) -> Tall? {
-        guard !stackShares.isEmpty else { return self }
+        guard !stackShares.isEmpty, !fits(minimums, within: bounds, gap: gap, floor: floor) else { return self }
         let stack = Array(windowIds.dropFirst())
 
         let width = bounds.width - gap

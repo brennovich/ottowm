@@ -68,6 +68,14 @@ final class WindowSystem {
         window(windowId)?.movableFrame()
     }
 
+    /// Reads the windows in parallel: a read right after a size write waits for the
+    /// application's relayout. The windows are looked up on the calling thread.
+    func readFrames(of windowIds: [CGWindowID]) -> [CGWindowID: CGRect] {
+        let windows = windowIds.compactMap { windowId in window(windowId).map { (id: windowId, window: $0) } }
+        let frames = Concurrently.map(windows) { $0.window.movableFrame() }
+        return zip(windows, frames).reduce(into: [:]) { result, pair in result[pair.0.id] = pair.1 }
+    }
+
     func tabCount(of windowId: CGWindowID) -> Int {
         window(windowId)?.tabCount() ?? 1
     }

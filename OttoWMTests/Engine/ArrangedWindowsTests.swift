@@ -117,6 +117,18 @@ final class ArrangedWindowsTests: EngineTestCase {
         XCTAssertEqual(desktop.reframeCalls, arrangeCalls([100, 300], [slots[1], slots[2]]))
     }
 
+    func testSwapMovesTheColumnEdgeForTheMinimumWidthOfTheWindowGoingToMain() {
+        create(StubWindow(id: 100, frame: bottom))
+        let main = create(StubWindow(id: 200, frame: middle))
+        let upper = create(StubWindow(id: 300, frame: top))
+        upper.minimumSize = CGSize(width: 1200, height: 0)
+        arranged.arrange(around: main.snapshot())
+
+        XCTAssertTrue(arranged.swap(upper.snapshot(), .west))
+
+        XCTAssertEqual(workspaces.arranged(in: 1)?.windowIds, [300, 200, 100])
+    }
+
     func testAResizeAWindowRefusesIsUndone() {
         let (_, upper, lower) = arrangeThree()
         let slots = slots(of: [200, 300, 100])
@@ -145,16 +157,58 @@ final class ArrangedWindowsTests: EngineTestCase {
         XCTAssertEqual(workspaces.arranged(in: 1), fitted)
     }
 
-    func testOnlyAWindowLargerThanItsSlotIsReadBack() {
-        let lower = create(StubWindow(id: 100, frame: bottom))
+    func testAWindowThatKeepsASizeShortOfItsSlotGoesBackAndTheOthersAreArranged() {
+        let fixed = CGRect(x: 100, y: 50, width: 300, height: 1000)
+        let lower = create(StubWindow(id: 100, frame: fixed))
         let main = create(StubWindow(id: 200, frame: middle))
-        let upper = create(StubWindow(id: 300, frame: CGRect(x: 100, y: 100, width: 1000, height: 300)))
-        let windows = [main, upper, lower]
-        let readsBefore = windows.map(\.frameReadCount)
+        let upper = create(StubWindow(id: 300, frame: top))
+        lower.minimumSize = fixed.size
+        lower.maximumSize = fixed.size
 
         arranged.arrange(around: main.snapshot())
 
-        XCTAssertEqual(zip(windows, readsBefore).map { $0.frameReadCount - $1 }, [0, 1, 0])
+        XCTAssertEqual([main.frame, upper.frame, lower.frame], slots(of: [200, 300]) + [fixed])
+        XCTAssertEqual(workspaces.arranged(in: 1), Tall(windowIds: [200, 300]))
+
+        upper.moveTo(top)
+        desktop.clearCalls()
+        arranged.arrange(around: main.snapshot())
+        XCTAssertFalse(desktop.reframeCalls.map(\.windowId).contains(lower.id), "the window is known to keep its size")
+    }
+
+    func testArrangeLeavesEveryWindowWhereItWasWhenTheFocusedWindowKeepsASizeSmallerThanItsSlot() {
+        let lower = create(StubWindow(id: 100, frame: bottom))
+        let main = create(StubWindow(id: 200, frame: middle))
+        let upper = create(StubWindow(id: 300, frame: top))
+        main.maximumSize = middle.size
+
+        arranged.arrange(around: main.snapshot())
+
+        XCTAssertEqual([main.frame, upper.frame, lower.frame], [middle, top, bottom])
+        XCTAssertNil(workspaces.arranged(in: 1))
+
+        desktop.clearCalls()
+        arranged.arrange(around: main.snapshot())
+        XCTAssertTrue(desktop.reframeCalls.isEmpty, "the window is known to keep its size")
+    }
+
+    func testAForgottenWindowLosesItsLearnedMinimumAndFixedSize() {
+        let fixed = create(StubWindow(id: 100, frame: bottom))
+        let main = create(StubWindow(id: 200, frame: middle))
+        let wide = create(StubWindow(id: 300, frame: top))
+        fixed.maximumSize = bottom.size
+        wide.minimumSize = CGSize(width: 1200, height: 0)
+        arranged.arrange(around: main.snapshot())
+        fixed.maximumSize = CGSize(width: CGFloat.infinity, height: .infinity)
+        wide.minimumSize = .zero
+        wide.moveTo(top)
+        desktop.clearCalls()
+
+        arranged.forget(fixed.id)
+        arranged.forget(wide.id)
+        arranged.arrange(around: main.snapshot())
+
+        XCTAssertEqual(desktop.reframeCalls, arrangeCalls([200, 300, 100], slots(of: [200, 300, 100])))
     }
 
     func testArrangeLeavesEveryWindowWhereItWasWhenTheMinimumsDoNotFit() {

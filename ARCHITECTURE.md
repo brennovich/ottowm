@@ -205,7 +205,7 @@ flowchart LR
 | `WindowEnrollment`            | Engine    | Enrolls a window announced before it was on screen, retrying the read for a moment.                                            |
 | `Navigation`                  | Engine    | Restores the focus after a change, and follows the user to the workspace they focused.                                         |
 | `FullScreenReturns`           | Engine    | Notices a window back from full screen on every event, and polls after a Space change.                                         |
-| `ArrangedWindows`             | Engine    | Arranges the current workspace, learns the minimum sizes windows keep, and turns resize, move and maximize into changes.       |
+| `ArrangedWindows`             | Engine    | Arranges the workspace, learns the minimum and fixed sizes windows keep, and turns resize, move and maximize into changes.     |
 | `Desktop`                     | Engine    | The protocol the engine moves, parks and focuses windows on one display through.                                               |
 | `WindowSystem`                | Engine    | The focused window, the on-screen window frames, and the tab count of a window. A scoped copy sees one display.                |
 | `Window`                      | Engine    | The window operations the desktop needs: snapshot, frames, moves, focus, tabs.                                                 |

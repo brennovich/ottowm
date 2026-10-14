@@ -57,4 +57,31 @@ final class WindowSystemTests: XCTestCase {
         XCTAssertFalse(system.showsAny([200]))
         XCTAssertEqual(system.frames(of: [100, 200]), [100: owned])
     }
+
+    func testReadsTheFramesOfTheWindowsInParallel() {
+        let windows = (1 ... 8).map { StubWindow(id: CGWindowID($0) * 100, frame: CGRect(x: CGFloat($0), y: 0, width: 100, height: 100)) }
+        let firstRead = DispatchSemaphore(value: 0)
+        firstRead.signal()
+        let anotherRead = DispatchSemaphore(value: 0)
+        for window in windows {
+            window.onReadFrame = {
+                if firstRead.wait(timeout: .now()) == .success {
+                    XCTAssertEqual(anotherRead.wait(timeout: .now() + 2), .success)
+                } else {
+                    anotherRead.signal()
+                }
+            }
+        }
+        let byId = Dictionary(uniqueKeysWithValues: windows.map { ($0.id, $0) })
+        let system = WindowSystem(
+            focusedWindow: OperationCache { nil },
+            onScreenWindows: OperationCache { [:] },
+            window: { byId[$0] },
+            roundTrips: roundTrips
+        )
+
+        let frames = system.readFrames(of: windows.map(\.id) + [999])
+
+        XCTAssertEqual(frames, Dictionary(uniqueKeysWithValues: windows.map { ($0.id, $0.frame) }))
+    }
 }

@@ -117,6 +117,7 @@ final class Engine {
             placement.remember(win)
             navigation.follow(win)
         case let .destroyed(windowId):
+            arranged.forget(windowId)
             if !placement.drop(windowId, reason: "destroyed") {
                 navigation.restore()
             }

@@ -14,6 +14,9 @@ final class ArrangedWindows {
     /// The smallest size each window kept when given a smaller slot. The AX API does not
     /// report a minimum size, so it is learned from the windows that refuse one.
     private var minimumSizes: [CGWindowID: CGSize] = [:]
+    /// The windows that kept a size smaller than their slot, as a fixed-size window does. They
+    /// are left out of an arrangement.
+    private var fixedSizeWindowIds: Set<CGWindowID> = []
 
     init(
         desktop: any Desktop,
@@ -40,25 +43,47 @@ final class ArrangedWindows {
             return
         }
 
-        let others = workspaces.windowIds(in: current).filter { $0 != focused.id && !placement.isParked($0) }
-        let tall = Tall(main: focused.id, others: windowSystem.frames(of: others))
+        let others = workspaces.windowIds(in: current)
+            .filter { $0 != focused.id && !placement.isParked($0) && !fixedSizeWindowIds.contains($0) }
+        var tall = Tall(main: focused.id, others: windowSystem.frames(of: others))
         log.info("arranging workspace \(current) tall: \(tall.windowIds)")
 
-        // Each pass that moves a window learns a minimum size, so a pass per window is enough.
+        // Each pass that moves a window learns a minimum size or a fixed size, so a pass per
+        // window is enough. A fixed-size window is put back when it is learned, so `tall` holds
+        // the windows a drop puts back.
         let workArea = desktop.workArea
         var placed: Tall?
         for _ in 0 ... tall.windowIds.count {
+            guard !fixedSizeWindowIds.contains(focused.id) else {
+                log.info("arrange dropped: id=\(focused.id) keeps its own size")
+                if placed != nil { restore(tall) }
+                return
+            }
+
             guard let fitted = tall.fitted(to: minimumSizes, within: workArea.filled, gap: workArea.spacing, floor: floor)
             else {
-                log.info("arrange dropped: the minimum sizes of the windows do not fit the screen")
-                if let placed { restore(placed) }
+                log.info("arrange dropped: the minimum sizes of the windows do not fit the screen: \(self.minimums(of: tall))")
+                if placed != nil { restore(tall) }
                 return
             }
 
             workspaces.arrange(fitted, in: current)
             if place(fitted, replacing: placed) { return }
             placed = fitted
+
+            let fixedSize = tall.windowIds.filter { $0 != focused.id && fixedSizeWindowIds.contains($0) }
+            guard !fixedSize.isEmpty else { continue }
+
+            restoreFrames(of: fixedSize)
+            tall = Tall(windowIds: tall.windowIds.filter { !fixedSize.contains($0) })
         }
+    }
+
+    /// Drops what arrange learned of the window's size. A window that comes back under the
+    /// same id after a destroy, as the Music player does, can come back at another size.
+    func forget(_ windowId: CGWindowID) {
+        minimumSizes[windowId] = nil
+        fixedSizeWindowIds.remove(windowId)
     }
 
     func resize(_ focused: WindowSnapshot, _ change: Resize.Change) -> Bool {
@@ -68,9 +93,11 @@ final class ArrangedWindows {
         }
     }
 
+    /// The column edge moves when the minimum width of a window that changes column needs it.
     func swap(_ focused: WindowSnapshot, _ direction: Direction) -> Bool {
         changeArrangement(of: focused, "swap \(direction.rawValue)") { tall, workArea in
-            tall.swapping(focused.id, direction, within: workArea.filled, gap: workArea.spacing)
+            guard let swapped = tall.swapping(focused.id, direction, within: workArea.filled, gap: workArea.spacing) else { return nil }
+            return swapped.fitted(to: minimumSizes, within: workArea.filled, gap: workArea.spacing, floor: floor) ?? swapped
         }
     }
 
@@ -110,8 +137,8 @@ final class ArrangedWindows {
     }
 
     /// Records the change and moves the windows whose slot changed. A change is dropped when a
-    /// slot is smaller than a known minimum size, and undone when a window keeps a size larger
-    /// than its new slot: the window would cover its neighbour.
+    /// slot is smaller than a known minimum size, and undone when a window does not take its
+    /// new slot: a larger window would cover its neighbour.
     /// - Returns: `false` when the window is not part of an intact arrangement, which leaves
     ///   the action to the window alone.
     private func changeArrangement(of focused: WindowSnapshot, _ action: String, _ change: (Tall, WorkArea) -> Tall?) -> Bool {
@@ -128,7 +155,10 @@ final class ArrangedWindows {
         }
 
         workspaces.arrange(changed, in: workspaces.current)
-        if place(changed, replacing: tall) { return true }
+        if place(changed, replacing: tall) {
+            log.info("\(action) in the arrangement \(focused.logDescription)")
+            return true
+        }
 
         log.info("\(action) undone")
         workspaces.arrange(tall, in: workspaces.current)
@@ -138,7 +168,11 @@ final class ArrangedWindows {
 
     private func restore(_ tall: Tall) {
         workspaces.arrange(nil, in: workspaces.current)
-        placement.reframe(tall.windowIds.compactMap { windowId in
+        restoreFrames(of: tall.windowIds)
+    }
+
+    private func restoreFrames(of windowIds: [CGWindowID]) {
+        placement.reframe(windowIds.compactMap { windowId in
             placement.originalFrame(of: windowId).map { FrameRequest(windowId: windowId, change: .restore($0)) }
         })
     }
@@ -151,21 +185,29 @@ final class ArrangedWindows {
         let requests = after.compactMap { windowId, slot in
             before[windowId] == slot ? nil : FrameRequest(windowId: windowId, change: .arrange(into: slot))
         }
-        return learnMinimumSizes(from: placement.reframe(requests), slots: Dictionary(uniqueKeysWithValues: after))
+        return learnSizes(from: placement.reframe(requests), slots: Dictionary(uniqueKeysWithValues: after))
     }
 
-    /// Records the size a moved window kept on each side where it is larger than its slot.
-    /// Only a window that was larger than its slot before the move is read: a read right after
-    /// a size write waits for the application's relayout, 10-30ms a window. The frame is read
-    /// from the window, not from the on-screen list: that list is read once per operation,
-    /// before the move.
+    /// Records a window that does not cover its slot as fixed-size, and the size a window
+    /// kept on each side where it is larger than its slot as its minimum. A fixed-size window
+    /// can be larger than its slot on one side and short of it on the other. Every moved
+    /// window is read. The frame is read from the window, not from the on-screen list: that
+    /// list is read once per operation, before the move.
     /// - Returns: whether every window took its slot.
-    private func learnMinimumSizes(from outcomes: [FrameOutcome], slots: [CGWindowID: CGRect]) -> Bool {
+    private func learnSizes(from outcomes: [FrameOutcome], slots: [CGWindowID: CGRect]) -> Bool {
+        let workArea = desktop.workArea
+        let moved = outcomes.compactMap { if case let .filled(windowId, _) = $0 { windowId } else { nil } }
+        let frames = windowSystem.readFrames(of: moved)
         var tookSlots = true
-        for case let .filled(windowId, from) in outcomes {
-            guard let slot = slots[windowId], sides(of: from, largerThan: slot) != .zero,
-                  let frame = windowSystem.frame(of: windowId)
-            else { continue }
+        for windowId in moved {
+            guard let slot = slots[windowId], let frame = frames[windowId] else { continue }
+
+            guard workArea.fills(frame.intersection(slot), slot) else {
+                fixedSizeWindowIds.insert(windowId)
+                log.info("id=\(windowId) keeps \(frame.width)x\(frame.height), short of its slot, left out of arrangements")
+                tookSlots = false
+                continue
+            }
 
             let kept = sides(of: frame, largerThan: slot)
             guard kept != .zero else { continue }
@@ -176,6 +218,12 @@ final class ArrangedWindows {
             tookSlots = false
         }
         return tookSlots
+    }
+
+    private func minimums(of tall: Tall) -> String {
+        tall.windowIds
+            .compactMap { windowId in minimumSizes[windowId].map { "id=\(windowId) \($0.width)x\($0.height)" } }
+            .joined(separator: ", ")
     }
 
     /// The width and height of `frame` where they exceed the slot's, else 0. 1pt of room is

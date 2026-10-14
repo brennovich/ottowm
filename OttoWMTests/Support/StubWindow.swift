@@ -14,9 +14,10 @@ final class StubWindow: Window {
     private(set) var frame: CGRect
     /// The smallest size the application accepts, as an app with a minimum window size does.
     var minimumSize: CGSize = .zero
+    /// The largest size the application accepts, as a fixed-size window does.
+    var maximumSize = CGSize(width: CGFloat.infinity, height: .infinity)
 
     private(set) var snapshotReadCount = 0
-    private(set) var frameReadCount = 0
     private(set) var positionSetCount = 0
     private(set) var sizeSetCount = 0
     private(set) var focusCount = 0
@@ -25,6 +26,7 @@ final class StubWindow: Window {
     private(set) var withoutAnimationsCount = 0
     private(set) var positionSetThread: Thread?
     var onSetPosition: (() -> Void)?
+    var onReadFrame: (() -> Void)?
 
     private static let lock = NSLock()
     private static var suspendedPids: Set<pid_t> = []
@@ -73,7 +75,7 @@ final class StubWindow: Window {
     }
 
     func movableFrame() -> CGRect? {
-        frameReadCount += 1
+        onReadFrame?()
         return isMinimized ? nil : frame
     }
 
@@ -93,7 +95,10 @@ final class StubWindow: Window {
     }
 
     func setSize(_ size: CGSize) {
-        frame.size = CGSize(width: max(size.width, minimumSize.width), height: max(size.height, minimumSize.height))
+        frame.size = CGSize(
+            width: min(max(size.width, minimumSize.width), maximumSize.width),
+            height: min(max(size.height, minimumSize.height), maximumSize.height)
+        )
         sizeSetCount += 1
         countAnimatedWrite()
     }
