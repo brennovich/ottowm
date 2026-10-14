@@ -16,6 +16,12 @@ final class Pagers {
         }
     }
 
+    var style = Config.PagerStyle.system {
+        didSet {
+            for pager in pagers { pager.style = style }
+        }
+    }
+
     /// `schedule` delays the check by 50ms: without the delay, the main queue runs a check between two window events of one
     /// workspace switch, and a switch between two workspaces that both cover the tab starts a restore and turns it back.
     init(
@@ -45,6 +51,7 @@ final class Pagers {
     func add(_ pager: Pager) {
         pager.requestCheck = { [weak self] in self?.scheduleCheck() }
         pager.secureInputChanged(secureInputIsActive)
+        pager.style = style
         pager.isEnabled = isEnabled
         pagers.append(pager)
     }

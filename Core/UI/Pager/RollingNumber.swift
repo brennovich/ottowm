@@ -47,6 +47,14 @@ final class RollingNumber {
         self.value = value
     }
 
+    func setColor(_ color: NSColor) {
+        CATransaction.withoutActions {
+            for text in [number, leavingNumber] {
+                text.foregroundColor = color.cgColor
+            }
+        }
+    }
+
     func roll(to value: Int) {
         // In a flipped layer tree a negative offset is above.
         let entryOffset = value > self.value ? -Self.distance : Self.distance

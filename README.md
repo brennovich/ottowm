@@ -226,6 +226,12 @@ hyper-5 = switch-to-workspace 5
     <td>Hide the tab in the bottom corner that shows the current workspace and covers the parked windows</td>
   </tr>
   <tr>
+    <td>pager-style&nbsp;=&nbsp;<code>S</code></td>
+    <td>Setting</td>
+    <td><code>system</code></td>
+    <td>Look of the pager tab: <code>system</code> uses the translucent macOS material, which follows the appearance and Reduce Transparency; <code>classic</code> is the opaque black tab</td>
+  </tr>
+  <tr>
     <td>spacing&nbsp;=&nbsp;<code>N</code></td>
     <td>Setting</td>
     <td><code>15</code></td>

@@ -46,6 +46,11 @@ final class Pager {
         desktop.startWatching { [weak self] event in self?.handle(event) }
     }
 
+    var style: Config.PagerStyle {
+        get { tab.style }
+        set { tab.style = newValue }
+    }
+
     var isRetracted: Bool { tab.isRetracted }
     var isCueShown: Bool { cue.isRevealed }
     var isCueRetracted: Bool { cue.isRetracted }

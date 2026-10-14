@@ -68,6 +68,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let apply = { [pagers] (config: Config) in
             pagers.isEnabled = config.showsPager
+            pagers.style = config.pagerStyle
             spacing = config.spacing
         }
         apply(config)

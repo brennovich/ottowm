@@ -1,9 +1,9 @@
 import Foundation
 
 enum ConfigFileParser {
-    private typealias Settings = (bindings: [KeyCombo: Binding], showsPager: Bool, spacing: CGFloat)
+    private typealias Settings = (bindings: [KeyCombo: Binding], showsPager: Bool, pagerStyle: Config.PagerStyle, spacing: CGFloat)
 
-    private static let defaults: Settings = (bindings: [:], showsPager: true, spacing: Config.defaultSpacing)
+    private static let defaults: Settings = (bindings: [:], showsPager: true, pagerStyle: .system, spacing: Config.defaultSpacing)
 
     static func parse(_ text: String) -> Result<Config, ConfigError> {
         text
@@ -21,7 +21,7 @@ enum ConfigFileParser {
                         .mapError { ConfigError(line: line.number, reason: $0) }
                 }
             }
-            .map { Config($0.bindings, showsPager: $0.showsPager, spacing: $0.spacing) }
+            .map { Config($0.bindings, showsPager: $0.showsPager, pagerStyle: $0.pagerStyle, spacing: $0.spacing) }
     }
 
     private static func parse(_ key: String, _ value: String, into settings: Settings) -> Result<Settings, ConfigError.Reason> {
@@ -31,6 +31,9 @@ enum ConfigFileParser {
         case "pager":
             guard value == "on" || value == "off" else { return .failure(.invalidPager(value)) }
             settings.showsPager = value == "on"
+        case "pager-style":
+            guard let style = Config.PagerStyle(rawValue: value) else { return .failure(.invalidPagerStyle(value)) }
+            settings.pagerStyle = style
         case "spacing":
             guard let spacing = Int(value), spacing >= 1 else { return .failure(.invalidSpacing(value)) }
             settings.spacing = CGFloat(spacing)

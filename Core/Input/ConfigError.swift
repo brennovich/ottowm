@@ -17,6 +17,7 @@ struct ConfigError: Error, Equatable, CustomStringConvertible {
         case invalidResize(String)
         case invalidLayout(String)
         case invalidPager(String)
+        case invalidPagerStyle(String)
         case invalidSpacing(String)
 
         var description: String {
@@ -36,6 +37,8 @@ struct ConfigError: Error, Equatable, CustomStringConvertible {
             case let .invalidLayout(value):
                 return "layout must be one of \(Layout.allCases.map(\.rawValue).joined(separator: ", ")), got \(value)"
             case let .invalidPager(value): return "pager must be on or off, got \(value)"
+            case let .invalidPagerStyle(value):
+                return "pager-style must be one of \(Config.PagerStyle.allCases.map(\.rawValue).joined(separator: ", ")), got \(value)"
             case let .invalidSpacing(value): return "spacing must be a number of points from 1, got \(value)"
             }
         }

@@ -66,6 +66,18 @@ final class PagersTests: XCTestCase {
         XCTAssertTrue(later.isEnabled)
     }
 
+    func testEveryPagerGetsTheStyleIncludingOneAddedLater() {
+        let first = makePager()
+        let later = makePager()
+        pagers.add(first)
+
+        pagers.style = .classic
+        pagers.add(later)
+
+        XCTAssertEqual(first.style, .classic)
+        XCTAssertEqual(later.style, .classic)
+    }
+
     func testEveryPagerGetsTheSecureInputFlagIncludingOneAddedLater() {
         let first = makePager()
         let later = makePager()

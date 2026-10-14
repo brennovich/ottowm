@@ -1,8 +1,7 @@
 import CoreGraphics
 
-/// The windows of an `arrange tall`: the first is the main window on the west side, the
-/// others share the column beside it, top to bottom. The main window takes `ratio` of the
-/// width left after the gap; each stack window takes its share of the height left after the gaps.
+/// The windows spatial representation of an `arrange tall`, arrangement in _main_ and _stack,
+/// inspired by `dwm` and `xMonad`.
 struct Tall: Codable, Equatable {
     static let defaultRatio: CGFloat = 0.6
 

@@ -24,6 +24,12 @@ final class PagerTests: XCTestCase {
         pager.requestCheck = { self.requestedChecks += 1 }
     }
 
+    func testTheStyleIsTheTabStyle() {
+        pager.style = .classic
+
+        XCTAssertEqual((views.first as? PagerTabView)?.style, .classic)
+    }
+
     func testDismissingAPagerThatIsNotShownIsDoneAtOnce() {
         var done = false
 

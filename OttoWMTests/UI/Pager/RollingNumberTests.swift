@@ -27,6 +27,10 @@ extension RollingNumber {
         texts.map { ($0.filters ?? []).compactMap { ($0 as? CIFilter)?.name } }
     }
 
+    var colors: [CGColor?] {
+        texts.map(\.foregroundColor)
+    }
+
     var rolling: [[String]] {
         texts.compactMap { $0.animationKeys() }
     }
@@ -69,6 +73,12 @@ final class RollingNumberTests: XCTestCase {
         for testCase in cases {
             XCTAssertEqual(RollingNumber.stub(blurs: testCase.blurs).filterNames, testCase.filterNames, testCase.name)
         }
+    }
+
+    func testSetColorColorsBothNumbers() {
+        number.setColor(.white)
+
+        XCTAssertEqual(number.colors, [NSColor.white.cgColor, NSColor.white.cgColor])
     }
 
     func testTheInitialValueIsShown() {

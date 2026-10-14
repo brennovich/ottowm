@@ -91,6 +91,62 @@ final class PagerTabViewTests: XCTestCase {
         }
     }
 
+    func testTheBadgeIsBlackWithAWhiteNumberOnlyInTheLightAppearance() {
+        let cases: [(appearance: NSAppearance.Name, badge: NSColor, digits: NSColor)] = [
+            (.darkAqua, .white, .black),
+            (.aqua, .black, .white),
+        ]
+
+        for testCase in cases {
+            let number = RollingNumber.stub()
+            let view = PagerTabView(number: number)
+
+            view.appearance = NSAppearance(named: testCase.appearance)
+
+            XCTAssertEqual(view.badgeLayer.backgroundColor, testCase.badge.cgColor, testCase.appearance.rawValue)
+            XCTAssertEqual(number.colors, [testCase.digits.cgColor, testCase.digits.cgColor], testCase.appearance.rawValue)
+        }
+    }
+
+    func testTheClassicStyleIsABlackTabWithAWhiteBadgeInEitherAppearance() {
+        let number = RollingNumber.stub()
+        let view = PagerTabView(number: number)
+        view.appearance = NSAppearance(named: .aqua)
+
+        view.style = .classic
+
+        XCTAssertEqual(view.shapeLayer.fillColor, NSColor.black.cgColor)
+        XCTAssertEqual(view.materialLayer?.isHidden, true)
+        XCTAssertEqual(view.badgeLayer.backgroundColor, NSColor.white.cgColor)
+        XCTAssertEqual(number.colors, [NSColor.black.cgColor, NSColor.black.cgColor])
+    }
+
+    func testSwitchingBackToTheSystemStyleShowsTheMaterialAgain() {
+        view.style = .classic
+
+        view.style = .system
+
+        XCTAssertNil(view.shapeLayer.fillColor)
+        XCTAssertEqual(view.materialLayer?.isHidden, false)
+    }
+
+    func testTheMaterialIsCutToTheTabAndMovesWithTheShapeOnceInAWindow() {
+        let window = NSWindow.offscreen(hosting: view)
+
+        window.displayIfNeeded()
+
+        withExtendedLifetime(window) {
+            XCTAssertTrue(view.materialLayer?.superlayer === view.shapeLayer)
+            XCTAssertEqual((view.materialLayer?.mask as? CAShapeLayer)?.path, TabShape.path(in: bounds))
+        }
+    }
+
+    func testClicksOnTheMaterialReachTheTab() {
+        withExtendedLifetime(NSWindow.offscreen(hosting: view)) {
+            XCTAssertTrue(view.hitTest(CGPoint(x: 40, y: 20)) === view)
+        }
+    }
+
     private func mouseEvent(
         _ type: NSEvent.EventType,
         flags: NSEvent.ModifierFlags = [],

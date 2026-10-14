@@ -73,6 +73,17 @@ final class ConfigFileParserTests: XCTestCase {
         }
     }
 
+    func testParsesThePagerStyleSetting() throws {
+        let cases: [(name: String, text: String, style: Config.PagerStyle)] = [
+            ("system without a pager-style line", "lopt-q = quit", .system),
+            ("classic by pager-style = classic", "pager-style = classic", .classic),
+        ]
+
+        for testCase in cases {
+            XCTAssertEqual(try ConfigFileParser.parse(testCase.text).get().pagerStyle, testCase.style, testCase.name)
+        }
+    }
+
     func testLineErrors() {
         assertErrors([
             (
@@ -99,6 +110,11 @@ final class ConfigFileParserTests: XCTestCase {
                 "a pager setting that is neither on nor off",
                 "lopt-q = quit\npager = maybe",
                 ConfigError(line: 2, reason: .invalidPager("maybe"))
+            ),
+            (
+                "an unknown pager style",
+                "pager-style = blue",
+                ConfigError(line: 1, reason: .invalidPagerStyle("blue"))
             ),
             (
                 "a spacing that is not a number",
