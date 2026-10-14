@@ -8,7 +8,6 @@ final class StatusWindow: NSPanel, StatusPanel {
     private let systemLabel = NSTextField(labelWithString: "")
     private let accessibility = StateView()
     private let hotkeys = StateView()
-    private let secureInput = StateView()
     private let displayLabel = NSTextField(labelWithString: "")
     private let configLabel = NSTextField(labelWithString: "")
     private let configErrorLabel = NSTextField(wrappingLabelWithString: "")
@@ -53,7 +52,6 @@ final class StatusWindow: NSPanel, StatusPanel {
         systemLabel.stringValue = report.system
         accessibility.set(healthy: report.accessibilityGranted, text: report.accessibilityGranted ? "Granted" : "Not granted")
         hotkeys.set(healthy: report.hotkeysListening, text: report.hotkeysListening ? "Listening" : "Not listening")
-        secureInput.set(healthy: !report.secureInputHeld, text: report.secureInputHeld ? "Held by another app" : "Free")
         setRow(of: settingsButton, hidden: report.accessibilityGranted)
         displayLabel.stringValue = report.displays
         configLabel.stringValue = report.configExists ? report.configPath : "Bundled defaults"
@@ -187,7 +185,6 @@ final class StatusWindow: NSPanel, StatusPanel {
             [Self.label("Accessibility"), accessibility],
             [NSGridCell.emptyContentView, settingsButton],
             [Self.label("Hotkeys"), hotkeys],
-            [Self.label("Secure input"), secureInput],
             [Self.label("Displays"), displayLabel],
             [Self.label("Config"), configLabel],
             [NSGridCell.emptyContentView, Self.row(revealButton, reloadButton, createButton)],

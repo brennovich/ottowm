@@ -35,7 +35,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         var spacing = config.spacing
         // No property: the watch retains the instance it runs on.
         let secureInput = SecureInput()
-        let status = status(secureInput: secureInput)
+        let status = status()
         let pagers = Pagers(
             startWatchingWindows: windowEvents.startWatching,
             windowFrames: { onScreenWindowFrames(level: Int(CGWindowLevelForKey(.normalWindow))) },
@@ -116,11 +116,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return (desktop, workspaces, engine)
     }
 
-    private func status(secureInput: SecureInput) -> Status {
+    private func status() -> Status {
         Status(
             sources: StatusSources(
                 hotkeysListening: { [self] in bindings?.isRunning ?? false },
-                secureInputHeld: secureInput.isActive,
                 displays: {
                     Screens.system.all()
                         .map { "\(Int($0.fullFrame.width))×\(Int($0.fullFrame.height))" }

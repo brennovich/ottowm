@@ -28,7 +28,6 @@ final class StatusTests: XCTestCase {
                 return self.trusted
             },
             hotkeysListening: { true },
-            secureInputHeld: { false },
             displays: { "2560×1440" },
             configPath: { self.configPath },
             configExists: { _ in self.configExists },

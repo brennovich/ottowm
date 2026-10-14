@@ -16,7 +16,6 @@ struct StatusSources {
     }
     var isTrusted: () -> Bool = { AXIsProcessTrusted() }
     var hotkeysListening: () -> Bool
-    var secureInputHeld: () -> Bool
     var displays: () -> String
     var configPath: () -> URL = { ConfigFile.path() }
     var configExists: (URL) -> Bool = { FileManager.default.fileExists(atPath: $0.path) }

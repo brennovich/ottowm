@@ -4,7 +4,6 @@ final class StatusReportTests: XCTestCase {
     private func makeReport(
         configExists: Bool = true,
         configError: ConfigError? = nil,
-        secureInputHeld: Bool = false,
         launchAtLogin: LoginItem.State = .off,
         values: [Bool] = [true, true]
     ) -> StatusReport {
@@ -14,7 +13,6 @@ final class StatusReportTests: XCTestCase {
             system: "macOS 26.6.2 · Apple Silicon",
             accessibilityGranted: true,
             hotkeysListening: false,
-            secureInputHeld: secureInputHeld,
             displays: "2560×1440",
             configPath: "~/.config/ottowm/ottowm",
             configExists: configExists,
@@ -47,13 +45,12 @@ final class StatusReportTests: XCTestCase {
     }
 
     func testTheTextListsEveryRowWithItsState() {
-        XCTAssertEqual(makeReport(secureInputHeld: true, launchAtLogin: .needsApproval).text, """
+        XCTAssertEqual(makeReport(launchAtLogin: .needsApproval).text, """
         OttoWM 0.0.14 (1287)
         macOS 26.6.2 · Apple Silicon
 
         Accessibility: granted
         Hotkeys: not listening
-        Secure input: held by another app
         Displays: 2560×1440
 
         Config: ~/.config/ottowm/ottowm

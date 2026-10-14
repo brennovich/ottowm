@@ -113,7 +113,6 @@ final class Status {
             system: sources.system(),
             accessibilityGranted: sources.isTrusted(),
             hotkeysListening: sources.hotkeysListening(),
-            secureInputHeld: sources.secureInputHeld(),
             displays: sources.displays(),
             configPath: (path.path as NSString).abbreviatingWithTildeInPath,
             configExists: sources.configExists(path),
