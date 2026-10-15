@@ -77,6 +77,7 @@ final class ArrangedWindows {
             restoreFrames(of: fixedSize)
             tall = Tall(windowIds: tall.windowIds.filter { !fixedSize.contains($0) })
         }
+        log.info("arrange left with a window short of its slot after a pass per window: \(tall.windowIds)")
     }
 
     /// Drops what arrange learned of the window's size. A window that comes back under the
