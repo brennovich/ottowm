@@ -1,8 +1,8 @@
 import CoreGraphics
 import Foundation
 
-/// The screen corners that get a rounded mask. The mask in the corner of the pager tab draws black over the black tab, so
-/// every corner gets one whichever corner the tab is in.
+/// The screen corners that get a rounded mask. The mask in the corner of the pager tab is drawn over the tab, so every
+/// corner gets one whichever corner the tab is in.
 enum ScreenCorner: CaseIterable {
     case topLeft, topRight, bottomLeft, bottomRight
 

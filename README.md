@@ -199,7 +199,7 @@ hyper-5 = switch-to-workspace 5
     <td>arrange&nbsp;<code>L</code></td>
     <td>Action</td>
     <td>&nbsp;⌥⌃ + T</td>
-    <td>Arrange the windows of the workspace once in layout <code>L</code>: <code>tall</code> puts the focused window on the left and stacks the others beside it.</td>
+    <td>Arrange the windows of the workspace once in layout <code>L</code>: <code>tall</code> puts the focused window on main and other on stacks beside it (e.g. like `dwm`)</td>
   </tr>
   <tr>
     <td>quit</td>

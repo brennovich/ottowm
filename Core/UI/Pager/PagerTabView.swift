@@ -15,7 +15,10 @@ final class PagerTabView: SlidingView {
     let bodyLayer: CALayer
     let shapeLayer: CAShapeLayer
     let badgeLayer: CALayer
+    /// A subview, so AppKit keeps it in step with the appearance. Its layer is moved under the shape layer so it
+    /// takes the slide, the press and the squeeze.
     private let material = NSVisualEffectView()
+    var materialLayer: CALayer? { material.layer }
     var style = Config.PagerStyle.system {
         didSet { applyStyle() }
     }
@@ -36,10 +39,7 @@ final class PagerTabView: SlidingView {
         applyStyle()
     }
 
-    var materialLayer: CALayer? { material.layer }
-
-    /// The material is a subview so AppKit keeps it in step with the appearance, but its layer is moved under the
-    /// shape layer so it takes the slide, the press and the squeeze. The subview would otherwise take the clicks.
+    /// The material subview would otherwise take the clicks.
     override func hitTest(_ point: NSPoint) -> NSView? {
         super.hitTest(point) == nil ? nil : self
     }

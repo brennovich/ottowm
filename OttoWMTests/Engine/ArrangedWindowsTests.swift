@@ -21,7 +21,6 @@ final class ArrangedWindowsTests: EngineTestCase {
         zip(windowIds, slots).map { FrameRequest(windowId: $0, change: .arrange(into: $1)) }
     }
 
-    @discardableResult
     private func arrangeThree() -> (main: StubWindow, upper: StubWindow, lower: StubWindow) {
         let lower = create(StubWindow(id: 100, frame: bottom))
         let main = create(StubWindow(id: 200, frame: middle))
@@ -33,7 +32,7 @@ final class ArrangedWindowsTests: EngineTestCase {
     }
 
     func testArrangeSendsTheFocusedWindowToMainAndTheOthersToTheStackTopToBottom() {
-        let lower = create(StubWindow(id: 100, frame: bottom))
+        create(StubWindow(id: 100, frame: bottom))
         let main = create(StubWindow(id: 200, frame: middle))
         create(StubWindow(id: 300, frame: top))
         desktop.clearCalls()
@@ -41,7 +40,7 @@ final class ArrangedWindowsTests: EngineTestCase {
         arranged.arrange(around: main.snapshot())
 
         XCTAssertEqual(desktop.reframeCalls, arrangeCalls([200, 300, 100], slots(of: [200, 300, 100])))
-        XCTAssertEqual(workspaces.arranged(in: 1), Tall(windowIds: [200, 300, lower.id]))
+        XCTAssertEqual(workspaces.arranged(in: 1), Tall(windowIds: [200, 300, 100]))
     }
 
     func testWindowsNotOnScreenOrParkedAreLeftOut() {
