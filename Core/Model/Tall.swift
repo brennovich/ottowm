@@ -1,7 +1,6 @@
 import CoreGraphics
 
-/// The windows spatial representation of an `arrange tall`, arrangement in _main_ and _stack,
-/// inspired by `dwm` and `xMonad`.
+/// The slots of an `arrange tall`: a main window beside a stack column, as in dwm and xmonad.
 struct Tall: Codable, Equatable {
     static let defaultRatio: CGFloat = 0.6
 
@@ -82,10 +81,10 @@ struct Tall: Codable, Equatable {
         let stack = Array(windowIds.dropFirst())
 
         let width = bounds.width - gap
-        let mainMinimum = minimum(of: windowIds[0], minimums, floor: floor).width
+        let mainMinimum = minimum(of: windowIds[0], minimums, floor: floor)
         let stackMinimum = stack.map { minimum(of: $0, minimums, floor: floor).width }.max() ?? floor
-        guard mainMinimum + stackMinimum <= width else { return nil }
-        let mainWidth = min(max(width * ratio, mainMinimum), width - stackMinimum)
+        guard mainMinimum.width + stackMinimum <= width, mainMinimum.height <= bounds.height else { return nil }
+        let mainWidth = min(max(width * ratio, mainMinimum.width), width - stackMinimum)
 
         let height = stackHeight(within: bounds, gap: gap)
         let floors = stack.map { minimum(of: $0, minimums, floor: floor).height }

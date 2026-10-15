@@ -120,6 +120,7 @@ final class TallTests: XCTestCase {
             ("heights over the column", three, [2: height(200), 3: height(200)], nil),
             ("a height leaving the others under the floor", three, [2: height(270)], nil),
             ("widths over the screen", three, [1: width(200), 2: width(200)], nil),
+            ("a main height over the screen", three, [1: height(301)], nil),
         ]
 
         for (name, tall, minimums, expected) in cases {
